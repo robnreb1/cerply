@@ -1,0 +1,33 @@
+
+openapi: 3.0.3
+info: { title: Cerply Core API, version: "0.1.0" }
+paths:
+  /health:
+    get: { summary: Liveness }
+  /ingest/policy:
+    post:
+      summary: Register a policy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { name: { type: string }, text: { type: string } }
+      responses: { '201': { description: Created } }
+  /rde/decompose:
+    post:
+      summary: Decompose policy text
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { policyId: { type: string }, text: { type: string } }
+      responses: { '200': { description: OK } }
+  /evidence/coverage:
+    get:
+      summary: Evidence coverage
+      parameters: [ { in: query, name: scopeId, schema: { type: string } } ]
+      responses: { '200': { description: OK } }

@@ -1,0 +1,35 @@
+# OS
+.DS_Store
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+npm-debug.log*
+pnpm-lock.yaml
+.yarn/*
+.pnp.*
+.npm/
+coverage/
+dist/
+.cache/
+.next/
+out/
+.eslintcache
+
+# Web/Next
+.next/
+# API TS build
+api/dist/
+
+# Python
+**/__pycache__/
+**/.pytest_cache/
+ai/.venv/
+*.pyc
+
+# Docker/compose
+minio-data/
