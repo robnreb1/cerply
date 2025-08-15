@@ -1,0 +1,31 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  api-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps (api)
+        working-directory: api
+        run: npm install --no-audit --no-fund
+      - name: Typecheck (api)
+        working-directory: api
+        run: npm run typecheck
+
+  web-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install deps (web)
+        working-directory: web
+        run: npm install --no-audit --no-fund
+      - name: Typecheck (web)
+        working-directory: web
+        run: npm run typecheck

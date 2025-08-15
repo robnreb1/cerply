@@ -1,23 +1,59 @@
-
 'use client';
-import { useEffect, useState } from 'react';
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
-export default function PilotAnalytics(){
-  const [kpi, setKpi] = useState<any>(null);
-  useEffect(()=>{ (async()=>{ const r=await fetch(`${apiUrl}/analytics/pilot`); if(r.ok) setKpi(await r.json()); })(); },[]);
-  if(!kpi) return <main style={{padding:24}}>Loading…</main>;
+import { useEffect, useState } from 'react';
+
+type PilotResponse = {
+  completion21d?: number;
+  spacedCoverage?: number;
+  lift?: { d7?: number; d30?: number };
+  [k: string]: any;
+};
+
+export default function AnalyticsPilot() {
+  const [data, setData] = useState<PilotResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
+    fetch(`${api}/analytics/pilot`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch((e) => setError(String(e)));
+  }, []);
+
   return (
-    <main style={{padding:24}}>
-      <h2>Analytics (pilot)</h2>
-      <ul>
-        <li>Users: {kpi.users}</li>
-        <li>Attempts: {kpi.attempts}</li>
-        <li>Completion (21d): {kpi.completion21d}%</li>
-        <li>Lift D0/D7/D30: {kpi.liftD0D7D30.d0}% -> {kpi.liftD0D7D30.d7}% -> {kpi.liftD0D7D30.d30}%</li>
-        <li>Spaced-return coverage: {kpi.spacedReturnCoverage}%</li>
-        <li>Trust-label impact: {kpi.trustLabelImpact.cerply}% / {kpi.trustLabelImpact.trainer}% / {kpi.trustLabelImpact.unlabelled}%</li>
-      </ul>
+    <main className="p-6 space-y-4">
+      <h1 className="text-xl font-semibold">Analytics (pilot)</h1>
+
+      {error && <p className="text-red-600">Error: {error}</p>}
+      {!data ? (
+        <p>Loading…</p>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card label="Completion (21 days)" value={fmtPct(data.completion21d)} />
+          <Card label="Spaced-return coverage" value={fmtPct(data.spacedCoverage)} />
+          <Card label="Knowledge lift D0 → D7" value={fmtNum(data.lift?.d7)} />
+          <Card label="Knowledge lift D0 → D30" value={fmtNum(data.lift?.d30)} />
+        </div>
+      )}
     </main>
   );
+}
+
+function Card({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border p-4 shadow-sm">
+      <div className="text-xs uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="text-2xl font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function fmtPct(n?: number) {
+  if (typeof n !== 'number') return '—';
+  return `${Math.round(n * 100)}%`;
+}
+function fmtNum(n?: number) {
+  if (typeof n !== 'number') return '—';
+  return `${Math.round(n * 100) / 100}`;
 }
