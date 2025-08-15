@@ -1,5 +1,5 @@
 name: CI
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   api-typecheck:
@@ -7,8 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+        with: { node-version: 20 }
       - name: Install deps (api)
         working-directory: api
         run: npm install --no-audit --no-fund
@@ -21,8 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+        with: { node-version: 20 }
       - name: Install deps (web)
         working-directory: web
         run: npm install --no-audit --no-fund
