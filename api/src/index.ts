@@ -1,18 +1,18 @@
 
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import { registerHealth } from './routes/health.js';
-import { registerIngest } from './routes/ingest.js';
-import { registerRDE } from './routes/rde.js';
-import { registerEvidence } from './routes/evidence.js';
+import { registerCurator } from './routes/curator';
+import { registerLearn } from './routes/learn';
+import { registerAnalytics } from './routes/analytics';
 
 const app = Fastify({ logger: true });
 await app.register(cors, { origin: true });
 
-registerHealth(app);
-registerIngest(app);
-registerRDE(app);
-registerEvidence(app);
+app.get('/health', async()=>({ok:true}));
+
+registerCurator(app);
+registerLearn(app);
+registerAnalytics(app);
 
 const port = Number(process.env.PORT || 8080);
 const host = '0.0.0.0';

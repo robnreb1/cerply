@@ -4,13 +4,17 @@ export default function Home() {
   return (
     <main style={{ padding: 24, fontFamily: 'system-ui' }}>
       <h1>Cerply</h1>
-      <p><b>Turns complex rules into simple habits — and proves it.</b></p>
+      <p><b>Turn information into knowledge.</b></p>
       <ul>
-        <li>Upload a policy → draft Proof Plan</li>
-        <li>Create a 4-week reinforcement sprint</li>
-        <li>See Evidence Coverage Score</li>
+        <li>Curate lessons (Draft -> QA -> Publish) with trust labels</li>
+        <li>Adaptive micro-quizzes with safe variants</li>
+        <li>Analytics pilot dashboard</li>
       </ul>
-      <p><Link href="/decompose">Try the Decomposer →</Link></p>
+      <p>
+        <Link href="/curator">Curator Dashboard -></Link><br/>
+        <Link href="/learn">Learn -></Link><br/>
+        <Link href="/analytics/pilot">Analytics (pilot) -></Link>
+      </p>
     </main>
   );
 }

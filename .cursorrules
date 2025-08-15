@@ -1,25 +1,17 @@
 
-# Cerply – Cursor Rules (v2)
+# Cerply – v4.1 (Curator + Adaptive + Trust Labels + Analytics)
 
-## Mission
-MVP that: (1) decomposes policies into Proof Plans, (2) generates a 4-week micro-learning sprint draft, (3) tracks Evidence Coverage Score (ECS), (4) supports partner multi-tenant basics.
+Core line: Turn information into knowledge.
 
-## Tech
-- Monorepo: `api` (Fastify+TS), `web` (Next.js 14), `shared` (TS types), `ai` (FastAPI).
-- DB: Postgres available via docker-compose; in-memory for v2 demo.
-- Cache: Redis available; not required for v2 demo.
-- Object store: MinIO available; not required for v2 demo.
-- Tests: vitest for TS.
-- Security: PII-minimal; tenant_id placeholder in payloads.
+Feature flags (env):
+- FF_CURATOR_DASHBOARD_V1
+- FF_ADAPTIVE_ENGINE_V1
+- FF_TRUST_LABELS_V1
 
-## Cursor behavior
-- Implement small routes first; write 1–2 tests for utils.
-- Keep prompts in `ai/prompts` not inline.
-- Follow OpenAPI shapes where possible; return structured errors.
-
-## Definition of Done (v2)
-- `/health` green for api/ai.
-- POST `/ingest/policy` stores in-memory policy.
-- POST `/rde/decompose` proxies to AI service and returns a draft Proof Plan JSON.
-- GET `/evidence/coverage?scopeId=...` returns ECS using util.
-- Web page at `/decompose` lets user paste policy text and see JSON response.
+DoD:
+- RFC present
+- DB migrations for artefacts/objectives/items/reviews/attempts/spaced/QA groups
+- API routes: /curator, /learn/next, /analytics/pilot
+- Adaptive service + unit tests (next PR)
+- Web pages: /curator, /curator/items/[id], /learn, /analytics/pilot
+- Demo seed lights up UI
