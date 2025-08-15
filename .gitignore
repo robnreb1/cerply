@@ -1,0 +1,30 @@
+# Node / JS
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+*.tsbuildinfo
+
+# Next.js
+.next/
+out/
+.next/cache
+
+# Python
+ai/.venv/
+ai/__pycache__/
+*.pyc
+
+# Env & logs
+.env
+.env.local
+.env.*.local
+*.log
+logs/
+coverage/
+
+# OS
+.DS_Store
