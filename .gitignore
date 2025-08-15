@@ -1,35 +1,30 @@
-# OS
-.DS_Store
-
-# Env & secrets
-.env
-.env.*
-!.env.example
-
-# Node
+# Node / JS
 node_modules/
+**/node_modules/
 npm-debug.log*
-pnpm-lock.yaml
-.yarn/*
-.pnp.*
-.npm/
-coverage/
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 dist/
-.cache/
+*.tsbuildinfo
+
+# Next.js
 .next/
 out/
-.eslintcache
-
-# Web/Next
-.next/
-# API TS build
-api/dist/
+.next/cache
 
 # Python
-**/__pycache__/
-**/.pytest_cache/
 ai/.venv/
+ai/__pycache__/
 *.pyc
 
-# Docker/compose
-minio-data/
+# Env & logs
+.env
+.env.local
+.env.*.local
+*.log
+logs/
+coverage/
+
+# OS
+.DS_Store
