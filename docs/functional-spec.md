@@ -70,3 +70,59 @@ Legend: ✅ Done · 🚧 In progress · ❌ Not started
 - Build & ship: EAS builds; TestFlight & Internal app sharing; basic CI.
 
 - 2025-08-17: Learner MVP (`/learn`) live; Curate UI live; global brand tokens integrated (layout/header); coverage route stub added; spec updated; mobile apps added to backlog.
+
+---
+
+## Patch — Cerply v2.3 (product-led refinements)
+
+**Feature flags:** `ff_quality_bar_v1`, `ff_cost_guardrails_v1`, `ff_group_challenges_v1`, `ff_connectors_basic_v1`, `ff_certified_sla_status_v1`, `ff_marketplace_ledgers_v1`, `ff_benchmarks_optin_v1`
+
+_No rewrites. Keep Curator Dashboard, Adaptive Engine, Trust Labels, Insights. Add the following behind flags._
+
+### 1) Quality Bar & Auto-prune (🚧, flag: ff_quality_bar_v1)
+- Curator “Quality” tab: readability, stem length, banned patterns (double negatives, “all/none”), answer-key conflicts, explainer length (20–60 words), source-snippet present.
+- Item Quality Score (0–100) from above + early live stats (first-try-correct %, time-to-answer).
+- Auto-prune job (weekly): archive/rework items <60 score & low discrimination; suggest replacements.
+- Metrics: avg item score; % items <60; curator edit time (target ≤4 min/item).
+- **Schema deltas:** `ItemMeta{readability,bannedFlags[],qualityScore}`, `ItemStats{firstTryCorrect,avgTimeMs,discrimination}`.
+
+### 2) Cost Guardrails & Model Routing (🚧, flag: ff_cost_guardrails_v1)
+- Budget modes `GEN_BUDGET=low|std|certified` route model/temperature/tokens.
+- Caching/batching; retry with cheaper model on failure.
+- Cost ledger: `generationCostCents`, `modelUsed`, `reviewTimeSec`.
+- **Schema:** `GenLedger{itemId,modelUsed,costCents,createdAt}`.
+
+### 3) D2C Ingestion Connectors (MVP) (🚧, flag: ff_connectors_basic_v1)
+- Routes: `POST /import/url`, `POST /import/file`, `POST /import/transcript`.
+- Templates: “Book/Podcast”, “Meeting/Town-hall”, “Policy Update”.
+
+### 4) Group Sharing & Challenges (🚧, flag: ff_group_challenges_v1)
+- Create Group, share link/QR; leaderboard by completion & lift.
+- Challenge: pick a pack, 14-day window default, optional prize text.
+- Privacy: aggregates by default.
+- **Schema:** `Group`, `GroupMember`, `Challenge`, `ChallengeAttempt`.
+
+### 5) Cerply Certified — Update SLA & Status (🚧, flag: ff_certified_sla_status_v1)
+- Track `sourceVersion`, `lastChangeDetectedAt`, `publishedUpdateAt`, SLA clock (time-to-update).
+- Public status snippet (JSON) for site/app.
+- **Schema:** `CertifiedPack{sourceVersion,lastChangeDetectedAt,publishedUpdateAt,ttuDays}`.
+
+### 6) Marketplace & Guild Ledgers (lean) (🚧, flag: ff_marketplace_ledgers_v1)
+- Pack pricing: free/paid; 3-pack bundles.
+- Payouts: 8% authors, 2% validators of Certified revenue; monthly ledger.
+- **Schema:** `PackPrice`, `Order`, `PayoutLedger{packId,recipientId,amountCents,period}`.
+
+### 7) Benchmarks Opt-in (data flywheel) (🚧, flag: ff_benchmarks_optin_v1)
+- Tenant toggle `benchmarksOptIn`; k-anon threshold enforced.
+- Analytics shows sector medians only when thresholds met.
+- **Schema:** `TenantSettings{benchmarksOptIn,sector}`.
+
+### Acceptance criteria (added)
+- Avg curator edit time ≤4 min/item; Item Quality Score ≥70 median.
+- Gen cost/100 items tracked; downward trend in “low” mode.
+- Group challenge DAU lift ≥10% over control (participants).
+- Certified time-to-update visible; median ≤14 days on triggered changes.
+- Benchmarks only display when k-anon threshold satisfied.
+
+### Telemetry (added)
+- `item.qualityComputed`, `gen.costLogged`, `group.challengeCreated|Joined|Completed`, `certified.slaClockStarted|Stopped`, `benchmarks.optInChanged`.

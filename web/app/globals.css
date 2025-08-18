@@ -2,162 +2,110 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ================================
-   Cerply Brand Tokens (CSS vars)
-   ================================ */
+/* ---------- Brand Tokens (CSS variables) ---------- */
+:root{
+  /* Core brand palette */
+  --brand-coral-700:#C7463C;--brand-coral-600:#E35A4A;--brand-coral-500:#F06B54;--brand-coral-400:#F58A76;--brand-coral-50:#FFF3F0;
+
+  /* Neutrals */
+  --brand-bg:#FAF7F2;--brand-surface:#FFFFFF;--brand-surface2:#F3EFE9;--brand-border:#E6E0D9;--brand-ink:#1E1B16;--brand-subtle:#5F574D;
+
+  /* Domain accents */
+  --domain-ima:#F06B54;--domain-rc:#2F908F;--domain-qpp:#5A60B4;
+
+  /* Roles / misc */
+  --on-primary:#FFFFFF;
+  --brand-scrim:rgba(30,27,22,0.55);
+
+  /* Shape & shadow */
+  --radius-8:8px;--radius-12:12px;--radius-16:16px;
+  --shadow-sm:0 1px 2px rgba(14,10,8,0.06);
+  --shadow-md:0 8px 24px rgba(14,10,8,0.10);
+  --shadow-lg:0 16px 40px rgba(14,10,8,0.14);
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --brand-bg:#12100E;--brand-surface:#1B1916;--brand-surface2:#23201C;
+    --brand-border:#3A352F;--brand-ink:#F7F3EE;--brand-subtle:#C9C1B7;
+  }
+}
+
+/* ---------- Base ---------- */
 @layer base {
-  :root {
-    /* Primaries (coral) */
-    --brand-coral-700:#C7463C;
-    --brand-coral-600:#E35A4A;
-    --brand-coral-500:#F06B54; /* default primary */
-    --brand-coral-400:#F58A76;
-    --brand-coral-50:#FFF3F0;
-
-    /* Neutrals (warm) */
-    --brand-bg:#FAF7F2;            /* Linen 25 */
-    --brand-surface:#FFFFFF;       /* Porcelain 0 */
-    --brand-surface2:#F3EFE9;      /* Oat 50 */
-    --brand-border:#E6E0D9;        /* Oat 150 */
-    --brand-ink:#1E1B16;           /* Warm Ink 900 */
-    --brand-subtle:#5F574D;        /* Taupe 600 */
-
-    /* Domain accents */
-    --domain-ima:#F06B54;          /* coral */
-    --domain-rc:#2F908F;           /* teal 500 */
-    --domain-qpp:#5A60B4;          /* indigo 500 */
-
-    /* Role aliases (semantic) */
-    --role-primary: var(--brand-coral-500);
-    --role-onPrimary: #FFFFFF;
-    --role-secondary: var(--brand-ink);
-    --role-onSecondary: #FFFFFF;
-    --role-success: #2E7D32;
-    --role-warning: #D2942C;
-    --role-error: #D14D57;
-    --role-info: #2563EB;
-
-    /* Gradients & overlay */
-    --gradient-coral-linear: linear-gradient(135deg, #F06B54 0%, #F58A76 55%, #FDE0D8 100%);
-    --gradient-coral-radial: radial-gradient(60% 60% at 30% 30%, rgba(240,107,84,0.20) 0%, rgba(240,107,84,0) 60%);
-    --brand-scrim: rgba(30,27,22,0.55);
-
-    /* Shape, shadow, motion */
-    --radius-8:8px; --radius-12:12px; --radius-16:16px;
-    --shadow-sm:0 1px 2px rgba(14,10,8,0.06);
-    --shadow-md:0 8px 24px rgba(14,10,8,0.10);
-    --shadow-lg:0 16px 40px rgba(14,10,8,0.14);
-    --motion-hover:120ms;
-    --motion-card:320ms;
-    --easing-standard:cubic-bezier(0.4,0,0.2,1);
-  }
-
-  /* Auto dark scheme */
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --brand-bg:#12100E;
-      --brand-surface:#1B1916;
-      --brand-surface2:#23201C;
-      --brand-border:#3A352F;
-      --brand-ink:#F7F3EE;
-      --brand-subtle:#C9C1B7;
-    }
-  }
-
-  /* Domain swapper (sets primary) */
-  [data-domain="ima"] { --role-primary: var(--domain-ima); }
-  [data-domain="rc"]  { --role-primary: var(--domain-rc); }
-  [data-domain="qpp"] { --role-primary: var(--domain-qpp); }
-
-  /* Density hooks (optional) */
-  [data-density="comfortable"] { --radius: var(--radius-12); }
-  [data-density="compact"]     { --radius: var(--radius-8);  }
-  :root { --radius: var(--radius-12); } /* default */
-
-  /* Base element styling driven by tokens */
-  * { border-color: var(--brand-border); }
-  html, body { height: 100%; }
+  html, body { @apply h-full; }
   body {
     background: var(--brand-bg);
     color: var(--brand-ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  a { @apply underline underline-offset-2; color: var(--domain-rc); }
+  * { @apply border-border; }
 }
 
-/* Component-y utilities that use the tokens */
+/* ---------- Components ---------- */
 @layer components {
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 text-sm font-medium px-4 py-2 border;
-    color: var(--role-onPrimary);
-    background: var(--role-primary);
-    border-color: transparent;
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
-    transition: transform var(--motion-hover) var(--easing-standard), opacity var(--motion-hover) var(--easing-standard);
-  }
-  .btn:hover { opacity: .95; transform: translateY(-1px); }
-  .btn:active { transform: translateY(0); }
-
-  .btn-secondary {
-    color: var(--role-onSecondary);
-    background: var(--role-secondary);
-    border-color: transparent;
-  }
+  .container { @apply max-w-5xl mx-auto px-6; }
 
   .card {
+    @apply p-6;
     background: var(--brand-surface);
     border: 1px solid var(--brand-border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-16);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium px-4 py-2 transition;
+    border-radius: var(--radius-12);
+    background: var(--brand-coral-500);
+    color: var(--on-primary);
     box-shadow: var(--shadow-md);
   }
+  .btn:hover { filter: brightness(0.97); }
+  .btn:active { transform: translateY(1px); }
+  .btn.secondary { background: var(--brand-ink); color: #fff; }
 
-  .hero-gradient {
-    background: var(--gradient-coral-linear);
-    position: relative;
+  .badge {
+    @apply inline-flex items-center gap-2 text-sm px-2 py-1 rounded-full;
+    background: var(--brand-surface2);
+    border: 1px solid var(--brand-border);
+    color: var(--brand-subtle);
   }
-  .hero-gradient::after {
-    content: ""; position: absolute; inset: 0; background: var(--brand-scrim);
-  }
+
+  /* your earlier alias */
+  button.brand { @apply btn; }
 }
 
-/* ================================
-   Global typography & form base
-   ================================ */
-@layer base {
-  h1 { @apply text-3xl md:text-4xl font-semibold tracking-tight; }
-  h2 { @apply text-2xl md:text-3xl font-semibold tracking-tight; }
-  h3 { @apply text-xl md:text-2xl font-semibold; }
-  p  { @apply leading-7; }
-
-  a {
-    color: var(--role-primary);
-    text-decoration: underline;
-    text-decoration-color: transparent;
-    transition: text-decoration-color var(--motion-hover) var(--easing-standard);
-  }
-  a:hover { text-decoration-color: currentColor; }
-
-  input, textarea, select {
-    @apply w-full text-[15px];
-    background: var(--brand-surface);
-    color: var(--brand-ink);
-    border: 1px solid var(--brand-border);
-    border-radius: var(--radius);
-    padding: 0.5rem 0.75rem;
-    outline: none;
-    transition: box-shadow var(--motion-hover) var(--easing-standard), border-color var(--motion-hover) var(--easing-standard);
-  }
-  input:focus, textarea:focus, select:focus {
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--role-primary) 25%, transparent);
-    border-color: var(--role-primary);
-  }
-
-  label { @apply text-sm text-brand-subtle; }
-  hr { border-color: var(--brand-border); }
+/* ---------- Utilities ---------- */
+@layer utilities {
+  .tap-target { @apply select-none touch-manipulation; }
 }
 @layer components {
+  /* Brand button using utilities only */
   button.brand {
-    @apply btn; /* inherits from our .btn tokenized class */
+    @apply inline-flex items-center justify-center gap-2
+           rounded-12 px-4 py-2 text-sm font-medium
+           text-[var(--on-primary)]
+           bg-[var(--brand-coral-500)]
+           shadow-md
+           hover:bg-[var(--brand-coral-600)]
+           focus:outline-none focus:ring-2 focus:ring-[var(--brand-coral-400)]
+           disabled:opacity-60 disabled:pointer-events-none;
+  }
+}
+
+@layer components {
+  /* Brand button using Tailwind utilities only */
+  button.brand {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-12 px-4 py-2 text-sm font-medium
+           text-[var(--on-primary)]
+           bg-[var(--brand-coral-500)]
+           shadow-[var(--shadow-md)]
+           hover:bg-[var(--brand-coral-600)]
+           focus:outline-none focus:ring-2 focus:ring-[var(--brand-coral-400)]
+           disabled:opacity-60 disabled:pointer-events-none;
   }
 }

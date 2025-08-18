@@ -1,11 +1,10 @@
 export default function Home() {
   return (
-    <main style={{ padding: 24 }}>
-      <h1>Cerply</h1>
-      <ul>
-        <li><a href="/curate">Curate (generate MCQs)</a></li>
-        <li><a href="/learn">Learn (adaptive loop)</a></li>
-      </ul>
+    <main className="min-h-dvh grid place-items-center bg-[var(--brand-bg)] text-[var(--brand-ink)]">
+      <div className="p-8 rounded-2xl shadow-md bg-[var(--brand-surface)]">
+        <h1 className="text-2xl font-semibold">Cerply is running ✅</h1>
+        <p className="mt-2 text-sm text-[var(--brand-subtle)]">If you can see this, Next.js is OK.</p>
+      </div>
     </main>
   );
 }
