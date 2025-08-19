@@ -162,7 +162,8 @@ async function extractTextFromBytes(name: string, bytes: Buffer): Promise<string
     try {
       // Use createRequire to avoid debug mode issues in pdf-parse
       const { createRequire } = await import('module');
-      const require = createRequire(import.meta.url);
+      // CJS-friendly require shim (avoids import.meta)
+const require: NodeRequire = eval('require');
       const pdfParse = require('pdf-parse');
       const result = await pdfParse(bytes);
       return (result?.text ?? '') as string;
