@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: cerply-api
+    env: node
+    rootDir: .
+    plan: free
+
+    # Build the API workspace only (no monorepo gymnastics in Render UI needed)
+    buildCommand: cd api && npm ci && npm run build
+    # If you don't have api/package-lock.json yet, use this instead:
+    # buildCommand: cd api && npm install && npm run build
+
+    # Start the compiled server (PORT is provided by Render)
+    startCommand: cd api && npm start
+
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
