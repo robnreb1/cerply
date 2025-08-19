@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import crypto from 'node:crypto';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
+
 // --- Dev boot guard (survives tsx HMR via globalThis) ---
 type BootState = { booted: boolean; routes: Set<string> };
 const BOOT: BootState = (globalThis as any).__cerply ?? ((globalThis as any).__cerply = { booted: false, routes: new Set<string>() });
@@ -53,6 +54,24 @@ function safePost(url: string, handler: Handler) {
   } catch (e: any) {
     if (e?.code === 'FST_ERR_DUPLICATED_ROUTE') {
       app.log.warn({ method: 'POST', url }, 'duplicate route ignored');
+      return;
+    }
+    throw e;
+  }
+}
+
+function safeOptions(url: string, handler: Handler) {
+  const key = `OPTIONS ${url}`;
+  if (__routes.has(key)) {
+    app.log.warn({ method: 'OPTIONS', url }, 'route already exists (global registry, skipping)');
+    return;
+  }
+  __routes.add(key);
+  try {
+    app.options(url, handler);
+  } catch (e: any) {
+    if (e?.code === 'FST_ERR_DUPLICATED_ROUTE') {
+      app.log.warn({ method: 'OPTIONS', url }, 'duplicate route ignored');
       return;
     }
     throw e;
@@ -170,7 +189,58 @@ function mkItem(stem: string, idx: number): MCQItem {
     correctIndex: 0,
   };
 }
+async function extractTextFromBytes(name: string, bytes: Buffer): Promise<string> {
+  const head = bytes.subarray(0, 4).toString('utf8');
 
+  // .docx (zip with "PK")
+  if (/\.docx$/i.test(name) || head.startsWith('PK')) {
+    const mammothMod = await import('mammoth');
+    const { value } = await mammothMod.extractRawText({ buffer: bytes });
+    return value;
+  }
+
+  // .pdf
+  if (head.startsWith('%PDF')) {
+    try {
+      // Use createRequire to avoid debug mode issues in pdf-parse
+      const { createRequire } = await import('module');
+      const require = createRequire(import.meta.url);
+      const pdfParse = require('pdf-parse');
+      const result = await pdfParse(bytes);
+      return (result?.text ?? '') as string;
+    } catch (error) {
+      console.error('PDF parsing error:', error);
+      // If PDF parsing fails, provide a helpful error message
+      if (error && typeof error === 'object' && 'message' in error) {
+        const msg = (error as any).message || '';
+        if (msg.includes('Invalid PDF structure')) {
+          return '[Error: File appears to be corrupted or not a valid PDF. Please check the file and try again.]';
+        }
+        return `[Error: Unable to extract text from PDF - ${msg}]`;
+      }
+      return '[Error: Unable to extract text from PDF - Unknown error]';
+    }
+  }
+
+  // fallback: assume utf-8 text
+  return bytes.toString('utf8');
+}
+
+function chunkPlaintext(text: string): string[] {
+  const clean = text
+    .replace(/\r/g, '')
+    .replace(/\t/g, ' ')
+    .replace(/[ \u00A0]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  // paragraph-ish chunks
+  return clean
+    .split(/\n{2,}/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .slice(0, 200);
+}
 // ---------------------
 // Evidence Coverage (stub)
 // ---------------------
@@ -302,12 +372,73 @@ safePost('/import/url', async (req: FastifyRequest, reply: FastifyReply) => {
   return { scopeId: body.scopeId ?? 'demo', template: body.template ?? 'policy', chunks };
 });
 
+// Preflight for /import/file
+safeOptions('/import/file', async (_req: FastifyRequest, reply: FastifyReply) => reply.code(204).send());
+
+// Robust file import: accepts text or base64; PDFs/DOCX return a stub chunk
 safePost('/import/file', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: 'ff_connectors_basic_v1 disabled' });
-  const body = (req as any).body as { name?: string; content?: string; scopeId?: string; template?: string };
-  if (!body?.name || !body?.content) return reply.code(400).send({ error: 'Missing name or content' });
-  const paras = body.content.split(/\n{2,}/).map(s => s.trim()).filter(Boolean).slice(0, 10);
-  return { scopeId: body.scopeId ?? 'demo', template: body.template ?? 'policy', chunks: paras };
+
+  const b = ((req as any).body ?? {}) as {
+    name?: string;
+    content?: string;          // plain text (.txt, .md)
+    contentBase64?: string;    // binary (.docx, .pdf) or any base64 text
+    mime?: string;
+    scopeId?: string;
+    template?: string;
+  };
+
+  const name = (b.name ?? '').toString().trim();
+  const scopeId = (b.scopeId ?? 'demo').toString();
+  const template = (b.template ?? 'policy').toString();
+  const content = typeof b.content === 'string' ? b.content : '';
+  const contentBase64 = typeof b.contentBase64 === 'string' ? b.contentBase64 : '';
+
+  if (!name || (!content && !contentBase64)) {
+    (req as any).log?.warn?.({ bodyKeys: Object.keys(b || {}) }, 'import/file missing content');
+    return reply.code(400).send({ error: 'Missing name or content' });
+  }
+
+  // Heuristic: treat .pdf/.docx (or PDFs/ZIPs by magic) as binary and skip deep parsing
+  const magic = (() => {
+    try {
+      if (contentBase64) return Buffer.from(contentBase64.slice(0, 16), 'base64').toString('utf8');
+    } catch { /* ignore */ }
+    return content.slice(0, 4);
+  })();
+  const isBinary =
+    /\.(pdf|docx)$/i.test(name) ||
+    magic.startsWith('%PDF') ||
+    magic.startsWith('PK');
+
+  try {
+    let text = '';
+    if (content && content.trim().length > 0) {
+      text = content;
+    } else if (contentBase64) {
+      if (isBinary) {
+        const bytes = Buffer.from(contentBase64, 'base64');
+        text = await extractTextFromBytes(name, bytes);
+      } else {
+        text = Buffer.from(contentBase64, 'base64').toString('utf8');
+      }
+    }
+
+    const normalized = text.replace(/\r\n/g, '\n').trim();
+    if (!normalized) {
+      return reply.code(400).send({ error: 'Content empty after decoding' });
+    }
+    
+    const chunks = chunkPlaintext(normalized);
+    if (chunks.length === 0) {
+      return reply.send({ scopeId, template, chunks: [normalized.slice(0, 500)] });
+    }
+
+    return reply.send({ scopeId, template, chunks });
+  } catch (e: any) {
+    (req as any).log?.error?.({ err: e }, 'import/file failure');
+    return reply.code(500).send({ error: e?.message || 'import failed' });
+  }
 });
 
 safePost('/import/transcript', async (req: FastifyRequest, reply: FastifyReply) => {

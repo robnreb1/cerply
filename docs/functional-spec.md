@@ -1,128 +1,93 @@
-_Last reconciled: 2025-08-17_
-Legend: ✅ Done · 🚧 In progress · ❌ Not started
-- Local dev: Web `http://localhost:3000`, API `http://localhost:8080`, AI `http://localhost:8090`
-- Dev command: `npm run dev` (spawns `web` and `api`)
-- GET `/health` — ping
-- POST `/ingest/policy` — ingest a policy (in-memory store)
-- POST `/rde/decompose` — decompose requirements
-- GET `/evidence/coverage` and `/api/evidence/coverage` — ✅ **Stub implemented** (fixed data; persistence TBD).
-- POST `/api/items/generate`
-  - **Request** (`GenerateItemsReq`):
-    - `chunks: string[]` (≥1 non-empty)
-    - `count_objectives: number` (1..20)
-    - `items_per_objective: number` (1..10)
-  - **Response** (`GenerateItemsResp`):
-    - `items: MCQItem[]`
-  - **Validation**: Zod schema `GenerateItemsReqSchema` and error shape `{ error: { code, message, details? } }`.
-- Replace in-memory policy store with Postgres.
-- Tables:
-  - `policies(id uuid pk, scope_id text, title text, body text, created_at timestamptz default now())`
-  - `evidence_nodes(id uuid pk, scope_id text, kind text, payload jsonb, created_at timestamptz)`
-  - `evidence_edges(id uuid pk, src uuid fk, dst uuid fk, kind text, payload jsonb)`
-- Migrations with `drizzle` or `knex`.
-- Compute ECS from DB; expose from `/evidence/coverage?scopeId=...`.
-- Add `/evidence/export` — zipped JSON bundle (nodes, edges, policies, computed ECS snapshot).
+# Cerply — Functional Spec (Master)
 
-## 5) Web (Next.js) — 🚧
-- ✅ **Curate UI** `/curate`: paste chunks → MCQs.
-- ✅ **Learner flow** `/learn` (adaptive practice MVP).
-- 🚧 **Brand tokens + theme rollout** across pages (layout + header done; continue applying).
-- ❌ **ECS summary/gaps** card from `/evidence/coverage?scopeId=demo`.
-## 6) Reporting & analytics — ❌
-- Per-user quiz performance (streak, mastery per objective).
-- Team reporting rollups (org > team > user).
+_Last reconciled: 2025-08-19_
 
-## 7) Non-functional — 🚧
-- Structured logging.
-- Error envelope consistency across API.
-- Port collisions playbook (kill 3000/8080 pids).
-- Basic vitest already present.
+## 0) Status key
+✅ Done · 🚧 In progress · ❌ Not started · 🧪 Behind feature flag
 
-## 8) Open decisions
-- Choice of SQL tool (Drizzle vs Knex).
-- Evidence graph schema tweaks (kinds, payload shapes).
+## 1) API (Fastify) — ✅
+- Health:
+  - GET `/api/health` ✅
+  - GET `/health` ✅ (alias; prefer `/api/health`)
+- Evidence coverage (stubbed, stable envelope):  
+  - GET `/evidence/coverage?scopeId=…` ✅  
+  - GET `/api/evidence/coverage?scopeId=…` ✅
+- Item generation (MVP):
+  - POST `/api/items/generate` ✅
+    - req: `{ chunks: string[], count_objectives?: number, items_per_objective?: number }`
+    - res: `{ items: MCQItem[], objectives: Objective[] }`
+- Learn session (MVP):
+  - POST `/learn/next` ✅
+  - POST `/learn/submit` ✅
+- Connectors (🧪 `ff_connectors_basic_v1`):
+  - OPTIONS `/import/file` (CORS preflight) ✅
+  - POST `/import/url` �� (stub extraction; returns chunks)
+  - POST `/import/file` 🧪 (text or base64; .pdf/.docx stubs chunk safely)
+  - POST `/import/transcript` 🧪 (line-batched chunks)
+- Quality Bar (🧪 `ff_quality_bar_v1`):
+  - POST `/curator/quality/compute` 🧪 (adds `meta.readability`, `meta.bannedFlags`, `meta.qualityScore`)
+- Certified SLA status (🧪 `ff_certified_sla_status_v1`):
+  - GET `/certified/status?packId=…` 🧪
+- Marketplace/Guild (🧪 `ff_marketplace_ledgers_v1`):
+  - GET `/marketplace/ledger/summary` 🧪
+- Group sharing & challenges (🧪 `ff_group_challenges_v1`):
+  - POST `/groups` 🧪
+  - POST `/challenges` 🧪
+  - GET `/challenges/:id/leaderboard` 🧪
 
-## 9) Change log
-- 2025-08-17: Learner flow working end-to-end (UI + /learn API).
-- 2025-08-17: Created master spec, documented `/api/items/generate` contract.
+### 1.1 API Data Types (MVP)
+- `MCQItem { id, stem, options[4], correctIndex }`
+- `Objective { id, title, items: MCQItem[] }`
+- (Quality meta, flagged) `ItemMeta { readability?, bannedFlags[], qualityScore?, sourceSnippet? }`
+- (Stats, flagged) `ItemStats { firstTryCorrect?, avgTimeMs?, discrimination? }`
 
-- 2025-08-17: Learn page skeleton; fixed TypeScript phase bug.
+## 2) Feature flags — ✅
+- `ff_connectors_basic_v1` (import/url|file|transcript, preflight) — **ON in dev**
+- `ff_quality_bar_v1` (quality compute) — **ON in dev**
+- `ff_cost_guardrails_v1` (ledger stubs on generate) — optional
+- `ff_group_challenges_v1`, `ff_certified_sla_status_v1`, `ff_marketplace_ledgers_v1`, `ff_benchmarks_optin_v1` — default OFF
 
-- ✅ POST `/learn/next` → `{ sessionId, item }`
-- ✅ POST `/learn/submit` → `{ correct, correctIndex, explainer }`
+## 3) Web (Next.js) — 🚧
+- ✅ `/curate`  
+  - **Source tab**: paste text + file/url/transcript (when flag on), chunk & save  
+  - **Generate tab**: calls `/api/items/generate`, renders MCQs  
+  - **Quality tab** (flag on): calls `/curator/quality/compute`
+- ✅ `/learn` (adaptive practice loop MVP)
+- ✅ `/style` (brand tokens playground)
+- ❌ Coverage card fed by `/evidence/coverage` (simple dashboard)
 
-- 2025-08-17: Learn API online; manual cURL flow verified (next → submit → next).
+## 4) Brand & UI System — ✅
+- Tailwind configured with brand CSS variables (coral + warm neutrals), radii (8/12/16), shadows (sm/md/lg).  
+- Global tokens in `globals.css`; `BrandHeader` placeholder present.
 
-- 2025-08-17: Added evidence coverage stub (+ /api alias); /learn MVP wired; curate page working.
+## 5) Non-functional — 🚧
+- ✅ CORS enabled; structured logs from Fastify.
+- ✅ Idempotent route registration (safeGet/safePost/safeOptions) to survive `tsx` HMR.
+- ✅ Port-collision playbook documented (3000/8080).
+- 🚧 Error envelope consistency across all routes.
 
-- ✅ Design system tokens + Tailwind mapping integrated (Light/Dark, domain accents, focus ring).
+## 6) Data/Persistence — ❌
+- Replace in-memory with Postgres for: policies/evidence, sessions, connectors imports, ledgers, groups/challenges.
 
-- ✅ Health: `GET /health`
-- ✅ MCQ generator: `POST /api/items/generate`
-- ✅ Learning loop: `POST /learn/next`, `POST /learn/submit`
-- ✅ Evidence coverage (stub): `GET /evidence/coverage` and `GET /api/evidence/coverage`
+## 7) Reporting & analytics — ❌
+- Per-user quiz performance; team/org rollups.
+- Benchmarks (🧪 k-anon) gated by tenant toggle.
 
-- Choose approach: **Expo (React Native)** preferred for token reuse; alt: **Capacitor** (web shell).
-- Theming: port brand tokens → RN (StyleSheet/TCSS), ensure color roles, radius, shadows mapped.
-- Auth: same backend/session model as web.
-- Learn loop: offline queue for `/learn/submit` with retry; minimal local storage for streaks.
-- Notifications: push reminders for spaced practice; deep-links to specific objectives.
-- Build & ship: EAS builds; TestFlight & Internal app sharing; basic CI.
+## 8) Backlog (top)
+1. **DB layer** (Drizzle vs Knex) + migrations.  
+2. Persist imported sources & chunks; associate to scopeId.  
+3. `/evidence/coverage` UI card (web).  
+4. Quality Bar UI polish (score breakdown, filters).  
+5. Cost guardrails routing & caching (when model integration added).  
+6. iOS/Android app shells (React Native/Expo) — tracked.  
+7. Marketplace & payouts (flag → persistence).  
 
-- 2025-08-17: Learner MVP (`/learn`) live; Curate UI live; global brand tokens integrated (layout/header); coverage route stub added; spec updated; mobile apps added to backlog.
+## 9) Acceptance criteria
+- Curator edit ≤ 4 min/item; median item quality ≥ 70 (when flag on).
+- Import supports: text, base64 (`.pdf/.docx` stub), transcript batching.
+- Learn loop: submit/next cycle works; correctness feedback present.
+- Style page renders brand tokens; AA on primary/on-primary.
 
----
-
-## Patch — Cerply v2.3 (product-led refinements)
-
-**Feature flags:** `ff_quality_bar_v1`, `ff_cost_guardrails_v1`, `ff_group_challenges_v1`, `ff_connectors_basic_v1`, `ff_certified_sla_status_v1`, `ff_marketplace_ledgers_v1`, `ff_benchmarks_optin_v1`
-
-_No rewrites. Keep Curator Dashboard, Adaptive Engine, Trust Labels, Insights. Add the following behind flags._
-
-### 1) Quality Bar & Auto-prune (🚧, flag: ff_quality_bar_v1)
-- Curator “Quality” tab: readability, stem length, banned patterns (double negatives, “all/none”), answer-key conflicts, explainer length (20–60 words), source-snippet present.
-- Item Quality Score (0–100) from above + early live stats (first-try-correct %, time-to-answer).
-- Auto-prune job (weekly): archive/rework items <60 score & low discrimination; suggest replacements.
-- Metrics: avg item score; % items <60; curator edit time (target ≤4 min/item).
-- **Schema deltas:** `ItemMeta{readability,bannedFlags[],qualityScore}`, `ItemStats{firstTryCorrect,avgTimeMs,discrimination}`.
-
-### 2) Cost Guardrails & Model Routing (🚧, flag: ff_cost_guardrails_v1)
-- Budget modes `GEN_BUDGET=low|std|certified` route model/temperature/tokens.
-- Caching/batching; retry with cheaper model on failure.
-- Cost ledger: `generationCostCents`, `modelUsed`, `reviewTimeSec`.
-- **Schema:** `GenLedger{itemId,modelUsed,costCents,createdAt}`.
-
-### 3) D2C Ingestion Connectors (MVP) (🚧, flag: ff_connectors_basic_v1)
-- Routes: `POST /import/url`, `POST /import/file`, `POST /import/transcript`.
-- Templates: “Book/Podcast”, “Meeting/Town-hall”, “Policy Update”.
-
-### 4) Group Sharing & Challenges (🚧, flag: ff_group_challenges_v1)
-- Create Group, share link/QR; leaderboard by completion & lift.
-- Challenge: pick a pack, 14-day window default, optional prize text.
-- Privacy: aggregates by default.
-- **Schema:** `Group`, `GroupMember`, `Challenge`, `ChallengeAttempt`.
-
-### 5) Cerply Certified — Update SLA & Status (🚧, flag: ff_certified_sla_status_v1)
-- Track `sourceVersion`, `lastChangeDetectedAt`, `publishedUpdateAt`, SLA clock (time-to-update).
-- Public status snippet (JSON) for site/app.
-- **Schema:** `CertifiedPack{sourceVersion,lastChangeDetectedAt,publishedUpdateAt,ttuDays}`.
-
-### 6) Marketplace & Guild Ledgers (lean) (🚧, flag: ff_marketplace_ledgers_v1)
-- Pack pricing: free/paid; 3-pack bundles.
-- Payouts: 8% authors, 2% validators of Certified revenue; monthly ledger.
-- **Schema:** `PackPrice`, `Order`, `PayoutLedger{packId,recipientId,amountCents,period}`.
-
-### 7) Benchmarks Opt-in (data flywheel) (🚧, flag: ff_benchmarks_optin_v1)
-- Tenant toggle `benchmarksOptIn`; k-anon threshold enforced.
-- Analytics shows sector medians only when thresholds met.
-- **Schema:** `TenantSettings{benchmarksOptIn,sector}`.
-
-### Acceptance criteria (added)
-- Avg curator edit time ≤4 min/item; Item Quality Score ≥70 median.
-- Gen cost/100 items tracked; downward trend in “low” mode.
-- Group challenge DAU lift ≥10% over control (participants).
-- Certified time-to-update visible; median ≤14 days on triggered changes.
-- Benchmarks only display when k-anon threshold satisfied.
-
-### Telemetry (added)
-- `item.qualityComputed`, `gen.costLogged`, `group.challengeCreated|Joined|Completed`, `certified.slaClockStarted|Stopped`, `benchmarks.optInChanged`.
+## 10) Change log
+- **2025-08-19**: Added feature-flagged routes (connectors, quality, certified, marketplace, groups), OPTIONS preflight, brand tokens page; spec reconciled to v2.3.
+- **2025-08-17**: Initial spec + items generate + learn MVP.
