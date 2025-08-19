@@ -34,6 +34,9 @@ _Last reconciled: 2025-08-19_
   - POST `/groups` 🧪
   - POST `/challenges` 🧪
   - GET `/challenges/:id/leaderboard` 🧪
+- Prompt Library (🧪 `ff_prompts_lib_v1`):
+  - GET `/api/prompts` 🧪 (list all prompts)
+  - GET `/api/prompts/:id` 🧪 (get prompt details)
 
 ### 1.1 API Data Types (MVP)
 - `MCQItem { id, stem, options[4], correctIndex }`
@@ -45,7 +48,7 @@ _Last reconciled: 2025-08-19_
 - `ff_connectors_basic_v1` (import/url|file|transcript, preflight) — **ON in dev**
 - `ff_quality_bar_v1` (quality compute) — **ON in dev**
 - `ff_cost_guardrails_v1` (ledger stubs on generate) — optional
-- `ff_group_challenges_v1`, `ff_certified_sla_status_v1`, `ff_marketplace_ledgers_v1`, `ff_benchmarks_optin_v1` — default OFF
+- `ff_group_challenges_v1`, `ff_certified_sla_status_v1`, `ff_marketplace_ledgers_v1`, `ff_benchmarks_optin_v1`, `ff_prompts_lib_v1` — default OFF
 
 ## 3) Web (Next.js) — 🚧
 - ✅ `/curate`  
@@ -55,6 +58,7 @@ _Last reconciled: 2025-08-19_
 - ✅ `/learn` (adaptive practice loop MVP)
 - ✅ `/style` (brand tokens playground)
 - ✅ Coverage card fed by `/evidence/coverage` (simple dashboard)
+- ✅ `/prompts` (prompt library browser)
 
 ## 4) Brand & UI System — ✅
 - Tailwind configured with brand CSS variables (coral + warm neutrals), radii (8/12/16), shadows (sm/md/lg).  
@@ -90,5 +94,6 @@ _Last reconciled: 2025-08-19_
 
 ## 10) Change log
 - **2025-08-19**: Added feature-flagged routes (connectors, quality, certified, marketplace, groups), OPTIONS preflight, brand tokens page; spec reconciled to v2.3.
+- **2025-08-19**: Added prompt library system with auto-indexing, API endpoints, and web UI; spec reconciled to v2.5.
 - **2025-08-19**: Added Evidence Coverage UI at /coverage with summary KPIs and gaps, smoke test script, updated package scripts; spec reconciled to v2.4.
 - **2025-08-17**: Initial spec + items generate + learn MVP.

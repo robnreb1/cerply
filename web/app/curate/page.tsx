@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { QualityPanel } from '../../components/QualityPanel';
 
 type MCQItem = {
   id: string;
@@ -12,7 +13,7 @@ type Objective = { id: string; title: string; items: MCQItem[] };
 type ImportResp = { scopeId: string; template: string; chunks: string[] };
 type GenerateResp = { items: MCQItem[]; objectives: Objective[] };
 type QualityMeta = { readability?: number; bannedFlags?: string[]; qualityScore?: number; sourceSnippet?: string };
-type MCQItemAugmented = MCQItem & { meta?: QualityMeta };
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8080';
 
@@ -22,6 +23,9 @@ function clsx(...xs: Array<string | false | null | undefined>) {
 
 export default function CuratePage() {
   const [tab, setTab] = useState<'source' | 'generate' | 'quality'>('source');
+  
+  // Check if quality bar feature is enabled
+  const qualityBarEnabled = process.env.NEXT_PUBLIC_FF_QUALITY_BAR_V1 === 'true';
 
   // Source/import state
   const [text, setText] = useState('');
@@ -36,10 +40,7 @@ export default function CuratePage() {
   const [genErr, setGenErr] = useState<string | null>(null);
   const [genData, setGenData] = useState<GenerateResp | null>(null);
 
-  // Quality state
-  const [qualitying, setQualitying] = useState(false);
-  const [qualityErr, setQualityErr] = useState<string | null>(null);
-  const [qualityItems, setQualityItems] = useState<MCQItemAugmented[] | null>(null);
+
 
   const chunkPreview = useMemo(() => (importData?.chunks ?? []).slice(0, 10), [importData]);
 
@@ -172,28 +173,7 @@ export default function CuratePage() {
     }
   }
 
-  async function computeQuality() {
-    setQualityErr(null);
-    setQualitying(true);
-    try {
-      if (!genData?.items?.length) throw new Error('Generate items first.');
-      const res = await fetch(`${API_BASE}/curator/quality/compute`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ items: genData.items }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error?.message || j?.error || res.statusText);
-      }
-      const j = (await res.json()) as { items: MCQItemAugmented[] };
-      setQualityItems(j.items);
-    } catch (e: any) {
-      setQualityErr(e?.message ?? 'Quality check failed');
-    } finally {
-      setQualitying(false);
-    }
-  }
+
 
   return (
     <main className="max-w-5xl mx-auto p-6 space-y-6">
@@ -212,12 +192,14 @@ export default function CuratePage() {
           >
             Generate
           </button>
+                  {qualityBarEnabled && (
           <button
             className={clsx('btn', tab === 'quality' && 'bg-[var(--brand-coral-500)] text-white')}
             onClick={() => setTab('quality')}
           >
             Quality
           </button>
+        )}
         </nav>
       </header>
 
@@ -321,39 +303,8 @@ export default function CuratePage() {
         </section>
       )}
 
-      {tab === 'quality' && (
-        <section className="card space-y-4">
-          <h2 className="text-lg font-medium">Quality</h2>
-          <div className="flex items-center gap-3">
-            <button className="btn" onClick={computeQuality} disabled={qualitying || !genData?.items?.length}>
-              {qualitying ? 'Scoring…' : 'Compute Quality'}
-            </button>
-            {qualityErr && <span className="text-[var(--role-color-error,#D14D57)]">{qualityErr}</span>}
-          </div>
-          {qualityItems ? (
-            <div className="space-y-3">
-              {qualityItems.map((it) => (
-                <div key={it.id} className="border border-[var(--brand-border)] rounded-md p-3 bg-[var(--brand-surface)]">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium">{it.stem}</div>
-                    <div className="text-sm">
-                      <span className="px-2 py-0.5 rounded-full border" title="Quality score">
-                        QS: {it.meta?.qualityScore ?? '—'}
-                      </span>
-                    </div>
-                  </div>
-                  {it.meta?.bannedFlags?.length ? (
-                    <div className="text-sm mt-1">Flags: {it.meta.bannedFlags.join(', ')}</div>
-                  ) : (
-                    <div className="text-sm mt-1 text-[var(--brand-subtle)]">No flags</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-[var(--brand-subtle)]">Run quality to see readability, flags, and score.</p>
-          )}
-        </section>
+      {tab === 'quality' && qualityBarEnabled && (
+        <QualityPanel items={genData?.items || []} />
       )}
     </main>
   );
