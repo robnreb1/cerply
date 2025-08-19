@@ -1,0 +1,24 @@
+{
+  "routes": [
+    "GET /__routes",
+    "GET /api/evidence/coverage",
+    "GET /api/health",
+    "GET /certified/status",
+    "GET /challenges/:id/leaderboard",
+    "GET /evidence/coverage",
+    "GET /flags",
+    "GET /health",
+    "GET /marketplace/ledger/summary",
+    "OPTIONS /import/file",
+    "POST /api/items/generate",
+    "POST /challenges",
+    "POST /curator/quality/compute",
+    "POST /groups",
+    "POST /import/file",
+    "POST /import/transcript",
+    "POST /import/url",
+    "POST /learn/next",
+    "POST /learn/submit"
+  ],
+  "ts": "2025-08-19T05:50:36.699Z"
+}

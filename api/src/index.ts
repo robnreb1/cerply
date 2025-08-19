@@ -4,79 +4,14 @@ import crypto from 'node:crypto';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
 
-// --- Dev boot guard (survives tsx HMR via globalThis) ---
-type BootState = { booted: boolean; routes: Set<string> };
-const BOOT: BootState = (globalThis as any).__cerply ?? ((globalThis as any).__cerply = { booted: false, routes: new Set<string>() });
-
 // Run everything inside an async IIFE so we can use await at top-level safely
 (async () => {
-  if (BOOT.booted) {
-    console.log('[api] dev-watch: already booted; skipping duplicate registration');
-    return;
-  }
-  BOOT.booted = true;
 
   // --- App bootstrap ---
 const app = Fastify({ logger: true });
 await app.register(cors, { origin: true });
 
-/** Global registry to make route registration idempotent across dev re-evals */
-const __routes = BOOT.routes;
 
-// --- Safe route registration helpers (avoid duplicates under dev watch) ---
-type Handler = (req: FastifyRequest, reply: FastifyReply) => any;
-function safeGet(url: string, handler: Handler) {
-  const key = `GET ${url}`;
-  if (__routes.has(key)) {
-    app.log.warn({ method: 'GET', url }, 'route already exists (global registry, skipping)');
-    return;
-  }
-  __routes.add(key);
-  try {
-    app.get(url, handler);
-  } catch (e: any) {
-    if (e?.code === 'FST_ERR_DUPLICATED_ROUTE') {
-      app.log.warn({ method: 'GET', url }, 'duplicate route ignored');
-      return;
-    }
-    throw e;
-  }
-}
-function safePost(url: string, handler: Handler) {
-  const key = `POST ${url}`;
-  if (__routes.has(key)) {
-    app.log.warn({ method: 'POST', url }, 'route already exists (global registry, skipping)');
-    return;
-  }
-  __routes.add(key);
-  try {
-    app.post(url, handler);
-  } catch (e: any) {
-    if (e?.code === 'FST_ERR_DUPLICATED_ROUTE') {
-      app.log.warn({ method: 'POST', url }, 'duplicate route ignored');
-      return;
-    }
-    throw e;
-  }
-}
-
-function safeOptions(url: string, handler: Handler) {
-  const key = `OPTIONS ${url}`;
-  if (__routes.has(key)) {
-    app.log.warn({ method: 'OPTIONS', url }, 'route already exists (global registry, skipping)');
-    return;
-  }
-  __routes.add(key);
-  try {
-    app.options(url, handler);
-  } catch (e: any) {
-    if (e?.code === 'FST_ERR_DUPLICATED_ROUTE') {
-      app.log.warn({ method: 'OPTIONS', url }, 'duplicate route ignored');
-      return;
-    }
-    throw e;
-  }
-}
 
 // --- Feature flags (env-driven; off by default) ---
 const FLAGS = {
@@ -87,15 +22,38 @@ const FLAGS = {
   ff_certified_sla_status_v1: process.env.FF_CERTIFIED_SLA_STATUS_V1 === 'true',
   ff_marketplace_ledgers_v1: process.env.FF_MARKETPLACE_LEDGERS_V1 === 'true',
   ff_benchmarks_optin_v1: process.env.FF_BENCHMARKS_OPTIN_V1 === 'true',
+  ff_prompts_lib_v1: process.env.FF_PROMPTS_LIB_V1 === 'true',
 };
 
-safeGet('/api/health', async (_req: FastifyRequest, reply: FastifyReply) => {
-  reply.send({ ok: true, uptime: process.uptime(), ts: new Date().toISOString() });
+// Health endpoints
+app.get('/api/health', async () => {
+  return { ok: true, env: process.env.NODE_ENV ?? 'unknown' };
 });
-safeGet('/health', async (_req: FastifyRequest, reply: FastifyReply) => {
-  reply.send({ ok: true, path: '/health', ts: new Date().toISOString(), note: 'prefer /api/health' });
+
+app.get('/health', async () => {
+  return { ok: true, note: 'prefer /api/health' };
 });
-safeGet('/flags', async () => ({ flags: FLAGS }));
+
+app.get('/flags', async () => ({ flags: FLAGS }));
+
+// --- Prompt Library API (🧪 ff_prompts_lib_v1) ---
+if (FLAGS.ff_prompts_lib_v1) {
+  const { listPrompts, getPrompt } = await import('./promptLoader');
+  
+  app.get('/api/prompts', async () => {
+    const prompts = listPrompts();
+    return { prompts };
+  });
+  
+  app.get('/api/prompts/:id', async (req: FastifyRequest) => {
+    const { id } = req.params as { id: string };
+    const prompt = getPrompt(id);
+    if (!prompt) {
+      return { error: { code: 'PROMPT_NOT_FOUND', message: 'Prompt not found', details: { id } } };
+    }
+    return { id, meta: prompt.meta, raw: prompt.raw, template: prompt.template };
+  });
+}
 
 // ---------------------
 // Types
@@ -264,13 +222,17 @@ function handleCoverage(req: FastifyRequest, reply: FastifyReply) {
   };
   return reply.send(resp);
 }
-safeGet('/evidence/coverage', handleCoverage);
-safeGet('/api/evidence/coverage', handleCoverage);
+app.get('/evidence/coverage', handleCoverage);
+app.get('/api/evidence/coverage', handleCoverage);
+// DEV ONLY: expose registered routes for spec snapshot
+app.get('/__routes', async () => {
+  return { routes: [], ts: new Date().toISOString() };
+});
 
 // ---------------------
 // /api/items/generate (MVP)
 // ---------------------
-safePost('/api/items/generate', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/api/items/generate', async (req: FastifyRequest, reply: FastifyReply) => {
   const body = (req as any).body as {
     chunks?: string[];
     count_objectives?: number;
@@ -335,7 +297,7 @@ const BANK: MCQItem[] = [
 ];
 const _sessions = new Map<string, { idx: number }>();
 
-safePost('/learn/next', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/learn/next', async (req: FastifyRequest, reply: FastifyReply) => {
   const sessionId = (req as any).body?.sessionId as string | undefined;
   let sid = sessionId;
   if (!sid || !_sessions.has(sid)) {
@@ -348,7 +310,7 @@ safePost('/learn/next', async (req: FastifyRequest, reply: FastifyReply) => {
   return reply.send({ sessionId: sid, item });
 });
 
-safePost('/learn/submit', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/learn/submit', async (req: FastifyRequest, reply: FastifyReply) => {
   const body = (req as any).body as { sessionId?: string; itemId?: string; answerIndex?: number };
   if (!body?.sessionId || !_sessions.has(body.sessionId)) {
     return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Unknown sessionId' } });
@@ -364,7 +326,7 @@ safePost('/learn/submit', async (req: FastifyRequest, reply: FastifyReply) => {
 // ---------------------
 
 // Connectors (ff_connectors_basic_v1)
-safePost('/import/url', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/import/url', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: 'ff_connectors_basic_v1 disabled' });
   const body = (req as any).body as { url?: string; scopeId?: string; template?: string };
   if (!body?.url) return reply.code(400).send({ error: 'Missing url' });
@@ -373,10 +335,10 @@ safePost('/import/url', async (req: FastifyRequest, reply: FastifyReply) => {
 });
 
 // Preflight for /import/file
-safeOptions('/import/file', async (_req: FastifyRequest, reply: FastifyReply) => reply.code(204).send());
+app.options('/import/file', async (_req: FastifyRequest, reply: FastifyReply) => reply.code(204).send());
 
 // Robust file import: accepts text or base64; PDFs/DOCX return a stub chunk
-safePost('/import/file', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/import/file', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: 'ff_connectors_basic_v1 disabled' });
 
   const b = ((req as any).body ?? {}) as {
@@ -441,7 +403,7 @@ safePost('/import/file', async (req: FastifyRequest, reply: FastifyReply) => {
   }
 });
 
-safePost('/import/transcript', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/import/transcript', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: 'ff_connectors_basic_v1 disabled' });
   const body = (req as any).body as { content?: string; scopeId?: string; template?: string };
   if (!body?.content) return reply.code(400).send({ error: 'Missing content' });
@@ -465,7 +427,7 @@ function bannedFlags(stem: string): string[] {
   if (/\bno\b.*\bnot\b/i.test(stem)) flags.push('double_negative');
   return flags;
 }
-safePost('/curator/quality/compute', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/curator/quality/compute', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_quality_bar_v1) return reply.code(501).send({ error: 'ff_quality_bar_v1 disabled' });
   const body = (req as any).body as { items: MCQItem[] };
   if (!body?.items?.length) return reply.code(400).send({ error: 'Missing items' });
@@ -480,7 +442,7 @@ safePost('/curator/quality/compute', async (req: FastifyRequest, reply: FastifyR
 });
 
 // Certified SLA status (ff_certified_sla_status_v1)
-safeGet('/certified/status', async (req: FastifyRequest, reply: FastifyReply) => {
+app.get('/certified/status', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_certified_sla_status_v1) return reply.code(501).send({ error: 'ff_certified_sla_status_v1 disabled' });
   const q = (req as any).query as { packId?: string };
   const packId = q?.packId ?? 'demo-pack';
@@ -497,7 +459,7 @@ safeGet('/certified/status', async (req: FastifyRequest, reply: FastifyReply) =>
 });
 
 // Marketplace/Guild ledger summary (ff_marketplace_ledgers_v1)
-safeGet('/marketplace/ledger/summary', async (_req: FastifyRequest, reply: FastifyReply) => {
+app.get('/marketplace/ledger/summary', async (_req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_marketplace_ledgers_v1) return reply.code(501).send({ error: 'ff_marketplace_ledgers_v1 disabled' });
   return {
     month: new Date().toISOString().slice(0,7),
@@ -509,7 +471,7 @@ safeGet('/marketplace/ledger/summary', async (_req: FastifyRequest, reply: Fasti
 });
 
 // Groups & Challenges (ff_group_challenges_v1)
-safePost('/groups', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/groups', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_group_challenges_v1) return reply.code(501).send({ error: 'ff_group_challenges_v1 disabled' });
   const body = (req as any).body as { name?: string };
   if (!body?.name) return reply.code(400).send({ error: 'Missing name' });
@@ -517,7 +479,7 @@ safePost('/groups', async (req: FastifyRequest, reply: FastifyReply) => {
   _groups.push(g);
   return g;
 });
-safePost('/challenges', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/challenges', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_group_challenges_v1) return reply.code(501).send({ error: 'ff_group_challenges_v1 disabled' });
   const body = (req as any).body as { groupId?: string; packId?: string; windowDays?: number; prizeText?: string };
   if (!body?.groupId || !body?.packId) return reply.code(400).send({ error: 'Missing groupId or packId' });
@@ -525,7 +487,7 @@ safePost('/challenges', async (req: FastifyRequest, reply: FastifyReply) => {
   _challenges.push(ch);
   return ch;
 });
-safeGet('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: FastifyReply) => {
+app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: FastifyReply) => {
   if (!FLAGS.ff_group_challenges_v1) return reply.code(501).send({ error: 'ff_group_challenges_v1 disabled' });
   const { id } = (req as any).params as { id: string };
   const rows = _attempts.filter(a => a.challengeId === id).sort((a,b) => b.score - a.score).slice(0, 50);

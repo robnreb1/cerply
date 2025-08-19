@@ -1,15 +1,23 @@
 {
-  "name": "cerply-monorepo",
+  "name": "cerply-cursor-starter-v2-refresh",
+  "version": "1.0.0",
+  "description": "Cerply v4.1 - Curator + Adaptive + Trust Labels + Analytics",
   "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm -w api run dev\" \"npm -w web run dev\"",
+    "dev:api": "npm -w api run dev",
+    "dev:web": "npm -w web run dev",
+    "build": "npm -w api run build && npm -w web run build",
+    "test": "npm -w api run test",
+    "smoke": "node smoke.js",
+    "smoke:check": "npm run smoke",
+    "typecheck": "npm -w api run typecheck && npm -w web run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
   "workspaces": [
     "api",
-    "web",
-    "shared"
-  ],
-  "scripts": {
-    "build": "npm -w api run build && npm -w web run build",
-    "dev": "npm -w api run dev & npm -w web run dev",
-    "test": "npm -w api run test",
-    "typecheck": "npm -w api run typecheck && npm -w web run typecheck && npm -w shared run typecheck"
-  }
+    "web"
+  ]
 }

@@ -1,3 +1,16 @@
 {
-  "/curate/page": "app/curate/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/curate/page": "app/curate/page.js",
+  "/analytics/pilot/page": "app/analytics/pilot/page.js",
+  "/coverage/page": "app/coverage/page.js",
+  "/curator/items/[id]/page": "app/curator/items/[id]/page.js",
+  "/decompose/page": "app/decompose/page.js",
+  "/curator/page": "app/curator/page.js",
+  "/ecs/page": "app/ecs/page.js",
+  "/page": "app/page.js",
+  "/learn/page": "app/learn/page.js",
+  "/prompts/page": "app/prompts/page.js",
+  "/tailwind-test/page": "app/tailwind-test/page.js",
+  "/style/page": "app/style/page.js",
+  "/api/evidence/coverage/route": "app/api/evidence/coverage/route.js"
 }
