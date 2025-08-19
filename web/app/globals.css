@@ -41,7 +41,7 @@
     -moz-osx-font-smoothing: grayscale;
   }
   a { @apply underline underline-offset-2; color: var(--domain-rc); }
-  * { @apply border-border; }
+  * { @apply border-brand-border; }
 }
 
 /* ---------- Components ---------- */

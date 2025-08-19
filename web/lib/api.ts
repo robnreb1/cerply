@@ -1,21 +1,11 @@
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8080';
-
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'content-type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    let msg = `${res.status} ${res.statusText}`;
-    try { const j:any = await res.json(); msg = j?.error?.message || j?.message || msg; } catch {}
-    throw new Error(msg);
-  }
-  return (await res.json()) as T;
+export function apiFetch(path: string): Promise<Response> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+  const url = path.startsWith('http') 
+    ? path 
+    : (path.startsWith('/api') 
+      ? path 
+      : `/api${path.startsWith('/') ? '' : '/'}${path}`);
+  return fetch(url, { cache: 'no-store' });
 }
 
 export type MCQItem = {

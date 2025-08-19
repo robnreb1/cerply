@@ -9,6 +9,7 @@
     "clean": "rimraf dist",
     "build": "tsup src/index.ts --out-dir dist --format cjs --sourcemap",
     "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
     "start:dev": "tsx watch src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "node scripts/migrate.js",

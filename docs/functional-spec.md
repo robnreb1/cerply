@@ -6,6 +6,7 @@
 - Prompts library: `/prompts` lists & renders &gt;0 prompts in dev, fetches via Next.js rewrite proxy; prompt detail view works; API `GET /api/prompts` reachable.
 - Coverage UI: `/coverage` renders summary and gaps from `/evidence/coverage` (stub) via proxy (no CORS issues).
 - Smoke script passes for `/style` and `/coverage` endpoints (HTTP 200).
+- `/debug/env` shows NEXT_PUBLIC_* as expected and API health JSON in Vercel.
 
 ## 10) Non-functional / Dev UX
 - API background control:
@@ -20,3 +21,4 @@
 - **2025-08-19**: Added prompt library system with auto-indexing, API endpoints, and web UI; spec reconciled to v2.5.
 - **2025-08-19**: Added Evidence Coverage UI at /coverage with summary KPIs and gaps, smoke test script, updated package scripts; spec reconciled to v2.4.
 - **2025-08-17**: Initial spec + items generate + learn MVP.
+- **2025-08-19**: Added /debug/env runtime page and vercel smoke script.
