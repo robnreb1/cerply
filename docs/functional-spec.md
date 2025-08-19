@@ -54,7 +54,7 @@ _Last reconciled: 2025-08-19_
   - **Quality tab** (flag on): calls `/curator/quality/compute`
 - ✅ `/learn` (adaptive practice loop MVP)
 - ✅ `/style` (brand tokens playground)
-- ❌ Coverage card fed by `/evidence/coverage` (simple dashboard)
+- ✅ Coverage card fed by `/evidence/coverage` (simple dashboard)
 
 ## 4) Brand & UI System — ✅
 - Tailwind configured with brand CSS variables (coral + warm neutrals), radii (8/12/16), shadows (sm/md/lg).  
@@ -76,7 +76,7 @@ _Last reconciled: 2025-08-19_
 ## 8) Backlog (top)
 1. **DB layer** (Drizzle vs Knex) + migrations.  
 2. Persist imported sources & chunks; associate to scopeId.  
-3. `/evidence/coverage` UI card (web).  
+3. ✅ `/evidence/coverage` UI card (web).  
 4. Quality Bar UI polish (score breakdown, filters).  
 5. Cost guardrails routing & caching (when model integration added).  
 6. iOS/Android app shells (React Native/Expo) — tracked.  
@@ -90,4 +90,5 @@ _Last reconciled: 2025-08-19_
 
 ## 10) Change log
 - **2025-08-19**: Added feature-flagged routes (connectors, quality, certified, marketplace, groups), OPTIONS preflight, brand tokens page; spec reconciled to v2.3.
+- **2025-08-19**: Added Evidence Coverage UI at /coverage with summary KPIs and gaps, smoke test script, updated package scripts; spec reconciled to v2.4.
 - **2025-08-17**: Initial spec + items generate + learn MVP.
