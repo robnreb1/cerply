@@ -38,3 +38,4 @@ fi
 
 echo ""
 echo "Smoke test completed!"
+

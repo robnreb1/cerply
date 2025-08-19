@@ -74,3 +74,4 @@ export function QualityFlags({ bannedFlags, conflicts }: QualityFlagsProps) {
     </div>
   );
 }
+

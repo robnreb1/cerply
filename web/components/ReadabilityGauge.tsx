@@ -57,3 +57,4 @@ export function ReadabilityGauge({ score }: ReadabilityGaugeProps) {
     </div>
   );
 }
+

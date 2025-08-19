@@ -64,3 +64,4 @@ export function QualityScore({ score }: QualityScoreProps) {
     </div>
   );
 }
+
