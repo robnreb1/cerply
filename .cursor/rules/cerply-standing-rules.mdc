@@ -1,0 +1,56 @@
+---
+alwaysApply: true
+title: Cerply Standing Rules
+---
+
+You are collaborating with a live spec. BEFORE writing or refactoring code, follow these rules.
+
+1) Source of truth
+- Read docs/functional-spec.md and docs/spec/* before coding.
+- Do not introduce breaking changes without updating the spec + checklist.
+
+2) When routes, contracts, or flags change
+- Update docs/functional-spec.md (tick statuses + document request/response).
+- Update docs/spec/use-cases.md acceptance bullets if behavior changes.
+- Update docs/spec/flags.md when flags are added/changed.
+- Commit code + docs together with “[spec]” in the commit message.
+
+3) API error envelope (mandatory)
+- All failures return: { error: { code: UPPER_SNAKE, message: string, details?: object } }.
+- Keep 4xx/5xx HTTP codes consistent with this envelope.
+
+4) Ports & routes
+- Web http://localhost:3000, API http://localhost:8080.
+- Prefer /api/* for new routes.
+- /api/health is canonical; /health may exist but should advise “prefer /api/health”.
+
+5) Feature flags (env-driven; default off)
+- Current flags: ff_quality_bar_v1, ff_cost_guardrails_v1, ff_group_challenges_v1, ff_connectors_basic_v1, ff_certified_sla_status_v1, ff_marketplace_ledgers_v1, ff_benchmarks_optin_v1.
+- API dev example: set FF_CONNECTORS_BASIC_V1=true FF_QUALITY_BAR_V1=true when starting the api.
+- Web: configure NEXT_PUBLIC_* flags in web/.env.local and gate UI with process.env.NEXT_PUBLIC_* === 'true'.
+
+6) Brand tokens only (no ad-hoc colors)
+- Use Tailwind aliases from web/tailwind.config.js and app/globals.css.
+- Examples: bg-brand-surface, text-brand-ink, border-brand-border, rounded-12, shadow-md, .btn, body[data-domain=rc|ima|qpp] for accents.
+
+7) Curator Quality Bar (flagged)
+- Only call /curator/quality/compute if ff_quality_bar_v1=true.
+- Expect meta.readability, meta.bannedFlags, meta.qualityScore on items.
+
+8) Connectors (flagged)
+- Only expose /import/url, /import/file, /import/transcript if ff_connectors_basic_v1=true.
+- All return { scopeId, template, chunks[] }.
+- /import/file accepts {name, content} (utf-8) OR {name, contentBase64} (pdf/docx).
+
+9) Sanity checks before PR
+- Verify /api/health and /flags respond.
+- Provide one or two curl examples for changed routes in the PR description.
+
+10) Commit hygiene
+- Use feat:, fix:, chore:. Include “[spec]” when docs changed.
+- Commit example: feat(connectors): add transcript endpoint [spec].
+
+11) Agent guardrail
+- If an agent proposes bypassing or deleting the spec, decline and point to these rules.
+
+SENTINEL: CERPLY_RULES_v2025-08-19

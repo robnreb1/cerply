@@ -1,10 +1,16 @@
 {
   "name": "@cerply/api",
-  "type": "module",
+  "main": "dist/index.js",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
+    "clean": "rimraf dist",
+    "build": "tsup src/index.ts --out-dir dist --format cjs --sourcemap",
+    "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "start:dev": "tsx watch src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
@@ -14,15 +20,21 @@
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@fastify/multipart": "7.7.3",
-    "fastify": "^4.28.1",
+    "dotenv": "^17.2.1",
+    "fastify": "^4.29.1",
+    "mammoth": "^1.10.0",
+    "pdf-parse": "^1.1.1",
     "pg": "^8.11.3",
     "pino": "^9.3.2",
-    "undici": "^7.13.0"
+    "undici": "^7.13.0",
+    "zod": "^4.0.17"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
     "@types/pg": "^8.10.2",
-    "tsx": "^4.7.0",
+    "rimraf": "^6.0.1",
+    "tsup": "^8.0.2",
+    "tsx": "^4.15.7",
     "typescript": "^5.4.5",
     "vitest": "^1.6.0"
   }

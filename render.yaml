@@ -1,0 +1,18 @@
+# render.yaml — blueprint for API only
+services:
+  - type: web
+    name: cerply-api
+    env: node
+    plan: free
+    autoDeploy: true
+    rootDir: .
+    buildCommand: cd api && npm install --include=dev && npm run build
+    startCommand: cd api && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: FF_CONNECTORS_BASIC_V1
+        value: "true"
+      - key: FF_QUALITY_BAR_V1
+        value: "true"

@@ -1,0 +1,8 @@
+{
+  // The built-in CSS validator doesn’t know Tailwind directives — ignore them.
+  "css.lint.unknownAtRules": "ignore",
+
+  // (nice to have) enable Tailwind IntelliSense
+  "editor.quickSuggestions": { "strings": true },
+  "tailwindCSS.emmetCompletions": true
+}
