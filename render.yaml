@@ -1,21 +1,18 @@
+# render.yaml — blueprint for API only
 services:
   - type: web
     name: cerply-api
     env: node
-    rootDir: .
     plan: free
-
-    # Build the API workspace only (no monorepo gymnastics in Render UI needed)
-    buildCommand: cd api && npm ci && npm run build
-    # If you don't have api/package-lock.json yet, use this instead:
-    # buildCommand: cd api && npm install && npm run build
-
-    # Start the compiled server (PORT is provided by Render)
-    startCommand: cd api && npm start
-
-    healthCheckPath: /api/health
     autoDeploy: true
-
+    rootDir: .
+    buildCommand: cd api && npm install --include=dev && npm run build
+    startCommand: cd api && npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: "20"
+      - key: FF_CONNECTORS_BASIC_V1
+        value: "true"
+      - key: FF_QUALITY_BAR_V1
+        value: "true"
