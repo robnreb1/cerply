@@ -8,6 +8,7 @@
     "dev:api": "npm -w api run dev",
     "dev:web": "npm -w web run dev",
     "build": "npm -w api run build && npm -w web run build",
+    "build:api": "npm -w api run build",
     "test": "npm -w api run test",
     "smoke": "node smoke.js",
     "smoke:check": "npm run smoke",
