@@ -1,13 +1,9 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-const RAW_API =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:8080';
-
-// strip trailing slashes so we never produce //api/...
-const API = RAW_API.replace(/\/+$/, '');
+// Force dynamic rendering - prevent static generation during build
 export const dynamic = 'force-dynamic';
+
+const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
 
 function stripHopByHop(headers: Headers) {
   const out = new Headers(headers);
