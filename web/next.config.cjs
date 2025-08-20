@@ -5,7 +5,7 @@ const RAW_API =
   process.env.NEXT_PUBLIC_API_BASE ||
   process.env.NEXT_PUBLIC_API_URL ||
   'http://localhost:8080';
-// Normalize to avoid trailing slash producing //api/... which can 404 on Fastify
+// Normalize to avoid trailing slashes producing //api/... which can 404 on Fastify
 const API = RAW_API.replace(/\/+$/, '');
 
 /** @type {import('next').NextConfig} */
@@ -24,10 +24,10 @@ const nextConfig = {
   },
   async rewrites() {
     return [
-      // API routes are handled by app/api/[...path]/route.ts, not rewrites
-      { source: '/curator/:path*',  destination: `${API}/curator/:path*` },
-      { source: '/evidence/:path*', destination: `${API}/evidence/:path*` },
-      { source: '/learn/:path*',    destination: `${API}/learn/:path*` },
+      // API routes are handled by app/api/[...path]/route.ts, not rewrites.
+      { source: '/curator/:path*',   destination: `${API}/curator/:path*` },
+      { source: '/evidence/:path*',  destination: `${API}/evidence/:path*` },
+      { source: '/learn/:path*',     destination: `${API}/learn/:path*` },
     ];
   },
 };
