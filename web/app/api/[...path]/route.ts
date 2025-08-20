@@ -1,13 +1,10 @@
 import { NextRequest } from 'next/server';
 
-const RAW_API =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:8080';
-
-// strip trailing slashes so we never produce //api/...
-const API = RAW_API.replace(/\/+$/, '');
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const API = process.env.NEXT_PUBLIC_API_BASE ?? process.env.API_BASE ?? 'https://api.cerply.com';
 
 function stripHopByHop(headers: Headers) {
   const out = new Headers(headers);
@@ -22,11 +19,17 @@ function stripHopByHop(headers: Headers) {
 async function proxy(req: NextRequest, { params }: { params: { path?: string[] } }) {
   const path = (params.path ?? []).join('/');
   const src = new URL(req.url);
-  const target = `${API}/${path}${src.search}`;
+  const target = `${API}/api/${path}${src.search}`;
 
+  const auth = req.headers.get('authorization') || '';
   const init: RequestInit = {
     method: req.method,
-    headers: stripHopByHop(req.headers),
+    headers: (() => {
+      const h = stripHopByHop(req.headers);
+      if (auth) h.set('authorization', auth);
+      return h;
+    })(),
+    cache: 'no-store',
     redirect: 'manual',
   };
   if (req.method !== 'GET' && req.method !== 'HEAD') {

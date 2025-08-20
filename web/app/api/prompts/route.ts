@@ -1,29 +1,26 @@
 // web/app/api/prompts/route.ts
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-const API = (
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'https://api-stg.cerply.com'
-).replace(/\/+$/, '');
+const API = process.env.NEXT_PUBLIC_API_BASE ?? process.env.API_BASE ?? 'https://api.cerply.com';
 
 export async function GET() {
   const url = `${API}/api/prompts`;
   try {
-    const upstream = await fetch(url, {
+    const resp = await fetch(url, {
       headers: { accept: 'application/json' },
       cache: 'no-store',
       redirect: 'follow',
     });
-    if (upstream.ok) {
-      const body = await upstream.text();
+    if (resp.ok) {
+      const body = await resp.text();
       return new Response(body, {
-        status: upstream.status,
+        status: resp.status,
         headers: {
-          'content-type': upstream.headers.get('content-type') ?? 'application/json; charset=utf-8',
+          'content-type': resp.headers.get('content-type') ?? 'application/json; charset=utf-8',
           'cache-control': 'no-store',
-          'x-edge': 'prompts-v3-proxy',
+          'x-edge': 'prompts-proxy',
           'x-upstream': url,
         },
       });
@@ -42,7 +39,7 @@ export async function GET() {
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
-      'x-edge': 'prompts-v3-fallback',
+      'x-edge': 'prompts-fallback',
       'x-upstream': url,
     },
   });
