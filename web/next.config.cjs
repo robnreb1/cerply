@@ -13,9 +13,9 @@ const nextConfig = {
   output: 'standalone',
   async rewrites() {
     return [
-      // NOTE: the app route /app/api/[...path] takes precedence for /api/*.
-      // This rewrite is a fallback when that route isn't present.
-      { source: '/api/:path*',      destination: `${API}/api/:path*` },
+
+      // API routes are handled by app/api/[...path]/route.ts, not rewrites
+
       { source: '/curator/:path*',  destination: `${API}/curator/:path*` },
       { source: '/evidence/:path*', destination: `${API}/evidence/:path*` },
       { source: '/learn/:path*',    destination: `${API}/learn/:path*` },

@@ -16,7 +16,7 @@ export default function ECSPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API}/evidence/coverage?scopeId=demo`);
+        const res = await fetch('/api/evidence/coverage?scopeId=demo');
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error?.message ?? 'Failed to load coverage');
         setData(json as CoverageResp);

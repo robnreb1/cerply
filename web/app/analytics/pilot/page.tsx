@@ -14,8 +14,8 @@ export default function AnalyticsPilot() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const api = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
-    fetch(`${api}/analytics/pilot`)
+
+    fetch('/api/analytics/pilot')
       .then((r) => r.json())
       .then(setData)
       .catch((e) => setError(String(e)));

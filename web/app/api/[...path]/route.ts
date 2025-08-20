@@ -22,7 +22,7 @@ function stripHopByHop(headers: Headers) {
 async function proxy(req: NextRequest, { params }: { params: { path?: string[] } }) {
   const path = (params.path ?? []).join('/');
   const src = new URL(req.url);
-  const target = `${API}/api/${path}${src.search}`;
+  const target = `${API}/${path}${src.search}`;
 
   const init: RequestInit = {
     method: req.method,

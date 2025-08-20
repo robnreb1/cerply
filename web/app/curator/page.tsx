@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
+
 
 export default function CuratorPage() {
   const [url, setUrl] = useState("");
@@ -14,7 +14,7 @@ export default function CuratorPage() {
     setStatus("Ingesting URL…");
     setArtefactId(null);
     try {
-      const res = await fetch(`${API}/ingest/url`, {
+      const res = await fetch('/api/ingest/url', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
@@ -36,7 +36,7 @@ export default function CuratorPage() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch(`${API}/ingest/upload`, { method: "POST", body: fd });
+      const res = await fetch('/api/ingest/upload', { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(JSON.stringify(json));
       setArtefactId(json?.artefact?.id || null);
@@ -50,7 +50,7 @@ export default function CuratorPage() {
     if (!artefactId) return;
     setStatus("Auto‑generating items…");
     try {
-      const res = await fetch(`${API}/curator/auto-generate`, {
+      const res = await fetch('/api/curator/auto-generate', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ artefactId }),
