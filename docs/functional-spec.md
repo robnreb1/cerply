@@ -6,6 +6,11 @@
 - Prompts library: `/prompts` lists & renders &gt;0 prompts in dev, fetches via Next.js rewrite proxy; prompt detail view works; API `GET /api/prompts` reachable.
 - Coverage UI: `/coverage` renders summary and gaps from `/evidence/coverage` (stub) via proxy (no CORS issues).
 - Smoke script passes for `/style` and `/coverage` endpoints (HTTP 200).
+- Vercel proxy working: /api/health returns 200 JSON via Next proxy (no 404).
+- /api/prompts returns a response (not 404) on Vercel.
+- POST /api/curator/quality/compute returns 200/400 (not 404/405).
+- /debug/env renders; build-time env shown; API health check on page passes.
+- Tailwind styling present; feature flags honored on Vercel.
 - `/debug/env` shows NEXT_PUBLIC_* as expected and API health JSON in Vercel.
 
 ## 10) Non-functional / Dev UX

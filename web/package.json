@@ -1,5 +1,6 @@
 {
   "name": "@cerply/web",
+  "description": "Fixed cache no-store issues",
   "private": true,
   "type": "module",
   "scripts": {
