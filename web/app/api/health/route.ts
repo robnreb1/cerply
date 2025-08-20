@@ -7,6 +7,7 @@ export const revalidate = 0;
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
 
+// Health check proxy route - updated to remove cache no-store
 export async function GET() {
   try {
     const resp = await fetch(`${API}/health`, { 
