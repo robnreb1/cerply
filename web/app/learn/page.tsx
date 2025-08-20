@@ -30,7 +30,7 @@ export default function LearnPage() {
     setResult(null);
     setAnswerIdx(null);
     try {
-      const res = await fetch(`${API}/learn/next`, {
+      const res = await fetch('/api/learn/next', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
@@ -52,7 +52,7 @@ export default function LearnPage() {
     setError(null);
 
     try {
-      const res = await fetch(`${API}/learn/submit`, {
+      const res = await fetch('/api/learn/submit', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ sessionId, itemId: item.id, answerIndex: idx }),
@@ -70,7 +70,7 @@ export default function LearnPage() {
     setResult(null);
     setAnswerIdx(null);
     try {
-      const res = await fetch(`${API}/learn/next`, {
+      const res = await fetch('/api/learn/next', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ sessionId }),

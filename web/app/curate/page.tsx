@@ -15,7 +15,7 @@ type GenerateResp = { items: MCQItem[]; objectives: Objective[] };
 type QualityMeta = { readability?: number; bannedFlags?: string[]; qualityScore?: number; sourceSnippet?: string };
 
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8080';
+
 
 function clsx(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(' ');
@@ -48,7 +48,7 @@ export default function CuratePage() {
     setImportErr(null);
     setImporting(true);
     try {
-      const res = await fetch(`${API_BASE}/import/file`, {
+      const res = await fetch('/api/import/file', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -105,7 +105,7 @@ export default function CuratePage() {
       } else {
         payload.content = await readFileAsText(file);
       }
-      const res = await fetch(`${API_BASE}/import/file`, {
+      const res = await fetch('/api/import/file', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
@@ -131,7 +131,7 @@ export default function CuratePage() {
       let chunks = importData?.chunks;
       if ((!chunks || chunks.length === 0) && text.trim()) {
         // Fallback: call import endpoint implicitly on current text
-        const resImport = await fetch(`${API_BASE}/import/file`, {
+        const resImport = await fetch('/api/import/file', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
@@ -150,7 +150,7 @@ export default function CuratePage() {
       if (!chunks || chunks.length === 0) {
         throw new Error('Nothing to generate from — import some text or a file first.');
       }
-      const res = await fetch(`${API_BASE}/api/items/generate`, {
+      const res = await fetch('/api/items/generate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

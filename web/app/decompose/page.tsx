@@ -6,12 +6,12 @@ export default function Decompose() {
   const [text, setText] = useState('Our policy requires AML checks for all new customers and records must be retained for 6 years.');
   const [resp, setResp] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
 
   async function run() {
     setLoading(true);
     setResp(null);
-    const r = await fetch(`${apiUrl}/rde/decompose`, {
+    const r = await fetch('/api/rde/decompose', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text })

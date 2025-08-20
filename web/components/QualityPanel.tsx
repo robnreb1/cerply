@@ -87,7 +87,7 @@ export function QualityPanel({ items }: QualityPanelProps) {
     setError(null);
     
     try {
-      const response = await fetch('/curator/quality/compute', {
+      const response = await fetch('/api/curator/quality/compute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items }),

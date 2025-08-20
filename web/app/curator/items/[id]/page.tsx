@@ -1,7 +1,7 @@
 
 'use client';
 import { useEffect, useState } from 'react';
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
 
 export default function ItemEditor({ params }: any) {
   const id = params.id;
@@ -10,7 +10,7 @@ export default function ItemEditor({ params }: any) {
 
   useEffect(() => {
     (async () => {
-      const r = await fetch(`${apiUrl}/curator/items/${id}`);
+      const r = await fetch(`/api/curator/items/${id}`);
       if (r.ok) setIt(await r.json());
     })();
   }, [id]);
@@ -24,7 +24,7 @@ export default function ItemEditor({ params }: any) {
       variantGroupId: it.variant_group_id, status: it.status, trustLabel: it.trust_label,
       trustMappingRefs: it.trust_mapping_refs
     };
-    await fetch(`${apiUrl}/curator/items/${id}`, { method:'PUT', headers:{'content-type':'application/json'}, body: JSON.stringify(body) });
+    await fetch(`/api/curator/items/${id}`, { method:'PUT', headers:{'content-type':'application/json'}, body: JSON.stringify(body) });
     setSaving(false);
     alert('Saved');
   }

@@ -56,7 +56,7 @@ export async function generateItems(args: { chunks: string[]; count_objectives?:
   return apiFetchLegacy('/api/items/generate', { method:'POST', body: JSON.stringify(args) });
 }
 export async function qualityCompute(items: MCQItem[]): Promise<{ items: MCQItem[] }> {
-  return apiFetchLegacy('/curator/quality/compute', { method:'POST', body: JSON.stringify({ items }) });
+  return apiFetchLegacy('/api/curator/quality/compute', { method:'POST', body: JSON.stringify({ items }) });
 }
 export async function getFlags(): Promise<{ flags: Record<string, boolean> }> {
   return apiFetchLegacy('/flags', { method:'GET' });
