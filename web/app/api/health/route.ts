@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   if (bypass) headers["x-vercel-protection-bypass"] = bypass;
 
   try {
-    const resp = await fetch(`${API}/api/health`, { headers, cache: "no-store" });
+    const resp = await fetch(`${API}/health`, { headers, cache: "no-store" });
     const data = await resp.json().catch(() => ({}));
     return NextResponse.json(data, { status: resp.status });
   } catch (err: any) {
