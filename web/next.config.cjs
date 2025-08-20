@@ -11,6 +11,11 @@ const API = RAW_API.replace(/\/+$/, '');
 const nextConfig = {
   reactStrictMode: false,
   output: 'standalone',
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['localhost:3000', 'cerply-web.vercel.app']
+    }
+  },
   async rewrites() {
     return [
       // API routes are handled by app/api/[...path]/route.ts, not rewrites
