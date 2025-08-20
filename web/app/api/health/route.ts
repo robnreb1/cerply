@@ -59,8 +59,8 @@ export async function GET() {
     });
   }
 
-  // 3) Proxy to upstream
-  const url = `${base}/api/health`;
+  // 3) Proxy to upstream (direct health endpoint)
+  const url = `${base}/health`;
   try {
     const upstream = await fetch(url, {
       headers: { accept: 'application/json' },
