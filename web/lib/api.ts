@@ -5,7 +5,7 @@ export function apiFetch(path: string): Promise<Response> {
     : (path.startsWith('/api') 
       ? path 
       : `/api${path.startsWith('/') ? '' : '/'}${path}`);
-  return fetch(url, { cache: 'no-store' });
+  return fetch(url);
 }
 
 // Legacy apiFetch for existing code
@@ -18,7 +18,6 @@ async function apiFetchLegacy<T>(path: string, init?: RequestInit): Promise<T> {
       'content-type': 'application/json',
       ...(init?.headers ?? {}),
     },
-    cache: 'no-store',
   });
   if (!res.ok) {
     let msg = `${res.status} ${res.statusText}`;
