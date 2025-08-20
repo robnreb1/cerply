@@ -14,6 +14,7 @@ const nextConfig = {
   async rewrites() {
     return [
       // API routes are handled by app/api/[...path]/route.ts, not rewrites
+
       { source: '/curator/:path*',  destination: `${API}/curator/:path*` },
       { source: '/evidence/:path*', destination: `${API}/evidence/:path*` },
       { source: '/learn/:path*',    destination: `${API}/learn/:path*` },

@@ -7,6 +7,7 @@ export const revalidate = 0;
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
 
+
 function stripHopByHop(headers: Headers) {
   const out = new Headers(headers);
   [
