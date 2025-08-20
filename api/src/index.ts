@@ -44,6 +44,17 @@ app.get('/health', async () => {
 
 app.get('/flags', async () => ({ flags: FLAGS }));
 
+// --- Test endpoint ---
+app.get('/test', async () => ({ message: 'test endpoint working' }));
+
+app.get('/api/analytics/pilot', async () => {
+  return {
+    completion21d: 0.67,
+    spacedCoverage: 0.45,
+    lift: { d7: 0.23, d30: 0.41 }
+  };
+});
+
 // --- Prompt Library API (🧪 ff_prompts_lib_v1) ---
 if (FLAGS.ff_prompts_lib_v1) {
   const { listPrompts, getPrompt } = await import('./promptLoader');
@@ -233,6 +244,7 @@ function handleCoverage(req: FastifyRequest, reply: FastifyReply) {
 }
 app.get('/evidence/coverage', handleCoverage);
 app.get('/api/evidence/coverage', handleCoverage);
+
 // DEV ONLY: expose registered routes for spec snapshot
 app.get('/__routes', async () => {
   return { routes: [], ts: new Date().toISOString() };
