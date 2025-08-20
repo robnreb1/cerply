@@ -389,6 +389,17 @@ app.post('/api/learner/profile', async (req: FastifyRequest, reply: FastifyReply
   return reply.send({ ok: true, profile: merged });
 });
 
+// --- Test endpoint ---
+app.get('/test', async () => ({ message: 'test endpoint working' }));
+
+app.get('/api/analytics/pilot', async () => {
+  return {
+    completion21d: 0.67,
+    spacedCoverage: 0.45,
+    lift: { d7: 0.23, d30: 0.41 }
+  };
+});
+
 // --- Prompt Library API (🧪 ff_prompts_lib_v1) ---
 if (FLAGS.ff_prompts_lib_v1) {
   const { listPrompts, getPrompt } = await import('./promptLoader');
