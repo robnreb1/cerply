@@ -13,7 +13,6 @@ const nextConfig = {
   output: 'standalone',
   async rewrites() {
     return [
-
       // API routes are handled by app/api/[...path]/route.ts, not rewrites
 
       { source: '/curator/:path*',  destination: `${API}/curator/:path*` },

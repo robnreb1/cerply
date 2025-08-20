@@ -30,7 +30,7 @@ export default function DebugEnvPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/api/health', { cache: 'no-store' });
+        const res = await fetch('/api/health');
         const json = await res.json().catch(() => ({}));
         setHealth(res.ok ? json : { error: `HTTP ${res.status}` });
       } catch (e: any) {
@@ -38,7 +38,7 @@ export default function DebugEnvPage() {
       }
 
       try {
-        const r = await fetch('/api/prompts', { cache: 'no-store' });
+        const r = await fetch('/api/prompts');
         setPromptsOk(r.ok ? 'ok' : 'fail');
       } catch {
         setPromptsOk('fail');

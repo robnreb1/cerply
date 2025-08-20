@@ -7,19 +7,23 @@ export const revalidate = 0;
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
 
-// Health check proxy route - updated to remove cache no-store
-export async function GET() {
+export async function POST(request: Request) {
   try {
-    const resp = await fetch(`${API}/health`, { 
-
+    const body = await request.json();
+    
+    const resp = await fetch(`${API}/curator/quality/compute`, { 
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'User-Agent': 'Cerply-Web-Proxy'
-      }
+      },
+      body: JSON.stringify(body)
     });
     
     if (!resp.ok) {
+      const errorData = await resp.json().catch(() => ({}));
       return NextResponse.json(
-        { error: `Backend returned ${resp.status}` },
+        errorData,
         { status: resp.status }
       );
     }
@@ -27,7 +31,7 @@ export async function GET() {
     const data = await resp.json();
     return NextResponse.json(data);
   } catch (err: any) {
-    console.error('Health proxy error:', err);
+    console.error('Quality compute proxy error:', err);
     return NextResponse.json(
       { error: 'proxy_error', message: String(err) },
       { status: 502 }

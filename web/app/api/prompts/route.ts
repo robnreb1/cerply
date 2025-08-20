@@ -7,30 +7,25 @@ export const revalidate = 0;
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
 
-// Health check proxy route - updated to remove cache no-store
 export async function GET() {
   try {
-    const resp = await fetch(`${API}/health`, { 
-
+    // Try to fetch from backend prompts endpoint
+    const resp = await fetch(`${API}/prompts`, { 
       headers: {
         'User-Agent': 'Cerply-Web-Proxy'
       }
     });
     
     if (!resp.ok) {
-      return NextResponse.json(
-        { error: `Backend returned ${resp.status}` },
-        { status: resp.status }
-      );
+      // If backend doesn't have /prompts, return empty array for now
+      return NextResponse.json({ prompts: [] });
     }
     
     const data = await resp.json();
     return NextResponse.json(data);
   } catch (err: any) {
-    console.error('Health proxy error:', err);
-    return NextResponse.json(
-      { error: 'proxy_error', message: String(err) },
-      { status: 502 }
-    );
+    console.error('Prompts proxy error:', err);
+    // Return empty array on error
+    return NextResponse.json({ prompts: [] });
   }
 }
