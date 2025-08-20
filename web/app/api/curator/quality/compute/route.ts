@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 
 // Force dynamic rendering - prevent static generation during build
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const revalidate = 0;
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
 
