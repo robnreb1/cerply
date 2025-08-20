@@ -12,6 +12,7 @@
 - /debug/env renders; build-time env shown; API health check on page passes.
 - Tailwind styling present; feature flags honored on Vercel.
 - `/debug/env` shows NEXT_PUBLIC_* as expected and API health JSON in Vercel.
+- Preview & Prod on Vercel resolve via custom domain; /debug/env shows correct vars; /api/health and /api/prompts return non-404 via proxy.
 
 ## 10) Non-functional / Dev UX
 - API background control:
@@ -27,3 +28,4 @@
 - **2025-08-19**: Added Evidence Coverage UI at /coverage with summary KPIs and gaps, smoke test script, updated package scripts; spec reconciled to v2.4.
 - **2025-08-17**: Initial spec + items generate + learn MVP.
 - **2025-08-19**: Added /debug/env runtime page and vercel smoke script.
+- **2025-01-27**: Staging domains (Vercel + Render), proxy correctness, debug page verified.

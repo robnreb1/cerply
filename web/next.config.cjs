@@ -14,7 +14,12 @@ const nextConfig = {
   experimental: {
     serverActions: {
       // Add your Vercel project domain(s) here. For previews, add the preview hostname as needed.
-      allowedOrigins: ['localhost:3000', 'cerply-web.vercel.app'],
+      allowedOrigins: [
+        'localhost:3000', 
+        'cerply-web.vercel.app',
+        'stg.cerply.com',
+        // Note: *.vercel.app wildcards not supported in Next.js - add specific preview domains as needed
+      ],
     },
   },
   async rewrites() {

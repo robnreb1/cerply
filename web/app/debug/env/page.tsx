@@ -26,15 +26,23 @@ const buildEnv: Record<(typeof VARS)[number], string | undefined> = {
 export default function DebugEnvPage() {
   const [health, setHealth] = useState<Health>({});
   const [promptsOk, setPromptsOk] = useState<'ok' | 'fail' | 'pending'>('pending');
+  const [healthStatus, setHealthStatus] = useState<'ok' | 'fail' | 'pending'>('pending');
 
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch('/api/health');
         const json = await res.json().catch(() => ({}));
-        setHealth(res.ok ? json : { error: `HTTP ${res.status}` });
+        if (res.ok) {
+          setHealth(json);
+          setHealthStatus('ok');
+        } else {
+          setHealth({ error: `HTTP ${res.status}` });
+          setHealthStatus('fail');
+        }
       } catch (e: any) {
         setHealth({ error: String(e?.message || e) });
+        setHealthStatus('fail');
       }
 
       try {
@@ -45,6 +53,14 @@ export default function DebugEnvPage() {
       }
     })();
   }, []);
+
+  const getStatusIndicator = (status: 'ok' | 'fail' | 'pending') => {
+    switch (status) {
+      case 'ok': return <span style={{ color: 'green', fontWeight: 'bold' }}>✅ OK</span>;
+      case 'fail': return <span style={{ color: 'red', fontWeight: 'bold' }}>❌ FAIL</span>;
+      case 'pending': return <span style={{ color: 'orange' }}>⏳ Pending...</span>;
+    }
+  };
 
   return (
     <main style={{ padding: 24, fontFamily: 'ui-sans-serif, system-ui' }}>
@@ -69,22 +85,33 @@ export default function DebugEnvPage() {
       </section>
 
       <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontWeight: 600, marginBottom: 8 }}>API health (via Next rewrite)</h2>
-        <pre
-          style={{
-            background: '#fafafa',
-            border: '1px solid #eee',
-            borderRadius: 8,
-            padding: 12,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {JSON.stringify(health, null, 2)}
-        </pre>
-        <p style={{ marginTop: 8 }}>
-          `/api/prompts` check: {promptsOk === 'pending' ? '…' : promptsOk === 'ok' ? '✅ OK' : '❌ FAIL'}
-        </p>
+        <h2 style={{ fontWeight: 600, marginBottom: 8 }}>API Endpoints (via Next proxy)</h2>
+        
+        <div style={{ marginBottom: 16 }}>
+          <h3 style={{ fontWeight: 500, marginBottom: 8 }}>/api/health</h3>
+          <p style={{ marginBottom: 8 }}>
+            Status: {getStatusIndicator(healthStatus)}
+          </p>
+          <pre
+            style={{
+              background: '#fafafa',
+              border: '1px solid #eee',
+              borderRadius: 8,
+              padding: 12,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {JSON.stringify(health, null, 2)}
+          </pre>
+        </div>
+
+        <div>
+          <h3 style={{ fontWeight: 500, marginBottom: 8 }}>/api/prompts</h3>
+          <p>
+            Status: {getStatusIndicator(promptsOk)}
+          </p>
+        </div>
       </section>
     </main>
   );

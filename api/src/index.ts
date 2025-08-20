@@ -9,7 +9,15 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 
   // --- App bootstrap ---
 const app = Fastify({ logger: true });
-await app.register(cors, { origin: true });
+await app.register(cors, { 
+  origin: [
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'https://stg.cerply.com',
+    // Note: *.vercel.app wildcards not supported - add specific preview domains as needed
+    'https://cerply-web.vercel.app'
+  ]
+});
 
 
 
