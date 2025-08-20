@@ -27,7 +27,6 @@ async function proxy(req: NextRequest, { params }: { params: { path?: string[] }
   const init: RequestInit = {
     method: req.method,
     headers: stripHopByHop(req.headers),
-    cache: 'no-store',
     redirect: 'manual',
   };
   if (req.method !== 'GET' && req.method !== 'HEAD') {

@@ -5,7 +5,6 @@ const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
 export async function GET() {
   try {
     const resp = await fetch(`${API}/health`, { 
-      cache: 'no-store',
       headers: {
         'User-Agent': 'Cerply-Web-Proxy'
       }

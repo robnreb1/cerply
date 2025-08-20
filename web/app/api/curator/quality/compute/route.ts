@@ -12,8 +12,7 @@ export async function POST(request: Request) {
         'Content-Type': 'application/json',
         'User-Agent': 'Cerply-Web-Proxy'
       },
-      body: JSON.stringify(body),
-      cache: 'no-store'
+      body: JSON.stringify(body)
     });
     
     if (!resp.ok) {

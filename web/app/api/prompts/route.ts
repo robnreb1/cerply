@@ -6,7 +6,6 @@ export async function GET() {
   try {
     // Try to fetch from backend prompts endpoint
     const resp = await fetch(`${API}/prompts`, { 
-      cache: 'no-store',
       headers: {
         'User-Agent': 'Cerply-Web-Proxy'
       }
