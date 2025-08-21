@@ -9,6 +9,7 @@ export async function GET() {
     message: 'Test API route working - updated',
     timestamp: new Date().toISOString(),
     build: 'force-refresh-' + Date.now(),
-    deployment: 'vercel-catchall-fix-' + Date.now()
+    deployment: 'vercel-catchall-fix-' + Date.now(),
+    forceRebuild: 'vercel-cache-bust-' + Math.random().toString(36).substring(7)
   });
 }
