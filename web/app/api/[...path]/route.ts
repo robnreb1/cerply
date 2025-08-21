@@ -6,7 +6,10 @@ export async function GET(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/');
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+  const apiBase = process.env.API_BASE || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+  
+  // Debug logging
+  console.log(`API proxy GET /${path}`, { apiBase, env: process.env.NODE_ENV });
   
   try {
     const response = await fetch(`${apiBase}/${path}`, {
@@ -36,7 +39,7 @@ export async function POST(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/');
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+  const apiBase = process.env.API_BASE || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
   
   try {
     const body = await request.json();
@@ -70,7 +73,7 @@ export async function PUT(
   { params }: { params: { path: string[] } }
 ) {
   const path = params.path.join('/');
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
+  const apiBase = process.env.API_BASE || process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
   
   try {
     const body = await request.json();
