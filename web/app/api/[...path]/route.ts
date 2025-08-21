@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force dynamic rendering and prevent static generation
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // Universal API proxy route for both development and production
 export async function GET(
   request: NextRequest,
