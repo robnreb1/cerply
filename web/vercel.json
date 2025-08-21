@@ -1,30 +1,28 @@
 {
-  "version": 2,
   "git": {
     "deploymentEnabled": {
       "main": true,
       "preview": true
     }
   },
-  "framework": "nextjs",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "installCommand": "npm install",
-  "env": { "NODE_VERSION": "20" },
-  "build": { "env": { "NEXT_TELEMETRY_DISABLED": "1" } },
-
-  "headers": [
-    {
-      "source": "/__vercel-check",
-      "headers": [{ "key": "x-vercel-json", "value": "loaded" }]
+  "framework": "nextjs",
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    },
+    "pages/api/**/*.js": {
+      "maxDuration": 30
     }
-  ],
-
-  "rewrites": [
-    { "source": "/ping",               "destination": "https://httpbin.org/status/204" },
-    { "source": "/api/:path*",         "destination": "https://api-stg.cerply.com/api/:path*" },
-    { "source": "/curator/:path*",     "destination": "https://api-stg.cerply.com/curator/:path*" },
-    { "source": "/evidence/:path*",    "destination": "https://api-stg.cerply.com/evidence/:path*" },
-    { "source": "/learn/:path*",       "destination": "https://api-stg.cerply.com/learn/:path*" }
-  ]
+  },
+  "build": {
+    "env": {
+      "NEXT_TELEMETRY_DISABLED": "1"
+    }
+  },
+  "env": {
+    "NODE_VERSION": "20"
+  }
 }
