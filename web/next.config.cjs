@@ -24,8 +24,14 @@ const nextConfig = {
   },
   async rewrites() {
     return [
-      // Proxy Next /api/* to backend /api/* (preserve the /api prefix)
-      { source: '/api/:path*', destination: `${API}/api/:path*` },
+      // IMPORTANT: preserve the /api prefix in the destination
+      { source: '/api/:path*',       destination: `${API}/api/:path*` },
+      { source: '/curator/:path*',   destination: `${API}/curator/:path*` },
+      { source: '/evidence/:path*',  destination: `${API}/evidence/:path*` },
+      { source: '/learn/:path*',     destination: `${API}/learn/:path*` },
+
+      // Temporary diagnostic to prove rewrites are active (expect 204)
+      { source: '/ping', destination: 'https://httpbin.org/status/204' },
     ];
   },
 };
