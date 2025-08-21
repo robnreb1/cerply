@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Force dynamic rendering and prevent static generation
 export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+export const runtime = 'edge';
 
 // Vercel-specific configuration for catch-all routes
 export const maxDuration = 30;
