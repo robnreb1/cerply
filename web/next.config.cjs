@@ -22,8 +22,12 @@ const nextConfig = {
       ],
     },
   },
-  // Removed rewrites to avoid conflict with API routes
-  // API routes in app/api/[...path]/route.ts handle all backend proxying
+  async rewrites() {
+    return [
+      // Proxy Next /api/* to backend /api/* (preserve the /api prefix)
+      { source: '/api/:path*', destination: `${API}/api/:path*` },
+    ];
+  },
 };
 
 module.exports = nextConfig;
