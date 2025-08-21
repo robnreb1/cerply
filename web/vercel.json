@@ -18,6 +18,17 @@
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "pages/api/**/*.js": {
+      "maxDuration": 30
     }
+  },
+  "build": {
+    "env": {
+      "NEXT_TELEMETRY_DISABLED": "1"
+    }
+  },
+  "env": {
+    "NODE_VERSION": "20"
   }
 }
