@@ -22,16 +22,8 @@ const nextConfig = {
     config.resolve.alias['@'] = path.resolve(__dirname);
     return config;
   },
-  async rewrites() {
-    return [
-      // API routes: map /api/:path* to backend without /api prefix
-      { source: '/api/:path*', destination: `${API}/:path*` },
-      // Other routes: map to backend with full path
-      { source: '/curator/:path*',   destination: `${API}/curator/:path*` },
-      { source: '/evidence/:path*',  destination: `${API}/evidence/:path*` },
-      { source: '/learn/:path*',     destination: `${API}/learn/:path*` },
-    ];
-  },
+  // Removed rewrites to avoid conflict with API routes
+  // API routes in app/api/[...path]/route.ts handle all backend proxying
 };
 
 module.exports = nextConfig;
