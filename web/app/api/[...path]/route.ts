@@ -4,6 +4,10 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Vercel-specific configuration for catch-all routes
+export const maxDuration = 30;
+export const preferredRegion = 'auto';
+
 // Universal API proxy route for both development and production
 export async function GET(
   request: NextRequest,

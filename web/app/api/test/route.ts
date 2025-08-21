@@ -8,6 +8,7 @@ export async function GET() {
   return NextResponse.json({ 
     message: 'Test API route working - updated',
     timestamp: new Date().toISOString(),
-    build: 'force-refresh-' + Date.now()
+    build: 'force-refresh-' + Date.now(),
+    deployment: 'vercel-catchall-fix-' + Date.now()
   });
 }
