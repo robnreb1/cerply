@@ -8,6 +8,9 @@ export const runtime = 'nodejs';
 export const maxDuration = 30;
 export const preferredRegion = 'auto';
 
+// Force Vercel to treat this as a serverless function
+export const revalidate = 0;
+
 // Universal API proxy route for both development and production
 export async function GET(
   request: NextRequest,
