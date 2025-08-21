@@ -9,3 +9,4 @@ All secrets fixed: 2025-01-20 15:00 - Project ID, Token, and Org ID all correct!
 FORCE REFRESH: 2025-01-20 15:15 - clearing cache, testing deployment with all corrected secrets
 Final test: 2025-01-20 15:30 - Organization ID now corrected to team_hdHcBTCHE8caEtzv2zHNHcWm
 All secrets updated: 2025-01-20 15:45 - testing deployment with fresh secrets
+Workflow permissions updated: 2025-01-20 16:00 - testing with proper permissions
