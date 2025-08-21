@@ -6,7 +6,7 @@ type CoverageGap = { id: string; kind: string; detail: string; suggestion: strin
 type CoverageSummary = { objectives: number; items: number; covered: number; gaps: number };
 type CoverageResp = { scopeId: string; summary: CoverageSummary; gaps: CoverageGap[] };
 
-const API = 'http://localhost:8080';
+// All API calls go through /api/* proxy
 
 export default function ECSPage() {
   const [data, setData] = useState<CoverageResp | null>(null);
