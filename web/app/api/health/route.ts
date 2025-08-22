@@ -1,15 +1,26 @@
 export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 
 const RAW_API =
   process.env.NEXT_PUBLIC_API_BASE ||
   process.env.NEXT_PUBLIC_API_URL ||
   'http://localhost:8080';
+
 const API = RAW_API.replace(/\/+$/, '');
 
 export async function GET() {
-  const r = await fetch(`${API}/api/health`, { cache: 'no-store' });
-  return new Response(await r.text(), {
+  const target = `${API}/api/health`;
+  const r = await fetch(target, {
+    cache: 'no-store',
+    headers: { accept: 'application/json' },
+  });
+
+  const body = await r.text();
+  return new Response(body, {
     status: r.status,
-    headers: { 'content-type': r.headers.get('content-type') ?? 'text/plain' },
+    headers: {
+      'content-type': r.headers.get('content-type') ?? 'application/json',
+      'x-proxy-target': target,
+    },
   });
 }
