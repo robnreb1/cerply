@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 // web/app/api/prompts/route.ts
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -24,7 +23,6 @@ export async function GET(request: Request) {
         headers: {
           'content-type': resp.headers.get('content-type') ?? 'application/json; charset=utf-8',
           'cache-control': 'no-store',
-          'x-edge': 'prompts-proxy',
           'x-upstream': url,
         },
       });
@@ -43,13 +41,7 @@ export async function GET(request: Request) {
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
-      'x-edge': 'prompts-fallback',
       'x-upstream': url,
     },
   });
-=======
-export const runtime = 'edge';
-export async function GET(): Promise<Response> {
-  return Response.json({ prompts: [], source: 'edge-stub' });
->>>>>>> 3931c76 (feat(api): add working edge routes for /ping, /api/health, /api/prompts)
 }
