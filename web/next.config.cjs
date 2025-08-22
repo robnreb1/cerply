@@ -10,18 +10,22 @@ const API = RAW_API.replace(/\/+$/, ''); // strip trailing slash
 const nextConfig = {
   reactStrictMode: false,
   output: 'standalone',
+
+  // Canary header so we can verify THIS file is active.
+  async headers() {
+    return [
+      { source: '/:path*', headers: [{ key: 'x-next-config', value: 'loaded' }] },
+      { source: '/api/:path*', headers: [{ key: 'x-next-rewrite', value: 'true' }] },
+      { source: '/ping', headers: [{ key: 'x-next-rewrite', value: 'true' }] },
+    ];
+  },
+
+  // Rewrites: preserve /api prefix; special-case /api/prompts; add /ping diag
   async rewrites() {
     return [
-      // quick diagnostic to prove rewrites are active
       { source: '/ping', destination: 'https://httpbin.org/status/204' },
-
-      // preserve /api prefix when proxying to the backend
-      { source: '/api/:path*',      destination: `${API}/api/:path*` },
-
-      // non-/api namespaces used by the app
-      { source: '/curator/:path*',  destination: `${API}/curator/:path*` },
-      { source: '/evidence/:path*', destination: `${API}/evidence/:path*` },
-      { source: '/learn/:path*',    destination: `${API}/learn/:path*` },
+      { source: '/api/prompts', destination: `${API}/prompts` },
+      { source: '/api/:path*', destination: `${API}/api/:path*` },
     ];
   },
 };
