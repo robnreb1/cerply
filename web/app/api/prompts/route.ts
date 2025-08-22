@@ -1,27 +1,10 @@
 export const runtime = 'edge';
-import { apiBase } from '@/lib/apiBase';
+export const dynamic = 'force-dynamic';
 
-export async function GET(request: Request) {
-  const upstream = `${apiBase()}/prompts`;
-  const res = await fetch(upstream, {
-    method: 'GET',
-    cache: 'no-store',
-    headers: {
-      'accept': 'application/json',
-      'x-forwarded-host': new URL(request.url).host,
-      'x-forwarded-proto': 'https',
-    },
-  });
-
-  const body = await res.text();
-  const ct = res.headers.get('content-type') || 'application/json';
-
-  return new Response(body, {
-    status: res.status,
-    headers: {
-      'content-type': ct,
-      'x-edge': 'prompts→proxy',
-      'x-upstream': upstream,
-    },
-  });
+export async function GET() {
+  const data = [
+    { id: 'demo-1', title: 'Welcome to Cerply', category: 'demo' },
+    { id: 'demo-2', title: 'Try a curated prompt', category: 'demo' },
+  ];
+  return Response.json(data, { headers: { 'x-edge': 'prompts' } });
 }
