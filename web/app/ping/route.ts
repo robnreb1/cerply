@@ -1,4 +1,4 @@
 export const runtime = 'edge';
-export async function GET(): Promise<Response> {
+export async function GET() {
   return new Response(null, { status: 204, headers: { 'x-edge': 'ping' } });
 }

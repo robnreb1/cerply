@@ -1,16 +1,11 @@
 export const runtime = 'edge';
-
-const API = (process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080').replace(/\/+$/, '');
-
-export async function GET(req: Request): Promise<Response> {
-  const url = new URL(req.url);
-  const upstream = `${API}/prompts${url.search}`;
-  const r = await fetch(upstream, {
-    headers: { accept: 'application/json' },
+export async function GET() {
+  const data = [
+    { id: 'demo-1', title: 'Welcome to Cerply', category: 'demo' },
+    { id: 'demo-2', title: 'Try a curated prompt', category: 'demo' },
+  ];
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: { 'content-type': 'application/json', 'x-edge': 'prompts' },
   });
-  const out = new Response(r.body, { status: r.status, statusText: r.statusText });
-  out.headers.set('content-type', r.headers.get('content-type') ?? 'application/json');
-  out.headers.set('x-edge-proxy', 'true');
-  out.headers.set('x-upstream', upstream);
-  return out;
 }
