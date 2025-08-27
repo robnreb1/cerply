@@ -1,49 +1,31 @@
-import Link from 'next/link';
+"use client";
 
-export default function BrandHeader() {
+import Link from "next/link";
+
+type Props = { className?: string };
+
+export default function BrandHeader({ className }: Props) {
   return (
-    <header className="w-full border-b border-[var(--brand-border)] bg-[var(--brand-surface)]">
-      <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div
-            className="h-6 w-6 rounded-8"
-            style={{ background: 'linear-gradient(135deg, #F06B54 0%, #F58A76 55%, #FDE0D8 100%)' }}
-          />
-          <Link href="/" className="font-semibold text-[var(--brand-ink)] hover:text-[var(--brand-primary)] transition-colors">
+    <header
+      className={`w-full border-b border-zinc-100 bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60 ${className ?? ""}`}
+    >
+      <div className="relative mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+        {/* Left: Logo */}
+        <div className="min-w-0">
+          <Link href="/" className="font-semibold text-zinc-900 hover:opacity-80">
             Cerply
           </Link>
         </div>
-        
-        <nav className="flex items-center gap-6">
-          <Link 
-            href="/curate" 
-            className="text-sm text-[var(--brand-subtle)] hover:text-[var(--brand-ink)] transition-colors"
-          >
-            Curate
-          </Link>
-          <Link 
-            href="/learn" 
-            className="text-sm text-[var(--brand-subtle)] hover:text-[var(--brand-ink)] transition-colors"
-          >
-            Learn
-          </Link>
-          <Link 
-            href="/coverage" 
-            className="text-sm text-[var(--brand-subtle)] hover:text-[var(--brand-ink)] transition-colors"
-          >
-            Coverage
-          </Link>
-          <Link 
-            href="/analytics/pilot" 
-            className="text-sm text-[var(--brand-subtle)] hover:text-[var(--brand-ink)] transition-colors"
-          >
-            Analytics
-          </Link>
-          <Link 
-            href="/prompts" 
-            className="text-sm text-[var(--brand-subtle)] hover:text-[var(--brand-ink)] transition-colors"
-          >
-            Prompts
+
+        {/* Center: reassurance copy (desktop only to avoid crowding) */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-center text-sm italic text-zinc-500 sm:block">
+          Helping you master what matters
+        </div>
+
+        {/* Right: login */}
+        <nav className="ml-auto flex items-center gap-3">
+          <Link href="/login" className="text-sm text-zinc-600 hover:text-zinc-900">
+            Log in
           </Link>
         </nav>
       </div>
