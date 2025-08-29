@@ -30,18 +30,16 @@ export async function GET(request: Request) {
   } catch {
     // fall through to fallback
   }
-
   const fallback = JSON.stringify([
     { id: 'demo-1', title: 'Welcome to Cerply', category: 'demo' },
     { id: 'demo-2', title: 'Try a curated prompt', category: 'demo' },
   ]);
-  
   return new Response(fallback, {
     status: 200,
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
-        'x-upstream': url,
+      'x-upstream': url,
     },
   });
 }
