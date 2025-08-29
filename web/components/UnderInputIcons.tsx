@@ -1,10 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-<<<<<<< HEAD
-=======
 import type { ChangeEventHandler } from "react";
->>>>>>> 508b575 (fix(web): correct Heroicons SVG component typing in UnderInputIcons)
 import {
   AcademicCapIcon,
   Squares2X2Icon,
