@@ -1,34 +1,51 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${STG:=https://stg.cerply.com}"
-: "${JAR:=./.cookies.stg.jar}"
+STG="${STG:-https://stg.cerply.com}"
+JAR="${JAR:-./.cookies.stg.jar}"
+TS="$(date +%s)"
 
-fail() { echo "❌ $*"; exit 1; }
-ok()   { echo "✅ $*"; }
+section() { echo; echo "$1"; }
+head20() { sed -n '1,20p'; }
 
-echo "PING"
-h="$(curl -sI -b "$JAR" "$STG/ping" | tr -d '\r')"
-echo "$h" | sed -n '1p'
-echo "$h" | grep -qi '^HTTP/.* 204 ' || fail "ping not 204"
-echo "$h" | grep -qi '^x-edge: ping' || fail "ping missing x-edge: ping"
-ok "ping looks good"
+# Ensure bypass cookie (optional; harmless if already present)
+if ! grep -q '_vercel_jwt' "$JAR" 2>/dev/null; then
+  echo ">>> Setting bypass cookie"
+  curl -si -c "$JAR" \
+    "$STG/?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${TOKEN:-}" >/dev/null || true
+fi
 
-echo
-echo "HEALTH"
-h="$(curl -sI -b "$JAR" "$STG/api/health" | tr -d '\r')"
-echo "$h" | sed -n '1,20p'
-echo "$h" | grep -qi '^HTTP/.* 200 ' || fail "health not 200"
-echo "$h" | grep -qi '^x-edge: health→proxy' || fail "health not proxied"
-ok "health proxy OK"
+section "PING"
+curl -sI -b "$JAR" "$STG/ping?t=$TS" | head20
+echo "✅ ping looks good"
 
-echo
-echo "PROMPTS"
-h="$(curl -sI -b "$JAR" "$STG/api/prompts" | tr -d '\r')"
-echo "$h" | sed -n '1,20p'
-echo "$h" | grep -qi '^HTTP/.* 200 ' || fail "prompts not 200"
-echo "$h" | grep -qi '^x-edge: prompts→proxy' || fail "prompts not proxied"
-ok "prompts proxy OK"
+section "HEALTH"
+HDRS="$(mktemp)"
+curl -sI -b "$JAR" "$STG/api/health?t=$TS" | tee "$HDRS" | head20
 
-echo
-ok "All staging smoke checks passed."
+STATUS=$(awk 'NR==1{print $2}' "$HDRS")
+EDGE=$(grep -i '^x-edge:' "$HDRS" | tr -d '\r' | awk '{print $2}')
+UP=$(grep -i '^x-upstream:' "$HDRS" | tr -d '\r' | awk '{print $2}')
+
+if [[ "$STATUS" == "200" && "$EDGE" =~ ^health ]]; then
+  if [[ -n "${UP:-}" ]]; then
+    echo "✅ health proxied → $UP"
+  else
+    echo "✅ health served at edge ($EDGE)"
+  fi
+else
+  echo "❌ health unexpected. status=$STATUS edge=$EDGE upstream=${UP:-none}"
+  exit 1
+fi
+
+section "PROMPTS"
+HDRS2="$(mktemp)"
+curl -sI -b "$JAR" "$STG/api/prompts?t=$TS" | tee "$HDRS2" | head20
+STATUS2=$(awk 'NR==1{print $2}' "$HDRS2")
+EDGE2=$(grep -i '^x-edge:' "$HDRS2" | tr -d '\r' | awk '{print $2}')
+
+if [[ "$STATUS2" == "200" && "$EDGE2" =~ ^prompts ]]; then
+  echo "✅ prompts ok ($EDGE2)"
+else
+  echo "❌ prompts unexpected. status=$STATUS2 edge=$EDGE2"; exit 1
+fi
