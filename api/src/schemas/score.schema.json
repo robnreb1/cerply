@@ -1,0 +1,12 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "CerplyScore",
+    "type": "object",
+    "required": ["score","difficulty","misconceptions","next_review_days"],
+    "properties": {
+      "score": {"type":"number","minimum":0,"maximum":1},
+      "difficulty": {"type":"string","enum":["easy","medium","hard"]},
+      "misconceptions": {"type":"array","items":{"type":"string"}},
+      "next_review_days": {"type":"integer","minimum":0}
+    }
+  }

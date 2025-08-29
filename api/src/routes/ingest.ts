@@ -28,11 +28,88 @@ function splitIntoChunks(text: string, maxLen = 800) {
   return chunks;
 }
 
+type ModuleOutline = { id: string; title: string; summary?: string; estMinutes?: number };
+
+function makeId(prefix: string, i: number) {
+  return `${prefix}-${String(i + 1).padStart(2, "0")}`;
+}
+
+function outlineFromText(text: string): ModuleOutline[] {
+  const trimmed = (text || "").trim();
+  if (!trimmed) {
+    return [
+      { id: "mod-01", title: "Overview", summary: "High-level orientation.", estMinutes: 4 },
+    ];
+  }
+  const dense = trimmed.length > 600 || (trimmed.match(/\n/g) || []).length > 6;
+  const count = dense ? 5 : 3;
+  const titles = dense
+    ? ["Overview", "Key Concepts", "Important Distinctions", "Applications", "Check-your-understanding"]
+    : ["Overview", "Key Concepts", "Applied practice"];
+  return Array.from({ length: count }).map((_, i) => ({
+    id: makeId("mod", i),
+    title: titles[i] || `Section ${i + 1}`,
+    summary: i === 0 ? "Auto-generated draft outline from your input." : undefined,
+    estMinutes: i === 0 ? 4 : 6,
+  }));
+}
+
 /**
  * This file ONLY registers routes. No app.listen, no plugin re-registers.
  * NOTE: @fastify/multipart must be registered once in src/index.ts (already done).
  */
 export default async function registerIngest(app: FastifyInstance) {
+  /**
+   * POST /ingest/preview
+   * Body: { type: "text"|"url"|"file", payload: string }
+   * - "text": uses local heuristic to propose an outline
+   * - "url": calls AI /extract_text then proposes outline (does NOT persist)
+   * - "file": for now, uses filename placeholder to size outline
+   */
+  app.post('/ingest/preview', async (req, reply) => {
+    try {
+      const body = req.body as any;
+      const type = String(body?.type || '').toLowerCase();
+      const payload = String(body?.payload || '');
+
+      let basisText = '';
+
+      if (type === 'text') {
+        basisText = payload;
+      } else if (type === 'url') {
+        const aiUrl = process.env.AI_URL || 'http://ai:8090';
+        const aiRes = await fetch(`${aiUrl}/extract_text`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url: payload }),
+        });
+        if (!aiRes.ok) {
+          const t = await aiRes.text().catch(() => '');
+          (req as any).log?.warn?.({ t }, 'preview_ai_extract_failed');
+          return reply.code(502).send({ error: 'ai_error' });
+        }
+        const data = (await aiRes.json()) as { text?: string };
+        basisText = (data.text ?? '').toString();
+      } else if (type === 'file') {
+        // For now we don't parse the file contents here; use a placeholder string to size outline.
+        basisText = `Uploaded file: ${payload}`;
+      } else {
+        return reply.code(400).send({ error: 'bad_request', message: 'type must be text|url|file' });
+      }
+
+      const modules = outlineFromText(basisText);
+
+      reply
+        .header('cache-control', 'no-store')
+        .header('content-type', 'application/json; charset=utf-8')
+        .header('x-api', 'ingest-preview');
+      return reply.send({ ok: true, modules });
+    } catch (err) {
+      (req as any).log?.error?.({ err }, 'ingest_preview_failed');
+      return reply.code(500).send({ error: 'preview_failed' });
+    }
+  });
+
   /**
    * POST /ingest/url
    * Body: { url: string }
@@ -262,6 +339,56 @@ export default async function registerIngest(app: FastifyInstance) {
     } catch (err) {
       (req as any).log?.error?.({ err }, 'auto_generate_failed');
       return reply.code(500).send({ error: 'auto_generate_failed' });
+    }
+  });
+
+  /**
+   * POST /ingest/generate
+   * Body: { modules: ModuleOutline[] }
+   * - Produces draft content for each module (stubbed, no persistence)
+   */
+  app.post('/ingest/generate', async (req, reply) => {
+    try {
+      const body = req.body as any;
+      const modules: ModuleOutline[] = Array.isArray(body?.modules) ? body.modules : [];
+      if (!modules.length) {
+        return reply.code(400).send({ error: 'bad_request', message: 'modules[] required' });
+      }
+
+      const items = modules.map((m: ModuleOutline, i: number) => ({
+        id: m.id || makeId('mod', i),
+        title: m.title,
+        summary: m.summary ?? 'Draft explanation.',
+        content: [
+          `Explanation: ${m.title} — draft content goes here.`,
+          'Key points:',
+          '• Point A',
+          '• Point B',
+        ].join('\n'),
+        mcq: [
+          {
+            q: `Which best describes ${m.title}?`,
+            choices: ['A', 'B', 'C', 'D'],
+            answer: 0,
+            rationale: 'Demo rationale.',
+          },
+        ],
+        free: [
+          {
+            q: `In 2–3 sentences, explain ${m.title}.`,
+            rubric: 'Look for clarity, correctness, and concision.',
+          },
+        ],
+      }));
+
+      reply
+        .header('cache-control', 'no-store')
+        .header('content-type', 'application/json; charset=utf-8')
+        .header('x-api', 'ingest-generate');
+      return reply.send({ ok: true, items });
+    } catch (err) {
+      (req as any).log?.error?.({ err }, 'ingest_generate_failed');
+      return reply.code(500).send({ error: 'generate_failed' });
     }
   });
 }

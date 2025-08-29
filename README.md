@@ -1,4 +1,3 @@
-
 # Cerply v4.1 — Curator + Adaptive + Trust Labels + Analytics
 
 ## Run
@@ -15,3 +14,255 @@ Env (API): FF_CURATOR_DASHBOARD_V1, FF_ADAPTIVE_ENGINE_V1, FF_TRUST_LABELS_V1
 Env (Web): NEXT_PUBLIC_FF_*
 
 See: [Functional Spec](docs/functional-spec.md)
+
+---
+
+## Dev Modes, Smoke Tests & Release Checklist (Cerply)
+
+This project supports a **mock-first** dev experience, a simple **live proxy** mode, and a **staging smoke** workflow compatible with Vercel’s Deployment Protection.
+
+### 1) Environment toggles
+
+Build-time env (compiled at server start):
+
+- `NEXT_PUBLIC_USE_MOCKS`  
+  - `true`  -> force mocks  
+  - `false` -> force live proxy  
+  - **unset** -> dev=mock by default, prod=live by default
+- `NEXT_PUBLIC_API_BASE` (default `http://localhost:8080`)
+- `NEXT_PUBLIC_ENTERPRISE_MODE` (optional UI toggle)
+
+> **Note:** Changing `NEXT_PUBLIC_*` requires restarting the Next dev server.
+
+### 2) Common dev commands
+
+```bash
+# Start both API (8080) and Web (3000)
+npm run dev
+
+# Start only API
+npm run dev --workspace api
+
+# Start only Web (mock data)
+NEXT_PUBLIC_USE_MOCKS=true npm run dev --workspace @cerply/web
+
+# Start only Web (live proxy to API)
+NEXT_PUBLIC_USE_MOCKS=false npm run dev --workspace @cerply/web
+
+# Enterprise UI on port 3001 (mock)
+NEXT_PUBLIC_USE_MOCKS=true npm run dev:ent --workspace @cerply/web
+
+# Enterprise UI on port 3001 (live)
+NEXT_PUBLIC_USE_MOCKS=false npm run dev:ent --workspace @cerply/web
+```
+
+**Port already in use?**
+
+```bash
+for p in 3000 3001 8080; do pid=$(lsof -ti tcp:$p); [ -n "$pid" ] && kill -TERM $pid || true; done
+```
+
+### 3) What to expect (edge headers)
+
+- **`/api/health`**
+  - `x-edge: health-mock` (mock) or `x-edge: health-proxy` (live)
+- **`/api/prompts`**
+  - `x-edge: prompts-mock` (mock), `x-edge: prompts-proxy` (live), or `x-edge: prompts-fallback` if backend is unreachable
+
+> **Header gotcha:** Edge header values must be ASCII-only. Avoid fancy arrows like `→`. Use `-&gt;` instead in any docs/examples.
+
+### 4) Staging smoke (manual from your laptop)
+
+Prereqs:
+- Vercel domain `stg.cerply.com` is pinned to branch **staging** (Project -&gt; Settings -&gt; Domains).
+- You have a Vercel **Protection Bypass Token**.
+
+Steps:
+
+```bash
+export STG="https://stg.cerply.com"
+export TOKEN="&lt;your_vercel_bypass_token&gt;"
+JAR="./.cookies.stg.jar"
+
+# Set bypass cookie in the jar
+curl -si -c "$JAR" \
+  "$STG/?x-vercel-set-bypass-cookie=true&amp;x-vercel-protection-bypass=$TOKEN" \
+  | sed -n '1,12p'
+
+# Run scripted checks (expects JAR to exist)
+JAR="$JAR" ./scripts/smoke-stg.sh
+```
+
+The script verifies `GET /ping`, `GET /api/health`, and `GET /api/prompts` and prints status + `x-edge` markers.
+
+### 5) GitHub Actions: staging smoke via secret
+
+- Add repo secret **`VERCEL_BYPASS_TOKEN_STG`**:  
+  Settings -&gt; Secrets and variables -&gt; Actions -&gt; **New repository secret**
+- The workflow `.github/workflows/stg-smoke.yml` picks it up:
+
+```yaml
+env:
+  BASE_URL: https://stg.cerply.com
+  TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN_STG }}
+```
+
+- Trigger via **Actions -&gt; Staging Smoke -&gt; Run workflow**.
+
+### 6) Release checklist (staging -&gt; prod)
+
+1. **Push** to `staging` (Vercel auto-deploys).
+2. **Bypass &amp; smoke**: set cookie + run `scripts/smoke-stg.sh` **or** dispatch the **Staging Smoke** action.
+3. **Fix** any failing endpoint (look for `x-edge: *-fallback`).
+4. **Promote**: merge to `main` or run `vercel --prod` per your policy.
+5. **Post-check** production `/api/health` and `/api/prompts`.
+
+### 7) Backend path alignment
+
+Frontend proxies to: `${NEXT_PUBLIC_API_BASE}/api/prompts`.  
+If your backend exposes `/prompts` (no `/api`), update `web/app/api/prompts/route.ts`:
+
+```ts
+// change:
+const url = `${base}/api/prompts`;
+// to:
+const url = `${base}/prompts`;
+```
+
+### 8) Troubleshooting
+
+- **Edge ByteString / 500**: Non-ASCII in headers (e.g. `→`). Use ASCII (e.g. `-&gt;`).
+- **Env toggle not taking effect**: stop and restart the Next dev server.
+- **401 on staging**: Missing protection bypass. Set `_vercel_jwt` via `x-vercel-set-bypass-cookie` (see above) or use the GH Action.
+
+---
+
+## Cerply Intelligence Blueprint (v1)
+
+This augments the Functional Spec with concrete building blocks for the three AI pillars: **conversational intake**, **generation**, and **daily synchronisation**.
+
+### A) Conversational Intake (disambiguation-first)
+**Goal:** Help a user precisely define *what to learn* using natural language and light clarifying turns.
+
+**UX states**
+- **Idle** → input focused, placeholder cycle, Enter to submit.
+- **Processing** → conversational: “Got it, analysing your artefact…”.
+- **Review** → show *proposed modules* (cards). Allow rename, merge/split, remove.
+
+**Frontend building blocks**
+- `components/TypingIntro` (type-on intro line)
+- `components/UnderInputIcons` (quick actions incl. Upload)
+- `components/ModuleCard` (title, scope, est. minutes, confidence)
+- `lib/state/intakeMachine.ts` (Idle → Processing → Review → Confirmed)
+
+**API surface (draft)**
+- `POST /v1/intake/start`
+  - **Body**: `{ source: 'text'|'url'|'upload', text?, url?, upload_id? }`
+  - **Resp**: `{ intake_id, status: 'queued'|'processing' }`
+- `GET /v1/intake/:id/events` (SSE)
+  - **Stream**: `{type:'status'|'summary'|'question', payload}`
+- `POST /v1/intake/:id/answer`
+  - **Body**: `{ answer: string }` (for clarifying Qs)
+
+### B) Generation Pipeline (modules → items)
+**Goal:** Create right-sized modules; then generate explanations + MCQs + free-text questions.
+
+**Flow**
+1) **Propose** module outline from artefact/topic.
+2) **Confirm** outline with user edits.
+3) **Generate** content per confirmed modules.
+
+**API surface (draft)**
+- `POST /v1/modules/propose` → `{ outline: Module[] }`
+- `POST /v1/modules/confirm` → `{ modules: Module[] }` (persist as a new version)
+- `POST /v1/generate` → `{ job_id }` (async)
+- `GET /v1/jobs/:id` → `{ status, artifacts }`
+
+**Data contracts (simplified)**
+```ts
+// Module shape (stable fields only)
+interface Module {
+  id: string;
+  title: string;
+  est_minutes: number;        // 3..12 typical micro-length
+  difficulty: 'intro'|'core'|'advanced';
+  confidence: number;         // 0..1 model confidence in scope
+}
+
+// Generated content item
+interface ContentItem {
+  id: string;
+  module_id: string;
+  kind: 'explain'|'mcq'|'free';
+  prompt: string;             // stem or explanation title
+  body?: string;              // explanation markdown
+  choices?: string[];         // for mcq
+  answer?: string|number;     // mcq index or free rubric pointer
+}
+```
+
+### C) Daily Synchronisation (adaptive practice)
+**Goal:** Keep learners engaged daily using spacing, difficulty targeting, and recency weighting.
+
+**Rules of thumb**
+- Newer and weaker topics are prioritised.
+- Certified content > non-certified (but certification may be paywalled).
+- User can pause or drop any topic.
+
+**API surface (draft)**
+- `GET /v1/assignments/today?limit=20` → `{ assignments: Assignment[] }`
+- `POST /v1/answers` → `{ assignment_id, response, latency_ms }` → `{ scored: Score, next_review_at }`
+- `GET /v1/progress` → rollups for dashboard/analytics
+
+**Data sketch**
+```ts
+interface Assignment {
+  id: string;
+  content_item_id: string;
+  due_at: string;           // ISO
+  weight: number;           // scheduler priority
+}
+
+interface Score {
+  correct: boolean;
+  p_correct: number;       // model-estimated
+  delta_mastery: number;   // Bayesian/IRT-style update
+}
+```
+
+### Storage & services (minimal viable)
+- **API** (`/api` service): orchestrates intake → outline → generation → scheduler.
+- **DB** (Postgres): learners, modules, items, assignments, answers, audit_events.
+- **Object storage**: uploads and generated artifacts.
+- **Queue/worker**: long-running generation jobs.
+
+### Audit, analytics, trust
+- Every state change emits an `audit_events` row `{ actor, action, entity, before, after, ts }`.
+- Keep psychometrics and scoring parameters versioned per cohort/pilot.
+- Expose **read-only** `GET /v1/audit/:entity/:id` and `GET /v1/analytics/summaries` for enterprise.
+
+### Feature flags (opt-in)
+- **API**: `FF_CONVERSATION_V1`, `FF_GENERATION_V1`, `FF_SCHEDULER_V1`.
+- **Web**: `NEXT_PUBLIC_FF_CONVERSATION_V1`, `NEXT_PUBLIC_FF_SCHEDULER_V1`.
+
+### Incremental plan (checklist)
+**M0 – End-to-end mock**
+- Mock endpoints under `/api/mock/*`; wire UI states (Idle/Processing/Review/Learn).
+
+**M1 – Live intake + outline**
+- Implement `POST /v1/intake/start`, SSE events, and `POST /v1/modules/propose`.
+
+**M2 – Confirm + generate**
+- Persist outlines, implement `POST /v1/generate` (job + worker), basic MCQ/free generation.
+
+**M3 – Scheduler + daily review**
+- Implement `GET /v1/assignments/today`, `POST /v1/answers`, mastery updates, basic nudge cron.
+
+**M4 – Audit + analytics + enterprise polish**
+- Trust labels surfaced, read-only audit endpoints, enterprise upsell hooks on review screen.
+
+### Dev ergonomics
+- Keep mocks behind `NEXT_PUBLIC_USE_MOCKS=true` and mirror the real shapes above.
+- Extend `scripts/smoke-stg.sh` later to include `GET /api/health`, `GET /api/prompts`, and a lightweight `GET /v1/assignments/today` once live.
+
+> No fancy arrows in headers or examples; keep ASCII for Edge runtime compatibility.

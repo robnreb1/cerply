@@ -1,11 +1,10 @@
-export function apiFetch(path: string): Promise<Response> {
-  const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
-  const url = path.startsWith('http') 
-    ? path 
-    : (path.startsWith('/api') 
-      ? path 
-      : `/api${path.startsWith('/') ? '' : '/'}${path}`);
-  return fetch(url);
+export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const url = path.startsWith('http')
+    ? path
+    : (path.startsWith('/api')
+        ? path
+        : `/api${path.startsWith('/') ? '' : '/'}${path}`);
+  return fetch(url, init);
 }
 
 // Legacy apiFetch for existing code
@@ -66,4 +65,51 @@ export type CertifiedPack = {
 };
 export async function certifiedStatus(packId = 'demo-pack'): Promise<CertifiedPack> {
   return apiFetchLegacy(`/certified/status?packId=${encodeURIComponent(packId)}`, { method:'GET' });
+}
+
+export type ModuleOutline = { id: string; title: string; estMinutes?: number };
+export type IngestPreviewReq = { type: 'text' | 'url' | 'file'; payload: string; name?: string };
+export type IngestPreviewResp = { ok: boolean; modules: ModuleOutline[] };
+export type DraftItem = {
+  id: string;
+  moduleId: string;
+  kind: 'explanation' | 'mcq' | 'free';
+  stem?: string;
+  body?: string;
+  options?: string[];
+  correctIndex?: number;
+};
+export type IngestGenerateResp = { ok: boolean; items: DraftItem[] };
+
+
+async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await apiFetch(path, init);
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try {
+      const j: any = text ? JSON.parse(text) : undefined;
+      msg = j?.error?.message || j?.message || msg;
+    } catch {}
+    throw new Error(msg);
+  }
+  return (text ? (JSON.parse(text) as T) : ({} as T));
+}
+
+export async function ingestPreview(args: IngestPreviewReq): Promise<IngestPreviewResp> {
+  return apiJson('/ingest/preview', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(args),
+    cache: 'no-store',
+  });
+}
+
+export async function ingestGenerate(args: { modules: ModuleOutline[] }): Promise<IngestGenerateResp> {
+  return apiJson('/ingest/generate', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ modules: args.modules }),
+    cache: 'no-store',
+  });
 }

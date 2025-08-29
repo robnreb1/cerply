@@ -16,6 +16,10 @@ export default function HomePage() {
   const [value, setValue] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Drag & drop state
+  const [dragOver, setDragOver] = useState(false);
+  const dragDepth = useRef(0);
+
   // Typewriter greeting overlay
   const greeting = "Hi, I'm Cerply, what would you like to learn today?";
   const [typed, setTyped] = useState("");
@@ -74,6 +78,33 @@ export default function HomePage() {
     }
   }
 
+  // Drag & drop handlers (support files and pasted text)
+  function onDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+  }
+  function onDragEnter(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragOver(true);
+  }
+  function onDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    dragDepth.current -= 1;
+    if (dragDepth.current <= 0) setDragOver(false);
+  }
+  function onDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length) {
+      handleUpload(files);
+      return;
+    }
+    const text = e.dataTransfer.getData("text/plain");
+    if (text) setValue((v) => (v ? v + "\n" + text : text));
+  }
+
   // Enter to submit (Shift+Enter = newline)
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -96,15 +127,14 @@ export default function HomePage() {
     <main className="mx-auto max-w-2xl px-4 py-10 sm:py-14 min-h-[100svh] flex flex-col">
       
 
-      {/* Centered brand label */}
-      <div className="mb-4 text-center">
-        <span className="text-3xl font-semibold tracking-tight text-zinc-700">Cerply</span>
-      </div>
-
       {/* Input card */}
       <div
         ref={containerRef}
         className="relative rounded-2xl border border-black/10 bg-white shadow-sm"
+        onDragOver={onDragOver}
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
       >
         {/* Typewriter overlay (sits inside the input box) */}
         {showOverlay && (
@@ -115,6 +145,12 @@ export default function HomePage() {
                 <span className="inline-block w-2 animate-pulse">▍</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {dragOver && (
+          <div className="pointer-events-none absolute inset-0 z-10 rounded-2xl border-2 border-dashed border-black/30 bg-black/5 grid place-items-center">
+            <div className="text-sm font-medium text-black/70">Drop files or text to add</div>
           </div>
         )}
 

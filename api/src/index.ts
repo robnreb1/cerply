@@ -9,6 +9,13 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 
   // --- App bootstrap ---
 const app = Fastify({ logger: true });
+// ---- debug route collection ----
+type RouteRow = { method: string; url: string };
+const __ROUTES: RouteRow[] = [];
+app.addHook('onRoute', (route) => {
+  const method = Array.isArray(route.method) ? route.method.join(',') : String(route.method);
+  __ROUTES.push({ method, url: route.url });
+});
 await app.register(cors, { 
   origin: [
     'http://localhost:3000',
@@ -219,6 +226,42 @@ function chunkPlaintext(text: string): string[] {
     .filter(s => s.length > 0)
     .slice(0, 200);
 }
+
+// ---------------------
+// Ingest preview helpers (outline + ids)
+// ---------------------
+type ModuleOutline = { id: string; title: string; estMinutes?: number };
+
+function makeId(prefix: string, i: number) {
+  return `${prefix}-${String(i + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Create a lightweight module outline from free text.
+ * Heuristics: split to paragraph-ish chunks, estimate modules by size,
+ * use top keywords to title the first few, then fallback to Module N.
+ */
+function outlineFromText(text: string): ModuleOutline[] {
+  const chunks = chunkPlaintext(text);
+  const wordCount = text.trim().split(/\s+/).length;
+  // 250–400 words per module target
+  const target = 320;
+  const rawCount = Math.max(1, Math.min(12, Math.round(wordCount / target)));
+  const count = Math.max(1, Math.min(12, rawCount || 1));
+
+  const kws = extractKeywords(text);
+  const modules: ModuleOutline[] = [];
+  for (let i = 0; i < count; i++) {
+    const kw = kws[i] ?? null;
+    const title = kw ? `About: ${kw[0].toUpperCase()}${kw.slice(1)}` : `Module ${i + 1}`;
+    modules.push({ id: makeId('mod', i), title, estMinutes: 3 + Math.floor(Math.random() * 5) });
+  }
+  // If the text looks very short, collapse to one overview module
+  if (wordCount < 120 && modules.length > 1) {
+    return [{ id: 'mod-01', title: 'Overview', estMinutes: 3 }];
+  }
+  return modules;
+}
 // ---------------------
 // Evidence Coverage (stub)
 // ---------------------
@@ -245,9 +288,267 @@ function handleCoverage(req: FastifyRequest, reply: FastifyReply) {
 app.get('/evidence/coverage', handleCoverage);
 app.get('/api/evidence/coverage', handleCoverage);
 
-// DEV ONLY: expose registered routes for spec snapshot
-app.get('/__routes', async () => {
-  return { routes: [], ts: new Date().toISOString() };
+// DEV HELPERS: expose routes & process info
+app.get('/__routes', async (_req, reply) => {
+  const printed = (app as any).printRoutes ? (app as any).printRoutes() : '';
+  if (printed && typeof printed === 'string') {
+    reply.type('text/plain').send(printed);
+  } else {
+    // Fallback to JSON list collected via onRoute hook
+    reply.type('application/json').send({
+      routes: __ROUTES,
+      ts: new Date().toISOString(),
+      note: 'printRoutes unavailable; returning onRoute snapshot'
+    });
+  }
+});
+
+// JSON route table (based on onRoute hook)
+app.get('/__routes.json', async (_req, reply) => {
+  reply.type('application/json').send({ routes: __ROUTES, ts: new Date().toISOString() });
+});
+
+// Whoami (which process is serving this port)
+app.get('/__whoami', async (_req, reply) => {
+  reply.type('application/json').send({
+    pid: process.pid,
+    cwd: process.cwd(),
+    node: process.version,
+    startedAt: new Date().toISOString(),
+    note: 'Fastify API process'
+  });
+});
+
+// Simple hello (useful smoke test)
+app.get('/__hello', async (_req, reply) => {
+  reply.type('application/json').send({ ok: true, name: 'cerply-api' });
+});
+
+// Minimal dev probe
+app.get('/__dev', async (_req, reply) => {
+  reply.type('application/json').send({
+    hasDevHelpers: true,
+    routesCount: __ROUTES.length,
+    ts: new Date().toISOString()
+  });
+});
+
+// ---------------------
+// Ingest: parse (normalize raw input into text)  ← simple normalizer used by web/app/api/ingest/parse proxy
+// ---------------------
+async function handleIngestParse(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    // Support JSON {text?, url?} or text/plain
+    const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
+    let text = '';
+    let kind: 'text' | 'url' | 'unknown' = 'unknown';
+
+    if (ct.includes('application/json')) {
+      const body = ((req as any).body ?? {}) as { text?: string; url?: string };
+      if (typeof body.text === 'string' && body.text.trim()) {
+        text = body.text.trim();
+        kind = 'text';
+      } else if (typeof body.url === 'string' && body.url.trim()) {
+        // For now just echo URL; the preview route does real fetch/extract
+        text = body.url.trim();
+        kind = 'url';
+      } else {
+        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Provide text or url' } });
+      }
+    } else if (ct.includes('text/plain')) {
+      const raw = (req as any).body as string;
+      text = String(raw ?? '').trim();
+      if (!text) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Empty text body' } });
+      kind = 'text';
+    } else {
+      // attempt best-effort
+      const raw = (req as any).body as any;
+      text = typeof raw === 'string' ? raw.trim() : '';
+      if (!text) return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: `Unsupported content-type ${ct || '(none)'}` } });
+      kind = 'text';
+    }
+
+    reply.header('cache-control', 'no-store');
+    reply.header('x-api', 'ingest-parse');
+    return reply.send({
+      ok: true,
+      parsed: { kind, text },
+      bytes: Buffer.byteLength(text, 'utf8'),
+      ts: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    (req as any).log?.error?.({ err }, 'ingest/parse failed');
+    return reply.code(500).send({ error: { code: 'INTERNAL', message: 'parse failed' } });
+  }
+}
+
+// Register on both URLs
+app.post('/api/ingest/parse', handleIngestParse);
+app.post('/ingest/parse', handleIngestParse);
+
+// Helper: normalize preview input across shapes
+function pickText(contentType: string | undefined, body: any, rawText?: string): string | null {
+  if (contentType && contentType.includes('text/plain')) return rawText ?? null;
+  if (typeof body?.text === 'string') return body.text;
+  if (typeof body?.payload?.text === 'string') return body.payload.text;
+  if (typeof body?.input?.text === 'string') return body.input.text;
+  if (body?.artefact?.kind === 'text' && typeof body.artefact.text === 'string') return body.artefact.text;
+  return null;
+}
+
+// ---------------------
+// Ingest: preview and generate (MVP)
+// ---------------------
+
+async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
+    const isJson = ct.includes('application/json');
+    const body: any = isJson ? ((req as any).body ?? {}) : undefined;
+    const rawText: string | undefined = !isJson ? ((req as any).body as string | undefined) : undefined;
+
+    // Legacy shape: { type: 'text'|'url'|'file', payload: string, name?, mime? }
+    const legacyType = (body?.type as ('text' | 'url' | 'file' | undefined)) ?? undefined;
+    const legacyPayload = (body?.payload as (string | undefined)) ?? undefined;
+
+    let text = '';
+
+    if (legacyType) {
+      if (legacyType === 'text') {
+        if (!legacyPayload || !legacyPayload.trim()) {
+          return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'payload text required' } });
+        }
+        text = legacyPayload;
+      } else if (legacyType === 'url') {
+        if (!legacyPayload || !legacyPayload.trim()) {
+          return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'url payload required' } });
+        }
+        const AI_URL = process.env.AI_URL || process.env.NEXT_PUBLIC_AI_URL;
+        let extracted = '';
+        if (AI_URL) {
+          try {
+            const r = await fetch(`${AI_URL.replace(/\/+$/, '')}/extract_text`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ url: legacyPayload }),
+            });
+            if (r.ok) {
+              const j = await r.json().catch(() => ({}));
+              extracted = (j?.text ?? '').toString();
+            }
+          } catch { /* ignore and fall back */ }
+        }
+        if (!extracted) {
+          const r = await fetch(legacyPayload);
+          const html = await r.text();
+          extracted = html.replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                          .replace(/<[^>]+>/g, ' ')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+        }
+        text = extracted.slice(0, 20000);
+      } else if (legacyType === 'file') {
+        if (!legacyPayload) {
+          return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'base64 payload required' } });
+        }
+        try {
+          const bytes = Buffer.from(legacyPayload, 'base64');
+          const name = (body?.name ?? 'upload.bin').toString();
+          text = await extractTextFromBytes(name, bytes);
+        } catch (e: any) {
+          return reply.code(400).send({ error: { code: 'BAD_FILE', message: e?.message || 'unable to decode/parse file' } });
+        }
+      }
+    } else {
+      // Lenient shapes:
+      // - raw text/plain
+      // - { text }
+      // - { payload: { text } } or { input: { text } }
+      // - { artefact: { kind: 'text', text } }
+      // - { url }
+      // - { name, contentBase64 }  (optional)
+      const picked = pickText(ct, body, rawText);
+      if (picked && picked.trim().length > 0) {
+        text = picked;
+      } else if (typeof body?.url === 'string' && body.url.trim()) {
+        const url = body.url.trim();
+        const AI_URL = process.env.AI_URL || process.env.NEXT_PUBLIC_AI_URL;
+        let extracted = '';
+        if (AI_URL) {
+          try {
+            const r = await fetch(`${AI_URL.replace(/\/+$/, '')}/extract_text`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ url }),
+            });
+            if (r.ok) {
+              const j = await r.json().catch(() => ({}));
+              extracted = (j?.text ?? '').toString();
+            }
+          } catch { /* ignore and fall back */ }
+        }
+        if (!extracted) {
+          const r = await fetch(url);
+          const html = await r.text();
+          extracted = html.replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                          .replace(/<[^>]+>/g, ' ')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+        }
+        text = extracted.slice(0, 20000);
+      } else if (typeof body?.contentBase64 === 'string' && body.contentBase64) {
+        try {
+          const name = (body?.name ?? 'upload.bin').toString();
+          const bytes = Buffer.from(body.contentBase64, 'base64');
+          text = await extractTextFromBytes(name, bytes);
+        } catch (e: any) {
+          return reply.code(400).send({ error: { code: 'BAD_FILE', message: e?.message || 'unable to decode/parse file' } });
+        }
+      } else {
+        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'payload text required' } });
+      }
+    }
+
+    const modules = outlineFromText(text);
+    reply.header('cache-control', 'no-store');
+    reply.header('x-api', 'ingest-preview');
+    return reply.send({ ok: true, modules });
+  } catch (err: any) {
+    (req as any).log?.error?.({ err }, 'ingest/preview failed');
+    return reply.code(500).send({ error: { code: 'INTERNAL', message: 'preview failed' } });
+  }
+}
+
+// Register preview on both URLs
+app.post('/api/ingest/preview', handleIngestPreview);
+app.post('/ingest/preview', handleIngestPreview);
+
+app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply) => {
+  const b = ((req as any).body ?? {}) as { modules?: { id: string; title: string; estMinutes?: number }[] };
+  const mods = Array.isArray(b.modules) ? b.modules : [];
+  if (mods.length === 0) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'modules[] required' } });
+
+  // Produce simple drafts per module: explanation + one MCQ + one free-form prompt
+  const items = mods.map((m, i) => {
+    const expl = `Overview of "${m.title}". Key takeaways are summarized in plain language to build intuition before testing.`;
+    const mcq = mkItem(`Which statement best captures "${m.title}"?`, i);
+    const free = { prompt: `In 2–3 sentences, explain "${m.title}" to a colleague.` };
+    return { moduleId: m.id, title: m.title, explanation: expl, questions: { mcq, free } };
+  });
+
+  // Optional lightweight generation ledger
+  if (FLAGS.ff_cost_guardrails_v1) {
+    const now = new Date().toISOString();
+    for (const row of items) {
+      _genLedger.push({ itemId: row.questions.mcq.id, modelUsed: 'mock:router', costCents: 1, createdAt: now });
+    }
+  }
+
+  reply.header('cache-control', 'no-store');
+  reply.header('x-api', 'ingest-generate');
+  return reply.send({ ok: true, items });
 });
 
 // ---------------------
@@ -519,6 +820,19 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
 // Listen
 // ---------------------
 const port = Number(process.env.PORT ?? 8080);
+
+// Ensure all routes are registered and (if available) print them
+await app.ready();
+if ((app as any).printRoutes) {
+  try {
+    console.log('[api] routes:\n' + (app as any).printRoutes());
+  } catch (e) {
+    console.log('[api] routes: printRoutes() threw:', e);
+  }
+} else {
+  console.log('[api] routes: (printRoutes unavailable)');
+}
+
 await app.listen({ host: '0.0.0.0', port });
 console.log(`[api] listening on http://0.0.0.0:${port}`);
 })();
