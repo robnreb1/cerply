@@ -1,209 +1,272 @@
-import type { FastifyInstance } from "fastify";
+// api/src/routes/ingest.ts
+import type { FastifyInstance } from 'fastify';
+import runLLM from '../11m/run';
 
-// ---------- helpers ----------
-const nowISO = () => new Date().toISOString();
-const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
-const pad2 = (n: number) => String(n).padStart(2, "0");
+/** ---------- small helpers ---------- */
+type PlannedModule = {
+  id?: string;
+  title: string;
+  estMinutes?: number;
+  rationale?: string;
+  prerequisite?: boolean;
+  bloom?: 'remember' | 'understand' | 'apply' | 'analyze' | 'evaluate' | 'create';
+};
 
-type ParsedArtefact =
-  | { kind: "text"; text: string }
-  | { kind: "url"; url: string }
-  | { kind: "file"; name: string; bytes: number };
-
-type ModuleOutline = { id: string; title: string; estMinutes: number };
-
-function analyzeIntent(input: string) {
-  const raw = (input || "").trim();
-  const lower = raw.toLowerCase();
-
-  // time budget
-  let mins = 0;
-  const m1 = lower.match(/(\d+)\s*(min|mins|minute|minutes)\b/);
-  const h1 = lower.match(/(\d+)\s*(h|hr|hour|hours)\b/);
-  if (m1) mins += parseInt(m1[1], 10);
-  if (h1) mins += parseInt(h1[1], 10) * 60;
-
-  // intro intent
-  const isIntro = /\b(intro|beginner|basics|foundation|foundations)\b/.test(lower);
-
-  // focus segment
-  const f = lower.match(/\bfocus\s+(on|around)?\s*([a-z0-9\-\s]+)/);
-  const focus = f ? f[2].trim().replace(/\.$/, "") : undefined;
-
-  // topic normalization (coarse)
-  let topic = raw.split(/[.,\n]/)[0].trim();
-  const bigMap: Record<string, string> = {
-    astrophysics: "Astrophysics",
-    "quantum mechanics": "Quantum Mechanics",
-    mathematics: "Mathematics",
-    biology: "Biology",
-    chemistry: "Chemistry",
-    "computer science": "Computer Science",
-    economics: "Economics",
-  };
-  for (const k of Object.keys(bigMap)) {
-    if (lower.includes(k)) topic = bigMap[k];
-  }
-
-  return { topic, mins, isIntro, focus };
+function clampNumber(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+function truthyEnv(v: any): boolean {
+  if (!v) return false;
+  const s = String(v).toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes' || s === 'on';
 }
 
-function proposeModules(topic: string, mins: number, isIntro: boolean, focus?: string): ModuleOutline[] {
-  // base on time
-  let n =
-    mins >= 90 ? 6 :
-    mins >= 60 ? 5 :
-    mins >= 40 ? 4 :
-    mins >= 25 ? 3 :
-    2;
+const LLM_PLANNER_ENABLED = truthyEnv(process.env.LLM_PREVIEW ?? process.env.LLM_PLANNER);
+const DEFAULT_PLANNER_MODEL = process.env.LLM_PLANNER_MODEL || 'gpt-4o-mini';
 
-  // scope-based bump/cap
-  const heavy = ["Astrophysics", "Quantum Mechanics", "Mathematics", "Biology", "Computer Science"];
-  if (!mins && heavy.includes(topic)) n = Math.max(n, isIntro ? 3 : 5);
-  if (isIntro) n = Math.min(n, 4);
-  n = clamp(n, 2, 6);
+/** Extract plain text topic + optional time budget from incoming payload */
+function coerceTextPayload(body: any): { text: string; timeBudgetMinutes?: number } {
+  if (!body) return { text: '' };
+  // straight text
+  if (typeof body.text === 'string' && body.text.trim()) {
+    return { text: body.text.trim(), timeBudgetMinutes: guessTime(body.text) };
+  }
+  // artefact wrapper
+  if (body.artefact && typeof body.artefact?.text === 'string') {
+    return { text: body.artefact.text.trim(), timeBudgetMinutes: guessTime(body.artefact.text) };
+  }
+  // url string (treat as text label)
+  if (typeof body.url === 'string' && body.url.trim()) {
+    return { text: body.url.trim(), timeBudgetMinutes: undefined };
+  }
+  // anything else: stringify
+  return { text: String(body).trim() };
+}
 
-  // allocate minutes (at least 5 each)
-  const per = clamp(Math.floor((mins || (n * 8)) / n), 5, 25);
+/** naive time extractor: “45 mins”, “20 minutes” → 45/20 */
+function guessTime(s: string | undefined): number | undefined {
+  if (!s) return undefined;
+  const m = s.toLowerCase().match(/(\d{1,3})\s*(min|mins|minutes|m)\b/);
+  if (m) {
+    const val = parseInt(m[1], 10);
+    if (Number.isFinite(val)) return clampNumber(val, 5, 180);
+  }
+  return undefined;
+}
 
-  // seed titles
-  const seeds: string[] = [];
-  seeds.push(`${topic}: Foundations`);
-  if (focus) seeds.push(`Focus: ${focus}`);
-  seeds.push(`${topic}: Core Concepts`);
-  seeds.push(`${topic}: Applications`);
-  seeds.push(`${topic}: Key Equations & Methods`);
-  seeds.push(`${topic}: Review & Practice`);
-
-  // uniq & cut to n
-  const seen = new Set<string>();
-  const titles = seeds.filter(t => (seen.has(t) ? false : (seen.add(t), true))).slice(0, n);
-
-  return titles.map((title, i) => ({
-    id: `mod-${pad2(i + 1)}`,
-    title,
-    estMinutes: per,
+/** Basic heuristic fallback modules when LLM is off/unavailable */
+function heuristicModules(topic: string, timeBudgetMinutes?: number): PlannedModule[] {
+  const t = (topic || 'Topic').trim();
+  // Make it a bit less generic, but still deterministic
+  const seeds = [
+    `${t}: Key Ideas`,
+    `${t}: Worked Examples`,
+    `${t}: Common Pitfalls`,
+    `${t}: Check Your Understanding`,
+    `${t}: Apply It`,
+    `${t}: Quick Review`,
+  ];
+  // pick a sensible count vs time budget
+  const per = 8; // default 8 mins/module
+  const maxByTime = timeBudgetMinutes ? Math.max(3, Math.min(10, Math.round(timeBudgetMinutes / per))) : 4;
+  const count = clampNumber(maxByTime, 3, 8);
+  return seeds.slice(0, count).map((title, i) => ({
+    id: `mod-${String(i + 1).padStart(2, '0')}`,
+    title: title.slice(0, 96),
+    estMinutes: clampNumber(Math.round(timeBudgetMinutes ? timeBudgetMinutes / count : 6), 4, 12),
   }));
 }
 
-// ---------- routes ----------
+/** Try to plan modules with an LLM (JSON-only) */
+async function planModulesLLM(topic: string, timeBudgetMinutes?: number) {
+  const model = DEFAULT_PLANNER_MODEL;
+  const system =
+    'You are a master curriculum planner. Given a topic and (optional) time budget for an initial learning session, propose a concise, high-quality module outline that helps a motivated learner build competence efficiently.' +
+    ' Return ONLY JSON that matches exactly: {"modules":[{"title":string,"estMinutes":number,"rationale":string,"prerequisite":boolean,"bloom":"remember"|"understand"|"apply"|"analyze"|"evaluate"|"create"}]}.' +
+    ' Rules: 6–10 modules for broad topics, 3–6 for narrow. Avoid generic titles like "Foundations", "Overview", "Review & Practice" unless truly justified. Titles must be concrete and specific.' +
+    ' Each module gets 4–12 minutes; distribute minutes sensibly given the time budget. Keep rationales to one sentence. No extra keys, no prose outside JSON.';
+  const input = JSON.stringify({ topic, timeBudgetMinutes: timeBudgetMinutes ?? null });
+
+  const res = await runLLM({
+    provider: 'openai',
+    model,
+    system,
+    input,
+    json: true,
+    temperature: 0.2,
+  } as any);
+
+  if (!(res as any)?.ok) {
+    return { ok: false as const, reason: (res as any)?.reason || 'llm-failed' };
+  }
+
+  // Parse strict JSON
+  const raw = String((res as any).output || '').trim();
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return { ok: false as const, reason: 'bad-json' };
+    parsed = JSON.parse(m[0]);
+  }
+
+  const arr = Array.isArray(parsed?.modules) ? parsed.modules : [];
+  if (!arr.length) return { ok: false as const, reason: 'no-modules' };
+
+  const modules: PlannedModule[] = arr
+    .map((m: any, i: number) => {
+      const title = String(m?.title ?? '').trim();
+      const est = Number.isFinite(m?.estMinutes) ? Number(m.estMinutes) : 6;
+      return {
+        id: `mod-${String(i + 1).padStart(2, '0')}`,
+        title: title ? title.slice(0, 96) : `Module ${i + 1}`,
+        estMinutes: clampNumber(Math.round(est), 4, 12),
+        rationale: m?.rationale ? String(m.rationale).slice(0, 180) : undefined,
+        prerequisite: !!m?.prerequisite,
+        bloom: ((): PlannedModule['bloom'] => {
+          const v = String(m?.bloom || '').toLowerCase();
+          const allowed = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
+          return (allowed.includes(v) ? (v as any) : undefined) as any;
+        })(),
+      };
+    })
+    .slice(0, 12);
+
+  return { ok: true as const, modules, model };
+}
+
+/** ---------- routes ---------- */
 export default async function ingestRoutes(app: FastifyInstance) {
-  // /api/ingest/parse
-  app.post("/api/ingest/parse", async (req: any, reply: any) => {
+  // parse: keep existing behaviour
+  app.post('/api/ingest/parse', async (req: any, reply: any) => {
     try {
-      let artefact: ParsedArtefact | null = null;
+      const body = (req.body ?? {}) as any;
+      let text = '';
+      let kind: 'text' | 'url' = 'text';
 
-      if (typeof req.body === "string") {
-        artefact = { kind: "text", text: req.body };
-      } else if (req.body?.text) {
-        artefact = { kind: "text", text: String(req.body.text) };
-      } else if (req.body?.artefact?.kind === "text" && req.body?.artefact?.text) {
-        artefact = { kind: "text", text: String(req.body.artefact.text) };
-      } else if (req.body?.url) {
-        artefact = { kind: "url", url: String(req.body.url) };
-      } else if (req.body?.file?.name && typeof req.body?.file?.bytes === "number") {
-        artefact = { kind: "file", name: String(req.body.file.name), bytes: Number(req.body.file.bytes) };
+      if (typeof body.text === 'string') {
+        text = body.text;
+      } else if (body.artefact?.text) {
+        text = String(body.artefact.text);
+      } else if (typeof body.url === 'string') {
+        text = String(body.url);
+        kind = 'url';
+      } else if (typeof body === 'string') {
+        text = body;
       }
 
-      if (!artefact) {
-        return reply.code(400).send({ error: { code: "BAD_REQUEST", message: "No artefact supplied" } });
-      }
-
-      const bytes =
-        artefact.kind === "text" ? Buffer.byteLength(artefact.text, "utf8")
-        : artefact.kind === "url" ? artefact.url.length
-        : artefact.bytes;
+      const resp = {
+        ok: true,
+        parsed: kind === 'url' ? { kind, url: text } : { kind: 'text', text },
+        bytes: text ? Buffer.byteLength(text, 'utf8') : 0,
+        ts: new Date().toISOString(),
+      };
 
       return reply
-        .header("x-api", "ingest-parse")
-        .send({ ok: true, parsed: artefact, bytes, ts: nowISO() });
+        .headers({ 'cache-control': 'no-store', 'x-api': 'ingest-parse' })
+        .send(resp);
     } catch (err: any) {
-      (req as any).log?.error?.(err);
-      return reply.code(500).send({ ok: false, error: { code: "SERVER_ERROR", message: err?.message || String(err) } });
-    }
-  });
-
-  // /api/ingest/preview  (NEW multi-module heuristic)
-  app.post("/api/ingest/preview", async (req: any, reply: any) => {
-    try {
-      const text: string =
-        (typeof req.body === "string" && req.body) ||
-        req.body?.text ||
-        req.body?.payload ||
-        req.body?.artefact?.text ||
-        "";
-
-      if (!text || typeof text !== "string") {
-        return reply.code(400).send({ error: { code: "BAD_REQUEST", message: "payload text required" } });
-      }
-
-      const intent = analyzeIntent(text);
-      const modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
-
-      reply.header("x-api", "ingest-preview");
-      reply.header("x-preview-impl", "v2-multi");
-      reply.header("cache-control", "no-store");
-
-      return reply.send({
-        ok: true,
-        modules,
-        diagnostics: {
-          impl: "v2-multi",
-          topic: intent.topic,
-          mins: intent.mins,
-          isIntro: intent.isIntro,
-          focus: intent.focus || null,
-          count: modules.length,
-        },
+      return reply.code(500).send({
+        ok: false,
+        error: { code: 'SERVER_ERROR', message: err?.message || String(err) },
       });
-    } catch (err: any) {
-      (req as any).log?.error?.(err);
-      return reply.code(500).send({ ok: false, error: { code: "SERVER_ERROR", message: err?.message || String(err) } });
     }
   });
 
-  // /api/ingest/generate (unchanged stub generator)
-  app.post("/api/ingest/generate", async (req: any, reply: any) => {
+  // preview: now tries LLM (if enabled) then falls back to heuristic
+  app.post('/api/ingest/preview', async (req: any, reply: any) => {
     try {
-      const modules: Array<{ id?: string; title?: string }> = Array.isArray(req.body?.modules)
-        ? req.body.modules
-        : [];
+      const body = (req.body ?? {}) as any;
+      const { text, timeBudgetMinutes } = coerceTextPayload(body);
+      const topic = (text || '').trim();
 
-      if (!modules.length) {
-        return reply.code(400).send({ error: { code: "BAD_REQUEST", message: "modules[] required" } });
+      if (!topic) {
+        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'payload text required' } });
       }
 
-      const items = modules.map((m, i) => ({
-        moduleId: m.id || `mod-${pad2(i + 1)}`,
-        title: m.title || `Module ${i + 1}`,
-        explanation: `Overview of "${m.title || `Module ${i + 1}`}". Key takeaways are summarized in plain language to build intuition before testing.`,
-        questions: {
-          mcq: {
-            id: `auto-${i}-${Math.random().toString(36).slice(2, 8)}`,
-            stem: `Which statement best captures "${m.title || `Module ${i + 1}`}"?`,
-            options: ["About: which", "Unrelated: statement", "Partially true: best", "Opposite: captures"],
-            correctIndex: 0,
-          },
-          free: {
-            prompt: `In 2–3 sentences, explain "${m.title || `Module ${i + 1}`}" to a colleague.`,
-          },
-        },
-      }));
+      if (LLM_PLANNER_ENABLED) {
+        try {
+          const llm = await planModulesLLM(topic, timeBudgetMinutes);
+          if (llm.ok) {
+            (req as any).log?.info?.({ at: 'preview.llm', topic, model: llm.model, count: llm.modules.length });
+            return reply
+              .headers({ 'cache-control': 'no-store', 'x-api': 'ingest-preview', 'x-planner': 'llm', 'x-model': llm.model || '' })
+              .send({ ok: true, modules: llm.modules, diagnostics: { planner: 'llm', model: llm.model, fallback: false } });
+          } else {
+            (req as any).log?.warn?.({ at: 'preview.llm', topic, reason: llm.reason }, 'LLM planner failed — fallback to heuristic');
+          }
+        } catch (err: any) {
+          (req as any).log?.error?.({ at: 'preview.llm', err: err?.message || String(err) }, 'LLM planner threw');
+        }
+      }
 
-      return reply.header("x-api", "ingest-generate").send({ ok: true, items });
+      const modules = heuristicModules(topic, timeBudgetMinutes);
+      return reply
+        .headers({ 'cache-control': 'no-store', 'x-api': 'ingest-preview', 'x-planner': 'heuristic' })
+        .send({ ok: true, modules, diagnostics: { planner: 'heuristic', fallback: true } });
     } catch (err: any) {
-      (req as any).log?.error?.(err);
-      return reply.code(500).send({ ok: false, error: { code: "SERVER_ERROR", message: err?.message || String(err) } });
+      return reply.code(500).send({
+        ok: false,
+        error: { code: 'SERVER_ERROR', message: err?.message || String(err) },
+      });
     }
   });
 
-  // convenience aliases
-  app.post("/ingest/preview", async (req: any, reply: any) => {
-    const r = await app.inject({ method: "POST", url: "/api/ingest/preview", payload: req.body });
-    return reply.code(r.statusCode).headers(r.headers as any).send(r.body);
+  // generate: stub content (unchanged behaviour)
+  app.post('/api/ingest/generate', async (req: any, reply: any) => {
+    try {
+      const body = (req.body ?? {}) as any;
+      const modules = Array.isArray(body?.modules) ? body.modules : [];
+      if (!modules.length) {
+        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'modules[] required' } });
+      }
+
+      const items = modules.map((m: any, i: number) => {
+        const title = String(m?.title || `Module ${i + 1}`);
+        return {
+          moduleId: m?.id || `mod-${String(i + 1).padStart(2, '0')}`,
+          title,
+          explanation: `Overview of "${title}". Key takeaways are summarized in plain language to build intuition before testing.`,
+          questions: {
+            mcq: {
+              id: `auto-${i}-${Math.random().toString(36).slice(2, 8)}`,
+              stem: `Which statement best captures "${title}"?`,
+              options: ['About: which', 'Unrelated: statement', 'Partially true: best', 'Opposite: captures'],
+              correctIndex: 0,
+            },
+            free: {
+              prompt: `In 2–3 sentences, explain "${title}" to a colleague.`,
+            },
+          },
+        };
+      });
+
+      return reply
+        .headers({ 'cache-control': 'no-store', 'x-api': 'ingest-generate' })
+        .send({ ok: true, items });
+    } catch (err: any) {
+      return reply.code(500).send({
+        ok: false,
+        error: { code: 'SERVER_ERROR', message: err?.message || String(err) },
+      });
+    }
   });
-  app.post("/ingest/generate", async (req: any, reply: any) => {
-    const r = await app.inject({ method: "POST", url: "/api/ingest/generate", payload: req.body });
-    return reply.code(r.statusCode).headers(r.headers as any).send(r.body);
-  });
+
+  /** ----- alias routes to match earlier curl usage ----- */
+  app.post('/ingest/parse', async (req: any, reply: any) =>
+    app
+      .inject({ method: 'POST', url: '/api/ingest/parse', payload: req.body })
+      .then((r: any) => reply.code(r.statusCode).headers(r.headers as any).send(r.body))
+  );
+  app.post('/ingest/preview', async (req: any, reply: any) =>
+    app
+      .inject({ method: 'POST', url: '/api/ingest/preview', payload: req.body })
+      .then((r: any) => reply.code(r.statusCode).headers(r.headers as any).send(r.body))
+  );
+  app.post('/ingest/generate', async (req: any, reply: any) =>
+    app
+      .inject({ method: 'POST', url: '/api/ingest/generate', payload: req.body })
+      .then((r: any) => reply.code(r.statusCode).headers(r.headers as any).send(r.body))
+  );
 }

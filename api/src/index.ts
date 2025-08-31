@@ -1,3 +1,30 @@
+// --- Minimal .env loader (loads .env.local then .env if present) ---
+import fs from "node:fs";
+import path from "node:path";
+
+(function initEnv() {
+  const files = [".env.local", ".env"];
+  for (const f of files) {
+    const p = path.join(process.cwd(), f);
+    if (!fs.existsSync(p)) continue;
+    const text = fs.readFileSync(p, "utf8");
+    for (const raw of text.split(/\r?\n/)) {
+      if (!raw || /^\s*#/.test(raw)) continue;
+      const m = raw.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+      if (!m) continue;
+      let [, key, val] = m;
+      // strip surrounding quotes
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1);
+      }
+      if (!(key in process.env)) process.env[key] = val;
+    }
+  }
+})();
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import crypto from 'node:crypto';
@@ -136,6 +163,9 @@ const _certPacks: Record<string, CertifiedPack> = {};
 // ---------------------
 // Helpers
 // ---------------------
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
 function splitSentences(text: string): string[] {
   return text
     .replace(/\s+/g, ' ')
@@ -261,6 +291,175 @@ function outlineFromText(text: string): ModuleOutline[] {
     return [{ id: 'mod-01', title: 'Overview', estMinutes: 3 }];
   }
   return modules;
+}
+
+/**
+ * Lightweight intent analysis from a short free-text brief.
+ * Extracts topic (normalized), time budget in minutes, intro flag, and optional focus segment.
+ */
+function analyzeIntent(input: string) {
+  const raw = (input || '').trim();
+  const lower = raw.toLowerCase();
+
+  // time budget
+  let mins = 0;
+  const m1 = lower.match(/(\d+)\s*(min|mins|minute|minutes)\b/);
+  const h1 = lower.match(/(\d+)\s*(h|hr|hour|hours)\b/);
+  if (m1) mins += parseInt(m1[1], 10);
+  if (h1) mins += parseInt(h1[1], 10) * 60;
+
+  // intro intent
+  const isIntro = /\b(intro|beginner|beginners|basics|foundation|foundations)\b/.test(lower);
+
+  // focus segment ("focus on X")
+  const f = lower.match(/\bfocus\s+(on|around)?\s*([a-z0-9\-\s]+)/);
+  const focus = f ? f[2].trim().replace(/\.$/, '') : undefined;
+
+  // topic normalization (coarse)
+  let topic = raw.split(/[.,\n]/)[0].trim() || 'Learning Topic';
+  const bigMap: Record<string, string> = {
+    astrophysics: 'Astrophysics',
+    'quantum mechanics': 'Quantum Mechanics',
+    mathematics: 'Mathematics',
+    biology: 'Biology',
+    chemistry: 'Chemistry',
+    'computer science': 'Computer Science',
+    economics: 'Economics',
+    physics: 'Physics',
+    history: 'History',
+    regulation: 'Regulation',
+  };
+  for (const k of Object.keys(bigMap)) {
+    if (lower.includes(k)) topic = bigMap[k];
+  }
+
+  // Capitalize first word fallback
+  if (!Object.values(bigMap).includes(topic)) {
+    topic = topic.slice(0, 1).toUpperCase() + topic.slice(1);
+  }
+
+  return { topic, mins, isIntro, focus };
+}
+
+/**
+ * Propose a set of modules given topic & constraints.
+ * Chooses count primarily from time budget; falls back to scope-based heuristics.
+ */
+function proposeModules(topic: string, mins: number, isIntro: boolean, focus?: string): ModuleOutline[] {
+  // choose module count
+  let n =
+    mins >= 90 ? 6 :
+    mins >= 60 ? 5 :
+    mins >= 40 ? 4 :
+    mins >= 25 ? 3 :
+    2;
+
+  // scope-based bump/cap when no explicit time given
+  const heavy = ['Astrophysics', 'Quantum Mechanics', 'Mathematics', 'Biology', 'Computer Science', 'Physics'];
+  if (!mins && heavy.includes(topic)) n = Math.max(n, isIntro ? 3 : 5);
+  if (isIntro) n = Math.min(n, 4);
+  n = clamp(n, 2, 6);
+
+  // per-module minutes (ensure at least 5 and at most 25)
+  const per = clamp(Math.floor((mins || (n * 8)) / n), 5, 25);
+
+  // seed titles
+  const seeds: string[] = [];
+  seeds.push(`${topic}: Foundations`);
+  if (focus) seeds.push(`Focus: ${focus}`);
+  seeds.push(`${topic}: Core Concepts`);
+  seeds.push(`${topic}: Applications`);
+  seeds.push(`${topic}: Key Equations & Methods`);
+  seeds.push(`${topic}: Review & Practice`);
+
+  // uniq & trim to n
+  const seen = new Set<string>();
+  const titles = seeds.filter(t => (seen.has(t) ? false : (seen.add(t), true))).slice(0, n);
+
+  return titles.map((title, i) => ({
+    id: `mod-${String(i + 1).padStart(2, '0')}`,
+    title,
+    estMinutes: per,
+  }));
+}
+
+// ---------------------
+// LLM-based planner (optional; OpenAI via fetch, no SDK)
+// ---------------------
+const LLM_PLANNER_ENABLED = (() => {
+  const v = (process.env.LLM_PREVIEW ?? process.env.LLM_PLANNER ?? '').toString().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+})();
+const LLM_MODEL = (process.env.LLM_PLANNER_MODEL ?? 'gpt-4o-mini').toString();
+const LLM_PROVIDER = (process.env.LLM_PLANNER_PROVIDER ?? 'openai').toString().toLowerCase();
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
+
+type LlmPlan = { modules: ModuleOutline[]; raw?: any; model?: string };
+
+async function planModulesLLM(intent: { topic: string; mins: number; isIntro: boolean; focus?: string }): Promise<LlmPlan> {
+  if (!LLM_PLANNER_ENABLED) throw new Error('LLM planner disabled by env');
+  if (LLM_PROVIDER !== 'openai') throw new Error(`Unsupported LLM provider: ${LLM_PROVIDER}`);
+  if (!OPENAI_API_KEY) throw new Error('Missing OPENAI_API_KEY');
+
+  const sys = [
+    'You are a curriculum planner who breaks a user brief into a small set of logical learning modules for a first session.',
+    'Return STRICT JSON with shape: { "modules": [ { "id": "mod-01", "title": "string", "estMinutes": number }, ... ] }',
+    'Choose 2–6 modules based on the time budget (per-module 5–25 minutes).',
+    'Titles must be specific to the topic/focus (avoid generic words like "About").',
+    'If a focus is given, include one module for it.',
+    'Do NOT include explanations; only module metadata.',
+  ].join(' ');
+
+  const u = JSON.stringify({
+    topic: intent.topic,
+    timeBudgetMinutes: intent.mins,
+    isIntro: intent.isIntro,
+    focus: intent.focus ?? null
+  });
+
+  const body = {
+    model: LLM_MODEL,
+    temperature: 0.2,
+    response_format: { type: 'json_object' as const },
+    messages: [
+      { role: 'system', content: sys },
+      { role: 'user', content: `User brief JSON:\n${u}` }
+    ]
+  };
+
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'authorization': `Bearer ${OPENAI_API_KEY}`
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!r.ok) {
+    const errText = await r.text().catch(() => '');
+    throw new Error(`OpenAI HTTP ${r.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await r.json().catch(() => ({}));
+  const content = data?.choices?.[0]?.message?.content ?? '';
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error('LLM did not return valid JSON');
+  }
+  const mods: ModuleOutline[] = Array.isArray(parsed?.modules)
+    ? parsed.modules.map((m: any, i: number) => ({
+        id: typeof m?.id === 'string' ? m.id : `mod-${String(i + 1).padStart(2, '0')}`,
+        title: String(m?.title ?? `Module ${i + 1}`),
+        estMinutes: Math.max(5, Math.min(25, Number(m?.estMinutes ?? 10)))
+      }))
+    : [];
+
+  if (mods.length === 0) throw new Error('LLM returned empty modules');
+
+  return { modules: mods.slice(0, 6), raw: parsed, model: LLM_MODEL };
 }
 // ---------------------
 // Evidence Coverage (stub)
@@ -511,10 +710,75 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
       }
     }
 
-    const modules = outlineFromText(text);
+    // New logic: choose preview implementation based on brief length
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+    let modules: ModuleOutline[] = [];
+    let impl = 'v1-outline';
+    let diag: any = undefined;
+    let planner: 'llm' | 'heuristic' | undefined;
+    let modelUsed = '';
+
+    if (wordCount < 120) {
+      const intent = analyzeIntent(text);
+
+      // Try LLM planner if enabled; fall back to heuristic
+      if (LLM_PLANNER_ENABLED && OPENAI_API_KEY) {
+        try {
+          const llm = await planModulesLLM(intent);
+          modules = llm.modules;
+          impl = 'v3-llm';
+          planner = 'llm';
+          modelUsed = llm.model ?? LLM_MODEL;
+          diag = {
+            topic: intent.topic,
+            mins: intent.mins,
+            isIntro: intent.isIntro,
+            focus: intent.focus ?? null,
+            count: modules.length,
+            planner: 'llm'
+          };
+        } catch (e) {
+          (req as any).log?.warn?.({ err: String(e) }, 'LLM planner failed; using heuristic');
+          modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
+          impl = 'v2-multi';
+          planner = 'heuristic';
+          diag = {
+            topic: intent.topic,
+            mins: intent.mins,
+            isIntro: intent.isIntro,
+            focus: intent.focus ?? null,
+            count: modules.length,
+            planner: 'heuristic',
+            reason: 'llm_failed'
+          };
+        }
+      } else {
+        modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
+        impl = 'v2-multi';
+        planner = 'heuristic';
+        diag = {
+          topic: intent.topic,
+          mins: intent.mins,
+          isIntro: intent.isIntro,
+          focus: intent.focus ?? null,
+          count: modules.length,
+          planner: 'heuristic',
+          reason: 'llm_disabled'
+        };
+      }
+    } else {
+      modules = outlineFromText(text);
+      impl = 'v1-outline';
+      planner = 'heuristic';
+      diag = { count: modules.length, planner: 'heuristic' };
+    }
+
     reply.header('cache-control', 'no-store');
     reply.header('x-api', 'ingest-preview');
-    return reply.send({ ok: true, modules });
+    reply.header('x-preview-impl', impl);
+    if (planner) reply.header('x-planner', planner);
+    if (modelUsed) reply.header('x-model', modelUsed);
+    return reply.send(diag ? { ok: true, modules, diagnostics: diag } : { ok: true, modules });
   } catch (err: any) {
     (req as any).log?.error?.({ err }, 'ingest/preview failed');
     return reply.code(500).send({ error: { code: 'INTERNAL', message: 'preview failed' } });

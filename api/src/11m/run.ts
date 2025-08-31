@@ -49,3 +49,40 @@ export async function runLLM(prompt: string): Promise<LlmResult> {
 }
 
 export default runLLM;
+
+export async function callJSON(opts: {
+  system: string;
+  user: string;
+  model?: string;
+}) {
+  const model = opts.model || process.env.CERPLY_SMART_MODEL || "gpt-4o-mini";
+
+  if (!process.env.OPENAI_API_KEY) {
+    return { ok: false as const, reason: "Missing OPENAI_API_KEY" };
+  }
+
+  try {
+    const { default: OpenAI } = await import("openai");
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const resp = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: opts.system },
+        { role: "user", content: opts.user },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+    });
+
+    const text =
+      resp?.choices?.[0]?.message?.content ??
+      (resp?.choices?.[0] as any)?.text ??
+      "{}";
+
+    const json = JSON.parse(text);
+    return { ok: true as const, json };
+  } catch (err: any) {
+    return { ok: false as const, reason: `OpenAI error: ${err?.message || String(err)}` };
+  }
+}
