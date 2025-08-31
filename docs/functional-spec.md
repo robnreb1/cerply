@@ -3,13 +3,13 @@
 - Import supports: text, base64 (`.pdf/.docx` stub), transcript batching.
 - Learn loop: submit/next cycle works; correctness feedback present.
 - Style page renders brand tokens; AA on primary/on-primary.
-- Prompts library: `/prompts` lists & renders &gt;0 prompts in dev. **Staging (M1):** list may be backed by edge canary (`/api/prompts` responds with `x-edge: prompts` or `x-edge: prompts-v2`). **M2:** must fetch via Next.js rewrite proxy. Prompt detail view works; API `GET /api/prompts` reachable.
+- Prompts library: `/prompts` lists & renders >0 prompts in dev. **Staging (M1):** list may be backed by edge canary or proxy (`/api/prompts` responds with `x-edge: prompts-proxy` or `x-edge: prompts-fallback`; legacy `prompts-v2` is tolerated). **M2:** must fetch via Next.js rewrite proxy. Prompt detail view works; API `GET /api/prompts` reachable (never 404).
 - Coverage UI: `/coverage` renders summary and gaps from `/evidence/coverage` (stub) via proxy (no CORS issues).
 - Smoke script passes for `/style` and `/coverage` endpoints (HTTP 200).
-- Staging smoke script passes: `scripts/smoke-stg.sh` succeeds for `/ping`, `/api/health`, `/api/prompts` using the Vercel bypass cookie.
-- Vercel API health: `/api/health` returns 200 JSON on Vercel. Accept either **M1 edge canary** (`x-edge: health` or `x-edge: health-v2`) or **M2 proxy** (`x-edge: proxy`). Never 404.
+- Staging smoke script passes: `scripts/smoke-stg.sh` succeeds for `/ping`, `/api/health`, `/api/prompts` (accepts `x-edge: prompts-proxy` **or** `x-edge: prompts-fallback`) using the Vercel bypass cookie.
+- Vercel API health: `/api/health` returns 200 JSON on Vercel. Accept **proxy** (`x-edge: health-proxy`) or legacy canary (`health`/`health-v2`). Never 404.
 - `/ping` returns **204 No Content** with header `x-edge: ping` (staging).
-- `/api/prompts` returns 200 JSON on Vercel. Accept either **M1 edge canary** (`x-edge: prompts` or `x-edge: prompts-v2`) or **M2 proxy** (`x-edge: proxy`). Never 404.
+- `/api/prompts` returns 200 JSON on Vercel. Accept **proxy** (`x-edge: prompts-proxy`) or **fallback** (`x-edge: prompts-fallback`); legacy canary headers are tolerated in M1 (`prompts`/`prompts-v2`). **Never 404.**
 - POST /api/curator/quality/compute returns 200/400 (not 404/405).
 - /debug/env renders; build-time env shown; API health check on page passes (use Vercel bypass cookie on protected domains).
 - Tailwind styling present; feature flags honored on Vercel.
@@ -28,6 +28,7 @@
     - CI: `.github/workflows/stg-smoke.yml` uses `${{ secrets.VERCEL_BYPASS_TOKEN_STG }}` to set the cookie and run the script
 
 ## 11) Change log
+- **2025-08-31**: Chat-first refinements — rails positioned below and full-bleed; compact composer with right-aligned Upload/Send; reduced opener→input gap; prompts proxy/fallback headers reflected in acceptance; rate-limit/diagnostics noted.
 - **2025-08-22**: Staging "M1" edge canaries for `/ping`, `/api/health`, `/api/prompts`; added `scripts/smoke-stg.sh`; documented bypass-cookie flow; acceptance updated to allow M1 vs M2.
 - **2025-08-19**: Expanded acceptance criteria to include `/prompts` and coverage smoke; spec reconciled.
 - **2025-08-19**: Added Next.js rewrite to proxy `/api/*` to backend; fixed `/prompts` page fetching via proxy.
@@ -45,7 +46,7 @@
 **Temporary handlers (web):**
 - `app/ping/route.ts` → returns 204, header `x-edge: ping`.
 - `app/api/health/route.ts` → returns `{"ok":true,"service":"web","ts":...}`, headers `content-type: application/json; charset=utf-8`, `cache-control: no-store`, `x-edge: health-v2`.
-- `app/api/prompts/route.ts` → returns static demo list, same headers, `x-edge: prompts-v2`.
+- `app/api/prompts/route.ts` → proxies upstream; returns static demo list when upstream is 4xx/5xx/unreachable. Headers: `x-edge: prompts-proxy` on success, `x-edge: prompts-fallback` on fallback.
 
 **Acceptance mapping (M1):**
 - `GET /api/health` and `/api/prompts` must be **200** via these handlers.
@@ -345,6 +346,11 @@ export default function Home() {
 - No blocking CORS issues during ingest (proxy or signed upload per org policy).
 
 ---
+
+- Discovery rails (“Popular searches”, “Cerply certified”) sit **below the chat area**, are **full-bleed and center-aligned**, and are **compact/low-contrast** with **ample spacing** from the chat section. Horizontal scrolling demonstrates multiple cards.
+- The chat surface occupies the initial viewport (first screen) and supports vertical scrolling as the conversation grows.
+- The composer shows **Upload** and **Send** on the right (compact); there is **no** “Press Enter…” helper text.
+- The space between the typed opener and the input is visually tight (≈12–16px).
 
 ## 18) Build Plan Integration
 
