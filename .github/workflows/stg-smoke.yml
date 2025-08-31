@@ -1,40 +1,33 @@
 name: Staging Smoke
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ staging ]
+    branches: [staging]
+  workflow_dispatch:
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (no build needed)
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Curl cookie & smoke
-        env:
-          STG: https://stg.cerply.com
-          TOKEN: ${{ secrets.VERCEL_BYPASS_TOKEN_STG }}
+      - name: Install curl & jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq
+
+      - name: Run smoke tests against staging alias
+        shell: bash
         run: |
           set -euo pipefail
-          JAR=.cookies.stg.jar
+          # Prefer repo/org variable STG_URL; fall back to a stable Vercel alias.
+          STG="${{ vars.STG_URL }}"
+          if [[ -z "${STG}" ]]; then
+            STG="https://cerply-staging.vercel.app"
+          fi
+          export STG
+          export API_STG="https://api-stg.cerply.com"
 
-          # set vercel bypass cookie
-          curl -si -c "$JAR" \
-            "$STG/?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=$TOKEN" \
-            | sed -n '1,12p'
-
-          # function to require header and status
-          req () { URL="$1"; CODE="$2"; HDR="$3"; 
-            H="$(curl -sI -b "$JAR" "$URL" | tr -d '\r')"; echo "$H" | sed -n '1,20p';
-            echo "$H" | grep -qi "^HTTP/.* $CODE " || (echo "::error::$URL not $CODE"; exit 1)
-            echo "$H" | grep -qi "^$HDR" || (echo "::error::$URL missing header $HDR"; exit 1)
-          }
-
-          # checks
-          req "$STG/ping"        204 "x-edge: ping"
-          req "$STG/api/health"  200 "x-edge: health→proxy"
-          req "$STG/api/prompts" 200 "x-edge: prompts→proxy"
-
-          echo "✅ staging smoke passed"
+          chmod +x scripts/smoke-stg.sh
+          ./scripts/smoke-stg.sh
