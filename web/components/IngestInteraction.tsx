@@ -104,6 +104,12 @@ export default function IngestInteraction() {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const clarifyTopicRef = useRef<string>("");
 
+  const hasUserMessage = useMemo(() => messages.some((m) => m.role === "user"), [messages]);
+  const isFirstTurn = useMemo(
+    () => !hasUserMessage && (!proposed || proposed.length === 0) && !items,
+    [hasUserMessage, proposed, items]
+  );
+
   const fileRef = useRef<HTMLInputElement>(null);
 
   const doPreviewFromText = async (text: string) => {
@@ -394,13 +400,21 @@ export default function IngestInteraction() {
             <ol className="grid gap-2 p-4 sm:grid-cols-2">
               {proposed.map((m, i) => (
                 <li key={m.slug || i} className="rounded-lg bg-zinc-50 p-3 ring-1 ring-zinc-200">
-                  <div className="text-sm font-medium text-zinc-900">{m.title}</div>
+                  <input
+                    value={m.title}
+                    onChange={(e) =>
+                      setProposed((prev) =>
+                        prev ? prev.map((x) => (x.id === m.id ? { ...x, title: e.currentTarget.value } : x)) : prev
+                      )
+                    }
+                    className="w-full bg-transparent outline-none text-sm font-medium text-zinc-900"
+                    aria-label={`Edit title for ${m.id || m.slug || `module ${i + 1}`}`}
+                  />
                   <div className="text-xs text-zinc-500">~{m.estMinutes ?? 5} min</div>
                 </li>
               ))}
             </ol>
-            <div className="flex items-center justify-between gap-2 border-t border-zinc-200 p-3">
-              <div className="text-xs text-zinc-500">Refine titles if you like, then build.</div>
+            <div className="flex items-center justify-end gap-2 border-t border-zinc-200 p-3">
               <button
                 onClick={buildContent}
                 className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
@@ -455,7 +469,7 @@ export default function IngestInteraction() {
           <textarea
             ref={taRef}
             rows={2}
-            placeholder={EXAMPLES[exampleIdx]}
+            placeholder={isFirstTurn ? EXAMPLES[exampleIdx] : "Type your reply…"}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
