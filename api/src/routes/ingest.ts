@@ -1,394 +1,209 @@
-import type { FastifyInstance } from 'fastify';
-import { randomUUID } from 'crypto';
-import { query } from '../db';
+import type { FastifyInstance } from "fastify";
 
-/**
- * Helper: split long text into ~800-char chunks at sentence boundaries.
- */
-function splitIntoChunks(text: string, maxLen = 800) {
-  const chunks: { content: string; start: number; end: number }[] = [];
-  let i = 0;
-  while (i < text.length) {
-    const slice = text.slice(i, i + maxLen);
-    // try to cut at a sentence end near the end of the slice
-    const lastPunct = Math.max(
-      slice.lastIndexOf('. '),
-      slice.lastIndexOf('! '),
-      slice.lastIndexOf('? ')
-    );
-    const cut = lastPunct > maxLen * 0.6 ? lastPunct + 1 : slice.length;
-    const content = slice.slice(0, cut).trim();
-    const start = i;
-    const end = i + cut;
-    if (content) {
-      chunks.push({ content, start, end });
-    }
-    i = end;
+// ---------- helpers ----------
+const nowISO = () => new Date().toISOString();
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+type ParsedArtefact =
+  | { kind: "text"; text: string }
+  | { kind: "url"; url: string }
+  | { kind: "file"; name: string; bytes: number };
+
+type ModuleOutline = { id: string; title: string; estMinutes: number };
+
+function analyzeIntent(input: string) {
+  const raw = (input || "").trim();
+  const lower = raw.toLowerCase();
+
+  // time budget
+  let mins = 0;
+  const m1 = lower.match(/(\d+)\s*(min|mins|minute|minutes)\b/);
+  const h1 = lower.match(/(\d+)\s*(h|hr|hour|hours)\b/);
+  if (m1) mins += parseInt(m1[1], 10);
+  if (h1) mins += parseInt(h1[1], 10) * 60;
+
+  // intro intent
+  const isIntro = /\b(intro|beginner|basics|foundation|foundations)\b/.test(lower);
+
+  // focus segment
+  const f = lower.match(/\bfocus\s+(on|around)?\s*([a-z0-9\-\s]+)/);
+  const focus = f ? f[2].trim().replace(/\.$/, "") : undefined;
+
+  // topic normalization (coarse)
+  let topic = raw.split(/[.,\n]/)[0].trim();
+  const bigMap: Record<string, string> = {
+    astrophysics: "Astrophysics",
+    "quantum mechanics": "Quantum Mechanics",
+    mathematics: "Mathematics",
+    biology: "Biology",
+    chemistry: "Chemistry",
+    "computer science": "Computer Science",
+    economics: "Economics",
+  };
+  for (const k of Object.keys(bigMap)) {
+    if (lower.includes(k)) topic = bigMap[k];
   }
-  return chunks;
+
+  return { topic, mins, isIntro, focus };
 }
 
-type ModuleOutline = { id: string; title: string; summary?: string; estMinutes?: number };
+function proposeModules(topic: string, mins: number, isIntro: boolean, focus?: string): ModuleOutline[] {
+  // base on time
+  let n =
+    mins >= 90 ? 6 :
+    mins >= 60 ? 5 :
+    mins >= 40 ? 4 :
+    mins >= 25 ? 3 :
+    2;
 
-function makeId(prefix: string, i: number) {
-  return `${prefix}-${String(i + 1).padStart(2, "0")}`;
-}
+  // scope-based bump/cap
+  const heavy = ["Astrophysics", "Quantum Mechanics", "Mathematics", "Biology", "Computer Science"];
+  if (!mins && heavy.includes(topic)) n = Math.max(n, isIntro ? 3 : 5);
+  if (isIntro) n = Math.min(n, 4);
+  n = clamp(n, 2, 6);
 
-function outlineFromText(text: string): ModuleOutline[] {
-  const trimmed = (text || "").trim();
-  if (!trimmed) {
-    return [
-      { id: "mod-01", title: "Overview", summary: "High-level orientation.", estMinutes: 4 },
-    ];
-  }
-  const dense = trimmed.length > 600 || (trimmed.match(/\n/g) || []).length > 6;
-  const count = dense ? 5 : 3;
-  const titles = dense
-    ? ["Overview", "Key Concepts", "Important Distinctions", "Applications", "Check-your-understanding"]
-    : ["Overview", "Key Concepts", "Applied practice"];
-  return Array.from({ length: count }).map((_, i) => ({
-    id: makeId("mod", i),
-    title: titles[i] || `Section ${i + 1}`,
-    summary: i === 0 ? "Auto-generated draft outline from your input." : undefined,
-    estMinutes: i === 0 ? 4 : 6,
+  // allocate minutes (at least 5 each)
+  const per = clamp(Math.floor((mins || (n * 8)) / n), 5, 25);
+
+  // seed titles
+  const seeds: string[] = [];
+  seeds.push(`${topic}: Foundations`);
+  if (focus) seeds.push(`Focus: ${focus}`);
+  seeds.push(`${topic}: Core Concepts`);
+  seeds.push(`${topic}: Applications`);
+  seeds.push(`${topic}: Key Equations & Methods`);
+  seeds.push(`${topic}: Review & Practice`);
+
+  // uniq & cut to n
+  const seen = new Set<string>();
+  const titles = seeds.filter(t => (seen.has(t) ? false : (seen.add(t), true))).slice(0, n);
+
+  return titles.map((title, i) => ({
+    id: `mod-${pad2(i + 1)}`,
+    title,
+    estMinutes: per,
   }));
 }
 
-/**
- * This file ONLY registers routes. No app.listen, no plugin re-registers.
- * NOTE: @fastify/multipart must be registered once in src/index.ts (already done).
- */
-export default async function registerIngest(app: FastifyInstance) {
-  /**
-   * POST /ingest/preview
-   * Body: { type: "text"|"url"|"file", payload: string }
-   * - "text": uses local heuristic to propose an outline
-   * - "url": calls AI /extract_text then proposes outline (does NOT persist)
-   * - "file": for now, uses filename placeholder to size outline
-   */
-  app.post('/ingest/preview', async (req, reply) => {
+// ---------- routes ----------
+export default async function ingestRoutes(app: FastifyInstance) {
+  // /api/ingest/parse
+  app.post("/api/ingest/parse", async (req: any, reply: any) => {
     try {
-      const body = req.body as any;
-      const type = String(body?.type || '').toLowerCase();
-      const payload = String(body?.payload || '');
+      let artefact: ParsedArtefact | null = null;
 
-      let basisText = '';
-
-      if (type === 'text') {
-        basisText = payload;
-      } else if (type === 'url') {
-        const aiUrl = process.env.AI_URL || 'http://ai:8090';
-        const aiRes = await fetch(`${aiUrl}/extract_text`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ url: payload }),
-        });
-        if (!aiRes.ok) {
-          const t = await aiRes.text().catch(() => '');
-          (req as any).log?.warn?.({ t }, 'preview_ai_extract_failed');
-          return reply.code(502).send({ error: 'ai_error' });
-        }
-        const data = (await aiRes.json()) as { text?: string };
-        basisText = (data.text ?? '').toString();
-      } else if (type === 'file') {
-        // For now we don't parse the file contents here; use a placeholder string to size outline.
-        basisText = `Uploaded file: ${payload}`;
-      } else {
-        return reply.code(400).send({ error: 'bad_request', message: 'type must be text|url|file' });
+      if (typeof req.body === "string") {
+        artefact = { kind: "text", text: req.body };
+      } else if (req.body?.text) {
+        artefact = { kind: "text", text: String(req.body.text) };
+      } else if (req.body?.artefact?.kind === "text" && req.body?.artefact?.text) {
+        artefact = { kind: "text", text: String(req.body.artefact.text) };
+      } else if (req.body?.url) {
+        artefact = { kind: "url", url: String(req.body.url) };
+      } else if (req.body?.file?.name && typeof req.body?.file?.bytes === "number") {
+        artefact = { kind: "file", name: String(req.body.file.name), bytes: Number(req.body.file.bytes) };
       }
 
-      const modules = outlineFromText(basisText);
+      if (!artefact) {
+        return reply.code(400).send({ error: { code: "BAD_REQUEST", message: "No artefact supplied" } });
+      }
 
-      reply
-        .header('cache-control', 'no-store')
-        .header('content-type', 'application/json; charset=utf-8')
-        .header('x-api', 'ingest-preview');
-      return reply.send({ ok: true, modules });
-    } catch (err) {
-      (req as any).log?.error?.({ err }, 'ingest_preview_failed');
-      return reply.code(500).send({ error: 'preview_failed' });
+      const bytes =
+        artefact.kind === "text" ? Buffer.byteLength(artefact.text, "utf8")
+        : artefact.kind === "url" ? artefact.url.length
+        : artefact.bytes;
+
+      return reply
+        .header("x-api", "ingest-parse")
+        .send({ ok: true, parsed: artefact, bytes, ts: nowISO() });
+    } catch (err: any) {
+      (req as any).log?.error?.(err);
+      return reply.code(500).send({ ok: false, error: { code: "SERVER_ERROR", message: err?.message || String(err) } });
     }
   });
 
-  /**
-   * POST /ingest/url
-   * Body: { url: string }
-   * Calls AI /extract_text to fetch+extract, then stores chunks in artefact_chunks.
-   */
-  app.post('/ingest/url', async (req, reply) => {
+  // /api/ingest/preview  (NEW multi-module heuristic)
+  app.post("/api/ingest/preview", async (req: any, reply: any) => {
     try {
-      const body = req.body as any;
-      const url: string | undefined = body?.url;
-      if (!url) {
-        return reply.code(400).send({ error: 'missing_url' });
+      const text: string =
+        (typeof req.body === "string" && req.body) ||
+        req.body?.text ||
+        req.body?.payload ||
+        req.body?.artefact?.text ||
+        "";
+
+      if (!text || typeof text !== "string") {
+        return reply.code(400).send({ error: { code: "BAD_REQUEST", message: "payload text required" } });
       }
 
-      const artefactId = randomUUID();
+      const intent = analyzeIntent(text);
+      const modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
 
-      // Try to create a minimal artefact row (ignore if table/cols mismatch).
-      try {
-        await query(
-          `INSERT INTO artefacts (id, type, source_uri)
-           VALUES ($1, 'url', $2)`,
-          [artefactId, url]
-        );
-      } catch (e) {
-        req.log.warn({ e }, 'artefacts_insert_skipped');
-      }
-
-      const aiUrl = process.env.AI_URL || 'http://ai:8090';
-      const aiRes = await fetch(`${aiUrl}/extract_text`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
-
-      if (!aiRes.ok) {
-        const t = await aiRes.text();
-        req.log.error({ t }, 'ai_extract_text_failed');
-        return reply.code(502).send({ error: 'ai_error' });
-      }
-
-      const data = (await aiRes.json()) as { text?: string; html?: string };
-      const text = (data.text ?? '').toString().trim();
-      if (!text) {
-        return reply.code(422).send({ error: 'no_text_extracted' });
-      }
-
-      const parts = splitIntoChunks(text, 900);
-      let idx = 0;
-      for (const p of parts) {
-        await query(
-          `INSERT INTO artefact_chunks
-           (id, artefact_id, idx, content, char_start, char_end)
-           VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)`,
-          [artefactId, idx++, p.content, p.start, p.end]
-        );
-      }
-
-      return reply.send({ artefactId, chunks: parts.length });
-    } catch (err) {
-      req.log.error({ err }, 'ingest_url_failed');
-      return reply.code(500).send({ error: 'ingest_failed' });
-    }
-  });
-
-  /**
-   * POST /ingest/upload (txt only for now)
-   * Multipart form-data with "file".
-   * Reads small text file and stores chunks.
-   */
-  app.post('/ingest/upload', async (req, reply) => {
-    try {
-      // @fastify/multipart is registered in index.ts
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mp: any = await (req as any).file();
-      if (!mp) return reply.code(400).send({ error: 'no_file' });
-
-      const filename = mp.filename as string;
-      const mimetype = mp.mimetype as string;
-      const buf: Buffer =
-        typeof mp.toBuffer === 'function'
-          ? await mp.toBuffer()
-          : await new Promise<Buffer>((resolve, reject) => {
-              const chunks: Buffer[] = [];
-              mp.file.on('data', (c: Buffer) => chunks.push(c));
-              mp.file.on('end', () => resolve(Buffer.concat(chunks)));
-              mp.file.on('error', reject);
-            });
-
-      // Only support text/plain for now to keep things simple/stable
-      if (mimetype !== 'text/plain') {
-        return reply.code(415).send({ error: 'unsupported_type', mimetype, filename });
-      }
-
-      const text = buf.toString('utf8').trim();
-      if (!text) return reply.code(422).send({ error: 'empty_text' });
-
-      const artefactId = randomUUID();
-
-      try {
-        await query(
-          `INSERT INTO artefacts (id, type, source_uri, title)
-           VALUES ($1, 'upload', $2, $3)`,
-          [artefactId, filename, filename]
-        );
-      } catch (e) {
-        req.log.warn({ e }, 'artefacts_insert_skipped');
-      }
-
-      const parts = splitIntoChunks(text, 900);
-      let idx = 0;
-      for (const p of parts) {
-        await query(
-          `INSERT INTO artefact_chunks
-           (id, artefact_id, idx, content, char_start, char_end)
-           VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)`,
-          [artefactId, idx++, p.content, p.start, p.end]
-        );
-      }
-
-      return reply.send({ artefactId, chunks: parts.length });
-    } catch (err) {
-      req.log.error({ err }, 'upload_failed');
-      return reply.code(500).send({ error: 'upload_failed' });
-    }
-  });
-
-  /**
-   * POST /curator/auto-generate
-   * Body: { artefactId: string }
-   * Calls AI /generate_items then persists objectives & items.
-   */
-  app.post('/curator/auto-generate', async (req, reply) => {
-    try {
-      const body = req.body as any;
-      const artefactId: string | undefined = body?.artefactId;
-      if (!artefactId) {
-        return reply.code(400).send({ error: 'missing_artefactId' });
-      }
-
-      const { rows: chunks } = await query<{ idx: number; content: string }>(
-        'SELECT idx, content FROM artefact_chunks WHERE artefact_id = $1 ORDER BY idx ASC LIMIT 20',
-        [artefactId]
-      );
-
-      if (chunks.length === 0) {
-        return reply.code(400).send({ error: 'no_chunks' });
-      }
-
-      const aiUrl = process.env.AI_URL || 'http://ai:8090';
-      const aiRes = await fetch(`${aiUrl}/generate_items`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          chunks: chunks.map((c) => c.content),
-          count_objectives: 3,
-          items_per_objective: 4,
-        }),
-      });
-
-      if (!aiRes.ok) {
-        const t = await aiRes.text();
-        (req as any).log?.error?.({ t }, 'ai_generate_items_failed');
-        return reply.code(502).send({ error: 'ai_error' });
-      }
-
-      const gen = (await aiRes.json()) as {
-        objectives: { text: string; taxonomy?: string[] }[];
-        items: {
-          objectiveIndex?: number;
-          stem: string;
-          options: string[];
-          correctIndex?: number;
-          correctIndices?: number[];
-          explainer?: string;
-          sourceSnippetRef?: string;
-          difficulty?: number;
-          variantGroupId?: string;
-          trustMappingRefs?: string[];
-        }[];
-      };
-
-      // Insert objectives
-      const objectiveIds: string[] = [];
-      for (const obj of gen.objectives) {
-        const r = await query<{ id: string }>(
-          `INSERT INTO objectives (id, artefact_id, text, taxonomy)
-           VALUES (gen_random_uuid()::text, $1, $2, $3)
-           RETURNING id`,
-          [artefactId, obj.text, obj.taxonomy ?? []]
-        );
-        objectiveIds.push(r.rows[0].id);
-      }
-
-      // Insert items
-      let itemsCreated = 0;
-      for (const item of gen.items) {
-        const oi = Math.max(0, Math.min(objectiveIds.length - 1, item.objectiveIndex ?? 0));
-        const objectiveId = objectiveIds[oi];
-
-        await query(
-          `INSERT INTO items
-            (id, objective_id, stem, options, correct_index, correct_indices, explainer,
-             source_snippet_ref, difficulty, variant_group_id, status, version, trust_label, trust_mapping_refs)
-           VALUES
-            (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6,
-             $7, $8, $9, 'DRAFT', 1, NULL, $10)`,
-          [
-            objectiveId,
-            item.stem,
-            item.options,
-            item.correctIndex ?? null,
-            item.correctIndices ?? [],
-            item.explainer ?? '',
-            item.sourceSnippetRef ?? null,
-            item.difficulty ?? null,
-            item.variantGroupId ?? null,
-            item.trustMappingRefs ?? [],
-          ]
-        );
-        itemsCreated++;
-      }
+      reply.header("x-api", "ingest-preview");
+      reply.header("x-preview-impl", "v2-multi");
+      reply.header("cache-control", "no-store");
 
       return reply.send({
         ok: true,
-        objectivesCreated: objectiveIds.length,
-        itemsCreated,
+        modules,
+        diagnostics: {
+          impl: "v2-multi",
+          topic: intent.topic,
+          mins: intent.mins,
+          isIntro: intent.isIntro,
+          focus: intent.focus || null,
+          count: modules.length,
+        },
       });
-    } catch (err) {
-      (req as any).log?.error?.({ err }, 'auto_generate_failed');
-      return reply.code(500).send({ error: 'auto_generate_failed' });
+    } catch (err: any) {
+      (req as any).log?.error?.(err);
+      return reply.code(500).send({ ok: false, error: { code: "SERVER_ERROR", message: err?.message || String(err) } });
     }
   });
 
-  /**
-   * POST /ingest/generate
-   * Body: { modules: ModuleOutline[] }
-   * - Produces draft content for each module (stubbed, no persistence)
-   */
-  app.post('/ingest/generate', async (req, reply) => {
+  // /api/ingest/generate (unchanged stub generator)
+  app.post("/api/ingest/generate", async (req: any, reply: any) => {
     try {
-      const body = req.body as any;
-      const modules: ModuleOutline[] = Array.isArray(body?.modules) ? body.modules : [];
+      const modules: Array<{ id?: string; title?: string }> = Array.isArray(req.body?.modules)
+        ? req.body.modules
+        : [];
+
       if (!modules.length) {
-        return reply.code(400).send({ error: 'bad_request', message: 'modules[] required' });
+        return reply.code(400).send({ error: { code: "BAD_REQUEST", message: "modules[] required" } });
       }
 
-      const items = modules.map((m: ModuleOutline, i: number) => ({
-        id: m.id || makeId('mod', i),
-        title: m.title,
-        summary: m.summary ?? 'Draft explanation.',
-        content: [
-          `Explanation: ${m.title} — draft content goes here.`,
-          'Key points:',
-          '• Point A',
-          '• Point B',
-        ].join('\n'),
-        mcq: [
-          {
-            q: `Which best describes ${m.title}?`,
-            choices: ['A', 'B', 'C', 'D'],
-            answer: 0,
-            rationale: 'Demo rationale.',
+      const items = modules.map((m, i) => ({
+        moduleId: m.id || `mod-${pad2(i + 1)}`,
+        title: m.title || `Module ${i + 1}`,
+        explanation: `Overview of "${m.title || `Module ${i + 1}`}". Key takeaways are summarized in plain language to build intuition before testing.`,
+        questions: {
+          mcq: {
+            id: `auto-${i}-${Math.random().toString(36).slice(2, 8)}`,
+            stem: `Which statement best captures "${m.title || `Module ${i + 1}`}"?`,
+            options: ["About: which", "Unrelated: statement", "Partially true: best", "Opposite: captures"],
+            correctIndex: 0,
           },
-        ],
-        free: [
-          {
-            q: `In 2–3 sentences, explain ${m.title}.`,
-            rubric: 'Look for clarity, correctness, and concision.',
+          free: {
+            prompt: `In 2–3 sentences, explain "${m.title || `Module ${i + 1}`}" to a colleague.`,
           },
-        ],
+        },
       }));
 
-      reply
-        .header('cache-control', 'no-store')
-        .header('content-type', 'application/json; charset=utf-8')
-        .header('x-api', 'ingest-generate');
-      return reply.send({ ok: true, items });
-    } catch (err) {
-      (req as any).log?.error?.({ err }, 'ingest_generate_failed');
-      return reply.code(500).send({ error: 'generate_failed' });
+      return reply.header("x-api", "ingest-generate").send({ ok: true, items });
+    } catch (err: any) {
+      (req as any).log?.error?.(err);
+      return reply.code(500).send({ ok: false, error: { code: "SERVER_ERROR", message: err?.message || String(err) } });
     }
+  });
+
+  // convenience aliases
+  app.post("/ingest/preview", async (req: any, reply: any) => {
+    const r = await app.inject({ method: "POST", url: "/api/ingest/preview", payload: req.body });
+    return reply.code(r.statusCode).headers(r.headers as any).send(r.body);
+  });
+  app.post("/ingest/generate", async (req: any, reply: any) => {
+    const r = await app.inject({ method: "POST", url: "/api/ingest/generate", payload: req.body });
+    return reply.code(r.statusCode).headers(r.headers as any).send(r.body);
   });
 }
