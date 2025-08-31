@@ -3,27 +3,24 @@ name: Staging Smoke
 on:
   push:
     branches: [staging]
-  workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch: {}
 
 jobs:
   smoke:
+    name: smoke
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      STG_URL: ${{ vars.STG_URL }}                 # e.g. https://cerply-staging.vercel.app
-      VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}  # preview-protection token
+      # Optional: set this in Repo Settings → Variables
+      STG_URL: ${{ vars.STG_URL }}
+      # Optional: set this in Repo Settings → Secrets (only needed if preview protection is ON)
+      VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}
+      API_STG: https://api-stg.cerply.com
     steps:
       - uses: actions/checkout@v4
-
-      - name: Smoke test staging
+      - name: Run smoke
+        shell: bash
         run: |
           set -euo pipefail
-          STG="${STG_URL:-https://cerply-staging.vercel.app}"
-          export STG
-          export API_STG="https://api-stg.cerply.com"
           chmod +x scripts/smoke-stg.sh
           ./scripts/smoke-stg.sh
