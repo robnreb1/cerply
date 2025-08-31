@@ -5,30 +5,25 @@ on:
     branches: [staging]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      STG_URL: ${{ vars.STG_URL }}                 # e.g. https://cerply-staging.vercel.app
+      VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}  # preview-protection token
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install curl & jq
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y curl jq
-
-      - name: Run smoke tests against staging alias
-        shell: bash
+      - name: Smoke test staging
         run: |
           set -euo pipefail
-          # Prefer repo/org variable STG_URL; fall back to a stable Vercel alias.
-          STG="${{ vars.STG_URL }}"
-          if [[ -z "${STG}" ]]; then
-            STG="https://cerply-staging.vercel.app"
-          fi
+          STG="${STG_URL:-https://cerply-staging.vercel.app}"
           export STG
           export API_STG="https://api-stg.cerply.com"
-          export VERCEL_BYPASS="${{ secrets.VERCEL_BYPASS }}"
-
           chmod +x scripts/smoke-stg.sh
           ./scripts/smoke-stg.sh
