@@ -28,6 +28,7 @@ jobs:
           fi
           export STG
           export API_STG="https://api-stg.cerply.com"
+          export VERCEL_BYPASS="${{ secrets.VERCEL_BYPASS }}"
 
           chmod +x scripts/smoke-stg.sh
           ./scripts/smoke-stg.sh
