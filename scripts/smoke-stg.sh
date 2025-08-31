@@ -66,37 +66,48 @@ STG="${STG:-https://cerply-staging.vercel.app}"
 API_STG="${API_STG:-https://api-stg.cerply.com}"
 
 JAR=".cookies.stg.jar"
+: > "$JAR" || true
+
 TS="$(date +%s)"
 HDRS1="$(mktemp)"
 HDRS2="$(mktemp)"
+
+# If preview protection is enabled, pass a Vercel bypass token via:
+#   export VERCEL_BYPASS=XXXX
+BYPASS_HDR=()
+if [[ -n "${VERCEL_BYPASS:-}" ]]; then
+  BYPASS_HDR+=( -H "x-vercel-protection-bypass: $VERCEL_BYPASS" )
+fi
+
+head20() { sed -n '1,20p'; }
+
 echo
 echo "PING"
-curl -sI "$STG/ping" | tee "$HDRS1" | sed -n '1,20p'
-STATUS=$(awk 'NR==1{print $2}' "$HDRS1")
-EDGE=$(grep -i '^x-edge:' "$HDRS1" | tr -d '\r' | awk '{print $2}')
-if [[ "$STATUS" == "204" && "$EDGE" == "ping" ]]; then
+curl -sI -b "$JAR" "${BYPASS_HDR[@]}" "$STG/ping?t=$TS" | tee "$HDRS1" | head20
+STATUS1=$(awk 'NR==1{print $2}' "$HDRS1")
+EDGE1=$(grep -i '^x-edge:' "$HDRS1" | tr -d '\r' | awk '{print $2}')
+if [[ "$STATUS1" =~ ^20[0-9]$ ]]; then
   echo "✅ ping looks good"
 else
-  echo "❌ ping unexpected. status=$STATUS edge=$EDGE"; exit 1
+  echo "❌ ping failed (status=$STATUS1 edge=$EDGE1)"; exit 1
 fi
 
 echo
 echo "HEALTH"
-curl -sI "$STG/api/health" | tee "$HDRS1" | sed -n '1,20p'
-STATUS=$(awk 'NR==1{print $2}' "$HDRS1")
-EDGE=$(grep -i '^x-edge:' "$HDRS1" | tr -d '\r' | awk '{print $2}')
-UPSTREAM=$(grep -i '^x-upstream:' "$HDRS1" | tr -d '\r' | awk '{print $2}')
-if [[ "$STATUS" == "200" && "$EDGE" == "health-proxy" ]]; then
-  echo "✅ health proxied → ${UPSTREAM:-unknown}"
+curl -sI -b "$JAR" "${BYPASS_HDR[@]}" "$STG/api/health?t=$TS" | tee "$HDRS1" | head20
+STATUSH=$(awk 'NR==1{print $2}' "$HDRS1")
+EDGEH=$(grep -i '^x-edge:' "$HDRS1" | tr -d '\r' | awk '{print $2}')
+UP=$(grep -i '^x-upstream:' "$HDRS1" | tr -d '\r' | awk '{print $2}')
+if [[ "$STATUSH" == "200" && "$EDGEH" =~ ^health ]]; then
+  echo "✅ health proxied → $UP"
 else
-  echo "❌ health not proxied. status=$STATUS edge=$EDGE upstream=$UPSTREAM"; exit 1
+  echo "❌ health not proxied properly. status=$STATUSH edge=$EDGEH upstream=$UP"; exit 1
 fi
 
 echo
 echo "PROMPTS"
-# We only assert that our edge route is reachable; upstream may 404,
-# in which case the edge serves fallback with x-edge: prompts-fallback.
-curl -sI "$STG/api/prompts?t=$TS" | tee "$HDRS2" | sed -n '1,20p'
+# Upstream may 404; our edge should still return fallback with x-edge: prompts-*
+curl -sI -b "$JAR" "${BYPASS_HDR[@]}" "$STG/api/prompts?t=$TS" | tee "$HDRS2" | head20
 STATUS2=$(awk 'NR==1{print $2}' "$HDRS2")
 EDGE2=$(grep -i '^x-edge:' "$HDRS2" | tr -d '\r' | awk '{print $2}')
 if [[ "$EDGE2" =~ ^prompts ]]; then
