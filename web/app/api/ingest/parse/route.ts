@@ -1,14 +1,10 @@
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const API = (
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:8080'
-).replace(/\/+$/, '');
+export const revalidate = 0;
+import { apiRoute } from '@/lib/apiBase';
 
 export async function POST(req: Request) {
-  const url = `${API}/api/ingest/parse`;
+  const url = apiRoute('ingest/parse');
 
   try {
     // Build headers, forward content-type if present
