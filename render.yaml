@@ -1,18 +1,21 @@
-# render.yaml — blueprint for API only
 services:
   - type: web
-    name: cerply-api
+    name: cerply-api-staging
     env: node
-    plan: free
+    rootDir: api
+    plan: starter
+    region: frankfurt
+    branch: staging
     autoDeploy: true
-    rootDir: .
-    buildCommand: cd api && npm install --include=dev && npm run build
-    startCommand: cd api && npm start
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
     healthCheckPath: /api/health
     envVars:
-      - key: NODE_VERSION
-        value: "20"
-      - key: FF_CONNECTORS_BASIC_V1
-        value: "true"
-      - key: FF_QUALITY_BAR_V1
-        value: "true"
+      - key: OPENAI_API_KEY
+        sync: false            # supply via Render dashboard after first sync
+      - key: LLM_PREVIEW
+        value: "1"
+      - key: LLM_PLANNER_MODEL
+        value: gpt-4o-mini
+      - key: LLM_PLANNER_PROVIDER
+        value: openai
