@@ -1,38 +1,46 @@
 #!/usr/bin/env bash
-set -euo pipefail
-STG="${STG:-https://cerply-staging.vercel.app}"
-BYPASS="${VERCEL_BYPASS:-}"
+set -Eeuo pipefail
 
-hdr=(-sS -i)
-if [[ -n "$BYPASS" ]]; then
-  hdr+=(-H "x-vercel-protection-bypass: $BYPASS")
+STG="${STG:-https://cerply-staging.vercel.app}"
+API="${API:-https://api-stg.cerply.com}"
+
+BYPASS_HEADER=()
+if [[ "${VERCEL_BYPASS:-}" != "" ]]; then
+  BYPASS_HEADER=(-H "x-vercel-protection-bypass: ${VERCEL_BYPASS}")
 fi
 
 echo "==> GET $STG/ping"
-curl "${hdr[@]}" "$STG/ping" | sed -n '1,20p'
-
+curl -sS -i "$STG/ping" | sed -n '1,20p'
 echo
+
 echo "==> GET $STG/api/health"
-curl "${hdr[@]}" "$STG/api/health" | sed -n '1,60p' | sed 's/^\r$//'
-
+curl -sS -i "$STG/api/health" "${BYPASS_HEADER[@]}" | sed -n '1,40p'
 echo
-echo "==> GET $Stg/api/prompts (expect 200 with fallback allowed)"
-curl "${hdr[@]}" "$STG/api/prompts" | sed -n '1,120p' | sed 's/^\r$//'
 
+echo "==> API health (direct)"
+curl -sS -i "$API/api/health" | sed -n '1,40p'
 echo
-echo "==> POST $STG/api/ingest/preview (LLM planner path)"
-curl "${hdr[@]}" -X POST "$STG/api/ingest/preview" \
-  -H 'content-type: application/json' \
-  --data '{"text":"Astrophysics for beginners, focus on cosmology, 45 mins"}' \
-  | sed -n '1,180p' | sed 's/^\r$//'
 
+echo "==> Routes count (direct)"
+curl -sS "$API/__routes.json" | jq '.routes | length'
 echo
-echo "==> Header check (x-edge, x-upstream if proxied)"
-for path in "/api/health" "/api/prompts" "/api/ingest/preview"; do
-  echo "-- $path"
-  curl -sS -I "${hdr[@]:1}" "$STG$path" \
-    | grep -i -E '^(x-edge|x-upstream|x-preview-impl|x-planner|x-model):' || true
-done
 
-echo
-echo "Smoke complete."
+if [[ "${VERCEL_BYPASS:-}" != "" ]]; then
+  echo "==> GET $STG/api/prompts"
+  curl -sS -i "$STG/api/prompts" "${BYPASS_HEADER[@]}" | sed -n '1,60p'
+  echo
+
+  echo "==> POST $STG/api/ingest/preview"
+  curl -sS -i -X POST "$STG/api/ingest/preview" \
+    "${BYPASS_HEADER[@]}" \
+    -H 'content-type: application/json' \
+    --data '{"text":"Astrophysics for beginners, focus on cosmology, 45 mins"}' \
+    | sed -n '1,120p'
+  echo
+else
+  echo "==> Skipping protected endpoints (/api/prompts, /api/ingest/preview) because VERCEL_BYPASS is not set."
+fi
+
+# Assertions (fail fast if unhealthy)
+jq -e '.ok==true' < <(curl -sS "$API/api/health") >/dev/null
+echo "Assertions passed."
