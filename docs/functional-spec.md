@@ -6,14 +6,12 @@
 - Prompts library: `/prompts` lists & renders >0 prompts in dev. **Staging (M1):** list may be backed by edge canary or proxy (`/api/prompts` responds with `x-edge: prompts-proxy` or `x-edge: prompts-fallback`; legacy `prompts-v2` is tolerated). **M2:** must fetch via Next.js rewrite proxy. Prompt detail view works; API `GET /api/prompts` reachable (never 404).
 - Coverage UI: `/coverage` renders summary and gaps from `/evidence/coverage` (stub) via proxy (no CORS issues).
 - Smoke script passes for `/style` and `/coverage` endpoints (HTTP 200).
-
 - Staging smoke script passes: `scripts/smoke-stg.sh` succeeds for `/ping`, `/api/health`, `/api/prompts` (accepts `x-edge: prompts-proxy` **or** `x-edge: prompts-fallback`) using the Vercel bypass cookie.
 - Vercel API health: `/api/health` returns 200 JSON on Vercel. Accept **proxy** (`x-edge: health-proxy`) or legacy canary (`health`/`health-v2`). Never 404.
 - `/ping` returns **204 No Content** with header `x-edge: ping` (staging).
 - `/api/prompts` returns 200 JSON on Vercel. Accept **proxy** (`x-edge: prompts-proxy`) or **fallback** (`x-edge: prompts-fallback`); legacy canary headers are tolerated in M1 (`prompts`/`prompts-v2`). **Never 404.**
 - POST /api/curator/quality/compute returns 200/400 (not 404/405).
 - /debug/env renders; build-time env shown; API health check on page passes (use Vercel bypass cookie on protected domains).
-
 - Tailwind styling present; feature flags honored on Vercel.
 - `/debug/env` shows NEXT_PUBLIC_* as expected and API health JSON in Vercel.
 - Preview & Prod on Vercel resolve via custom domain; /debug/env shows correct vars; /api/health and /api/prompts return non-404 via **proxy (M2)** or **edge canary (M1)**.
@@ -39,7 +37,6 @@
 - **2025-08-19**: Added Evidence Coverage UI at /coverage with summary KPIs and gaps, smoke test script, updated package scripts; spec reconciled to v2.4.
 - **2025-08-17**: Initial spec + items generate + learn MVP.
 - **2025-08-19**: Added /debug/env runtime page and vercel smoke script.
-
 - **2025-01-27**: Staging domains (Vercel + Render), proxy correctness, debug page verified.
 
 ## 12) Addendum A — Staging & Edge Canaries (M1)
@@ -421,4 +418,3 @@ export default function Home() {
 8. Token/cost logging + per-org caps.
 9. UI hooks: input → preview → confirm → generate → score.
 10. Enterprise upsell banner post-first-generation.
-
