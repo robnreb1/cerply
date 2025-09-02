@@ -1,9 +1,16 @@
-export default function Home() {
+// web/app/page.tsx
+// Server component that renders the conversational ingest UI.
+// (Fastify API routes live under api/src; do not place server code in this file.)
+
+import IngestInteraction from "../components/IngestInteraction";
+
+export const dynamic = "force-dynamic";
+
+export default function Page() {
   return (
-    <main className="min-h-dvh grid place-items-center bg-[var(--brand-bg)] text-[var(--brand-ink)]">
-      <div className="p-8 rounded-2xl shadow-md bg-[var(--brand-surface)]">
-        <h1 className="text-2xl font-semibold">Cerply is running ✅</h1>
-        <p className="mt-2 text-sm text-[var(--brand-subtle)]">If you can see this, Next.js is OK.</p>
+    <main className="min-h-screen pt-10 sm:pt-14">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+        <IngestInteraction />
       </div>
     </main>
   );

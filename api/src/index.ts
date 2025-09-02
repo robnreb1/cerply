@@ -1,3 +1,30 @@
+// --- Minimal .env loader (loads .env.local then .env if present) ---
+import fs from "node:fs";
+import path from "node:path";
+
+(function initEnv() {
+  const files = [".env.local", ".env"];
+  for (const f of files) {
+    const p = path.join(process.cwd(), f);
+    if (!fs.existsSync(p)) continue;
+    const text = fs.readFileSync(p, "utf8");
+    for (const raw of text.split(/\r?\n/)) {
+      if (!raw || /^\s*#/.test(raw)) continue;
+      const m = raw.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
+      if (!m) continue;
+      let [, key, val] = m;
+      // strip surrounding quotes
+      if (
+        (val.startsWith('"') && val.endsWith('"')) ||
+        (val.startsWith("'") && val.endsWith("'"))
+      ) {
+        val = val.slice(1, -1);
+      }
+      if (!(key in process.env)) process.env[key] = val;
+    }
+  }
+})();
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import crypto from 'node:crypto';
@@ -9,7 +36,22 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 
   // --- App bootstrap ---
 const app = Fastify({ logger: true });
-await app.register(cors, { origin: true });
+// ---- debug route collection ----
+type RouteRow = { method: string; url: string };
+const __ROUTES: RouteRow[] = [];
+app.addHook('onRoute', (route) => {
+  const method = Array.isArray(route.method) ? route.method.join(',') : String(route.method);
+  __ROUTES.push({ method, url: route.url });
+});
+await app.register(cors, { 
+  origin: [
+    'http://localhost:3000',
+    'https://localhost:3000',
+    'https://stg.cerply.com',
+    // Note: *.vercel.app wildcards not supported - add specific preview domains as needed
+    'https://cerply-web.vercel.app'
+  ]
+});
 
 
 
@@ -35,6 +77,17 @@ app.get('/health', async () => {
 });
 
 app.get('/flags', async () => ({ flags: FLAGS }));
+
+// --- Test endpoint ---
+app.get('/test', async () => ({ message: 'test endpoint working' }));
+
+app.get('/api/analytics/pilot', async () => {
+  return {
+    completion21d: 0.67,
+    spacedCoverage: 0.45,
+    lift: { d7: 0.23, d30: 0.41 }
+  };
+});
 
 // --- Prompt Library API (🧪 ff_prompts_lib_v1) ---
 if (FLAGS.ff_prompts_lib_v1) {
@@ -110,6 +163,9 @@ const _certPacks: Record<string, CertifiedPack> = {};
 // ---------------------
 // Helpers
 // ---------------------
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
 function splitSentences(text: string): string[] {
   return text
     .replace(/\s+/g, ' ')
@@ -200,6 +256,211 @@ function chunkPlaintext(text: string): string[] {
     .filter(s => s.length > 0)
     .slice(0, 200);
 }
+
+// ---------------------
+// Ingest preview helpers (outline + ids)
+// ---------------------
+type ModuleOutline = { id: string; title: string; estMinutes?: number };
+
+function makeId(prefix: string, i: number) {
+  return `${prefix}-${String(i + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Create a lightweight module outline from free text.
+ * Heuristics: split to paragraph-ish chunks, estimate modules by size,
+ * use top keywords to title the first few, then fallback to Module N.
+ */
+function outlineFromText(text: string): ModuleOutline[] {
+  const chunks = chunkPlaintext(text);
+  const wordCount = text.trim().split(/\s+/).length;
+  // 250–400 words per module target
+  const target = 320;
+  const rawCount = Math.max(1, Math.min(12, Math.round(wordCount / target)));
+  const count = Math.max(1, Math.min(12, rawCount || 1));
+
+  const kws = extractKeywords(text);
+  const modules: ModuleOutline[] = [];
+  for (let i = 0; i < count; i++) {
+    const kw = kws[i] ?? null;
+    const title = kw ? `About: ${kw[0].toUpperCase()}${kw.slice(1)}` : `Module ${i + 1}`;
+    modules.push({ id: makeId('mod', i), title, estMinutes: 3 + Math.floor(Math.random() * 5) });
+  }
+  // If the text looks very short, collapse to one overview module
+  if (wordCount < 120 && modules.length > 1) {
+    return [{ id: 'mod-01', title: 'Overview', estMinutes: 3 }];
+  }
+  return modules;
+}
+
+/**
+ * Lightweight intent analysis from a short free-text brief.
+ * Extracts topic (normalized), time budget in minutes, intro flag, and optional focus segment.
+ */
+function analyzeIntent(input: string) {
+  const raw = (input || '').trim();
+  const lower = raw.toLowerCase();
+
+  // time budget
+  let mins = 0;
+  const m1 = lower.match(/(\d+)\s*(min|mins|minute|minutes)\b/);
+  const h1 = lower.match(/(\d+)\s*(h|hr|hour|hours)\b/);
+  if (m1) mins += parseInt(m1[1], 10);
+  if (h1) mins += parseInt(h1[1], 10) * 60;
+
+  // intro intent
+  const isIntro = /\b(intro|beginner|beginners|basics|foundation|foundations)\b/.test(lower);
+
+  // focus segment ("focus on X")
+  const f = lower.match(/\bfocus\s+(on|around)?\s*([a-z0-9\-\s]+)/);
+  const focus = f ? f[2].trim().replace(/\.$/, '') : undefined;
+
+  // topic normalization (coarse)
+  let topic = raw.split(/[.,\n]/)[0].trim() || 'Learning Topic';
+  const bigMap: Record<string, string> = {
+    astrophysics: 'Astrophysics',
+    'quantum mechanics': 'Quantum Mechanics',
+    mathematics: 'Mathematics',
+    biology: 'Biology',
+    chemistry: 'Chemistry',
+    'computer science': 'Computer Science',
+    economics: 'Economics',
+    physics: 'Physics',
+    history: 'History',
+    regulation: 'Regulation',
+  };
+  for (const k of Object.keys(bigMap)) {
+    if (lower.includes(k)) topic = bigMap[k];
+  }
+
+  // Capitalize first word fallback
+  if (!Object.values(bigMap).includes(topic)) {
+    topic = topic.slice(0, 1).toUpperCase() + topic.slice(1);
+  }
+
+  return { topic, mins, isIntro, focus };
+}
+
+/**
+ * Propose a set of modules given topic & constraints.
+ * Chooses count primarily from time budget; falls back to scope-based heuristics.
+ */
+function proposeModules(topic: string, mins: number, isIntro: boolean, focus?: string): ModuleOutline[] {
+  // choose module count
+  let n =
+    mins >= 90 ? 6 :
+    mins >= 60 ? 5 :
+    mins >= 40 ? 4 :
+    mins >= 25 ? 3 :
+    2;
+
+  // scope-based bump/cap when no explicit time given
+  const heavy = ['Astrophysics', 'Quantum Mechanics', 'Mathematics', 'Biology', 'Computer Science', 'Physics'];
+  if (!mins && heavy.includes(topic)) n = Math.max(n, isIntro ? 3 : 5);
+  if (isIntro) n = Math.min(n, 4);
+  n = clamp(n, 2, 6);
+
+  // per-module minutes (ensure at least 5 and at most 25)
+  const per = clamp(Math.floor((mins || (n * 8)) / n), 5, 25);
+
+  // seed titles
+  const seeds: string[] = [];
+  seeds.push(`${topic}: Foundations`);
+  if (focus) seeds.push(`Focus: ${focus}`);
+  seeds.push(`${topic}: Core Concepts`);
+  seeds.push(`${topic}: Applications`);
+  seeds.push(`${topic}: Key Equations & Methods`);
+  seeds.push(`${topic}: Review & Practice`);
+
+  // uniq & trim to n
+  const seen = new Set<string>();
+  const titles = seeds.filter(t => (seen.has(t) ? false : (seen.add(t), true))).slice(0, n);
+
+  return titles.map((title, i) => ({
+    id: `mod-${String(i + 1).padStart(2, '0')}`,
+    title,
+    estMinutes: per,
+  }));
+}
+
+// ---------------------
+// LLM-based planner (optional; OpenAI via fetch, no SDK)
+// ---------------------
+const LLM_PLANNER_ENABLED = (() => {
+  const v = (process.env.LLM_PREVIEW ?? process.env.LLM_PLANNER ?? '').toString().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on';
+})();
+const LLM_MODEL = (process.env.LLM_PLANNER_MODEL ?? 'gpt-4o-mini').toString();
+const LLM_PROVIDER = (process.env.LLM_PLANNER_PROVIDER ?? 'openai').toString().toLowerCase();
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
+
+type LlmPlan = { modules: ModuleOutline[]; raw?: any; model?: string };
+
+async function planModulesLLM(intent: { topic: string; mins: number; isIntro: boolean; focus?: string }): Promise<LlmPlan> {
+  if (!LLM_PLANNER_ENABLED) throw new Error('LLM planner disabled by env');
+  if (LLM_PROVIDER !== 'openai') throw new Error(`Unsupported LLM provider: ${LLM_PROVIDER}`);
+  if (!OPENAI_API_KEY) throw new Error('Missing OPENAI_API_KEY');
+
+  const sys = [
+    'You are a curriculum planner who breaks a user brief into a small set of logical learning modules for a first session.',
+    'Return STRICT JSON with shape: { "modules": [ { "id": "mod-01", "title": "string", "estMinutes": number }, ... ] }',
+    'Choose 2–6 modules based on the time budget (per-module 5–25 minutes).',
+    'Titles must be specific to the topic/focus (avoid generic words like "About").',
+    'If a focus is given, include one module for it.',
+    'Do NOT include explanations; only module metadata.',
+  ].join(' ');
+
+  const u = JSON.stringify({
+    topic: intent.topic,
+    timeBudgetMinutes: intent.mins,
+    isIntro: intent.isIntro,
+    focus: intent.focus ?? null
+  });
+
+  const body = {
+    model: LLM_MODEL,
+    temperature: 0.2,
+    response_format: { type: 'json_object' as const },
+    messages: [
+      { role: 'system', content: sys },
+      { role: 'user', content: `User brief JSON:\n${u}` }
+    ]
+  };
+
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'authorization': `Bearer ${OPENAI_API_KEY}`
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!r.ok) {
+    const errText = await r.text().catch(() => '');
+    throw new Error(`OpenAI HTTP ${r.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await r.json().catch(() => ({}));
+  const content = data?.choices?.[0]?.message?.content ?? '';
+  let parsed: any = {};
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error('LLM did not return valid JSON');
+  }
+  const mods: ModuleOutline[] = Array.isArray(parsed?.modules)
+    ? parsed.modules.map((m: any, i: number) => ({
+        id: typeof m?.id === 'string' ? m.id : `mod-${String(i + 1).padStart(2, '0')}`,
+        title: String(m?.title ?? `Module ${i + 1}`),
+        estMinutes: Math.max(5, Math.min(25, Number(m?.estMinutes ?? 10)))
+      }))
+    : [];
+
+  if (mods.length === 0) throw new Error('LLM returned empty modules');
+
+  return { modules: mods.slice(0, 6), raw: parsed, model: LLM_MODEL };
+}
 // ---------------------
 // Evidence Coverage (stub)
 // ---------------------
@@ -225,9 +486,333 @@ function handleCoverage(req: FastifyRequest, reply: FastifyReply) {
 }
 app.get('/evidence/coverage', handleCoverage);
 app.get('/api/evidence/coverage', handleCoverage);
-// DEV ONLY: expose registered routes for spec snapshot
-app.get('/__routes', async () => {
-  return { routes: [], ts: new Date().toISOString() };
+
+// DEV HELPERS: expose routes & process info
+app.get('/__routes', async (_req, reply) => {
+  const printed = (app as any).printRoutes ? (app as any).printRoutes() : '';
+  if (printed && typeof printed === 'string') {
+    reply.type('text/plain').send(printed);
+  } else {
+    // Fallback to JSON list collected via onRoute hook
+    reply.type('application/json').send({
+      routes: __ROUTES,
+      ts: new Date().toISOString(),
+      note: 'printRoutes unavailable; returning onRoute snapshot'
+    });
+  }
+});
+
+// JSON route table (based on onRoute hook)
+app.get('/__routes.json', async (_req, reply) => {
+  reply.type('application/json').send({ routes: __ROUTES, ts: new Date().toISOString() });
+});
+
+// Whoami (which process is serving this port)
+app.get('/__whoami', async (_req, reply) => {
+  reply.type('application/json').send({
+    pid: process.pid,
+    cwd: process.cwd(),
+    node: process.version,
+    startedAt: new Date().toISOString(),
+    note: 'Fastify API process'
+  });
+});
+
+// Simple hello (useful smoke test)
+app.get('/__hello', async (_req, reply) => {
+  reply.type('application/json').send({ ok: true, name: 'cerply-api' });
+});
+
+// Minimal dev probe
+app.get('/__dev', async (_req, reply) => {
+  reply.type('application/json').send({
+    hasDevHelpers: true,
+    routesCount: __ROUTES.length,
+    ts: new Date().toISOString()
+  });
+});
+
+// ---------------------
+// Ingest: parse (normalize raw input into text)  ← simple normalizer used by web/app/api/ingest/parse proxy
+// ---------------------
+async function handleIngestParse(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    // Support JSON {text?, url?} or text/plain
+    const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
+    let text = '';
+    let kind: 'text' | 'url' | 'unknown' = 'unknown';
+
+    if (ct.includes('application/json')) {
+      const body = ((req as any).body ?? {}) as { text?: string; url?: string };
+      if (typeof body.text === 'string' && body.text.trim()) {
+        text = body.text.trim();
+        kind = 'text';
+      } else if (typeof body.url === 'string' && body.url.trim()) {
+        // For now just echo URL; the preview route does real fetch/extract
+        text = body.url.trim();
+        kind = 'url';
+      } else {
+        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Provide text or url' } });
+      }
+    } else if (ct.includes('text/plain')) {
+      const raw = (req as any).body as string;
+      text = String(raw ?? '').trim();
+      if (!text) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Empty text body' } });
+      kind = 'text';
+    } else {
+      // attempt best-effort
+      const raw = (req as any).body as any;
+      text = typeof raw === 'string' ? raw.trim() : '';
+      if (!text) return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: `Unsupported content-type ${ct || '(none)'}` } });
+      kind = 'text';
+    }
+
+    reply.header('cache-control', 'no-store');
+    reply.header('x-api', 'ingest-parse');
+    return reply.send({
+      ok: true,
+      parsed: { kind, text },
+      bytes: Buffer.byteLength(text, 'utf8'),
+      ts: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    (req as any).log?.error?.({ err }, 'ingest/parse failed');
+    return reply.code(500).send({ error: { code: 'INTERNAL', message: 'parse failed' } });
+  }
+}
+
+// Register on both URLs
+app.post('/api/ingest/parse', handleIngestParse);
+app.post('/ingest/parse', handleIngestParse);
+
+// Helper: normalize preview input across shapes
+function pickText(contentType: string | undefined, body: any, rawText?: string): string | null {
+  if (contentType && contentType.includes('text/plain')) return rawText ?? null;
+  if (typeof body?.text === 'string') return body.text;
+  if (typeof body?.payload?.text === 'string') return body.payload.text;
+  if (typeof body?.input?.text === 'string') return body.input.text;
+  if (body?.artefact?.kind === 'text' && typeof body.artefact.text === 'string') return body.artefact.text;
+  return null;
+}
+
+// ---------------------
+// Ingest: preview and generate (MVP)
+// ---------------------
+
+async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
+    const isJson = ct.includes('application/json');
+    const body: any = isJson ? ((req as any).body ?? {}) : undefined;
+    const rawText: string | undefined = !isJson ? ((req as any).body as string | undefined) : undefined;
+
+    // Legacy shape: { type: 'text'|'url'|'file', payload: string, name?, mime? }
+    const legacyType = (body?.type as ('text' | 'url' | 'file' | undefined)) ?? undefined;
+    const legacyPayload = (body?.payload as (string | undefined)) ?? undefined;
+
+    let text = '';
+
+    if (legacyType) {
+      if (legacyType === 'text') {
+        if (!legacyPayload || !legacyPayload.trim()) {
+          return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'payload text required' } });
+        }
+        text = legacyPayload;
+      } else if (legacyType === 'url') {
+        if (!legacyPayload || !legacyPayload.trim()) {
+          return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'url payload required' } });
+        }
+        const AI_URL = process.env.AI_URL || process.env.NEXT_PUBLIC_AI_URL;
+        let extracted = '';
+        if (AI_URL) {
+          try {
+            const r = await fetch(`${AI_URL.replace(/\/+$/, '')}/extract_text`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ url: legacyPayload }),
+            });
+            if (r.ok) {
+              const j = await r.json().catch(() => ({}));
+              extracted = (j?.text ?? '').toString();
+            }
+          } catch { /* ignore and fall back */ }
+        }
+        if (!extracted) {
+          const r = await fetch(legacyPayload);
+          const html = await r.text();
+          extracted = html.replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                          .replace(/<[^>]+>/g, ' ')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+        }
+        text = extracted.slice(0, 20000);
+      } else if (legacyType === 'file') {
+        if (!legacyPayload) {
+          return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'base64 payload required' } });
+        }
+        try {
+          const bytes = Buffer.from(legacyPayload, 'base64');
+          const name = (body?.name ?? 'upload.bin').toString();
+          text = await extractTextFromBytes(name, bytes);
+        } catch (e: any) {
+          return reply.code(400).send({ error: { code: 'BAD_FILE', message: e?.message || 'unable to decode/parse file' } });
+        }
+      }
+    } else {
+      // Lenient shapes:
+      // - raw text/plain
+      // - { text }
+      // - { payload: { text } } or { input: { text } }
+      // - { artefact: { kind: 'text', text } }
+      // - { url }
+      // - { name, contentBase64 }  (optional)
+      const picked = pickText(ct, body, rawText);
+      if (picked && picked.trim().length > 0) {
+        text = picked;
+      } else if (typeof body?.url === 'string' && body.url.trim()) {
+        const url = body.url.trim();
+        const AI_URL = process.env.AI_URL || process.env.NEXT_PUBLIC_AI_URL;
+        let extracted = '';
+        if (AI_URL) {
+          try {
+            const r = await fetch(`${AI_URL.replace(/\/+$/, '')}/extract_text`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ url }),
+            });
+            if (r.ok) {
+              const j = await r.json().catch(() => ({}));
+              extracted = (j?.text ?? '').toString();
+            }
+          } catch { /* ignore and fall back */ }
+        }
+        if (!extracted) {
+          const r = await fetch(url);
+          const html = await r.text();
+          extracted = html.replace(/<script[\s\S]*?<\/script>/gi, ' ')
+                          .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+                          .replace(/<[^>]+>/g, ' ')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+        }
+        text = extracted.slice(0, 20000);
+      } else if (typeof body?.contentBase64 === 'string' && body.contentBase64) {
+        try {
+          const name = (body?.name ?? 'upload.bin').toString();
+          const bytes = Buffer.from(body.contentBase64, 'base64');
+          text = await extractTextFromBytes(name, bytes);
+        } catch (e: any) {
+          return reply.code(400).send({ error: { code: 'BAD_FILE', message: e?.message || 'unable to decode/parse file' } });
+        }
+      } else {
+        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'payload text required' } });
+      }
+    }
+
+    // New logic: choose preview implementation based on brief length
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+    let modules: ModuleOutline[] = [];
+    let impl = 'v1-outline';
+    let diag: any = undefined;
+    let planner: 'llm' | 'heuristic' | undefined;
+    let modelUsed = '';
+
+    if (wordCount < 120) {
+      const intent = analyzeIntent(text);
+
+      // Try LLM planner if enabled; fall back to heuristic
+      if (LLM_PLANNER_ENABLED && OPENAI_API_KEY) {
+        try {
+          const llm = await planModulesLLM(intent);
+          modules = llm.modules;
+          impl = 'v3-llm';
+          planner = 'llm';
+          modelUsed = llm.model ?? LLM_MODEL;
+          diag = {
+            topic: intent.topic,
+            mins: intent.mins,
+            isIntro: intent.isIntro,
+            focus: intent.focus ?? null,
+            count: modules.length,
+            planner: 'llm'
+          };
+        } catch (e) {
+          (req as any).log?.warn?.({ err: String(e) }, 'LLM planner failed; using heuristic');
+          modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
+          impl = 'v2-multi';
+          planner = 'heuristic';
+          diag = {
+            topic: intent.topic,
+            mins: intent.mins,
+            isIntro: intent.isIntro,
+            focus: intent.focus ?? null,
+            count: modules.length,
+            planner: 'heuristic',
+            reason: 'llm_failed'
+          };
+        }
+      } else {
+        modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
+        impl = 'v2-multi';
+        planner = 'heuristic';
+        diag = {
+          topic: intent.topic,
+          mins: intent.mins,
+          isIntro: intent.isIntro,
+          focus: intent.focus ?? null,
+          count: modules.length,
+          planner: 'heuristic',
+          reason: 'llm_disabled'
+        };
+      }
+    } else {
+      modules = outlineFromText(text);
+      impl = 'v1-outline';
+      planner = 'heuristic';
+      diag = { count: modules.length, planner: 'heuristic' };
+    }
+
+    reply.header('cache-control', 'no-store');
+    reply.header('x-api', 'ingest-preview');
+    reply.header('x-preview-impl', impl);
+    if (planner) reply.header('x-planner', planner);
+    if (modelUsed) reply.header('x-model', modelUsed);
+    return reply.send(diag ? { ok: true, modules, diagnostics: diag } : { ok: true, modules });
+  } catch (err: any) {
+    (req as any).log?.error?.({ err }, 'ingest/preview failed');
+    return reply.code(500).send({ error: { code: 'INTERNAL', message: 'preview failed' } });
+  }
+}
+
+// Register preview on both URLs
+app.post('/api/ingest/preview', handleIngestPreview);
+app.post('/ingest/preview', handleIngestPreview);
+
+app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply) => {
+  const b = ((req as any).body ?? {}) as { modules?: { id: string; title: string; estMinutes?: number }[] };
+  const mods = Array.isArray(b.modules) ? b.modules : [];
+  if (mods.length === 0) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'modules[] required' } });
+
+  // Produce simple drafts per module: explanation + one MCQ + one free-form prompt
+  const items = mods.map((m, i) => {
+    const expl = `Overview of "${m.title}". Key takeaways are summarized in plain language to build intuition before testing.`;
+    const mcq = mkItem(`Which statement best captures "${m.title}"?`, i);
+    const free = { prompt: `In 2–3 sentences, explain "${m.title}" to a colleague.` };
+    return { moduleId: m.id, title: m.title, explanation: expl, questions: { mcq, free } };
+  });
+
+  // Optional lightweight generation ledger
+  if (FLAGS.ff_cost_guardrails_v1) {
+    const now = new Date().toISOString();
+    for (const row of items) {
+      _genLedger.push({ itemId: row.questions.mcq.id, modelUsed: 'mock:router', costCents: 1, createdAt: now });
+    }
+  }
+
+  reply.header('cache-control', 'no-store');
+  reply.header('x-api', 'ingest-generate');
+  return reply.send({ ok: true, items });
 });
 
 // ---------------------
@@ -499,6 +1084,19 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
 // Listen
 // ---------------------
 const port = Number(process.env.PORT ?? 8080);
+
+// Ensure all routes are registered and (if available) print them
+await app.ready();
+if ((app as any).printRoutes) {
+  try {
+    console.log('[api] routes:\n' + (app as any).printRoutes());
+  } catch (e) {
+    console.log('[api] routes: printRoutes() threw:', e);
+  }
+} else {
+  console.log('[api] routes: (printRoutes unavailable)');
+}
+
 await app.listen({ host: '0.0.0.0', port });
 console.log(`[api] listening on http://0.0.0.0:${port}`);
 })();

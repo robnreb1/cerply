@@ -14,7 +14,7 @@ type MCQItem = {
 type NextResp = { sessionId: string; item: MCQItem };
 type SubmitResp = { correct: boolean; correctIndex: number; explainer: string };
 
-const API = 'http://localhost:8080';
+// All API calls go through /api/* proxy
 
 export default function LearnPage() {
   const [phase, setPhase] = useState<Phase>('idle');

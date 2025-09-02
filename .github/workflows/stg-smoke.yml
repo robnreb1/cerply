@@ -1,0 +1,26 @@
+name: Staging Smoke
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    name: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # Optional: set this in Repo Settings → Variables
+      STG_URL: ${{ vars.STG_URL }}
+      # Optional: set this in Repo Settings → Secrets (only needed if preview protection is ON)
+      VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}
+      API_STG: https://api-stg.cerply.com
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/smoke-stg.sh
+          ./scripts/smoke-stg.sh

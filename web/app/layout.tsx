@@ -1,14 +1,19 @@
-import "./globals.css";
-import type { ReactNode } from "react";
-import BrandHeader from "../components/BrandHeader";
+import type { Metadata } from "next";
+import "../app/globals.css";
+import BrandHeader from "@/components/BrandHeader";
 
-export const metadata = { title: "Cerply" };
+export const metadata: Metadata = {
+  title: "Cerply",
+  description: "Helping you master what matters",
+};
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body data-domain="rc" data-density="comfortable">
+      <body className="min-h-screen antialiased">
+        {/* Real top bar */}
         <BrandHeader />
+        {/* Main content */}
         {children}
       </body>
     </html>
