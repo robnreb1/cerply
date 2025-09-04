@@ -28,6 +28,7 @@
     - CI: `.github/workflows/stg-smoke.yml` uses `${{ secrets.VERCEL_BYPASS_TOKEN_STG }}` to set the cookie and run the script
 
 ## 11) Change log
+- **2025-09-04**: Conversational ingest flow finalized — added /api/auth/me, /api/ingest/clarify, /api/ingest/followup; opener renders with line breaks; sticky composer with hidden upload input; NL controls: “looks good” (auth-gated), “add/include…”, “remove…”. [spec]
 - **2025-08-31**: Chat-first refinements — rails positioned below and full-bleed; compact composer with right-aligned Upload/Send; reduced opener→input gap; prompts proxy/fallback headers reflected in acceptance; rate-limit/diagnostics noted.
 - **2025-08-22**: Staging "M1" edge canaries for `/ping`, `/api/health`, `/api/prompts`; added `scripts/smoke-stg.sh`; documented bypass-cookie flow; acceptance updated to allow M1 vs M2.
 - **2025-08-19**: Expanded acceptance criteria to include `/prompts` and coverage smoke; spec reconciled.

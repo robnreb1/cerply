@@ -88,7 +88,7 @@ const saveSession = (session: any) => {
 };
 
 const INTRO_HTML =
-  'Hi, <strong>I’m Cerply</strong>. What would you like to learn today? You can paste text, share a link, upload a document, or just name a topic.';
+  'Hi, <strong>I’m Cerply</strong>.<br/>What would you like to learn today?<br/>You can paste text, share a link, upload a document, or just name a topic.';
 
 export default function IngestInteraction() {
   const [input, setInput] = useState("");
@@ -229,23 +229,31 @@ export default function IngestInteraction() {
   const runGenerate = async (payload: any) =>
     postJSON<GenerateResp>("/api/ingest/generate", payload);
 
+  const runClarify = async (topic: string) =>
+    postJSON<{ question: string; chips: string[] }>("/api/ingest/clarify", { topic });
+
+  const runFollowup = async (command: string, modules: ModuleOutline[]) =>
+    postJSON<{ ok: boolean; modules: ModuleOutline[]; hint?: { action: 'append'|'revise'|'hint'; message: string } }>(
+      "/api/ingest/followup",
+      { command, modules }
+    );
+
   const pushAssistant = (content: string) =>
     setMessages((m) => [...m, { role: "assistant", content }]);
 
   const pushUser = (content: string) =>
     setMessages((m) => [...m, { role: "user", content }]);
 
-  const startClarify = (topic: string) => {
+  const [chips, setChips] = useState<string[]>([]);
+  const [clarifyQuestion, setClarifyQuestion] = useState<string>("");
+
+  const startClarify = async (topic: string) => {
     clarifyTopicRef.current = topic;
     setPhase("clarify");
-    pushAssistant(
-      `“${topic}” is a big area. To tailor your first session, please share:\n` +
-      `• Level — e.g., “beginner”, “intermediate”, or “advanced”.\n` +
-      `• Focus — sub-areas to include/skip, e.g., “stars & cosmology; skip instruments”.\n` +
-      `• Time today — how long do you have **today** for an intro session (e.g., “60–90 min”).\n` +
-      `• Prior knowledge — e.g., “algebra, no physics background”.\n\n` +
-      `Reply in a single message (free text is fine). We’ll plan **multi‑session** learning by default to help it stick.`
-    );
+    const c = await runClarify(topic);
+    setClarifyQuestion(c?.question || `Quick preferences for “${topic}”:`);
+    setChips(Array.isArray(c?.chips) ? c.chips.slice(0, 6) : ["Beginner","Intermediate","Advanced"]);
+    pushAssistant((c?.question || `Quick preferences for “${topic}”:`) + "\n" + (c?.chips || []).map((x: string) => `• ${x}`).join("\n"));
   };
 
   const proceedFromClarify = async (answer: string) => {
@@ -279,6 +287,28 @@ export default function IngestInteraction() {
     if (phase === "clarify") {
       await proceedFromClarify(text);
       return;
+    }
+
+    // Natural-language controls during confirm: add/remove/looks good
+    if (phase === "confirm" && proposed?.length) {
+      if (/^\s*(looks good|go ahead|ship it)\b/i.test(text)) {
+        // Check auth then generate
+        const auth = await fetch("/api/auth/me", { headers: { accept: "application/json" } }).then(r => r.json()).catch(() => ({ loggedIn: false }));
+        if (!auth?.loggedIn) {
+          pushAssistant("Please log in to generate learning content.");
+          return;
+        }
+        await buildContent();
+        return;
+      }
+      if (/\b(add|include|remove)\b/i.test(text)) {
+        const fu = await runFollowup(text, proposed);
+        if (fu?.ok && fu.modules?.length) {
+          setProposed(fu.modules.map((m, i) => ({ ...m, id: m.id || `mod-${i+1}`, slug: m.slug || toSlug(m.title), estMinutes: m.estMinutes || 5 })));
+          if (fu.hint?.message) pushAssistant(fu.hint.message);
+          return;
+        }
+      }
     }
 
     // Broad topics → clarifying Qs first
@@ -382,6 +412,29 @@ export default function IngestInteraction() {
           </div>
         ))}
 
+        {/* Clarify chips */}
+        {phase === 'clarify' && (chips?.length > 0 || clarifyQuestion) && (
+          <div className="text-left">
+            <div className="inline-block rounded-2xl bg-white ring-1 ring-zinc-200 px-4 py-3 text-zinc-800">
+              <p className="text-sm font-medium">{clarifyQuestion}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {chips.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      // append chip text to input for convenience
+                      setInput((v) => (v ? `${v}; ${c}` : c));
+                    }}
+                    className="rounded-full bg-zinc-50 px-3 py-1 text-xs ring-1 ring-zinc-200 hover:bg-zinc-100"
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {busy && (
           <div className="text-left">
             <div className="inline-flex items-center gap-2 rounded-2xl bg-white ring-1 ring-zinc-200 px-4 py-3 text-zinc-700">
@@ -463,8 +516,8 @@ export default function IngestInteraction() {
         )}
       </div>
 
-      {/* Composer */}
-      <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-2">
+      {/* Composer (sticky) */}
+      <div className="sticky bottom-3 z-10 mt-3 rounded-2xl border border-zinc-200 bg-white/95 backdrop-blur p-2">
         <div className="flex items-center gap-2">
           <textarea
             ref={taRef}
@@ -512,73 +565,7 @@ export default function IngestInteraction() {
         </div>
       </div>
 
-      {/* Discovery rails (below composer, lighter + smaller) */}
-      </div>
-      <div className="mt-28 md:mt-40 pt-8 pb-12 border-t border-zinc-100">
-        <section className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
-          <div className="mx-auto max-w-screen-2xl px-4">
-            <div className="px-1 mb-2 text-[11px] font-medium text-zinc-500 text-center">Popular searches</div>
-            <div className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex justify-center gap-3 pb-2">
-                {[
-                  { title: "Astrophysics for beginners", emoji: "🛰️" },
-                  { title: "Excel pivot tables", emoji: "📊" },
-                  { title: "Project management basics", emoji: "📋" },
-                  { title: "First aid essentials", emoji: "⛑️" },
-                  { title: "GDPR essentials", emoji: "🛡️" },
-                  { title: "Python data analysis", emoji: "🐍" },
-                  { title: "Public speaking", emoji: "🎤" },
-                  { title: "Leadership 101", emoji: "🧭" },
-                  { title: "Customer discovery", emoji: "🕵️" },
-                  { title: "SQL joins explained", emoji: "🧩" },
-                ].map((it) => (
-                  <button
-                    key={it.title}
-                    onClick={() => setInput(it.title)}
-                    className="shrink-0 w-36 rounded-lg bg-white p-2 text-left ring-1 ring-zinc-100 hover:ring-zinc-200"
-                  >
-                    <div className="flex h-12 items-center justify-center rounded-md bg-zinc-50 text-2xl">
-                      <span aria-hidden>{it.emoji}</span>
-                    </div>
-                    <div className="mt-2 line-clamp-2 text-[11px] font-medium text-zinc-700">{it.title}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] mt-6">
-          <div className="mx-auto max-w-screen-2xl px-4">
-            <div className="px-1 mb-2 text-[11px] font-medium text-zinc-500 text-center">Cerply certified</div>
-            <div className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex justify-center gap-3 pb-2">
-                {[
-                  { title: "Food Safety Level 2", emoji: "🍽️" },
-                  { title: "Fire Warden Training", emoji: "🔥" },
-                  { title: "Data Protection Awareness", emoji: "🔐" },
-                  { title: "Safeguarding Basics", emoji: "🧒" },
-                  { title: "Manual Handling", emoji: "📦" },
-                  { title: "Workplace First Aid", emoji: "🩹" },
-                  { title: "Intro to Cyber Hygiene", emoji: "🛡️" },
-                  { title: "Anti‑bribery Essentials", emoji: "⚖️" },
-                ].map((it) => (
-                  <button
-                    key={it.title}
-                    onClick={() => setInput(it.title)}
-                    className="shrink-0 w-36 rounded-lg bg-white p-2 text-left ring-1 ring-zinc-100 hover:ring-zinc-200"
-                  >
-                    <div className="flex h-12 items-center justify-center rounded-md bg-zinc-50 text-2xl">
-                      <span aria-hidden>{it.emoji}</span>
-                    </div>
-                    <div className="mt-2 line-clamp-2 text-[11px] font-semibold text-zinc-800">{it.title}</div>
-                    <div className="text-[10px] text-emerald-700">Certified</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+      {/* No carousels/rails per acceptance */}
       </div>
     </div>
   );
