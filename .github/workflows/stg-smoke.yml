@@ -1,26 +1,39 @@
 name: Staging Smoke
 
 on:
+  schedule:
+    - cron: '15 3 * * *'   # 03:15 UTC daily
+  pull_request:
+    branches: [staging]     # ← adds the check on PRs
   push:
     branches: [staging]
   workflow_dispatch: {}
 
+
 jobs:
   smoke:
-    name: smoke
+    name: smoke            # ← produces "Staging Smoke / smoke"
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    environment: 'staging - cerply-api-staging'
     env:
-      # Optional: set this in Repo Settings → Variables
-      STG_URL: ${{ vars.STG_URL }}
-      # Optional: set this in Repo Settings → Secrets (only needed if preview protection is ON)
+      STG: https://cerply-staging.vercel.app
+      API: https://api-stg.cerply.com
       VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}
-      API_STG: https://api-stg.cerply.com
     steps:
       - uses: actions/checkout@v4
-      - name: Run smoke
+      - run: bash scripts/smoke-stg.sh
+  smoke-staging:
+    runs-on: ubuntu-latest
+    environment: 'staging - cerply-api-staging'
+    env:
+      STG: https://cerply-staging.vercel.app
+      API: https://api-stg.cerply.com
+      VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert secrets wired
         shell: bash
         run: |
-          set -euo pipefail
-          chmod +x scripts/smoke-stg.sh
-          ./scripts/smoke-stg.sh
+          test -n "${VERCEL_BYPASS:-}" || { echo "VERCEL_BYPASS is empty"; exit 1; }
+          echo "VERCEL_BYPASS length: ${#VERCEL_BYPASS}"
+      - run: bash scripts/smoke-stg.sh

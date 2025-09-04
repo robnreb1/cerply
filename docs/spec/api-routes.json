@@ -10,6 +10,11 @@
     "GET /health",
     "GET /marketplace/ledger/summary",
     "OPTIONS /import/file",
+    "GET /api/research/fetch",
+    "GET /api/research/search",
+    "GET /api/materials/lookup",
+    "POST /api/materials/save",
+    "POST /api/materials/certify",
     "POST /api/items/generate",
     "POST /challenges",
     "POST /curator/quality/compute",
@@ -20,5 +25,5 @@
     "POST /learn/next",
     "POST /learn/submit"
   ],
-  "ts": "2025-08-19T05:50:36.699Z"
+  "ts": "2025-09-04T00:00:00.000Z"
 }

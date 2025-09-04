@@ -1,8 +1,6 @@
 // --- Minimal .env loader (loads .env.local then .env if present) ---
 import fs from "node:fs";
 import path from "node:path";
-import { fetch as undiciFetch } from 'undici';
-const fetch = globalThis.fetch ?? undiciFetch;
 
 (function initEnv() {
   const files = [".env.local", ".env"];
@@ -75,9 +73,6 @@ const FLAGS = {
   ff_marketplace_ledgers_v1: process.env.FF_MARKETPLACE_LEDGERS_V1 === 'true',
   ff_benchmarks_optin_v1: process.env.FF_BENCHMARKS_OPTIN_V1 === 'true',
   ff_prompts_lib_v1: process.env.FF_PROMPTS_LIB_V1 === 'true',
-
-  ff_research_v1: process.env.FF_RESEARCH_V1 === 'true',
-  ff_materials_kb_v1: process.env.FF_MATERIALS_KB_V1 === 'true',
 };
 // --- Auth gating flag for module generation ---
 const REQUIRE_AUTH_FOR_GENERATE = ['1','true','yes','on'].includes((process.env.REQUIRE_AUTH_FOR_GENERATE ?? '0').toString().toLowerCase());
@@ -104,170 +99,101 @@ app.get('/api/analytics/pilot', async () => {
   };
 });
 
-// --- Clarify & Followup (v2.5 — AI-first, no loops) ---
-const __v25_LLM_PREVIEW = (process.env.LLM_PREVIEW ?? '').toString().toLowerCase();
-const __v25_LLM_ON = ['1','true','yes','on'].includes(__v25_LLM_PREVIEW);
-const __v25_OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
-const __v25_LLM_PLANNER_MODEL = process.env.LLM_PLANNER_MODEL || 'gpt-4o-mini';
+// --- Clarifier (AI-first conversational entry) ---
+app.post('/api/ingest/clarify', async (req: FastifyRequest<{ Body: { text?: string } }>, reply: FastifyReply) => {
+  const text = String(req.body?.text ?? '').toLowerCase();
+  let question = 'Before I plan this, tell me your current experience and what you want to get from it.';
+  let chips: string[] = ['Beginner', 'Intermediate', 'Advanced'];
 
-function __v25_asciiOnly(s: string): string { return (s || '').replace(/[\x00-\x1F\x7F-\uFFFF]/g, ''); }
-function __v25_looksLikeProxyUse(s: string): boolean {
-  const t = (s || '').toLowerCase();
-  return /\b(write my|solve this|do my|finish my|debug my|answer my (exam|test)|bypass)\b/.test(t);
-}
-async function __v25_openaiJson<T>(args: { system: string; user: string; schemaHint: string; }): Promise<T | null> {
-  if (!__v25_LLM_ON || !__v25_OPENAI_API_KEY) return null;
-  try {
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'authorization': `Bearer ${__v25_OPENAI_API_KEY}` },
-      body: JSON.stringify({
-        model: __v25_LLM_PLANNER_MODEL,
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: __v25_asciiOnly(args.system) },
-          { role: 'user', content: __v25_asciiOnly(`${args.user}\n\nReturn ONLY JSON that matches:\n${args.schemaHint}`) },
-        ],
-      }),
-    });
-    if (!r.ok) return null;
-    const j = await r.json();
-    const text: string | undefined = j?.choices?.[0]?.message?.content;
-    if (!text) return null;
-    return JSON.parse(text) as T;
-  } catch { return null; }
-}
-
-function __v25_vendorFrom(text: string): string | null {
-  const m = /\b(aqa(?:\s+(?:higher|foundation))?|edexcel|ocr|cie|ocr cambridge)\b/i.exec(text || '');
-  return m ? m[1].toUpperCase() : null;
-}
-function __v25_detectCurriculum(text: string): { stage: 'ks3'|'ks4'|'ks5'|'gcse'|'alevel'|null; subject: string|null } {
-  const lower = (text || '').toLowerCase();
-  const subjectMap: Record<string,string> = {
-    maths: 'Mathematics', math: 'Mathematics', mathematics: 'Mathematics',
-    physics: 'Physics', chemistry: 'Chemistry', biology: 'Biology',
-    english: 'English', history: 'History', geography: 'Geography',
-    science: 'Science'
-  };
-  let subject: string|null = null;
-  for (const k of Object.keys(subjectMap)) if (lower.includes(k)) { subject = subjectMap[k]; break; }
-  let stage: 'ks3'|'ks4'|'ks5'|'gcse'|'alevel'|null = null;
-  if (/\bks\s*3|key\s*stage\s*3\b/.test(lower)) stage = 'ks3';
-  else if (/\bks\s*4|key\s*stage\s*4\b/.test(lower)) stage = 'ks4';
-  else if (/\bks\s*5|key\s*stage\s*5\b/.test(lower)) stage = 'ks5';
-  else if (/\bgcse\b/.test(lower)) stage = 'gcse';
-  else if (/\b(a[-\s]?level|alevel|advanced level)\b/.test(lower)) stage = 'alevel';
-  return { stage, subject };
-}
-function __v25_clarifyHeuristic(text: string) {
-  // Detect if the user likely wants to learn from proprietary/internal material
-  const looksLikeUpload = /\b(upload|attach|transcript|meeting notes?|minutes|recording|slides?|pdf|docx|pptx?|policy|handbook|internal|proprietary|my\s+notes?)\b/i.test(text || '');
-  const cur = __v25_detectCurriculum(text);
-  const v = __v25_vendorFrom(text);
-  const chips = [
-    ...(looksLikeUpload
-      ? ['Upload a file', 'Paste text', 'Use a URL']
-      : [
-          'Baseline me first',
-          'Skip grammar, focus vocab',
-          'Exam strategy focus',
-          'Daily 10-min drills',
-          'Include audio practice',
-          v ? `Keep ${v}` : 'AQA Higher',
-        ]),
-  ].slice(0, 6);
-  const question = looksLikeUpload
-    ? 'Do you want to upload a file or paste text to learn from your materials?'
-    : (cur.stage && cur.subject)
-      ? `Okay — I can pull the ${cur.stage.toUpperCase()} ${cur.subject} coverage. What’s your current level: Foundation, Intermediate, or Advanced?`
-      : v
-        ? `Great — ${v}. What’s your target grade or exam date?`
-        : 'Which syllabus/level is this (e.g., AQA Higher vs Edexcel)?';
-  return { question, chips };
-}
-function __v25_appendHeuristic(plan: { id: string; title: string }[] | undefined, message: string) {
-  const title = (message || '').replace(/^(please\s*)?(add|include)\s*/i, '').trim() || 'Additional topic';
-  return [ ...(plan ?? []), { id: `mod-${Date.now()}` , title } ];
-}
-function __v25_removeHeuristic(plan: { id: string; title: string }[] | undefined, message: string) {
-  const needle = (message || '').replace(/^(please\s*)?(remove|drop|exclude)\s*/i, '').trim().toLowerCase();
-  if (!needle) return plan ?? [];
-  return (plan ?? []).filter(m => !m.title.toLowerCase().includes(needle));
-}
-function __v25_withTiming(handler: any, name: string) {
-  return async (req: any, reply: any) => {
-    const t0 = Date.now();
-    try {
-      const out = await handler(req, reply);
-      req?.log?.info?.({ route: name, ms: Date.now() - t0 }, 'latency');
-      return out;
-    } catch (e) {
-      req?.log?.error?.({ route: name, ms: Date.now() - t0, err: e }, 'error');
-      throw e;
+  // Domain heuristics to feel "smart" on the first turn
+  if (/\bgcse\b/.test(text)) {
+    question = 'Which GCSE exam board and level are you targeting? (e.g., AQA/Edexcel/OCR/WJEC; Foundation or Higher)';
+    chips = ['AQA • Foundation', 'AQA • Higher', 'Edexcel • Foundation', 'Edexcel • Higher'];
+    if (/\bgerman\b/.test(text)) {
+      chips = [...chips, 'Speaking focus', 'Grammar focus', 'Exam skills'];
     }
-  };
-}
+  } else if (/\bgdpr|privacy|data protection\b/.test(text)) {
+    question = 'What outcome do you need on data privacy—awareness, practitioner, or auditor? Any specific jurisdiction?';
+    chips = ['Awareness', 'Practitioner', 'Auditor', 'EU (GDPR)', 'UK (UK GDPR)', 'US (CPRA/State)'];
+  }
 
-// Clarify: one sharp question + 3–6 chips
-app.post('/api/ingest/clarify', __v25_withTiming(async (req: any, reply: any) => {
-  const { text } = (req.body ?? {}) as { text?: string };
-  const t = (text ?? '').trim();
-  if (!t) return reply.code(400).send({ ok: false, error: 'Missing text' });
-  if (__v25_looksLikeProxyUse(t)) return reply.code(400).send({ ok: false, error: 'Declined: proxy-style request' });
+  reply
+    .header('cache-control', 'no-store')
+    .header('x-api', 'ingest-clarify')
+    .send({ ok: true, question, chips });
+});
 
-  let result = __v25_clarifyHeuristic(t);
-  const __cur0 = __v25_detectCurriculum(t);
-  const __looksUpload0 = /\b(upload|attach|transcript|meeting notes?|minutes|recording|slides?|pdf|docx|pptx?|policy|handbook|internal|proprietary|my\s+notes?)\b/i.test(t);
-  if (!__looksUpload0 && !(__cur0.stage && __cur0.subject)) {
-    const llm = await __v25_openaiJson<{ question: string; chips: string[] }>({
-      system: 'Ask ONE concise clarifier about scope/level/timeline/resources (not a quiz). Propose 3–6 short chips. ASCII only.',
-      user: `Brief: ${t}`,
-      schemaHint: `{"question":"string","chips":["string"]}`,
+// --- Follow-up (post-plan refinement / tutoring) ---
+app.post('/api/ingest/followup', async (
+  req: FastifyRequest<{ Body: { brief?: string; plan?: { id: string; title: string; estMinutes?: number }[]; message?: string } }>,
+  reply: FastifyReply
+) => {
+  const body = req.body ?? {};
+  const brief = String(body.brief ?? '').trim();
+  const plan = Array.isArray(body.plan) ? body.plan.filter(Boolean) : [];
+  const message = String(body.message ?? '').trim();
+
+  const addRx = /^(please\s*)?(add|include)\b/i;
+  const genRx = /\b(generate|create)\b.*\b(items|lessons?)\b/i;
+
+  // helper ids
+  const rid = () => 'mod-' + crypto.randomBytes(4).toString('hex');
+
+  // If user asks to add/include, append to the existing plan (dedup by title)
+  if (addRx.test(message) && plan.length) {
+    const newTitle = message.replace(/^(please\s*)?(add|include)\s*/i, '').trim() || 'Additional topic';
+    const next = [...plan, { id: rid(), title: newTitle }];
+    const seen = new Set<string>(); // dedup titles
+    const modules = next.filter((m: { title: string }) => {
+      const k = m.title.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
     });
-    if (llm?.question && Array.isArray(llm?.chips) && llm.chips.length >= 3) {
-      result = {
-        question: __v25_asciiOnly(llm.question.slice(0, 240)),
-        chips: llm.chips.slice(0, 6).map(c => __v25_asciiOnly(c.slice(0, 60))),
-      };
-    }
-  }
-  reply.header('cache-control', 'no-store').header('x-api', 'ingest-clarify');
-  return reply.send({ ok: true, ...result });
-}, 'ingest_clarify'));
 
-// Followup: append / revise / hint (no loops)
-app.post('/api/ingest/followup', __v25_withTiming(async (req: any, reply: any) => {
-  const { brief, plan, message } = (req.body ?? {}) as { brief?: string; plan?: { id: string; title: string }[]; message?: string };
-  const msg = (message ?? '').trim();
-  if (!msg) return reply.code(400).send({ ok: false, error: 'Missing message' });
-  if (__v25_looksLikeProxyUse(msg)) return reply.code(400).send({ ok: false, error: 'Declined: proxy-style request' });
-
-  if (/^(please\s*)?(add|include)\b/i.test(msg)) {
-    const next = __v25_appendHeuristic(plan, msg);
-    return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'append', modules: next });
-  }
-  if (/^(please\s*)?(remove|drop|exclude)\b/i.test(msg)) {
-    const next = __v25_removeHeuristic(plan, msg);
-    return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'revise', modules: next });
+    return reply
+      .header('cache-control', 'no-store')
+      .header('x-api', 'ingest-followup')
+      .send({ ok: true, action: 'updated-plan', modules, note: 'Added to your plan' });
   }
 
-  const llm = await __v25_openaiJson<{ action: 'append'|'revise'|'hint'; modules?: { id: string; title: string }[]; text?: string }>({
-    system: 'Update a learning plan from followups. Respond with action append/revise/hint. ASCII only.',
-    user: `Brief: ${brief ?? ''}\nCurrentPlan: ${JSON.stringify(plan ?? [])}\nMessage: ${msg}`,
-    schemaHint: `{"action":"append|revise|hint","modules":[{"id":"string","title":"string"}],"text":"string"}`,
-  });
+  // If user asks to generate/create items, synthesize simple lesson items for each module
+  if (genRx.test(message) && plan.length) {
+    const items = plan.map((m: { id: string; title: string }, i: number) => ({
+      moduleId: m.id,
+      title: m.title,
+      explanation: `Overview of "${m.title}". Key takeaways are summarized to build intuition before testing.`,
+      questions: {
+        mcq: {
+          id: `auto-${i}-${crypto.randomBytes(3).toString('hex')}`,
+          stem: `Which statement best captures "${m.title}"?`,
+          options: ['About: which', 'Unrelated: statement', 'Partially true: best', 'Opposite: captures'],
+          correctIndex: 0,
+        },
+        free: {
+          prompt: `In 2–3 sentences, explain "${m.title}" to a colleague.`,
+        },
+      },
+    }));
 
-  if (llm?.action === 'append' && Array.isArray(llm.modules)) {
-    return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'append', modules: llm.modules });
+    return reply
+      .header('cache-control', 'no-store')
+      .header('x-api', 'ingest-followup')
+      .send({ ok: true, action: 'generated-items', items });
   }
-  if (llm?.action === 'revise' && Array.isArray(llm.modules)) {
-    return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'revise', modules: llm.modules });
-  }
-  const hint = llm?.text || 'Tell me what changed: scope, level, or assessment style?';
-  return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'hint', text: __v25_asciiOnly(hint.slice(0, 280)) });
-}, 'ingest_followup'));
+
+  // Default: refine path — echo intent so the UI can decide whether to re-preview
+  return reply
+    .header('cache-control', 'no-store')
+    .header('x-api', 'ingest-followup')
+    .send({
+      ok: true,
+      action: 'refine',
+      brief,
+      message,
+      hint: 'Consider re-previewing with this as additional context.',
+    });
+});
 
 // --- Prompt Library API (🧪 ff_prompts_lib_v1) ---
 if (FLAGS.ff_prompts_lib_v1) {
@@ -333,25 +259,12 @@ type PayoutLedger = { packId: string; recipientId: string; amountCents: number; 
 
 type TenantSettings = { tenantId: string; sector?: string; benchmarksOptIn?: boolean };
 
-// --- Materials KB (in-memory MVP) ---
-type KbRecord = {
-  key: string;
-  modules: ModuleOutline[];
-  sources?: string[];
-  certified?: boolean;
-  certifiedBy?: string;
-  certifiedAt?: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
 // --- Simple in-memory stores (MVP) ---
 const _genLedger: GenLedger[] = [];
 const _groups: Group[] = [];
 const _challenges: Challenge[] = [];
 const _attempts: ChallengeAttempt[] = [];
 const _certPacks: Record<string, CertifiedPack> = {};
-const _kb: Map<string, KbRecord> = new Map();
 
 // ---------------------
 // Helpers
@@ -663,39 +576,6 @@ async function planModulesLLM(intent: { topic: string; mins: number; isIntro: bo
 
   return { modules: mods.slice(0, 6), raw: parsed, model: LLM_MODEL };
 }
-
-// Known curriculum stubs (cheap, extendable). Prefer research when enabled.
-const CURRICULA: Record<string, string[]> = {
-  'ks3:Mathematics': [
-    'Number and place value',
-    'Fractions, decimals, and percentages',
-    'Algebraic expressions and equations',
-    'Geometry and measures',
-    'Statistics and probability',
-  ],
-  'gcse:Mathematics': [
-    'Number operations and indices',
-    'Algebra: expressions, equations, and graphs',
-    'Geometry and trigonometry',
-    'Probability and statistics',
-    'Ratio, proportion, and rates of change',
-  ],
-  'alevel:Mathematics': [
-    'Proof and algebraic techniques',
-    'Functions, sequences, and series',
-    'Calculus: differentiation and integration',
-    'Vectors and geometry in 2D/3D',
-    'Statistics and mechanics',
-  ],
-};
-
-function curriculumModules(stage: string|null, subject: string|null): ModuleOutline[] | null {
-  if (!stage || !subject) return null;
-  const key = `${stage}:${subject}`;
-  const titles = CURRICULA[key];
-  if (!titles) return null;
-  return titles.map((title, i) => ({ id: `mod-${String(i + 1).padStart(2,'0')}`, title, estMinutes: 10 }));
-}
 // ---------------------
 // Evidence Coverage (stub)
 // ---------------------
@@ -945,18 +825,6 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
       }
     }
 
-    // Check KB first (cheap cache by normalized key)
-    const key = text.trim().toLowerCase().slice(0, 240);
-    if (FLAGS.ff_materials_kb_v1 && key) {
-      const hit = _kb.get(key);
-      if (hit?.modules?.length) {
-        reply.header('x-cache', 'kb-hit');
-        reply.header('cache-control', 'no-store');
-        reply.header('x-api', 'ingest-preview');
-        return reply.send({ ok: true, modules: hit.modules, diagnostics: { source: 'kb', certified: !!hit.certified } });
-      }
-    }
-
     // New logic: choose preview implementation based on brief length
     const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
     let modules: ModuleOutline[] = [];
@@ -968,18 +836,8 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
     if (wordCount < 120) {
       const intent = analyzeIntent(text);
 
-      // Curriculum fast-path (e.g., KS3 Maths)
-      const __cur = __v25_detectCurriculum(text);
-      const __curMods = curriculumModules(__cur.stage, __cur.subject);
-      if (__curMods && __curMods.length) {
-        modules = __curMods;
-        impl = 'v0-curriculum';
-        planner = 'heuristic';
-        diag = { curriculum: { stage: __cur.stage, subject: __cur.subject }, count: modules.length, planner: 'heuristic' };
-      }
-
       // Try LLM planner if enabled; fall back to heuristic
-      if (!modules.length && LLM_PLANNER_ENABLED && OPENAI_API_KEY) {
+      if (LLM_PLANNER_ENABLED && OPENAI_API_KEY) {
         try {
           const llm = await planModulesLLM(intent);
           modules = llm.modules;
@@ -1009,8 +867,7 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
             reason: 'llm_failed'
           };
         }
-      }
-      if (!modules.length) {
+      } else {
         modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
         impl = 'v2-multi';
         planner = 'heuristic';
@@ -1036,26 +893,7 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
     reply.header('x-preview-impl', impl);
     if (planner) reply.header('x-planner', planner);
     if (modelUsed) reply.header('x-model', modelUsed);
-    const payload = diag ? { ok: true, modules, diagnostics: diag } : { ok: true, modules };
-
-    // Save into KB for reuse (cheap cache) if enabled
-    if (FLAGS.ff_materials_kb_v1 && key && modules.length) {
-      const now = new Date().toISOString();
-      const rec = _kb.get(key);
-      _kb.set(key, {
-        key,
-        modules,
-        sources: rec?.sources,
-        certified: rec?.certified,
-        certifiedBy: rec?.certifiedBy,
-        certifiedAt: rec?.certifiedAt,
-        createdAt: rec?.createdAt ?? now,
-        updatedAt: now,
-      });
-      reply.header('x-cache-write', 'kb-saved');
-    }
-
-    return reply.send(payload);
+    return reply.send(diag ? { ok: true, modules, diagnostics: diag } : { ok: true, modules });
   } catch (err: any) {
     (req as any).log?.error?.({ err }, 'ingest/preview failed');
     return reply.code(500).send({ error: { code: 'INTERNAL', message: 'preview failed' } });
@@ -1363,120 +1201,6 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
 });
 
 // ---------------------
-// Research (ff_research_v1)
-// ---------------------
-if (FLAGS.ff_research_v1) {
-  const _fetchCache: Map<string, { text: string; fetchedAt: number; keywords: string[]; url: string }> = new Map();
-  const TTL_MS = 60 * 60 * 1000; // 1h
-
-  app.get('/api/research/fetch', async (req: FastifyRequest, reply: FastifyReply) => {
-    const q = (req as any).query as { url?: string };
-    const rawUrl = (q?.url ?? '').toString().trim();
-    if (!rawUrl) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'url required' } });
-    const url = rawUrl.replace(/\s+/g, '');
-
-    const cached = _fetchCache.get(url);
-    if (cached && Date.now() - cached.fetchedAt < TTL_MS) return reply.send(cached);
-
-    try {
-      const r = await fetch(url);
-      const html = await r.text();
-      const text = html
-        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      const keywords = extractKeywords(text);
-      const out = { text: text.slice(0, 100000), fetchedAt: Date.now(), keywords, url };
-      _fetchCache.set(url, out);
-      return reply.send(out);
-    } catch (e: any) {
-      return reply.code(502).send({ error: { code: 'UPSTREAM_FETCH_FAILED', message: 'unable to fetch url', details: { url } } });
-    }
-  });
-
-  app.get('/api/research/search', async (req: FastifyRequest, reply: FastifyReply) => {
-    const q = (req as any).query as { q?: string };
-    const query = (q?.q ?? '').toString().trim();
-    if (!query) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'q required' } });
-    const BRAVE = process.env.BRAVE_API_KEY || '';
-    const SERP = process.env.SERPAPI_KEY || '';
-    if (!BRAVE && !SERP) {
-      return reply.code(501).send({ error: { code: 'NOT_CONFIGURED', message: 'search provider not configured' } });
-    }
-    try {
-      if (BRAVE) {
-        const r = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}`, {
-          headers: { 'x-rapidapi-key': BRAVE },
-        });
-        const j = await r.json().catch(() => ({}));
-        const items = (j?.web?.results ?? []).slice(0, 10).map((it: any) => ({ title: it?.title, url: it?.url, snippet: it?.description }));
-        return reply.send({ provider: 'brave', items });
-      }
-      const r = await fetch(`https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}&api_key=${SERP}`);
-      const j = await r.json().catch(() => ({}));
-      const items = (j?.organic_results ?? []).slice(0, 10).map((it: any) => ({ title: it?.title, url: it?.link, snippet: it?.snippet }));
-      return reply.send({ provider: 'serpapi', items });
-    } catch (e: any) {
-      return reply.code(502).send({ error: { code: 'SEARCH_FAILED', message: 'search failed', details: { query } } });
-    }
-  });
-}
-
-// ---------------------
-// Materials KB (ff_materials_kb_v1)
-// ---------------------
-if (FLAGS.ff_materials_kb_v1) {
-  // Lookup by normalized key (e.g., topic or hash of source text)
-  app.get('/api/materials/lookup', async (req: FastifyRequest, reply: FastifyReply) => {
-    const q = (req as any).query as { key?: string };
-    const key = (q?.key ?? '').toString().trim().toLowerCase();
-    if (!key) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'key required' } });
-    const hit = _kb.get(key);
-    if (!hit) return reply.send({ ok: true, found: false });
-    return reply.send({ ok: true, found: true, record: hit });
-  });
-
-  // Save or update a plan for a key
-  app.post('/api/materials/save', async (req: FastifyRequest, reply: FastifyReply) => {
-    const body = (req as any).body as { key?: string; modules?: ModuleOutline[]; sources?: string[] };
-    const key = (body?.key ?? '').toString().trim().toLowerCase();
-    const modules = Array.isArray(body?.modules) ? body!.modules! : [];
-    if (!key || modules.length === 0) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'key and modules required' } });
-    const now = new Date().toISOString();
-    const prev = _kb.get(key);
-    const rec: KbRecord = {
-      key,
-      modules,
-      sources: Array.isArray(body?.sources) ? body!.sources! : prev?.sources,
-      certified: prev?.certified ?? false,
-      certifiedBy: prev?.certifiedBy,
-      certifiedAt: prev?.certifiedAt,
-      createdAt: prev?.createdAt ?? now,
-      updatedAt: now,
-    };
-    _kb.set(key, rec);
-    return reply.send({ ok: true });
-  });
-
-  // Certify a key (human review)
-  app.post('/api/materials/certify', async (req: FastifyRequest, reply: FastifyReply) => {
-    const body = (req as any).body as { key?: string; by?: string };
-    const key = (body?.key ?? '').toString().trim().toLowerCase();
-    if (!key) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'key required' } });
-    const rec = _kb.get(key);
-    if (!rec) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'no record for key' } });
-    rec.certified = true;
-    rec.certifiedBy = (body?.by ?? 'expert').toString();
-    rec.certifiedAt = new Date().toISOString();
-    rec.updatedAt = rec.certifiedAt;
-    _kb.set(key, rec);
-    return reply.send({ ok: true });
-  });
-}
-
-// ---------------------
 // Listen
 // ---------------------
 const port = Number(process.env.PORT ?? 8080);
@@ -1493,7 +1217,316 @@ if ((app as any).printRoutes) {
   console.log('[api] routes: (printRoutes unavailable)');
 }
 
+// CERPLY_V25_ROUTES_START
+// v2.5 Clarify & Followup (AI-first, no loops) — helpers (scoped to IIFE)
+const __v25_LLM_ON = ['1','true','yes','on'].includes(String(process.env.LLM_PREVIEW || '').toLowerCase());
+const __v25_OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const __v25_LLM_PLANNER_MODEL = process.env.LLM_PLANNER_MODEL || 'gpt-4o-mini';
+
+import { fetch as __v25_fetch } from 'undici';
+const __v25_globalFetch: typeof fetch = (globalThis as any).fetch ?? (__v25_fetch as any);
+
+function __v25_asciiOnly(s: string): string { return (s || '').replace(/[^\x00-\x7F]/g, ''); }
+function __v25_looksLikeProxyUse(s: string): boolean {
+  const t = (s || '').toLowerCase();
+  return /\b(write my|solve this|do my|finish my|debug my|answer my (exam|test)|bypass)\b/.test(t);
+}
+async function __v25_openaiJson<T>(args: { system: string; user: string; schemaHint: string; }): Promise<T | null> {
+  if (!__v25_LLM_ON || !__v25_OPENAI_API_KEY) return null;
+  try {
+    const r = await __v25_globalFetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'authorization': `Bearer ${__v25_OPENAI_API_KEY}` },
+      body: JSON.stringify({
+        model: __v25_LLM_PLANNER_MODEL,
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: __v25_asciiOnly(args.system) },
+          { role: 'user', content: __v25_asciiOnly(`${args.user}\n\nReturn ONLY JSON that matches:\n${args.schemaHint}`) },
+        ],
+      }),
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const text: string | undefined = j?.choices?.[0]?.message?.content;
+    if (!text) return null;
+    return JSON.parse(text) as T;
+  } catch { return null; }
+}
+
+type __v25_Module = { id: string; title: string };
+
+function __v25_vendorFrom(text: string): string | null {
+  const m = /\b(aqa(?:\s+(?:higher|foundation))?|edexcel|ocr|cie|ocr cambridge)\b/i.exec(text || '');
+  return m ? m[1].toUpperCase() : null;
+}
+function __v25_clarifyHeuristic(text: string) {
+  const v = __v25_vendorFrom(text);
+  const chips = [
+    'Baseline me first',
+    'Skip grammar, focus vocab',
+    'Exam strategy focus',
+    'Daily 10-min drills',
+    'Include audio practice',
+    v ? `Keep ${v}` : 'AQA Higher',
+  ].slice(0, 6);
+  const question = v
+    ? `Great — ${v}. What’s your target grade or exam date?`
+    : 'Which syllabus/level is this (e.g., AQA Higher vs Edexcel)?';
+  return { question, chips };
+}
+function __v25_append(plan: __v25_Module[] | undefined, message: string): __v25_Module[] {
+  const title = (message || '').replace(/^(please\s*)?(add|include)\s*/i, '').trim() || 'Additional topic';
+  return [ ...(plan ?? []), { id: `mod-${Date.now()}`, title } ];
+}
+function __v25_remove(plan: __v25_Module[] | undefined, message: string): __v25_Module[] {
+  const needle = (message || '').replace(/^(please\s*)?(remove|drop|exclude)\s*/i, '').trim().toLowerCase();
+  if (!needle) return plan ?? [];
+  return (plan ?? []).filter(m => !m.title.toLowerCase().includes(needle));
+}
+function __v25_withTiming(handler: any, name: string) {
+  return async (req: any, reply: any) => {
+    const t0 = Date.now();
+    try {
+      const out = await handler(req, reply);
+      req?.log?.info?.({ route: name, ms: Date.now() - t0 }, 'latency');
+      return out;
+    } catch (e) {
+      req?.log?.error?.({ route: name, ms: Date.now() - t0, err: e }, 'error');
+      throw e;
+    }
+  };
+}
+
+// Clarify: one sharp question + 3–6 chips
+app.post('/api/ingest/clarify', __v25_withTiming(async (req: any, reply: any) => {
+  const { text } = (req.body ?? {}) as { text?: string };
+  const t = (text ?? '').trim();
+  if (!t) return reply.code(400).send({ ok: false, error: 'Missing text' });
+  if (__v25_looksLikeProxyUse(t)) return reply.code(400).send({ ok: false, error: 'Declined: proxy-style request' });
+
+  let result = __v25_clarifyHeuristic(t);
+  const llm = await __v25_openaiJson<{ question: string; chips: string[] }>({
+    system: 'Ask ONE concise clarifier and propose 3–6 chips. Be syllabus-aware. ASCII only.',
+    user: `Brief: ${t}`,
+    schemaHint: `{"question":"string","chips":["string"]}`,
+  });
+  if (llm?.question && Array.isArray(llm?.chips) && llm.chips.length >= 3) {
+    result = {
+      question: __v25_asciiOnly(llm.question.slice(0, 240)),
+      chips: llm.chips.slice(0, 6).map(c => __v25_asciiOnly(c.slice(0, 60))),
+    };
+  }
+  reply.header('cache-control', 'no-store').header('x-api', 'ingest-clarify');
+  return reply.send({ ok: true, ...result });
+}, 'ingest_clarify'));
+
+// Followup: append / revise / hint (no loops)
+app.post('/api/ingest/followup', __v25_withTiming(async (req: any, reply: any) => {
+  const { brief, plan, message } = (req.body ?? {}) as { brief?: string; plan?: __v25_Module[]; message?: string };
+  const msg = (message ?? '').trim();
+  if (!msg) return reply.code(400).send({ ok: false, error: 'Missing message' });
+  if (__v25_looksLikeProxyUse(msg)) return reply.code(400).send({ ok: false, error: 'Declined: proxy-style request' });
+
+  if (/^(please\s*)?(add|include)\b/i.test(msg)) {
+    const next = __v25_append(plan, msg);
+    return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'append', modules: next });
+  }
+  if (/^(please\s*)?(remove|drop|exclude)\b/i.test(msg)) {
+    const next = __v25_remove(plan, msg);
+    return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'revise', modules: next });
+  }
+
+  const llm = await __v25_openaiJson<{ action: 'append'|'revise'|'hint'; modules?: __v25_Module[]; text?: string }>({
+    system: 'Update a learning plan from followups. Respond with action append/revise/hint. ASCII only.',
+    user: `Brief: ${brief ?? ''}\nCurrentPlan: ${JSON.stringify(plan ?? [])}\nMessage: ${msg}`,
+    schemaHint: `{"action":"append|revise|hint","modules":[{"id":"string","title":"string"}],"text":"string"}`,
+  });
+
+  if (llm?.action === 'append' && Array.isArray(llm.modules)) {
+    return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'append', modules: llm.modules });
+  }
+  if (llm?.action === 'revise' && Array.isArray(llm.modules)) {
+    return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'revise', modules: llm.modules });
+  }
+  const hint = llm?.text || 'Tell me what changed: scope, level, or assessment style?';
+  return reply.header('cache-control','no-store').header('x-api','ingest-followup').send({ ok: true, action: 'hint', text: __v25_asciiOnly(hint.slice(0, 280)) });
+}, 'ingest_followup'));
+// CERPLY_V25_ROUTES_END
 await app.listen({ host: '0.0.0.0', port });
 console.log(`[api] listening on http://0.0.0.0:${port}`);
+})();/* ========================================================================
+   Cerply v2.5 — Clarify & Followup Routes (append-only)
+   - Adds POST /api/ingest/clarify  → { ok, question, chips[] }
+   - Adds POST /api/ingest/followup → { ok, action:'append'|'revise'|'hint', ... }
+   - LLM-backed when LLM_PREVIEW=1 & OPENAI_API_KEY set; otherwise heuristics.
+   - All helpers prefixed to avoid naming collisions with existing code.
+   ======================================================================== */
 
-})();
+const __cerply_LLM_PREVIEW = process.env.LLM_PREVIEW === '1';
+const __cerply_OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const __cerply_LLM_PLANNER_MODEL = process.env.LLM_PLANNER_MODEL || 'gpt-4o-mini';
+
+function __cerply_asciiOnly(s: string): string {
+  return (s || '').replace(/[^\x00-\x7F]/g, '');
+}
+function __cerply_looksLikeProxyUse(s: string): boolean {
+  const t = (s || '').toLowerCase();
+  return /\b(write my|solve this|do my|finish my|debug my|answer my (exam|test)|bypass)\b/.test(t);
+}
+async function __cerply_openaiJson<T>(args: { system: string; user: string; schemaHint: string; }): Promise<T | null> {
+  if (!__cerply_LLM_PREVIEW || !__cerply_OPENAI_API_KEY) return null;
+  try {
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'authorization': `Bearer ${__cerply_OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: __cerply_LLM_PLANNER_MODEL,
+        temperature: 0.2,
+        messages: [
+          { role: 'system', content: __cerply_asciiOnly(args.system) },
+          { role: 'user', content: __cerply_asciiOnly(`${args.user}\n\nReturn ONLY JSON that matches:\n${args.schemaHint}`) },
+        ],
+        response_format: { type: 'json_object' },
+      }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const text: string | undefined = data?.choices?.[0]?.message?.content;
+    if (!text) return null;
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+type __cerply_ModuleStub = { id: string; title: string };
+
+function __cerply_vendorFrom(text: string): string | null {
+  const m = /\b(aqa(?:\s+(?:higher|foundation))?|edexcel|ocr|cie|ocr cambridge)\b/i.exec(text || '');
+  return m ? m[1].toUpperCase() : null;
+}
+function __cerply_clarifyHeuristic(text: string) {
+  const v = __cerply_vendorFrom(text);
+  const chips = [
+    'Baseline me first',
+    'Skip grammar, focus vocab',
+    'Exam strategy focus',
+    'Daily 10-min drills',
+    'Include audio practice',
+    v ? `Keep ${v}` : 'AQA Higher',
+  ].slice(0, 6);
+  const question = v
+    ? `Great — ${v}. What’s your target grade or exam date?`
+    : 'Which syllabus/level is this (e.g., AQA Higher vs Edexcel)?';
+  return { question, chips };
+}
+function __cerply_appendHeuristic(plan: __cerply_ModuleStub[] | undefined, message: string): __cerply_ModuleStub[] {
+  const title = (message || '').replace(/^(please\s*)?(add|include)\s*/i, '').trim() || 'Additional topic';
+  return [ ...(plan ?? []), { id: `mod-${Date.now()}`, title } ];
+}
+function __cerply_removeHeuristic(plan: __cerply_ModuleStub[] | undefined, message: string): __cerply_ModuleStub[] {
+  const needle = (message || '').replace(/^(please\s*)?(remove|drop|exclude)\s*/i, '').trim();
+  if (!needle) return plan ?? [];
+  const n = needle.toLowerCase();
+  return (plan ?? []).filter(m => !m.title.toLowerCase().includes(n));
+}
+function __cerply_withTiming(handler: any, name: string) {
+  return async (req: any, reply: any) => {
+    const start = Date.now();
+    try {
+      const res = await handler(req, reply);
+      if (req?.log?.info) req.log.info({ route: name, ms: Date.now() - start }, 'latency');
+      return res;
+    } catch (e) {
+      if (req?.log?.error) req.log.error({ route: name, ms: Date.now() - start, err: e }, 'error');
+      throw e;
+    }
+  };
+}
+
+/** ----------------------------------------------------------------------
+ * POST /api/ingest/clarify
+ * Body: { text: string }
+ * Res:  { ok: true, question: string, chips: string[] }
+ * ----------------------------------------------------------------------*/
+if (typeof app !== 'undefined' && app && typeof (app as any).post === 'function') {
+  (app as any).post('/api/ingest/clarify', __cerply_withTiming(async (req: any, reply: any) => {
+    const { text } = (req.body ?? {}) as { text?: string };
+    const t = (text ?? '').trim();
+    if (!t) return reply.code(400).send({ ok: false, error: 'Missing text' });
+    if (__cerply_looksLikeProxyUse(t)) return reply.code(400).send({ ok: false, error: 'Declined: proxy-style request' });
+
+    // Heuristic first
+    let result = __cerply_clarifyHeuristic(t);
+
+    // Optional LLM refinement
+    const llm = await __cerply_openaiJson<{ question: string; chips: string[] }>({
+      system: 'You are a curriculum-aware clarifier that asks ONE concise question and proposes 3-6 chips. Keep ASCII only.',
+      user: `Brief: ${t}`,
+      schemaHint: `{"question": "string", "chips": ["string"]}`,
+    });
+    if (llm?.question && Array.isArray(llm?.chips) && llm.chips.length >= 3) {
+      result = {
+        question: __cerply_asciiOnly(llm.question.slice(0, 240)),
+        chips: llm.chips.slice(0, 6).map(c => __cerply_asciiOnly(c.slice(0, 60))),
+      };
+    }
+    return reply.send({ ok: true, ...result });
+  }, 'ingest_clarify'));
+}
+
+/** ----------------------------------------------------------------------
+ * POST /api/ingest/followup
+ * Body: { brief?: string, plan?: {id,title}[], message: string }
+ * Res:
+ *   - { ok:true, action:'append', modules:[...] }
+ *   - { ok:true, action:'revise', modules:[...] }
+ *   - { ok:true, action:'hint', text:string }
+ * ----------------------------------------------------------------------*/
+if (typeof app !== 'undefined' && app && typeof (app as any).post === 'function') {
+  (app as any).post('/api/ingest/followup', __cerply_withTiming(async (req: any, reply: any) => {
+    const { brief, plan, message } = (req.body ?? {}) as {
+      brief?: string;
+      plan?: __cerply_ModuleStub[];
+      message?: string;
+    };
+    const msg = (message ?? '').trim();
+    if (!msg) return reply.code(400).send({ ok: false, error: 'Missing message' });
+    if (__cerply_looksLikeProxyUse(msg)) return reply.code(400).send({ ok: false, error: 'Declined: proxy-style request' });
+
+    // Heuristics: add / include / remove first
+    if (/^(please\s*)?(add|include)\b/i.test(msg)) {
+      const next = __cerply_appendHeuristic(plan, msg);
+      return reply.send({ ok: true, action: 'append', modules: next });
+    }
+    if (/^(please\s*)?(remove|drop|exclude)\b/i.test(msg)) {
+      const next = __cerply_removeHeuristic(plan, msg);
+      return reply.send({ ok: true, action: 'revise', modules: next });
+    }
+
+    // Optional LLM fallback
+    const llm = await __cerply_openaiJson<{
+      action: 'append' | 'revise' | 'hint';
+      modules?: __cerply_ModuleStub[];
+      text?: string;
+    }>({
+      system: 'You update a learning plan from user followups. Choose one: append (return modules), revise (return modules), or hint (return text). Keep ASCII only.',
+      user: `Brief: ${brief ?? ''}\nCurrentPlan: ${JSON.stringify(plan ?? [])}\nMessage: ${msg}`,
+      schemaHint: `{"action":"append|revise|hint","modules":[{"id":"string","title":"string"}],"text":"string"}`,
+    });
+
+    if (llm?.action === 'append' && Array.isArray(llm.modules)) {
+      return reply.send({ ok: true, action: 'append', modules: llm.modules });
+    }
+    if (llm?.action === 'revise' && Array.isArray(llm.modules)) {
+      return reply.send({ ok: true, action: 'revise', modules: llm.modules });
+    }
+    const hint = llm?.text || 'Tell me what changed: scope, level, or assessment style?';
+    return reply.send({ ok: true, action: 'hint', text: __cerply_asciiOnly(hint.slice(0, 280)) });
+  }, 'ingest_followup'));
+}

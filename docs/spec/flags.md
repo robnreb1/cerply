@@ -6,3 +6,6 @@
 - ff_certified_sla_status_v1
 - ff_marketplace_ledgers_v1
 - ff_benchmarks_optin_v1
+- ff_prompts_lib_v1
+- ff_research_v1 (enables /api/research/*)
+- ff_materials_kb_v1 (enables /api/materials/* and KB caching in preview)

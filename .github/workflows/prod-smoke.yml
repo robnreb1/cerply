@@ -1,0 +1,18 @@
+name: Production Smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    environment: Production
+    env:
+      STG: https://cerply-web.vercel.app
+      API: https://cerply-api.onrender.com
+      VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/smoke-stg.sh

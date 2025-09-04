@@ -417,4 +417,80 @@ export default function Home() {
 7. API endpoints wiring + tests.
 8. Token/cost logging + per-org caps.
 9. UI hooks: input → preview → confirm → generate → score.
+
 10. Enterprise upsell banner post-first-generation.
+
+## 23) Org Mode — Assign, Push, Track (B2B slice)
+
+**Goal:** Let an L&D director or owner push curricula/modules to teams, track outcomes, and white‑label certifications. Fits on top of the existing consumer engine without a fork.
+
+### 23.1 Roles & Objects (minimal)
+- **Org** (tenant) → has **Teams** and **Users**.
+- **Curriculum** → ordered set of Modules (reused from consumer, may be private to Org).
+- **Assignment** → { target: team|users[], payload: curriculumId|moduleIds[]|lessonIds[], duePolicy?, reviewCadence? }.
+- **Attempt & Progress** → per user, per lesson/module (mastery %, attempts, lastActivity, nextReviewAt).
+- **CertificationAlias** → maps "Cerply Certified" → "{Org} Certified" (metadata-only alias; source remains Cerply Certified).
+
+### 23.2 API surface (MVP)
+- `POST /orgs/:orgId/curricula` → create/update org curriculum (refs existing modules or embeds private ones).
+- `POST /orgs/:orgId/assign` → create assignment (body: targets, payload, duePolicy?).
+- `GET  /orgs/:orgId/progress` → summary by team/user (`?scope=team|user&ids=...`).
+- `GET  /orgs/:orgId/reports/completion.csv` → export completion/mastery.
+- `POST /orgs/:orgId/certifications/alias` → set alias string used in badges.
+
+> All endpoints multi‑tenant and auth‑scoped; rate‑limited. Keep ASCII headers; emit `x-edge` trace on web proxy.
+
+### 23.3 Manager UI (MVP)
+- **Assign**: pick team(s) → choose curriculum/modules → confirm (≤3 clicks). 
+- **Dashboard**: tiles for Assigned, In Progress, Completed, Avg Mastery, Last Activity; click through to roster.
+- **White‑label**: toggle to show alias on badges ("{Org} Certified").
+
+### 23.4 Acceptance (Org Mode)
+- Manager can create an assignment and see it in dashboard within ≤10s.
+- Learner sees assigned queue + daily mix; items appear in `/daily/next` selection.
+- Progress rollups match per‑user attempts within ±1 item.
+- Alias renders on badges without changing canonical source (Cerply Certified retained in metadata).
+
+---
+
+## 24) Prompt Pack v3 — Conversational, Challenging, Non‑templated
+
+**Intent:** Replace time‑boxed templates with an intelligent flow that clarifies, baselines, plans, and then teaches with varied lesson modes. Tone: friendly but assertive.
+
+### 24.1 Roles (system prompts, shortened)
+- **Challenger Clarifier**  
+  *System:* “You are a concise, non‑sycophantic guide. Ask 2–3 sharp questions to nail the learner’s objective and constraints. Offer examples. Push back on vague goals.”
+- **Baseline Profiler**  
+  *System:* “Elicit the learner’s current understanding with 3–5 quick checks or plain‑language self‑ratings before any plan.”
+- **Planner (Deep Grouping)**  
+  *System:* “From the clarified objective and baseline, produce logically‑grouped subtopics (modules). Ignore time boxes. Prioritise: (a) Cerply Certified, (b) org/private library, (c) reputable public sources. Cite or label as hypothesis.”
+- **Lesson Designer**  
+  *System:* “For each module, design varied lesson forms (MCQ, free‑type, explainer, quick recall, occasional timed). Include rationales and misconceptions. Keep chunks small.”
+- **Daily Mixer**  
+  *System:* “Blend new + reviews based on mastery, difficulty, and recency. Fewer tests for strong topics, small variations for weak ones.”
+- **Guardrails**  
+  *System:* “Decline disallowed topics/language; throttle abusive use; avoid being a free backdoor to frontier models; summarise citations where needed.”
+
+### 24.2 Key prompts (templates)
+- **Clarify + Baseline (one turn):**  
+  “Quickly: what’s your end goal here? 1–2 lines is fine. Now self‑rate 0–3 on these facets: <facet1>, <facet2>, <facet3>. Anything you definitely don’t want?”
+- **Planner:**  
+  “Given goal=<…> and baseline=<…>, propose 4–8 logically‑grouped modules with titles, why‑it‑matters, and evidence sources. Prefer Certified/org sources. No timelines.”
+- **Lesson stub:**  
+  “For *<Module>* produce 1 explainer, 2 MCQs (with rationales & misconception notes), 1 short free‑type prompt. Mark `reviewHint` for weak facets=<…>.”
+
+### 24.3 Acceptance (Prompt Pack)
+- Flow always captures **baseline** before plan.
+- Modules are grouped by logic, not minutes; at least one focus‑specific module when user supplied a focus.
+- Sources are prioritised as Certified→Org→Public with citation/hypothesis labelling.
+- Lessons include rationales; wrong answers trigger short explainers.
+
+### 24.4 M1 scope vs later
+- **M1:** MCQ + free‑type + explainer; Daily Mixer; guardrails; progress saved.  
+- **Later:** voice, light games, timed drills, podcast mode; quarterly research on new formats.
+
+---
+
+## 25) Guardrails & Abuse Controls (delta)
+- Topic/content filters; rate limits per user/org; anti‑automation checks on generation endpoints; manager controls for org whitelists/blacklists.
+- No hallucinated regulation/qualification claims; cite or label hypothesis; keep audit logs.
