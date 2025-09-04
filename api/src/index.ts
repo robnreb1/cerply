@@ -816,6 +816,105 @@ app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply
 });
 
 // ---------------------
+// Ingest: clarify and followup (BRD)
+// ---------------------
+
+function clampNumber(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+async function handleIngestClarify(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    const b = ((req as any).body ?? {}) as { text?: string; artefact?: { text?: string } };
+    const text = (b.text ?? b.artefact?.text ?? '').toString().trim();
+    const topic = text || 'your topic';
+
+    const base = topic.toLowerCase();
+    let chips: string[] = [];
+    if (/german|french|spanish|language/.test(base)) {
+      chips = ['Reading', 'Listening', 'Speaking', 'Writing', 'Grammar'];
+    } else if (/math|algebra|equation|calculus/.test(base)) {
+      chips = ['Key ideas', 'Worked examples', 'Common pitfalls', 'Practice set'];
+    } else if (/history|edexcel|aqa|gcse/.test(base)) {
+      chips = ['Timeline', 'Key figures', 'Primary sources', 'Practice Qs'];
+    } else {
+      chips = ['Basics', 'Core concepts', 'Applications', 'Review'];
+    }
+    chips = chips.slice(0, clampNumber(chips.length, 3, 6));
+    while (chips.length < 3) chips.push('Examples');
+
+    const question = `Quick check on “${topic}”. What should we focus on today?`;
+    reply.header('cache-control', 'no-store');
+    reply.header('x-api', 'ingest-clarify');
+    return reply.send({ ok: true, question, chips });
+  } catch (err: any) {
+    return reply.code(500).send({ error: { code: 'INTERNAL', message: 'clarify failed', details: { reason: String(err) } } });
+  }
+}
+
+app.post('/api/ingest/clarify', handleIngestClarify);
+app.post('/ingest/clarify', handleIngestClarify);
+
+async function handleIngestFollowup(req: FastifyRequest, reply: FastifyReply) {
+  try {
+    const b = ((req as any).body ?? {}) as { brief?: string; plan?: { id?: string; title?: string; estMinutes?: number }[]; message?: string };
+    const plan = Array.isArray(b.plan) ? b.plan : [];
+    const message = (b.message ?? '').toString().trim();
+    const brief = (b.brief ?? '').toString().slice(0, 200);
+    if (!plan.length || !message) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'plan[] and message required' } });
+
+    const lower = message.toLowerCase();
+    const isAdd = /^(add|include)\b/.test(lower);
+    const isRemove = /^remove\b/.test(lower);
+
+    if (isAdd) {
+      const topic = message.replace(/^\w+\s+/, '').trim() || 'New practice';
+      const next = [
+        ...plan,
+        {
+          id: `mod-${String(plan.length + 1).padStart(2, '0')}`,
+          title: topic.length > 96 ? topic.slice(0, 93) + '…' : topic,
+          estMinutes: 5,
+        },
+      ];
+      reply.header('cache-control', 'no-store');
+      reply.header('x-api', 'ingest-followup');
+      return reply.send({ ok: true, action: 'append', plan: next, brief });
+    }
+
+    if (isRemove) {
+      const target = message.replace(/^remove\s+/, '').trim().toLowerCase();
+      const next = plan.filter((m) => !String(m?.title || '').toLowerCase().includes(target));
+      reply.header('cache-control', 'no-store');
+      reply.header('x-api', 'ingest-followup');
+      return reply.send({ ok: true, action: 'revise', plan: next, brief });
+    }
+
+    reply.header('cache-control', 'no-store');
+    reply.header('x-api', 'ingest-followup');
+    return reply.send({ ok: true, action: 'hint', hint: 'Consider adding concrete practice or narrowing focus.', plan, brief });
+  } catch (err: any) {
+    return reply.code(500).send({ error: { code: 'INTERNAL', message: 'followup failed', details: { reason: String(err) } } });
+  }
+}
+
+app.post('/api/ingest/followup', handleIngestFollowup);
+app.post('/ingest/followup', handleIngestFollowup);
+
+// ---------------------
+// Auth (MVP)
+// ---------------------
+app.get('/api/auth/me', async (_req: FastifyRequest, reply: FastifyReply) => {
+  // MVP: treat all users as logged in for demo seed
+  return reply.send({ ok: true, user: { id: 'demo-user', name: 'Demo User' } });
+});
+
+app.get('/api/auth/login', async (_req: FastifyRequest, reply: FastifyReply) => {
+  // MVP: provide placeholder URL
+  return reply.send({ ok: true, loginUrl: '/login' });
+});
+
+// ---------------------
 // /api/items/generate (MVP)
 // ---------------------
 app.post('/api/items/generate', async (req: FastifyRequest, reply: FastifyReply) => {
