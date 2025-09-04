@@ -88,7 +88,7 @@ const saveSession = (session: any) => {
 };
 
 const INTRO_HTML =
-  'Hi, <strong>I’m Cerply</strong>. What would you like to learn today? You can paste text, share a link, upload a document, or just name a topic.';
+  'Hi, <strong>I’m Cerply</strong>.\nWhat would you like to learn today?\nYou can paste text, share a link, upload a document, or just name a topic.';
 
 export default function IngestInteraction() {
   const [input, setInput] = useState("");
@@ -97,6 +97,8 @@ export default function IngestInteraction() {
     { role: "assistant", content: "", html: true },
   ]);
   const [phase, setPhase] = useState<"idle" | "clarify" | "preview" | "confirm" | "generating" | "done">("idle");
+  const [clarifyQuestion, setClarifyQuestion] = useState<string>("");
+  const [clarifyChips, setClarifyChips] = useState<string[] | null>(null);
   const [clarify, setClarify] = useState<{ level?: string; scope?: string; time?: string; prior?: string }>({});
   const [proposed, setProposed] = useState<ModuleOutline[] | null>(null);
   const [items, setItems] = useState<GenerateResp["items"]>(undefined);
@@ -178,7 +180,9 @@ export default function IngestInteraction() {
       setMessages((prev) => {
         const next = [...prev];
         if (!next.length) next.push({ role: "assistant", content: "", html: true });
-        next[0] = { ...next[0], content: INTRO_HTML.slice(0, i), html: true };
+        // render line breaks in intro
+        const html = INTRO_HTML.slice(0, i).replace(/\n/g, '<br/>');
+        next[0] = { ...next[0], content: html, html: true };
         return next;
       });
       if (!cancelled && i < INTRO_HTML.length) {
@@ -229,23 +233,37 @@ export default function IngestInteraction() {
   const runGenerate = async (payload: any) =>
     postJSON<GenerateResp>("/api/ingest/generate", payload);
 
+  const runClarify = async (payload: any) =>
+    postJSON<{ ok?: boolean; question?: string; chips?: string[]; error?: any }>("/api/ingest/clarify", payload);
+
+  const runFollowup = async (payload: any) =>
+    postJSON<{ ok?: boolean; action?: 'append' | 'revise' | 'hint'; plan?: ModuleOutline[]; brief?: string; hint?: string; error?: any }>("/api/ingest/followup", payload);
+
+  const getAuthMe = async (): Promise<{ ok?: boolean; user?: any }> => {
+    try {
+      const r = await fetch('/api/auth/me');
+      const j = await r.json().catch(() => ({}));
+      return j as any;
+    } catch {
+      return {} as any;
+    }
+  };
+
   const pushAssistant = (content: string) =>
     setMessages((m) => [...m, { role: "assistant", content }]);
 
   const pushUser = (content: string) =>
     setMessages((m) => [...m, { role: "user", content }]);
 
-  const startClarify = (topic: string) => {
+  const startClarify = async (topic: string) => {
     clarifyTopicRef.current = topic;
     setPhase("clarify");
-    pushAssistant(
-      `“${topic}” is a big area. To tailor your first session, please share:\n` +
-      `• Level — e.g., “beginner”, “intermediate”, or “advanced”.\n` +
-      `• Focus — sub-areas to include/skip, e.g., “stars & cosmology; skip instruments”.\n` +
-      `• Time today — how long do you have **today** for an intro session (e.g., “60–90 min”).\n` +
-      `• Prior knowledge — e.g., “algebra, no physics background”.\n\n` +
-      `Reply in a single message (free text is fine). We’ll plan **multi‑session** learning by default to help it stick.`
-    );
+    const res = await runClarify({ text: topic });
+    const q = res?.question || `Quick check on “${topic}”. What should we focus on today?`;
+    const chips = (res?.chips && res.chips.length ? res.chips : ['Basics','Core concepts','Applications']).slice(0,6);
+    setClarifyQuestion(q);
+    setClarifyChips(chips);
+    pushAssistant(q);
   };
 
   const proceedFromClarify = async (answer: string) => {
@@ -276,6 +294,28 @@ export default function IngestInteraction() {
     pushUser(text);
     setInput("");
 
+    // Natural-language confirmations
+    if (/^looks good\b/i.test(text)) {
+      const me = await getAuthMe();
+      if (!me?.ok || !me.user) {
+        pushAssistant('Please log in to generate content.');
+        return;
+      }
+      await buildContent();
+      return;
+    }
+
+    // Follow-up heuristics
+    if (/^(add|include|remove)\b/i.test(text) && proposed?.length) {
+      const fu = await runFollowup({ brief: clarifyTopicRef.current || '', plan: proposed, message: text });
+      if (fu?.ok && (fu.plan || fu.action === 'hint')) {
+        if (fu.plan) setProposed(fu.plan);
+        if (fu.action === 'hint' && fu.hint) pushAssistant(fu.hint);
+        setPhase('confirm');
+        return;
+      }
+    }
+
     if (phase === "clarify") {
       await proceedFromClarify(text);
       return;
@@ -283,7 +323,7 @@ export default function IngestInteraction() {
 
     // Broad topics → clarifying Qs first
     if (isBroadTopic(text)) {
-      startClarify(text);
+      await startClarify(text);
       return;
     }
 
@@ -304,7 +344,7 @@ export default function IngestInteraction() {
     }));
     setProposed(mods);
     setPhase("confirm");
-    pushAssistant(`Here’s a first pass. Want me to build learning content for these modules?`);
+    pushAssistant(`Here’s a first pass. Want me to build learning content for these modules? Say "looks good" to proceed, or type add/include/remove to adjust.`);
   };
 
 
@@ -391,6 +431,22 @@ export default function IngestInteraction() {
           </div>
         )}
 
+        {phase === "clarify" && clarifyChips && (
+          <div className="text-left">
+            <div className="inline-flex flex-wrap gap-2 p-2">
+              {clarifyChips.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => proceedFromClarify(c)}
+                  className="badge tap-target hover:bg-zinc-100"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
 
         {phase !== "done" && proposed?.length && (
           <div className="rounded-xl border border-zinc-200 bg-white">
@@ -464,7 +520,7 @@ export default function IngestInteraction() {
       </div>
 
       {/* Composer */}
-      <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-2">
+      <div className="mt-3 rounded-2xl border border-zinc-200 bg-white p-2 sticky bottom-0 z-10">
         <div className="flex items-center gap-2">
           <textarea
             ref={taRef}
@@ -505,6 +561,7 @@ export default function IngestInteraction() {
             ref={fileRef}
             type="file"
             className="sr-only"
+            style={{ display: 'none' }}
             onChange={onFileChange}
             accept=".txt,.md,.csv,.json,.pdf,.doc,.docx,.ppt,.pptx,.rtf"
             multiple
