@@ -78,6 +78,14 @@ app.get('/health', async () => {
 
 app.get('/flags', async () => ({ flags: FLAGS }));
 
+// Minimal auth check for UI gating
+app.get('/api/auth/me', async (req: FastifyRequest, reply: FastifyReply) => {
+  // For MVP, treat presence of header x-demo-user as logged-in; otherwise anonymous
+  const user = (req.headers['x-demo-user'] as string | undefined)?.trim();
+  if (!user) return reply.send({ loggedIn: false });
+  return reply.send({ loggedIn: true, user: { id: 'demo', email: user } });
+});
+
 // --- Test endpoint ---
 app.get('/test', async () => ({ message: 'test endpoint working' }));
 
@@ -813,6 +821,60 @@ app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply
   reply.header('cache-control', 'no-store');
   reply.header('x-api', 'ingest-generate');
   return reply.send({ ok: true, items });
+});
+
+// Clarify step: return a single question and 3–6 chips based on topic
+app.post('/api/ingest/clarify', async (req: FastifyRequest, reply: FastifyReply) => {
+  const b = ((req as any).body ?? {}) as { topic?: string };
+  const topic = (b?.topic ?? '').toString().trim();
+  if (!topic) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'topic required' } });
+  const lower = topic.toLowerCase();
+  const chips: string[] = [];
+  const push = (x: string) => { if (chips.length < 6) chips.push(x); };
+  if (/astro|space|cosmo/.test(lower)) {
+    ['Beginner','Intermediate','Advanced','Stars','Galaxies','Cosmology'].forEach(push);
+  } else if (/excel|sheet|spread/.test(lower)) {
+    ['Beginner','Pivot tables','VLOOKUP/XLOOKUP','Charts','Shortcuts'].forEach(push);
+  } else if (/python|data|pandas/.test(lower)) {
+    ['Beginner','DataFrames','Visualization','NumPy','Pipelines'].forEach(push);
+  } else {
+    ['Beginner','Intermediate','Advanced','Applications','Common pitfalls','Quick review'].forEach(push);
+  }
+  const question = `To tailor your first session on "${topic}", pick a level and focus areas:`;
+  return reply.header('cache-control','no-store').send({ question, chips });
+});
+
+// Follow-up: accept freeform command + current modules, return revised modules and hint
+app.post('/api/ingest/followup', async (req: FastifyRequest, reply: FastifyReply) => {
+  const b = ((req as any).body ?? {}) as { command?: string; modules?: { id?: string; title: string; estMinutes?: number }[] };
+  const cmd = (b?.command ?? '').toString();
+  const incoming = Array.isArray(b?.modules) ? b.modules : [];
+  let modules = incoming.map((m, i) => ({ id: m.id ?? `mod-${i+1}`, title: m.title, estMinutes: m.estMinutes ?? 5 }));
+  const hint: { action: 'append'|'revise'|'hint'; message: string } = { action: 'hint', message: 'No change' };
+
+  if (/^\s*(looks good|ship it|go ahead)\b/i.test(cmd)) {
+    hint.action = 'hint';
+    hint.message = 'Confirmed — proceed to generate.';
+  }
+  const addMatch = cmd.match(/(?:add|include)\s+(.+)/i);
+  if (addMatch) {
+    const title = addMatch[1].trim().replace(/[.?!]+$/, '');
+    modules = [...modules, { id: `mod-${modules.length+1}`, title, estMinutes: 5 }];
+    hint.action = 'append';
+    hint.message = `Added: ${title}`;
+  }
+  const removeMatch = cmd.match(/remove\s+(.+)/i);
+  if (removeMatch) {
+    const phrase = removeMatch[1].trim().toLowerCase();
+    const before = modules.length;
+    modules = modules.filter(m => !m.title.toLowerCase().includes(phrase));
+    if (modules.length < before) {
+      hint.action = 'revise';
+      hint.message = `Removed modules matching: ${phrase}`;
+    }
+  }
+
+  return reply.header('cache-control','no-store').send({ ok: true, modules, hint });
 });
 
 // ---------------------
