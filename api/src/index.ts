@@ -33,6 +33,7 @@ import crypto from 'node:crypto';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import authRoutes from './routes/auth';
+import { query as dbQuery, single as dbSingle } from './db';
 
 
 
@@ -78,7 +79,9 @@ const FLAGS = {
 
   ff_research_v1: process.env.FF_RESEARCH_V1 === 'true',
   ff_materials_kb_v1: process.env.FF_MATERIALS_KB_V1 === 'true',
+  ff_certified_paywall_v1: process.env.FF_CERTIFIED_PAYWALL_V1 === 'true',
 };
+const HAS_DB = Boolean(process.env.DATABASE_URL);
 // --- Auth gating flag for module generation ---
 const REQUIRE_AUTH_FOR_GENERATE = ['1','true','yes','on'].includes((process.env.REQUIRE_AUTH_FOR_GENERATE ?? '0').toString().toLowerCase());
 
@@ -92,6 +95,49 @@ app.get('/health', async () => {
 });
 
 app.get('/flags', async () => ({ flags: FLAGS }));
+
+// Initialize DB tables when a DATABASE_URL is configured
+if (HAS_DB) {
+  await dbQuery(`
+    create table if not exists materials_kb (
+      key text primary key,
+      modules jsonb not null,
+      sources jsonb,
+      certified boolean default false,
+      certified_by text,
+      certified_at timestamptz,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists users_pii (
+      token_hash text primary key,
+      email text,
+      name text,
+      region text,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    );
+    create table if not exists learner_state (
+      token text primary key,
+      strengths jsonb not null default '[]',
+      weaknesses jsonb not null default '[]',
+      last_plan jsonb,
+      last_updated timestamptz not null default now()
+    );
+  `);
+  await dbQuery(`alter table if exists learner_state add column if not exists ratings jsonb not null default '[]';`);
+  await dbQuery(`alter table if exists materials_kb add column if not exists rating_sum integer not null default 0;`);
+  await dbQuery(`alter table if exists materials_kb add column if not exists rating_count integer not null default 0;`);
+  await dbQuery(`
+    create table if not exists challenges (
+      id bigserial primary key,
+      token_hash text,
+      message text,
+      context jsonb,
+      created_at timestamptz not null default now()
+    );
+  `);
+}
 
 // --- Test endpoint ---
 app.get('/test', async () => ({ message: 'test endpoint working' }));
@@ -114,6 +160,15 @@ function __v25_asciiOnly(s: string): string { return (s || '').replace(/[\x00-\x
 function __v25_looksLikeProxyUse(s: string): boolean {
   const t = (s || '').toLowerCase();
   return /\b(write my|solve this|do my|finish my|debug my|answer my (exam|test)|bypass)\b/.test(t);
+}
+function __v25_topicLanguageFilter(s: string): { ok: boolean; reason?: string } {
+  const t = (s || '').toLowerCase();
+  const banned = [
+    /\b(ns\fw|slur)\b/,                 // placeholder; replace with real list later
+    /\bviolence(?:\s+extreme)?\b/,
+  ];
+  for (const r of banned) if (r.test(t)) return { ok: false, reason: 'content_filtered' };
+  return { ok: true };
 }
 async function __v25_openaiJson<T>(args: { system: string; user: string; schemaHint: string; }): Promise<T | null> {
   if (!__v25_LLM_ON || !__v25_OPENAI_API_KEY) return null;
@@ -212,10 +267,14 @@ function __v25_withTiming(handler: any, name: string) {
 
 // Clarify: one sharp question + 3–6 chips
 app.post('/api/ingest/clarify', __v25_withTiming(async (req: any, reply: any) => {
+  const k = tokenHashFromReq(req);
+  if (!allowRequestNow(k)) return reply.code(429).send({ error: { code: 'RATE_LIMIT', message: 'Too many requests' } });
   const { text } = (req.body ?? {}) as { text?: string };
   const t = (text ?? '').trim();
   if (!t) return reply.code(400).send({ ok: false, error: 'Missing text' });
   if (__v25_looksLikeProxyUse(t)) return reply.code(400).send({ ok: false, error: 'Declined: proxy-style request' });
+  const filter = __v25_topicLanguageFilter(t);
+  if (!filter.ok) return reply.code(400).send({ error: { code: 'FILTERED', message: 'Topic/language not allowed' } });
 
   let result = __v25_clarifyHeuristic(t);
   const __cur0 = __v25_detectCurriculum(t);
@@ -543,6 +602,39 @@ function analyzeIntent(input: string) {
   return { topic, mins, isIntro, focus };
 }
 
+// Parse simple time bounds from free text (e.g., "by end of March", "by 2026-03-31")
+function parseBound(text: string): { deadlineISO?: string; weeks?: number } {
+  const lower = (text || '').toLowerCase();
+  const now = new Date();
+  // ISO-like
+  const iso = lower.match(/\b(20\d{2}-\d{2}-\d{2})\b/);
+  let deadline: Date | null = null;
+  if (iso) {
+    const d = new Date(iso[1]);
+    if (!isNaN(d.getTime())) deadline = d;
+  }
+  // Month name patterns ("by end of March", "by March 15")
+  if (!deadline) {
+    const months = ['january','february','march','april','may','june','july','august','september','october','november','december'];
+    for (let mi = 0; mi < months.length; mi++) {
+      const mname = months[mi];
+      const reEnd = new RegExp(`by\\s+(?:end\\s+of\\s+)?${mname}(?:\\s+(20\\d{2}))?`);
+      const reMid = new RegExp(`by\\s+${mname}\\s+(\n?\r?)(\n?)`);
+      const m = lower.match(reEnd);
+      if (m) {
+        const year = m[1] ? Number(m[1]) : now.getFullYear();
+        // choose last day of month
+        const d = new Date(Date.UTC(year, mi + 1, 0));
+        deadline = d; break;
+      }
+    }
+  }
+  if (!deadline) return {};
+  const ms = Math.max(0, deadline.getTime() - now.getTime());
+  const weeks = Math.max(1, Math.ceil(ms / (7 * 24 * 3600 * 1000)));
+  return { deadlineISO: deadline.toISOString(), weeks };
+}
+
 /**
  * Propose logically grouped modules (not time-boxed).
  * Titles avoid generic words and aim to be specific and useful.
@@ -595,6 +687,39 @@ const LLM_PROVIDER = (process.env.LLM_PLANNER_PROVIDER ?? 'openai').toString().t
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
 
 type LlmPlan = { modules: ModuleOutline[]; raw?: any; model?: string };
+
+// ---------------------
+// Request budgeting & rate limiting (in-memory)
+// ---------------------
+const REQUESTS_PER_MIN = Number(process.env.REQUESTS_PER_MIN ?? 60);
+const LLM_BUDGET_CENTS_PER_DAY = Number(process.env.LLM_BUDGET_CENTS_PER_DAY ?? 100);
+const _rateBucket: Map<string, { count: number; resetAt: number }> = new Map();
+const _budgetDay: Map<string, { day: string; cents: number }> = new Map();
+
+function tokenHashFromReq(req: FastifyRequest): string {
+  try {
+    const anyReq = req as any;
+    const raw = anyReq.cookies?.['cerply_session'] || anyReq.cookies?.['cerply_auth'] || '';
+    if (raw) return crypto.createHash('sha256').update(String(raw)).digest('hex');
+  } catch {}
+  return String((req as any).ip ?? 'anon');
+}
+
+function allowRequestNow(key: string): boolean {
+  const now = Date.now();
+  const b = _rateBucket.get(key) ?? { count: 0, resetAt: now + 60_000 };
+  if (now > b.resetAt) { b.count = 0; b.resetAt = now + 60_000; }
+  if (b.count >= REQUESTS_PER_MIN) return false;
+  b.count += 1; _rateBucket.set(key, b); return true;
+}
+
+function allowLlmSpend(key: string, cents: number): boolean {
+  const today = new Date().toISOString().slice(0,10);
+  const row = _budgetDay.get(key) ?? { day: today, cents: 0 };
+  if (row.day !== today) { row.day = today; row.cents = 0; }
+  if (row.cents + cents > LLM_BUDGET_CENTS_PER_DAY) return false;
+  row.cents += cents; _budgetDay.set(key, row); return true;
+}
 
 async function planModulesLLM(intent: { topic: string; mins: number; isIntro: boolean; focus?: string }): Promise<LlmPlan> {
   if (!LLM_PLANNER_ENABLED) throw new Error('LLM planner disabled by env');
@@ -835,6 +960,8 @@ function pickText(contentType: string | undefined, body: any, rawText?: string):
 // ---------------------
 
 async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
+  const k = tokenHashFromReq(req);
+  if (!allowRequestNow(k)) return reply.code(429).send({ error: { code: 'RATE_LIMIT', message: 'Too many requests' } });
   try {
     const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
     const isJson = ct.includes('application/json');
@@ -958,12 +1085,15 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
     }
 
     // New logic: choose preview implementation based on brief length
+    const f = __v25_topicLanguageFilter(text);
+    if (!f.ok) return reply.code(400).send({ error: { code: 'FILTERED', message: 'Topic/language not allowed' } });
     const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
     let modules: ModuleOutline[] = [];
     let impl = 'v1-outline';
     let diag: any = undefined;
     let planner: 'llm' | 'heuristic' | undefined;
     let modelUsed = '';
+    let citations: string[] = [];
 
     if (wordCount < 120) {
       const intent = analyzeIntent(text);
@@ -975,30 +1105,37 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
         modules = __curMods;
         impl = 'v0-curriculum';
         planner = 'heuristic';
-        diag = { curriculum: { stage: __cur.stage, subject: __cur.subject }, count: modules.length, planner: 'heuristic' };
+        const subj = __cur.subject || 'Subject';
+        citations = [`https://en.wikipedia.org/wiki/${encodeURIComponent(String(subj))}`];
+        diag = { curriculum: { stage: __cur.stage, subject: __cur.subject }, count: modules.length, planner: 'heuristic', citations };
       }
 
       // Try LLM planner if enabled; fall back to heuristic
       if (!modules.length && LLM_PLANNER_ENABLED && OPENAI_API_KEY) {
+        if (!allowLlmSpend(k, 5)) return reply.code(402).send({ error: { code: 'BUDGET_EXCEEDED', message: 'Daily LLM budget exceeded' } });
         try {
           const llm = await planModulesLLM(intent);
           modules = llm.modules;
           impl = 'v3-llm';
           planner = 'llm';
           modelUsed = llm.model ?? LLM_MODEL;
+          // Heuristic citation to core topic
+          citations = [`https://en.wikipedia.org/wiki/${encodeURIComponent(String(intent.topic))}`];
           diag = {
             topic: intent.topic,
             mins: intent.mins,
             isIntro: intent.isIntro,
             focus: intent.focus ?? null,
             count: modules.length,
-            planner: 'llm'
+            planner: 'llm',
+            citations
           };
         } catch (e) {
           (req as any).log?.warn?.({ err: String(e) }, 'LLM planner failed; using heuristic');
           modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
           impl = 'v2-multi';
           planner = 'heuristic';
+          citations = [`https://en.wikipedia.org/wiki/${encodeURIComponent(String(intent.topic))}`];
           diag = {
             topic: intent.topic,
             mins: intent.mins,
@@ -1006,7 +1143,8 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
             focus: intent.focus ?? null,
             count: modules.length,
             planner: 'heuristic',
-            reason: 'llm_failed'
+            reason: 'llm_failed',
+            citations
           };
         }
       }
@@ -1014,6 +1152,7 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
         modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
         impl = 'v2-multi';
         planner = 'heuristic';
+        citations = [`https://en.wikipedia.org/wiki/${encodeURIComponent(String(intent.topic))}`];
         diag = {
           topic: intent.topic,
           mins: intent.mins,
@@ -1021,14 +1160,17 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
           focus: intent.focus ?? null,
           count: modules.length,
           planner: 'heuristic',
-          reason: 'llm_disabled'
+          reason: 'llm_disabled',
+          citations
         };
       }
     } else {
       modules = outlineFromText(text);
       impl = 'v1-outline';
       planner = 'heuristic';
-      diag = { count: modules.length, planner: 'heuristic' };
+      const kws = extractKeywords(text).slice(0, 2);
+      citations = kws.map(k => `https://en.wikipedia.org/wiki/${encodeURIComponent(k)}`);
+      diag = { count: modules.length, planner: 'heuristic', citations };
     }
 
     reply.header('cache-control', 'no-store');
@@ -1164,6 +1306,8 @@ const BANK: MCQItem[] = [
   ], correctIndex: 1 },
 ];
 const _sessions = new Map<string, { idx: number }>();
+type LearnerState = { strengths: string[]; weaknesses: string[]; lastUpdated: string };
+const _learnerByToken = new Map<string, LearnerState>();
 
 app.post('/learn/next', async (req: FastifyRequest, reply: FastifyReply) => {
   const sessionId = (req as any).body?.sessionId as string | undefined;
@@ -1186,7 +1330,100 @@ app.post('/learn/submit', async (req: FastifyRequest, reply: FastifyReply) => {
   const item = BANK.find(i => i.id === body.itemId);
   if (!item) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Unknown itemId' } });
   const correct = Number(body.answerIndex) === item.correctIndex;
+  // Update simple learner model using cookie token (dev stub)
+  const tokenRaw = (req as any).cookies?.['cerply_session'] || (req as any).cookies?.['cerply_auth'] || '';
+  const token = tokenRaw ? crypto.createHash('sha256').update(String(tokenRaw)).digest('hex') : '';
+  if (token) {
+    let st: LearnerState | null = null;
+    if (HAS_DB) {
+      const row = await dbSingle<{ strengths: any; weaknesses: any; last_updated: string }>('select strengths, weaknesses, last_updated from learner_state where token=$1', [token]);
+      if (row) st = { strengths: row.strengths ?? [], weaknesses: row.weaknesses ?? [], lastUpdated: row.last_updated };
+    }
+    st = st ?? _learnerByToken.get(token) ?? { strengths: [], weaknesses: [], lastUpdated: new Date().toISOString() };
+    const key = (item.stem || '').slice(0, 60);
+    const arr = correct ? st.strengths : st.weaknesses;
+    if (!arr.find(s => s.includes(key))) arr.unshift(key);
+    st.lastUpdated = new Date().toISOString();
+    _learnerByToken.set(token, st);
+    if (HAS_DB) {
+      await dbQuery(
+        `insert into learner_state (token, strengths, weaknesses, last_updated)
+         values ($1,$2,$3,now())
+         on conflict (token) do update set strengths=excluded.strengths, weaknesses=excluded.weaknesses, last_updated=now()`,
+        [token, JSON.stringify(st.strengths), JSON.stringify(st.weaknesses)]
+      );
+    }
+  }
   return reply.send({ correct, correctIndex: item.correctIndex, explainer: correct ? 'Nice! You chose the best answer.' : 'Review the stem and options; focus on the key concept.' });
+});
+
+// Learner state endpoint
+app.get('/api/learn/state', async (req: FastifyRequest, reply: FastifyReply) => {
+  const tokenRaw = (req as any).cookies?.['cerply_session'] || (req as any).cookies?.['cerply_auth'] || '';
+  const token = tokenRaw ? crypto.createHash('sha256').update(String(tokenRaw)).digest('hex') : '';
+  if (!token) return reply.code(401).send({ error: { code: 'AUTH_REQUIRED', message: 'Sign in' } });
+  const st: LearnerState = _learnerByToken.get(token) ?? { strengths: [], weaknesses: [], lastUpdated: new Date().toISOString() };
+  return reply.send({ ok: true, state: st });
+});
+
+// Ratings endpoint
+app.post('/api/ratings', async (req: FastifyRequest, reply: FastifyReply) => {
+  const body = (req as any).body as { key?: string; kind?: 'plan'|'lesson'; rating?: number };
+  const rating = Math.max(1, Math.min(5, Number(body?.rating ?? 0)));
+  const key = (body?.key ?? '').toString().slice(0, 240);
+  if (!key || !rating) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'key and rating required' } });
+  const tokenRaw = (req as any).cookies?.['cerply_session'] || (req as any).cookies?.['cerply_auth'] || '';
+  const token = tokenRaw ? crypto.createHash('sha256').update(String(tokenRaw)).digest('hex') : '';
+  if (!token) return reply.code(401).send({ error: { code: 'AUTH_REQUIRED', message: 'Sign in' } });
+  // Update learner ratings
+  if (HAS_DB) {
+    const row = await dbSingle<any>('select ratings from learner_state where token=$1', [token]).catch(() => null);
+    const ratings = Array.isArray(row?.ratings) ? row.ratings : [];
+    ratings.unshift({ key, kind: body?.kind ?? 'plan', rating, ts: new Date().toISOString() });
+    await dbQuery('update learner_state set ratings=$2, last_updated=now() where token=$1', [token, JSON.stringify(ratings)]).catch(async () => {
+      await dbQuery('insert into learner_state (token, strengths, weaknesses, last_plan, ratings) values ($1, $2, $3, $4, $5) on conflict (token) do update set ratings=excluded.ratings, last_updated=now()', [token, '[]', '[]', null, JSON.stringify(ratings)]);
+    });
+  }
+  // Aggregate material rating if matches KB key
+  if (HAS_DB) {
+    await dbQuery('update materials_kb set rating_sum=rating_sum+$2, rating_count=rating_count+1 where key=$1', [key.toLowerCase(), rating]).catch(() => null);
+  }
+  return reply.send({ ok: true });
+});
+
+// Challenge logging
+app.post('/api/challenge/log', async (req: FastifyRequest, reply: FastifyReply) => {
+  const body = (req as any).body as { message?: string; context?: any };
+  const message = (body?.message ?? '').toString().slice(0, 2000);
+  if (!message) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'message required' } });
+  const tokenRaw = (req as any).cookies?.['cerply_session'] || (req as any).cookies?.['cerply_auth'] || '';
+  const token = tokenRaw ? crypto.createHash('sha256').update(String(tokenRaw)).digest('hex') : '';
+  if (HAS_DB) {
+    await dbQuery('insert into challenges (token_hash, message, context) values ($1,$2,$3)', [token || null, message, JSON.stringify(body?.context ?? {})]).catch(() => null);
+  }
+  return reply.send({ ok: true });
+});
+
+// Privacy export/delete stubs
+app.get('/api/privacy/export', async (req: FastifyRequest, reply: FastifyReply) => {
+  const tokenRaw = (req as any).cookies?.['cerply_session'] || (req as any).cookies?.['cerply_auth'] || '';
+  if (!tokenRaw) return reply.code(401).send({ error: { code: 'AUTH_REQUIRED', message: 'Sign in' } });
+  const token = crypto.createHash('sha256').update(String(tokenRaw)).digest('hex');
+  const learner = await dbSingle<any>('select strengths, weaknesses, last_updated, last_plan from learner_state where token=$1', [token]).catch(() => null);
+  const pii = await dbSingle<any>('select email, name, region, created_at, updated_at from users_pii where token_hash=$1', [token]).catch(() => null);
+  return reply.send({ ok: true, learner: learner ?? null, pii: pii ?? null });
+});
+
+app.post('/api/privacy/delete', async (req: FastifyRequest, reply: FastifyReply) => {
+  const tokenRaw = (req as any).cookies?.['cerply_session'] || (req as any).cookies?.['cerply_auth'] || '';
+  if (!tokenRaw) return reply.code(401).send({ error: { code: 'AUTH_REQUIRED', message: 'Sign in' } });
+  const token = crypto.createHash('sha256').update(String(tokenRaw)).digest('hex');
+  if (HAS_DB) {
+    await dbQuery('delete from learner_state where token=$1', [token]).catch(() => null);
+    await dbQuery('delete from users_pii where token_hash=$1', [token]).catch(() => null);
+  }
+  _learnerByToken.delete(token);
+  return reply.send({ ok: true });
 });
 
 // ---------------------
@@ -1363,6 +1600,21 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
 });
 
 // ---------------------
+// Teams push/progress (stubs)
+// ---------------------
+app.post('/api/teams/assign', async (req: FastifyRequest, reply: FastifyReply) => {
+  const body = (req as any).body as { teamId?: string; modules?: ModuleOutline[] };
+  if (!body?.teamId || !Array.isArray(body?.modules)) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'teamId and modules required' } });
+  return reply.send({ ok: true, assigned: body.modules.length, teamId: body.teamId });
+});
+
+app.get('/api/teams/progress', async (req: FastifyRequest, reply: FastifyReply) => {
+  const q = (req as any).query as { teamId?: string };
+  if (!q?.teamId) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'teamId required' } });
+  return reply.send({ ok: true, teamId: q.teamId, completion: 0.0, learners: 0 });
+});
+
+// ---------------------
 // Research (ff_research_v1)
 // ---------------------
 if (FLAGS.ff_research_v1) {
@@ -1433,6 +1685,13 @@ if (FLAGS.ff_materials_kb_v1) {
     const q = (req as any).query as { key?: string };
     const key = (q?.key ?? '').toString().trim().toLowerCase();
     if (!key) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'key required' } });
+    if (HAS_DB) {
+      const row = await dbSingle<{ modules: any; sources?: any; certified?: boolean; certified_by?: string; certified_at?: string; created_at?: string; updated_at?: string }>(
+        'select modules, sources, certified, certified_by, certified_at, created_at, updated_at from materials_kb where key=$1',
+        [key]
+      );
+      if (row) return reply.send({ ok: true, found: true, record: { key, modules: row.modules, sources: row.sources, certified: row.certified, certifiedBy: row.certified_by, certifiedAt: row.certified_at, createdAt: row.created_at, updatedAt: row.updated_at } });
+    }
     const hit = _kb.get(key);
     if (!hit) return reply.send({ ok: true, found: false });
     return reply.send({ ok: true, found: true, record: hit });
@@ -1444,6 +1703,9 @@ if (FLAGS.ff_materials_kb_v1) {
     const key = (body?.key ?? '').toString().trim().toLowerCase();
     const modules = Array.isArray(body?.modules) ? body!.modules! : [];
     if (!key || modules.length === 0) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'key and modules required' } });
+    if (FLAGS.ff_certified_paywall_v1 && /\(certified\)/i.test(key) && !isAuthed(req)) {
+      return reply.code(402).send({ error: { code: 'PAYWALL', message: 'Certified content requires subscription' } });
+    }
     const now = new Date().toISOString();
     const prev = _kb.get(key);
     const rec: KbRecord = {
@@ -1457,6 +1719,14 @@ if (FLAGS.ff_materials_kb_v1) {
       updatedAt: now,
     };
     _kb.set(key, rec);
+    if (HAS_DB) {
+      await dbQuery(
+        `insert into materials_kb (key, modules, sources, certified, certified_by, certified_at, created_at, updated_at)
+         values ($1,$2,$3,$4,$5,$6,coalesce($7, now()), now())
+         on conflict (key) do update set modules=excluded.modules, sources=excluded.sources, certified=excluded.certified, certified_by=excluded.certified_by, certified_at=excluded.certified_at, updated_at=now()`,
+        [key, JSON.stringify(modules), rec.sources ? JSON.stringify(rec.sources) : null, rec.certified ?? false, rec.certifiedBy ?? null, rec.certifiedAt ?? null, rec.createdAt ?? null]
+      );
+    }
     return reply.send({ ok: true });
   });
 
@@ -1465,6 +1735,7 @@ if (FLAGS.ff_materials_kb_v1) {
     const body = (req as any).body as { key?: string; by?: string };
     const key = (body?.key ?? '').toString().trim().toLowerCase();
     if (!key) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'key required' } });
+     if (!isAuthed(req)) return reply.code(401).send({ error: { code: 'AUTH_REQUIRED', message: 'Sign in' } });
     const rec = _kb.get(key);
     if (!rec) return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'no record for key' } });
     rec.certified = true;
@@ -1472,6 +1743,9 @@ if (FLAGS.ff_materials_kb_v1) {
     rec.certifiedAt = new Date().toISOString();
     rec.updatedAt = rec.certifiedAt;
     _kb.set(key, rec);
+    if (HAS_DB) {
+      await dbQuery('update materials_kb set certified=true, certified_by=$2, certified_at=now(), updated_at=now() where key=$1', [key, rec.certifiedBy]);
+    }
     return reply.send({ ok: true });
   });
 }

@@ -20,12 +20,14 @@ export default function LoginPage() {
       const j = await r.json().catch(() => ({}));
       if (r.ok && j?.next) {
         // For dev stub, API returns next: /api/auth/callback?token=...
-        window.location.href = `${API_BASE}${j.next}`;
+        const redirect = encodeURIComponent(window.location.origin + '/');
+        const sep = j.next.includes('?') ? '&' : '?';
+        window.location.href = `${API_BASE}${j.next}${sep}redirect=${redirect}`;
         return;
       }
       setStatus('Could not initiate login.');
     } catch (e) {
-      setStatus('Network error.');
+      setStatus('Network error. Please ensure the API is running on :8080.');
     }
   }
 
@@ -34,7 +36,7 @@ export default function LoginPage() {
       <main className="flex-1 px-4 py-6">
         <div className="max-w-md mx-auto space-y-4">
           <h1 className="text-xl font-semibold">Log in</h1>
-          <p className="text-sm text-neutral-600">Enter your email to receive a magic link.</p>
+          <p className="text-sm text-neutral-600">Enter your email to log in. We’ll open a secure link to set your session and bring you back here.</p>
           <form onSubmit={onSubmit} className="space-y-3">
             <input
               type="email"

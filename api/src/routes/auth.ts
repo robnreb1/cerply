@@ -34,11 +34,11 @@ const authRoutes: FastifyPluginAsync = async (app) => {
       querystring: {
         type: 'object',
         required: ['token'],
-        properties: { token: { type: 'string', minLength: 16 } },
+        properties: { token: { type: 'string', minLength: 16 }, redirect: { type: 'string', nullable: true } },
       },
     },
     handler: async (req, reply) => {
-      const { token } = req.query as { token: string };
+      const { token, redirect } = req.query as { token: string; redirect?: string };
       if (!token) return reply.code(400).send({ ok: false, error: 'missing token' });
 
       reply.setCookie(COOKIE_NAME, token, {
@@ -48,7 +48,14 @@ const authRoutes: FastifyPluginAsync = async (app) => {
         path: '/',
         maxAge: 60 * 60 * 24 * 30, // 30 days
       });
-      return reply.code(204).send();
+      // Redirect back to web app so the flow doesn't look broken
+      const target = (() => {
+        try {
+          if (redirect && /^https?:\/\//i.test(redirect)) return redirect;
+        } catch {}
+        return 'http://localhost:3000/';
+      })();
+      return reply.redirect(302, target);
     },
   });
 

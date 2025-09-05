@@ -130,6 +130,11 @@ export default function Page() {
   const [brief, setBrief] = useState<string>('');
   const [chips, setChips] = useState<string[]>([]);
   const [plan, setPlan] = useState<ModuleStub[] | null>(null);
+  const [lesson, setLesson] = useState<{ prompt: string; explanation: string } | null>(null);
+  const [hasLearnerState, setHasLearnerState] = useState(false);
+  const [diverted, setDiverted] = useState<{ label: string; items: string[] } | null>(null);
+  const [pacingState, setPacingState] = useState<{ weeks: number; modulesPerWeek: number } | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
   const endRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -155,6 +160,15 @@ export default function Page() {
     if (!id) setThinkingId(null);
   }, [thinkingId]);
 
+  // Shortcuts: popular and certified
+  const onShortcut = useCallback((kind: 'popular' | 'certified') => {
+    if (kind === 'popular') {
+      setDiverted({ label: 'Popular Topics', items: ['GCSE Maths', 'A-level Biology', 'Spanish Basics'] });
+    } else {
+      setDiverted({ label: 'Cerply Certified', items: ['Cyber Essentials (Certified)', 'Onboarding Security (Certified)'] });
+    }
+  }, []);
+
   /** autoscroll: use requestAnimationFrame to avoid race conditions */
   useEffect(() => {
     const id = window.requestAnimationFrame(() => {
@@ -162,6 +176,18 @@ export default function Page() {
     });
     return () => cancelAnimationFrame(id);
   }, [messages, typedCount, openerIndex, liveTypedCount, liveTypingId]);
+
+  // On mount, check if learner state exists to show Continue/Add new
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await getJSON('/api/learn/state');
+        if (r.ok && (r.json as any)?.state) setHasLearnerState(true);
+      } catch {}
+    })();
+    const t = setTimeout(() => setShowSplash(false), 800);
+    return () => clearTimeout(t);
+  }, []);
 
   /** Start typing any new assistant message (excluding openers) */
   useEffect(() => {
@@ -240,6 +266,29 @@ export default function Page() {
       }
 
       if (phase === 'idle') {
+        if (/^analytics$/i.test(text)) {
+          const tId = addThinking();
+          const r = await getJSON('/api/learn/state');
+          clearThinking(tId);
+          const s: any = r?.json?.state || {};
+          const strengths = Array.isArray(s.strengths) ? s.strengths.slice(0, 3) : [];
+          const weaknesses = Array.isArray(s.weaknesses) ? s.weaknesses.slice(0, 3) : [];
+          setMessages((m) => [
+            ...m,
+            { id: uid(), role: 'assistant', text: `Analytics\n\nStrong concepts: ${strengths.join(' · ') || '—'}\nWeak concepts: ${weaknesses.join(' · ') || '—'}\n\nTap “Drill in” to see more.` },
+            { id: uid(), role: 'assistant', text: 'Drill in' },
+          ]);
+          return;
+        }
+        // Inline challenge command
+        const cm = text.match(/^challenge\s*:(.*)$/i);
+        if (cm) {
+          const msg = cm[1].trim();
+          const ctx = { phase, brief, plan };
+          await getJSON('/api/challenge/log', { method: 'POST', body: JSON.stringify({ message: msg, context: ctx }) });
+          setMessages((m) => [...m, { id: uid(), role: 'assistant', text: 'Thanks — challenge logged for review.' }]);
+          return;
+        }
         setBrief(text);
         const tId = addThinking();
         const r = await getJSON('/api/ingest/clarify', {
@@ -342,17 +391,61 @@ export default function Page() {
         }
         const modules: ModuleStub[] =
           (r.json as any)?.modules ?? (r.json as any)?.plan ?? [];
+        const diags: any = (r.json as any)?.diagnostics || {};
+        const citations: string[] = Array.isArray(diags?.citations) ? diags.citations : [];
+        const pacing = diags?.pacing as { weeks?: number; modulesPerWeek?: number; deadlineISO?: string } | undefined;
+        const isCert = Boolean((r.json as any)?.diagnostics?.certified) || /\[cerply certified\]/i.test((r.json as any)?.diagnostics?.note || '') || /\(certified\)/i.test(enriched);
         setPlan(modules);
+        if (pacing?.weeks && pacing?.modulesPerWeek) {
+          setPacingState({ weeks: pacing.weeks, modulesPerWeek: pacing.modulesPerWeek });
+        } else {
+          setPacingState({ weeks: Math.max(1, modules.length), modulesPerWeek: 1 });
+        }
+        const pacingLine = pacing?.weeks && pacing?.modulesPerWeek
+          ? `\n\nPacing: ${pacing.modulesPerWeek} modules/week · ${pacing.weeks} weeks${pacing?.deadlineISO ? ` (by ${pacing.deadlineISO.slice(0,10)})` : ''}`
+          : '';
+        const planText = (isCert ? '[Cerply Certified]\n' : '') + renderPlanText(modules)
+          + (citations.length ? `\n\nSources: ${citations.map(u => `<${u}>`).join(' · ')}` : '')
+          + pacingLine;
         setMessages((m) => [
           ...m,
-          { id: uid(), role: 'assistant', text: renderPlanText(modules) },
+          { id: uid(), role: 'assistant', text: planText },
+          { id: uid(), role: 'assistant', text: 'Rate this plan: ☆☆☆☆☆ (tap a star 1–5)' },
           { id: uid(), role: 'assistant', text: 'Does this plan look right? Say “looks good” to proceed, or propose changes.' },
         ]);
         setPhase('locked');
         return;
       }
 
+      if (phase === 'generating' && lesson) {
+        // Free-form answer handling: acknowledge and explain
+        setMessages((m) => [
+          ...m,
+          {
+            id: uid(),
+            role: 'assistant',
+            text:
+              'Thanks. Here is a short explainer, then we will continue later:\n\n' + lesson.explanation,
+          },
+        ]);
+        setLesson(null);
+        setPhase('idle');
+        return;
+      }
+
       if (phase === 'locked' && plan) {
+        if (/^(slower|faster)$/i.test(text) && pacingState) {
+          const total = plan.length;
+          let weeks = pacingState.weeks + (/^slower$/i.test(text) ? 1 : -1);
+          weeks = Math.max(1, weeks);
+          const modulesPerWeek = Math.max(1, Math.ceil(total / weeks));
+          setPacingState({ weeks, modulesPerWeek });
+          setMessages((m) => [
+            ...m,
+            { id: uid(), role: 'assistant', text: `Updated pacing: ${modulesPerWeek} modules/week · ${weeks} weeks` },
+          ]);
+          return;
+        }
         if (isLooksGood(text)) {
           const tId = addThinking();
           const me = await getJSON('/api/auth/me');
@@ -364,7 +457,7 @@ export default function Page() {
                 id: uid(),
                 role: 'assistant',
                 text:
-                  'To generate lessons, please log in first: open /login, complete the magic link, then say “generate”.',
+                  'To generate lessons, please log in first: open /login, then say “generate”.',
               },
             ]);
             return;
@@ -385,14 +478,16 @@ export default function Page() {
             ]);
             return;
           }
+          // Ask a free-form question to start
+          const first = Array.isArray((r.json as any)?.items) ? (r.json as any).items[0] : null;
+          const prompt = first?.questions?.free?.prompt || 'In one or two sentences, explain the first concept.';
+          const explanation = first?.explanation || 'Great start. We will build intuition step by step.';
+          setLesson({ prompt, explanation });
           setMessages((m) => [
             ...m,
-            {
-              id: uid(),
-              role: 'assistant',
-              text: 'Lessons generated. You can start daily practice now.',
-            },
+            { id: uid(), role: 'assistant', text: prompt },
           ]);
+          setPhase('generating');
           return;
         }
 
@@ -473,6 +568,19 @@ export default function Page() {
     handleSubmit(c);
   }, [handleSubmit]);
 
+  // Simple star rating handler via typed input like "rate 5"
+  useEffect(() => {
+    const last = messages[messages.length - 1]?.text || '';
+    const m = last.match(/^rate\s+(\d)$/i);
+    if (m) {
+      const rating = Number(m[1]);
+      const key = (brief || '').toLowerCase().slice(0, 240);
+      if (rating >= 1 && rating <= 5 && key) {
+        getJSON('/api/ratings', { method: 'POST', body: JSON.stringify({ key, kind: 'plan', rating }) });
+      }
+    }
+  }, [messages]);
+
   const onUploadClick = () => fileRef.current?.click();
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -492,8 +600,38 @@ export default function Page() {
 
   return (
     <div className="min-h-dvh w-full flex flex-col">
+      {showSplash && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+          <div className="text-2xl font-semibold animate-pulse">Cerply</div>
+        </div>
+      )}
       <main className="flex-1 overflow-y-auto px-4 py-4">
         <div className="max-w-3xl mx-auto space-y-2">
+          {hasLearnerState && phase === 'idle' && (
+            <div className="mb-2 flex gap-2">
+              <button className="border rounded px-3 py-1 text-sm" onClick={() => handleSubmit('continue')}>Continue where I left off</button>
+              <button className="border rounded px-3 py-1 text-sm" onClick={() => handleSubmit('new topic')}>Add a new topic</button>
+            </div>
+          )}
+          {/* Shortcuts row */}
+          <div className="mb-2 flex gap-2">
+            <button className="border rounded px-3 py-1 text-sm" onClick={() => onShortcut('popular')}>Popular Topics</button>
+            <button className="border rounded px-3 py-1 text-sm" onClick={() => onShortcut('certified')}>Cerply Certified</button>
+            <button className="border rounded px-3 py-1 text-sm" onClick={() => handleSubmit('challenge: This content looks incorrect or unclear.')}>Challenge</button>
+            <button className="border rounded px-3 py-1 text-sm" onClick={() => handleSubmit('analytics')}>Analytics</button>
+          </div>
+
+          {diverted && (
+            <div className="border rounded-lg p-3 mb-2 bg-white">
+              <div className="text-sm font-medium mb-2">{diverted.label}</div>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {diverted.items.map((t) => (
+                  <button key={t} className="border rounded px-3 py-1 text-sm" onClick={() => handleSubmit(t)}>{t}</button>
+                ))}
+              </div>
+              <button className="border rounded px-3 py-1 text-sm" onClick={() => setDiverted(null)}>Back to your plan</button>
+            </div>
+          )}
           {messages.map((m) => {
             const isUser = m.role === 'user';
             const isOpener = m.id.startsWith('opener');

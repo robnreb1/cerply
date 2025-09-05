@@ -15,6 +15,7 @@
       "purpose": "any maskable"
     }
   ],
+  "prefer_related_applications": false,
   "categories": ["education", "productivity"],
   "lang": "en"
 }
