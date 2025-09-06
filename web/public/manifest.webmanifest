@@ -2,12 +2,20 @@
   "name": "Cerply",
   "short_name": "Cerply",
   "description": "Turn information into knowledge",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#fafafa",
   "theme_color": "#ff6b6b",
   "orientation": "portrait-primary",
   "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
