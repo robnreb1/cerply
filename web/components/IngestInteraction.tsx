@@ -186,60 +186,52 @@ export default function IngestInteraction() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Topic Cards */}
+      {/* Topic Cards: show only when a tab is active other than 'popular' link intent; keep as is for now */}
       <div className="mb-6">
-        <div className="text-center text-xs font-medium text-zinc-500 mb-3">
-          {activeTab === "popular" && "Popular searches"}
-          {activeTab === "certified" && "Cerply certified"}
-          {activeTab === "challenge" && "Challenge topics"}
-          {activeTab === "analytics" && "Analytics topics"}
-        </div>
-        <div className="overflow-x-auto">
-          <div className="flex gap-3 pb-2">
-            {getCurrentTopics().map((topic) => (
-              <button
-                key={topic.title}
-                onClick={() => setInput(topic.title)}
-                className="shrink-0 w-36 rounded-lg bg-white p-2 text-left ring-1 ring-zinc-100 hover:ring-zinc-200 transition-colors"
-              >
-                <div className="flex h-12 items-center justify-center rounded-md bg-zinc-50 text-2xl">
-                  <span aria-hidden="true">{topic.emoji}</span>
-                </div>
-                <div className="mt-2 line-clamp-2 text-[11px] font-medium text-zinc-700">
-                  {topic.title}
-                </div>
-                {activeTab === "certified" && (
-                  <div className="text-[10px] text-emerald-700">Certified</div>
-                )}
-              </button>
-            ))}
+        {activeTab && (
+          <div className="overflow-x-auto">
+            <div className="text-center text-xs font-medium text-zinc-500 mb-3">
+              {activeTab === "popular" && "Popular searches"}
+              {activeTab === "certified" && "Cerply certified"}
+              {activeTab === "challenge" && "Challenge topics"}
+              {activeTab === "analytics" && "Analytics topics"}
+            </div>
+            <div className="flex gap-3 pb-2">
+              {getCurrentTopics().map((topic) => (
+                <button
+                  key={topic.title}
+                  onClick={() => setInput(topic.title)}
+                  className="shrink-0 w-36 rounded-lg bg-white p-2 text-left ring-1 ring-zinc-100 hover:ring-zinc-200 transition-colors"
+                >
+                  <div className="flex h-12 items-center justify-center rounded-md bg-zinc-50 text-2xl">
+                    <span aria-hidden="true">{topic.emoji}</span>
+                  </div>
+                  <div className="mt-2 line-clamp-2 text-[11px] font-medium text-zinc-700">
+                    {topic.title}
+                  </div>
+                  {activeTab === "certified" && (
+                    <div className="text-[10px] text-emerald-700">Certified</div>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Footer Area (same color as header) */}
-      <div className="sticky bottom-0 bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t border-zinc-100">
+      <div className="sticky bottom-0 bg-white border-t border-zinc-100 shadow-inner">
         {/* Shortcuts bar */}
         <div className="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
-          <nav className="flex gap-3 text-sm text-zinc-600">
-            {[ 
-              { id: "popular", label: "Popular Topics" },
-              { id: "certified", label: "Cerply Certified" },
-              { id: "challenge", label: "Challenge" },
-              { id: "analytics", label: "Analytics" }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`hover:text-zinc-900 ${activeTab===tab.id? 'font-medium text-zinc-900' : ''}`}
-              >
-                {tab.label}
-              </button>
-            ))}
+          <nav className="flex gap-4 text-sm text-zinc-600">
+            <button onClick={() => setActiveTab('popular')} className={`hover:text-zinc-900 ${activeTab==='popular'?'font-medium text-zinc-900':''}`}>Popular searches</button>
+            <button onClick={() => setActiveTab('certified')} className={`hover:text-zinc-900 ${activeTab==='certified'?'font-medium text-zinc-900':''}`}>Cerply Certified</button>
+            <button onClick={() => setActiveTab('challenge')} className={`hover:text-zinc-900 ${activeTab==='challenge'?'font-medium text-zinc-900':''}`}>Challenge</button>
+            <button onClick={() => setActiveTab('analytics')} className={`hover:text-zinc-900 ${activeTab==='analytics'?'font-medium text-zinc-900':''}`}>Analytics</button>
           </nav>
           <div className="hidden sm:block text-[10px] text-zinc-400">Shortcuts</div>
         </div>
-        {/* Input row */}
+        {/* Input row (single chat bar) */}
         <div className="max-w-3xl mx-auto px-4 pb-4 flex items-center gap-2">
           {/* Upload */}
           <button

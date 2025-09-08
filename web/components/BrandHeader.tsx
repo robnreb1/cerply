@@ -7,7 +7,7 @@ type Props = { className?: string };
 export default function BrandHeader({ className }: Props) {
   return (
     <header
-      className={`w-full border-b border-zinc-100 bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60 ${className ?? ""}`}
+      className={`w-full border-b border-zinc-100 bg-white shadow-sm ${className ?? ""}`}
     >
       <div className="relative mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         {/* Left: Logo */}
