@@ -11,3 +11,4 @@ Final test: 2025-01-20 15:30 - Organization ID now corrected to team_hdHcBTCHE8c
 All secrets updated: 2025-01-20 15:45 - testing deployment with fresh secrets
 Workflow permissions updated: 2025-01-20 16:00 - testing with proper permissions
 Team ID corrected: 2025-01-20 16:15 - now using robs-projects-230c6bef from Vercel URL
+Node.js version alignment test: 2025-01-20 16:30 - testing with aligned Node.js versions (20.x)
