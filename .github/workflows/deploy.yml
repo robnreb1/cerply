@@ -27,8 +27,7 @@ jobs:
       
       - name: Deploy to Vercel (Preview)
         run: |
-          cd web
-          npx vercel@latest --prod=false --yes --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel@latest --prod=false --yes --token=${{ secrets.VERCEL_TOKEN }} --root=./web
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -55,8 +54,7 @@ jobs:
       
       - name: Deploy to Vercel (Production)
         run: |
-          cd web
-          npx vercel@latest --prod=true --yes --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel@latest --prod=true --yes --token=${{ secrets.VERCEL_TOKEN }} --root=./web
         env:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
