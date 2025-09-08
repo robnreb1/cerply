@@ -30,9 +30,9 @@
       "form_factor": "wide"
     },
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/icons/icon-512x512.png",
       "type": "image/png",
-      "sizes": "192x192",
+      "sizes": "512x512",
       "form_factor": "narrow"
     }
   ],
