@@ -385,6 +385,50 @@ function analyzeIntent(input: string) {
   return { topic, mins, isIntro, focus };
 }
 
+// Parse lightweight time bounds from free text: deadlines (by <date/month>) or durations (in X weeks/months)
+function parseBounds(input: string): { deadlineIso?: string; weeks?: number } {
+  const lower = input.toLowerCase();
+  const now = new Date();
+
+  // in X weeks/months
+  const mWeeks = lower.match(/in\s+(\d{1,2})\s*(week|weeks|wk|w)\b/);
+  if (mWeeks) {
+    const w = Math.max(1, parseInt(mWeeks[1]!, 10));
+    return { weeks: w };
+  }
+  const mMonths = lower.match(/in\s+(\d{1,2})\s*(month|months|mo|m)\b/);
+  if (mMonths) {
+    const months = Math.max(1, parseInt(mMonths[1]!, 10));
+    const d = new Date(now);
+    d.setMonth(d.getMonth() + months);
+    return { deadlineIso: d.toISOString() };
+  }
+
+  // by <day> <month>, by <month> (assume end of month), by <YYYY-MM-DD>
+  const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','sept','oct','nov','dec'];
+  const byIso = lower.match(/by\s+(\d{4}-\d{2}-\d{2})/);
+  if (byIso) {
+    const d = new Date(byIso[1]!);
+    if (!isNaN(+d)) return { deadlineIso: d.toISOString() };
+  }
+  const byDayMonth = lower.match(/by\s+(\d{1,2})\s+([a-z]{3,})/);
+  if (byDayMonth && months.some(m => byDayMonth[2]!.startsWith(m))) {
+    const monthIndex = months.findIndex(m => byDayMonth[2]!.startsWith(m));
+    const d = new Date(now.getFullYear(), monthIndex, parseInt(byDayMonth[1]!, 10));
+    if (!isNaN(+d)) return { deadlineIso: d.toISOString() };
+  }
+  const byMonth = lower.match(/by\s+([a-z]{3,})\b/);
+  if (byMonth) {
+    const mi = months.findIndex(m => byMonth[1]!.startsWith(m));
+    if (mi >= 0) {
+      // end of that month
+      const end = new Date(now.getFullYear(), mi + 1, 0);
+      return { deadlineIso: end.toISOString() };
+    }
+  }
+  return {};
+}
+
 /**
  * Propose a set of modules given topic & constraints.
  * Chooses count primarily from time budget; falls back to scope-based heuristics.
@@ -764,6 +808,7 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
 
     if (wordCount < 120) {
       const intent = analyzeIntent(text);
+      const bounds = parseBounds(text);
 
       // Try LLM planner if enabled; fall back to heuristic
       if (LLM_PLANNER_ENABLED && OPENAI_API_KEY) {
@@ -779,7 +824,8 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
             isIntro: intent.isIntro,
             focus: intent.focus ?? null,
             count: modules.length,
-            planner: 'llm'
+            planner: 'llm',
+            bounds
           };
         } catch (e) {
           (req as any).log?.warn?.({ err: String(e) }, 'LLM planner failed; using heuristic');
@@ -807,7 +853,8 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
           focus: intent.focus ?? null,
           count: modules.length,
           planner: 'heuristic',
-          reason: 'llm_disabled'
+          reason: 'llm_disabled',
+          bounds
         };
       }
     } else {
