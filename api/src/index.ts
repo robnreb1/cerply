@@ -52,7 +52,9 @@ await app.register(cors, {
     // Note: *.vercel.app wildcards not supported - add specific preview domains as needed
     'https://cerply-web.vercel.app',
     'https://cerply.com',
-    'https://www.cerply.com'
+    'https://www.cerply.com',
+    'https://cerply.co.uk',
+    'https://www.cerply.co.uk'
   ],
   credentials: true
 });
