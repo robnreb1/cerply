@@ -2,7 +2,9 @@
   "name": "Cerply",
   "short_name": "Cerply",
   "description": "Turn information into knowledge",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#fafafa",
   "theme_color": "#ff6b6b",
@@ -17,7 +19,19 @@
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/icons/icon-512x512.png",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "type": "image/png",
+      "form_factor": "narrow"
     }
   ],
   "categories": ["education", "productivity"],
