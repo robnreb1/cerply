@@ -6,7 +6,8 @@ import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 export const metadata: Metadata = {
   title: "Cerply",
   description: "Helping you master what matters",
-  manifest: "/manifest.webmanifest",
+  // Add version param to bust CDN/browser caches on manifest updates
+  manifest: "/manifest.webmanifest?v=2",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
