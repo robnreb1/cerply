@@ -26,6 +26,7 @@ import path from "node:path";
 })();
 
 import Fastify from 'fastify';
+import fastifyCookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import crypto from 'node:crypto';
 import type { FastifyRequest, FastifyReply } from 'fastify';
@@ -43,15 +44,19 @@ app.addHook('onRoute', (route) => {
   const method = Array.isArray(route.method) ? route.method.join(',') : String(route.method);
   __ROUTES.push({ method, url: route.url });
 });
-await app.register(cors, { 
+await app.register(cors, {
   origin: [
     'http://localhost:3000',
     'https://localhost:3000',
     'https://stg.cerply.com',
     // Note: *.vercel.app wildcards not supported - add specific preview domains as needed
-    'https://cerply-web.vercel.app'
-  ]
+    'https://cerply-web.vercel.app',
+    'https://cerply.com',
+    'https://www.cerply.com'
+  ],
+  credentials: true
 });
+await app.register(fastifyCookie);
 
 
 
@@ -87,6 +92,43 @@ app.get('/api/analytics/pilot', async () => {
     spacedCoverage: 0.45,
     lift: { d7: 0.23, d30: 0.41 }
   };
+});
+
+// ---------------------
+// Auth (per spec)
+// ---------------------
+const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'cerply_session';
+const isProd = process.env.NODE_ENV === 'production';
+
+app.post('/api/auth/login', async (req, reply) => {
+  const { email } = ((req as any).body ?? {}) as { email?: string };
+  if (!email || typeof email !== 'string') {
+    return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'missing email' } });
+  }
+  const token = Buffer.from(`${email}:${Date.now()}`).toString('base64url');
+  const next = `/api/auth/callback?token=${token}`;
+  return reply.send({ ok: true, dev: true, next });
+});
+
+app.get('/api/auth/callback', async (req, reply) => {
+  const q = (req as any).query as { token?: string; redirect?: string };
+  const token = q?.token;
+  if (!token) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'missing token' } });
+  reply.setCookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+  });
+  const target = q?.redirect && /^https?:\/\//i.test(q.redirect) ? q.redirect : 'http://localhost:3000/';
+  return reply.redirect(302, target);
+});
+
+app.get('/api/auth/me', async (req, reply) => {
+  const cookie = (req as any).cookies?.[COOKIE_NAME];
+  if (!cookie) return reply.code(401).send({ ok: false, user: null });
+  return reply.send({ ok: true, user: { id: 'dev', email: 'dev@local' } });
 });
 
 // --- Prompt Library API (🧪 ff_prompts_lib_v1) ---
@@ -789,7 +831,83 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
 app.post('/api/ingest/preview', handleIngestPreview);
 app.post('/ingest/preview', handleIngestPreview);
 
+// ---------------------
+// Ingest: clarify (per spec)
+// ---------------------
+app.post('/api/ingest/clarify', async (req: FastifyRequest, reply: FastifyReply) => {
+  const body = ((req as any).body ?? {}) as { text?: string };
+  const input = (body.text ?? '').toString();
+  const lower = input.toLowerCase();
+  const chips: string[] = [];
+  let question = 'Before I plan, which exam board and level applies?';
+
+  if (/gcse|a-level|a level|ks3|ks4|ks5/.test(lower)) {
+    if (/gcse|ks4/.test(lower)) chips.push('Level: GCSE');
+    if (/a-level|a level|ks5/.test(lower)) chips.push('Level: A-Level');
+    if (/ks3/.test(lower)) chips.push('Level: KS3');
+    if (!/(aqa|edexcel|ocr)/.test(lower)) chips.push('Board: AQA', 'Board: Edexcel', 'Board: OCR');
+  } else if (/german|french|spanish|maths|physics|chemistry|biology|computer science/.test(lower)) {
+    chips.push('Beginner', 'Intermediate', 'Advanced');
+  }
+
+  reply.header('cache-control', 'no-store');
+  reply.header('x-api', 'ingest-clarify');
+  return reply.send({ question, chips });
+});
+
+// ---------------------
+// Ingest: followup (per spec)
+// ---------------------
+app.post('/api/ingest/followup', async (req: FastifyRequest, reply: FastifyReply) => {
+  const body = ((req as any).body ?? {}) as {
+    message?: string;
+    modules?: { id: string; title: string; estMinutes?: number }[];
+  };
+  const message = (body.message ?? '').toString();
+  const modules = Array.isArray(body.modules) ? body.modules : [];
+  const lower = message.toLowerCase();
+
+  // add/include → updated-plan
+  const addMatch = lower.match(/(?:add|include)\s+(.+?)(?:\.|$)/);
+  if (addMatch && modules.length) {
+    const title = `Focus: ${addMatch[1].trim()}`;
+    const exists = modules.some(m => m.title.toLowerCase() === title.toLowerCase());
+    const updated = exists ? modules : [...modules, { id: `mod-${String(modules.length + 1).padStart(2, '0')}`, title, estMinutes: 10 }];
+    reply.header('cache-control', 'no-store');
+    reply.header('x-api', 'ingest-followup');
+    return reply.send({ action: 'updated-plan', modules: updated });
+  }
+
+  // generate/create items → generated-items
+  if (/(generate|create).*(items|lesson|questions)/.test(lower) && modules.length) {
+    const items = modules.map((m, i) => ({
+      moduleId: m.id,
+      title: m.title,
+      explanation: `Overview of "${m.title}"`,
+      questions: { mcq: mkItem(`Which statement best captures "${m.title}"?`, i), free: { prompt: `In 2–3 sentences, explain "${m.title}" to a colleague.` } }
+    }));
+    reply.header('cache-control', 'no-store');
+    reply.header('x-api', 'ingest-followup');
+    return reply.send({ action: 'generated-items', items });
+  }
+
+  // default → refine
+  reply.header('cache-control', 'no-store');
+  reply.header('x-api', 'ingest-followup');
+  return reply.send({ action: 'refine', brief: message, message });
+});
+
 app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply) => {
+  // Auth gate (spec): require session when REQUIRE_AUTH_FOR_GENERATE is set
+  const REQUIRE = (process.env.REQUIRE_AUTH_FOR_GENERATE ?? '').toString();
+  const mustAuth = REQUIRE === '1' || REQUIRE.toLowerCase() === 'true';
+  if (mustAuth) {
+    const cookie = (req as any).cookies?.[COOKIE_NAME];
+    if (!cookie) {
+      reply.header('www-authenticate', 'Session realm="cerply"');
+      return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'Login required to generate items' } });
+    }
+  }
   const b = ((req as any).body ?? {}) as { modules?: { id: string; title: string; estMinutes?: number }[] };
   const mods = Array.isArray(b.modules) ? b.modules : [];
   if (mods.length === 0) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'modules[] required' } });

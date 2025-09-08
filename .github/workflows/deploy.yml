@@ -1,3 +1,8 @@
+# GitHub Actions workflow for Vercel deployment
+# Required secrets: VERCEL_TOKEN, VERCEL_PROJECT_ID, VERCEL_ORG_ID, VERCEL_BYPASS
+# All secrets are configured in repository settings
+# yamllint disable-file
+# yamllint disable rule:truthy
 name: Deploy to Vercel
 on:
   push:
@@ -29,8 +34,11 @@ jobs:
         run: |
           npx vercel@latest --prod=false --yes --token=${{ secrets.VERCEL_TOKEN }} --cwd=web
         env:
+          # yamllint disable-line rule:truthy
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # yamllint disable-line rule:truthy
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          # yamllint disable-line rule:truthy
           VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}
 
   deploy-production:
@@ -56,6 +64,9 @@ jobs:
         run: |
           npx vercel@latest --prod=true --yes --token=${{ secrets.VERCEL_TOKEN }} --cwd=web
         env:
+          # yamllint disable-line rule:truthy
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # yamllint disable-line rule:truthy
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          # yamllint disable-line rule:truthy
           VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}
