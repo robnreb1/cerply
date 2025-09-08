@@ -17,7 +17,7 @@ export default function IngestInteraction() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingIndex, setTypingIndex] = useState(0);
   const [typedText, setTypedText] = useState("");
-  const [activeTab, setActiveTab] = useState<"popular" | "certified" | "challenge" | "analytics">("popular");
+  const [activeTab, setActiveTab] = useState<"popular" | "certified" | "challenge" | "analytics">("certified");
   const [isGenerating, setIsGenerating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -186,12 +186,11 @@ export default function IngestInteraction() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Topic Cards: show only when a tab is active other than 'popular' link intent; keep as is for now */}
+      {/* Topic Cards: hide carousel when 'popular' link is used */}
       <div className="mb-6">
-        {activeTab && (
+        {activeTab !== 'popular' && (
           <div className="overflow-x-auto">
             <div className="text-center text-xs font-medium text-zinc-500 mb-3">
-              {activeTab === "popular" && "Popular searches"}
               {activeTab === "certified" && "Cerply certified"}
               {activeTab === "challenge" && "Challenge topics"}
               {activeTab === "analytics" && "Analytics topics"}
@@ -265,6 +264,7 @@ export default function IngestInteraction() {
             <PaperAirplaneIcon className="h-4 w-4" />
           </button>
         </div>
+        {/* (removed duplicate chat bar) */}
         <div className="flex items-center gap-2">
           <button
             onClick={handleFileUpload}
