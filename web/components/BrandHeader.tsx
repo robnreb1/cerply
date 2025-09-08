@@ -17,10 +17,8 @@ export default function BrandHeader({ className }: Props) {
           </Link>
         </div>
 
-        {/* Center: reassurance copy (desktop only to avoid crowding) */}
-        <div className="pointer-events-none absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 text-center text-sm italic text-zinc-500 sm:block">
-          Helping you master what matters
-        </div>
+        {/* Center: (removed tagline) */}
+        <div className="sr-only">&nbsp;</div>
 
         {/* Right: login */}
         <nav className="ml-auto flex items-center gap-3">

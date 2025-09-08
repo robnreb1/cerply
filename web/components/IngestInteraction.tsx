@@ -14,11 +14,9 @@ const INTRO_MESSAGES = [
 
 export default function IngestInteraction() {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: INTRO_MESSAGES[0] },
-    { role: "assistant", content: INTRO_MESSAGES[1] },
-    { role: "assistant", content: INTRO_MESSAGES[2] }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [typingIndex, setTypingIndex] = useState(0);
+  const [typedText, setTypedText] = useState("");
   const [activeTab, setActiveTab] = useState<"popular" | "certified" | "challenge" | "analytics">("popular");
   const [isGenerating, setIsGenerating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -28,9 +26,27 @@ export default function IngestInteraction() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  useEffect(() => { scrollToBottom(); }, [messages]);
+
+  // Typewriter effect for initial assistant messages
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (messages.length === 0 && typingIndex < INTRO_MESSAGES.length) {
+      let i = 0;
+      const full = INTRO_MESSAGES[typingIndex];
+      setTypedText("");
+      const id = setInterval(() => {
+        i++;
+        setTypedText(full.slice(0, i));
+        if (i >= full.length) {
+          clearInterval(id);
+          // push the fully typed message, then move to next
+          setMessages(prev => [...prev, { role: "assistant", content: full }]);
+          setTypingIndex((t) => t + 1);
+        }
+      }, 30);
+      return () => clearInterval(id);
+    }
+  }, [typingIndex, messages.length]);
 
   const handleSend = async () => {
     if (!input.trim() || isGenerating) return;
@@ -129,32 +145,18 @@ export default function IngestInteraction() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Navigation Tabs */}
-      <div className="flex justify-center mb-6">
-        <nav className="flex gap-2">
-          {[
-            { id: "popular", label: "Popular Topics" },
-            { id: "certified", label: "Cerply Certified" },
-            { id: "challenge", label: "Challenge" },
-            { id: "analytics", label: "Analytics" }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? "bg-zinc-900 text-white"
-                  : "bg-white text-zinc-600 hover:bg-zinc-50"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      {/* Footer shortcuts moved to bottom; header nav removed */}
 
       {/* Chat Messages */}
       <div className="flex-1 space-y-4 mb-6">
+        {/* Live typewriter bubble */}
+        {messages.length === 0 && typingIndex < INTRO_MESSAGES.length && (
+          <div className="flex justify-start">
+            <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-white border border-zinc-200 text-zinc-900">
+              <p className="text-sm whitespace-pre-wrap">{typedText}</p>
+            </div>
+          </div>
+        )}
         {messages.map((message, index) => (
           <div
             key={index}
@@ -215,8 +217,62 @@ export default function IngestInteraction() {
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="sticky bottom-0 bg-white border-t border-zinc-100 pt-4">
+      {/* Footer Area (same color as header) */}
+      <div className="sticky bottom-0 bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t border-zinc-100">
+        {/* Shortcuts bar */}
+        <div className="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
+          <nav className="flex gap-3 text-sm text-zinc-600">
+            {[ 
+              { id: "popular", label: "Popular Topics" },
+              { id: "certified", label: "Cerply Certified" },
+              { id: "challenge", label: "Challenge" },
+              { id: "analytics", label: "Analytics" }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`hover:text-zinc-900 ${activeTab===tab.id? 'font-medium text-zinc-900' : ''}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+          <div className="hidden sm:block text-[10px] text-zinc-400">Shortcuts</div>
+        </div>
+        {/* Input row */}
+        <div className="max-w-3xl mx-auto px-4 pb-4 flex items-center gap-2">
+          {/* Upload */}
+          <button
+            onClick={handleFileUpload}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 text-zinc-700 ring-1 ring-zinc-200 hover:bg-zinc-100 transition-colors"
+            aria-label="Upload"
+            title="Upload"
+          >
+            <ArrowUpTrayIcon className="h-4 w-4" />
+          </button>
+          {/* Text input */}
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Tell me your goal..."
+              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300"
+              disabled={isGenerating}
+            />
+          </div>
+          {/* Send */}
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || isGenerating}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-500 transition-colors"
+            aria-label="Send"
+            title="Send"
+          >
+            <PaperAirplaneIcon className="h-4 w-4" />
+          </button>
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleFileUpload}
