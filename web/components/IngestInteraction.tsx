@@ -46,7 +46,22 @@ export default function IngestInteraction() {
       const detail = e?.detail as any;
       const tab = detail?.tab as string | undefined;
       if (tab === 'about') {
-        // Inject interactive About explainer
+        // If there's a collapsed About thread, expand it instead of creating a new one
+        let expanded = false;
+        setMessages(prev => {
+          const next = [...prev];
+          for (let i = next.length - 1; i >= 0; i--) {
+            const m: any = next[i];
+            if (m?.collapsed && m?.collapsedTitle === 'About Cerply' && m?.collapsedHtml) {
+              next[i] = { role: 'assistant', content: m.collapsedHtml, html: true } as any;
+              expanded = true;
+              break;
+            }
+          }
+          return next;
+        });
+        if (expanded) return;
+        // Otherwise inject interactive About explainer
         const html = `
 <strong>About Cerply</strong><br/>
 Cerply turns information into knowledge by planning focused modules and then teaching via questions (the fastest way to learn).<br/>
@@ -65,6 +80,24 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
   useEffect(() => {
     const handler = (ev: any) => {
       const t = ev.target as HTMLElement;
+      // Expand collapsed thread by clicking anywhere on the bubble
+      const collapsedNode = t.closest('[data-collapsed-index]') as HTMLElement | null;
+      if (collapsedNode) {
+        ev.preventDefault();
+        const idxStr = collapsedNode.getAttribute('data-collapsed-index');
+        const idx = idxStr ? parseInt(idxStr, 10) : -1;
+        if (!isNaN(idx) && idx >= 0) {
+          setMessages(prev => {
+            const next = [...prev];
+            const m: any = next[idx];
+            if (m?.collapsed && m?.collapsedHtml) {
+              next[idx] = { role: 'assistant', content: m.collapsedHtml, html: true } as any;
+            }
+            return next;
+          });
+          return;
+        }
+      }
       if (t && t.matches('a[data-cmd]')) {
         ev.preventDefault();
         const cmd = t.getAttribute('data-cmd') || '';
@@ -331,6 +364,8 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
                   ? "bg-blue-600 text-white"
                   : "bg-zinc-50 border border-zinc-200 text-zinc-900"
               }`}
+              data-collapsed-index={message.collapsed ? index : undefined}
+              style={{ cursor: message.collapsed ? 'pointer' as const : 'default' as const }}
             >
               {message.html ? (
                 <div className="prose prose-zinc text-sm max-w-none" dangerouslySetInnerHTML={{ __html: message.content }} />
