@@ -29,6 +29,7 @@ import Fastify from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import crypto from 'node:crypto';
+import { pool } from './db';
 import type { FastifyRequest, FastifyReply } from 'fastify';
 
 
