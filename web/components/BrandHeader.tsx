@@ -14,7 +14,15 @@ export default function BrandHeader({ className }: Props) {
         {/* Left: Logo */}
         <div className="min-w-0">
           <Link href="/" className="inline-flex items-center gap-2 hover:opacity-90">
-            <Image src="/icons/icon-192x192.png" alt="Cerply" width={28} height={28} priority unoptimized />
+            <Image
+              src="/icons/icon-192x192.png"
+              alt="Cerply"
+              width={56}
+              height={56}
+              priority
+              unoptimized
+              className="h-12 w-12"
+            />
           </Link>
         </div>
 
