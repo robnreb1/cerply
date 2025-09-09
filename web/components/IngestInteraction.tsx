@@ -21,12 +21,22 @@ export default function IngestInteraction() {
   const [isGenerating, setIsGenerating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => { scrollToBottom(); }, [messages]);
+  useEffect(() => { if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' }); }, []);
+  useEffect(() => {
+    const onShortcut = (e: any) => {
+      const tab = e?.detail?.tab as typeof activeTab;
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('cerply-shortcut', onShortcut);
+    return () => window.removeEventListener('cerply-shortcut', onShortcut);
+  }, []);
 
   // Typewriter effect for initial assistant messages
   useEffect(() => {
@@ -145,6 +155,7 @@ export default function IngestInteraction() {
 
   return (
     <div className="flex flex-col h-full">
+      <div ref={topRef} />
       {/* Footer shortcuts moved to bottom; header nav removed */}
 
       {/* Chat Messages */}
@@ -189,18 +200,8 @@ export default function IngestInteraction() {
       {/* Carousels removed */}
       <div className="mb-4" />
 
-      {/* Footer Area (same color as header) */}
-      <div className="sticky bottom-0 bg-white border-t border-zinc-100 shadow-inner">
-        {/* Shortcuts bar */}
-        <div className="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between gap-2">
-          <nav className="flex gap-4 text-sm text-zinc-600">
-            <button onClick={() => setActiveTab('popular')} className={`hover:text-zinc-900 ${activeTab==='popular'?'font-medium text-zinc-900':''}`}>Popular searches</button>
-            <button onClick={() => setActiveTab('certified')} className={`hover:text-zinc-900 ${activeTab==='certified'?'font-medium text-zinc-900':''}`}>Cerply Certified</button>
-            <button onClick={() => setActiveTab('challenge')} className={`hover:text-zinc-900 ${activeTab==='challenge'?'font-medium text-zinc-900':''}`}>Challenge</button>
-            <button onClick={() => setActiveTab('analytics')} className={`hover:text-zinc-900 ${activeTab==='analytics'?'font-medium text-zinc-900':''}`}>Analytics</button>
-          </nav>
-          <div className="hidden sm:block text-[10px] text-zinc-400">Shortcuts</div>
-        </div>
+      {/* Footer shortcuts moved to global footer */}
+      <div className="sticky bottom-0 bg-white">
         {/* Input row (single chat bar) */}
         <div className="max-w-3xl mx-auto px-4 pb-4 flex items-center gap-2">
           {/* Upload */}

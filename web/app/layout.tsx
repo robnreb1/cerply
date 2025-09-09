@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "../app/globals.css";
 import BrandHeader from "@/components/BrandHeader";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
   title: "Cerply",
@@ -37,6 +38,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <BrandHeader />
         {/* Main content */}
         {children}
+        {/* Global footer with shortcuts */}
+        <SiteFooter />
       </body>
     </html>
   );
