@@ -17,7 +17,7 @@ export default function IngestInteraction() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingIndex, setTypingIndex] = useState(0);
   const [typedText, setTypedText] = useState("");
-  const [activeTab, setActiveTab] = useState<"popular" | "certified" | "challenge" | "analytics">("certified");
+  const [activeTab, setActiveTab] = useState<"popular" | "certified" | "challenge" | "analytics">("popular");
   const [isGenerating, setIsGenerating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -186,37 +186,8 @@ export default function IngestInteraction() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Topic Cards: hide carousel when 'popular' link is used */}
-      <div className="mb-6">
-        {activeTab !== 'popular' && (
-          <div className="overflow-x-auto">
-            <div className="text-center text-xs font-medium text-zinc-500 mb-3">
-              {activeTab === "certified" && "Cerply certified"}
-              {activeTab === "challenge" && "Challenge topics"}
-              {activeTab === "analytics" && "Analytics topics"}
-            </div>
-            <div className="flex gap-3 pb-2">
-              {getCurrentTopics().map((topic) => (
-                <button
-                  key={topic.title}
-                  onClick={() => setInput(topic.title)}
-                  className="shrink-0 w-36 rounded-lg bg-white p-2 text-left ring-1 ring-zinc-100 hover:ring-zinc-200 transition-colors"
-                >
-                  <div className="flex h-12 items-center justify-center rounded-md bg-zinc-50 text-2xl">
-                    <span aria-hidden="true">{topic.emoji}</span>
-                  </div>
-                  <div className="mt-2 line-clamp-2 text-[11px] font-medium text-zinc-700">
-                    {topic.title}
-                  </div>
-                  {activeTab === "certified" && (
-                    <div className="text-[10px] text-emerald-700">Certified</div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Carousels removed */}
+      <div className="mb-4" />
 
       {/* Footer Area (same color as header) */}
       <div className="sticky bottom-0 bg-white border-t border-zinc-100 shadow-inner">
