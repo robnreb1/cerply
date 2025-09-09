@@ -34,7 +34,8 @@ export default function IngestInteraction() {
   useEffect(() => { if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' }); }, []);
   useEffect(() => {
     const onShortcut = (e: any) => {
-      const tab = e?.detail?.tab as typeof activeTab;
+      const detail = e?.detail as any;
+      const tab = detail?.tab as string | undefined;
       if (tab === 'about') {
         // Inject interactive About explainer
         const html = `
@@ -45,7 +46,7 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
         setMessages(prev => [...prev, { role: 'assistant', content: html, html: true }]);
         return;
       }
-      if (tab) setActiveTab(tab);
+      if (tab && (tab === 'popular' || tab === 'certified' || tab === 'challenge' || tab === 'analytics')) setActiveTab(tab);
     };
     window.addEventListener('cerply-shortcut', onShortcut);
     return () => window.removeEventListener('cerply-shortcut', onShortcut);
