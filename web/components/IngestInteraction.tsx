@@ -87,7 +87,7 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
     };
     window.addEventListener('click', handler);
     return () => window.removeEventListener('click', handler);
-  }, [handleSend]);
+  }, []);
 
   // Typewriter effect for initial assistant messages
   useEffect(() => {
