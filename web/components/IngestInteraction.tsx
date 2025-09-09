@@ -159,7 +159,8 @@ export default function IngestInteraction() {
       {/* Footer shortcuts moved to bottom; header nav removed */}
 
       {/* Chat Messages */}
-      <div className="flex-1 space-y-4 mb-6">
+      {/* Chat area fills available viewport height minus header/footer; scrolls internally */}
+      <div className="flex-1 space-y-4 mb-6 max-h-[calc(100vh-180px)] overflow-y-auto px-1">
         {/* Live typewriter bubble */}
         {messages.length === 0 && typingIndex < INTRO_MESSAGES.length && (
           <div className="flex justify-start">
@@ -176,8 +177,8 @@ export default function IngestInteraction() {
             <div
               className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                 message.role === "user"
-                  ? "bg-zinc-900 text-white"
-                  : "bg-white border border-zinc-200 text-zinc-900"
+                  ? "bg-blue-600 text-white"
+                  : "bg-zinc-50 border border-zinc-200 text-zinc-900"
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>

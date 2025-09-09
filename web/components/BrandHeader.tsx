@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 type Props = { className?: string };
 
@@ -12,8 +13,8 @@ export default function BrandHeader({ className }: Props) {
       <div className="relative mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         {/* Left: Logo */}
         <div className="min-w-0">
-          <Link href="/" className="font-semibold text-zinc-900 hover:opacity-80">
-            Cerply
+          <Link href="/" className="inline-flex items-center gap-2 hover:opacity-90">
+            <Image src="/cerply-logo.png" alt="Cerply" width={24} height={24} priority />
           </Link>
         </div>
 
