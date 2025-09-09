@@ -31,8 +31,10 @@ export default function IngestInteraction() {
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const [awaitingClarify, setAwaitingClarify] = useState(false);
   const [pendingBrief, setPendingBrief] = useState<string>("");
+  const [aboutActive, setAboutActive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -60,7 +62,7 @@ export default function IngestInteraction() {
           }
           return next;
         });
-        if (expanded) return;
+        if (expanded) { setAboutActive(true); return; }
         // Otherwise inject interactive About explainer
         const html = `
 <strong>About Cerply</strong><br/>
@@ -68,6 +70,7 @@ Cerply turns information into knowledge by planning focused modules and then tea
 Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" data-cmd="how-do-you-grade">How do you grade free answers?</a> · <a href="#" data-cmd="privacy">How do you handle privacy?</a><br/>
 <a href="#" data-cmd="return">Return to previous discussion</a>`;
         setMessages(prev => [...prev, { role: 'assistant', content: html, html: true }]);
+        setAboutActive(true);
         return;
       }
       if (tab && (tab === 'popular' || tab === 'certified' || tab === 'challenge' || tab === 'analytics')) setActiveTab(tab);
@@ -105,7 +108,8 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
           'what-can-you-do': 'Explain how Cerply plans modules and teaches via questions.',
           'how-do-you-grade': 'Explain how grading works for free-text answers, and how explainers are generated.',
           'privacy': 'Explain how Cerply handles PII and anonymized learner IDs.',
-          'return': '__return_to_discussion__'
+          'return': '__return_to_discussion__',
+          'edit-brief': '__edit_brief__'
         };
         const prompt = map[cmd];
         if (!prompt) return;
@@ -128,6 +132,17 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
             }
             return next;
           });
+          setAboutActive(false);
+          return;
+        }
+        if (prompt === '__edit_brief__') {
+          // Focus input with the pending brief to allow quick edits
+          if (inputRef.current) {
+            const seed = pendingBrief || '';
+            inputRef.current.value = seed;
+            setInput(seed);
+            inputRef.current.focus();
+          }
           return;
         }
         // Execute prompt immediately (do not just populate input)
@@ -167,6 +182,25 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
     setIsGenerating(true);
 
     try {
+      // About context: answer Q&A instead of planning
+      if (aboutActive) {
+        const lower = messageText.toLowerCase();
+        let answer = '';
+        if (/name|meaning/.test(lower)) {
+          answer = '“Cerply” blends “cerebral” and “apply”: think deeply, then apply through practice. The name signals planning smartly and learning by doing.';
+        } else if (/what can you do|do you do|capab/.test(lower)) {
+          answer = 'Cerply plans concise modules from your brief, then teaches via questions (free-text first). It adapts to your answers, gives explainers, and reuses certified materials when available.';
+        } else if (/grade|mark|score/.test(lower)) {
+          answer = 'Free answers are graded against key ideas with partial credit. When you’re off, we show a short explainer and a follow-up prompt to reinforce the concept.';
+        } else if (/privacy|pii|data/.test(lower)) {
+          answer = 'We separate PII from learning data and issue anonymized learner IDs. Session cookies are httpOnly; you can export or delete your data on request.';
+        }
+        if (answer) {
+          setMessages(prev => [...prev, { role: 'assistant', content: answer }]);
+          return;
+        }
+        // If the question isn’t About-related, fall through to clarify-first
+      }
       // If waiting on clarify, combine and move to preview next
       if (awaitingClarify) {
         const combined = `${pendingBrief}. ${messageText}`.trim();
@@ -234,8 +268,9 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
       });
       if (clarify.ok) {
         const j = await clarify.json();
-        const chips = Array.isArray(j?.chips) && j.chips.length ? `\nOptions: ${j.chips.join(' · ')}` : '';
-        setMessages(prev => [...prev, { role: 'assistant', content: `${j?.question || 'Can you clarify your goal?'}${chips}` }]);
+        const chips = Array.isArray(j?.chips) && j.chips.length ? ` · Options: ${j.chips.join(' · ')}` : '';
+        const html = `${(j?.question || 'Can you clarify your goal?')}${chips}<br/><a href="#" data-cmd="edit-brief">Edit brief</a>`;
+        setMessages(prev => [...prev, { role: 'assistant', content: html, html: true }]);
         setAwaitingClarify(true);
         setPendingBrief(messageText);
         return;
@@ -413,6 +448,7 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
               placeholder="Tell me your goal..."
               className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300"
               disabled={isGenerating}
+              ref={inputRef}
             />
           </div>
           {/* Send */}
