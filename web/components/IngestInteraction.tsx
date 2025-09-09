@@ -116,15 +116,18 @@ export default function IngestInteraction() {
       });
       if (preview.ok) {
         const j = await preview.json();
+        if (j?.error) {
+          setMessages(prev => [...prev, { role: 'assistant', content: j.error?.message || 'That does not look like a learnable topic. Try something like “GCSE Maths focus algebra (45 mins)”.' }]);
+          return;
+        }
         const modules: PlannedModule[] = Array.isArray(j?.modules) ? j.modules : [];
         if (modules.length) {
           setPlan(modules);
           setAwaitingConfirm(true);
-          const bullets = modules.map((m: any, i: number) => `${i + 1}. ${m.title}${m.estMinutes ? ` (${m.estMinutes}m)` : ''}`).join('\n');
-          const diag = j?.diagnostics?.planner ? `\nPlanner: ${j.diagnostics.planner}${j.diagnostics.model ? ` (${j.diagnostics.model})` : ''}` : '';
+          const bullets = modules.map((m: any, i: number) => `${i + 1}. ${m.title}`).join('\n');
           setMessages(prev => [
             ...prev,
-            { role: 'assistant', content: `Here’s a plan for "${userMessage}":\n${bullets}${diag}\nReply “confirm” to start, or say what to change.` }
+            { role: 'assistant', content: `Here’s a plan for "${userMessage}":\n${bullets}\nReply “confirm” to start, or say what to change.` }
           ]);
         } else {
           setMessages(prev => [...prev, { role: 'assistant', content: `I couldn’t form a plan from that. Can you add a little more detail?` }]);

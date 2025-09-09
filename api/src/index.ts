@@ -798,6 +798,38 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
       }
     }
 
+    // Guardrails: reject obviously non-learning topics (e.g., everyday objects)
+    const isLikelyLearningTopic = (s: string): boolean => {
+      const lower = s.toLowerCase().trim();
+      if (lower.length < 3) return false;
+      // too short or mostly non-letters
+      const letters = lower.replace(/[^a-z]/g, '').length;
+      if (letters < 3) return false;
+      // everyday objects or chatter (extendable list)
+      const banal = [
+        'shoe','shoes','jacket','coat','banana','apple','table','chair','sofa','cup','hello','hi','hey',
+        'weather','price','buy','sell','shopping','football team','recipe','lunch','dinner'
+      ];
+      if (banal.some(w => lower === w || lower.includes(` ${w} `))) return false;
+      // whitelist core subjects or patterns
+      const subjects = [
+        'math','mathematics','algebra','geometry','calculus','statistics','physics','chemistry','biology',
+        'computer science','programming','economics','history','german','french','spanish','english',
+        'philosophy','law','accounting','finance','astronomy','astrophysics','quantum mechanics','politics'
+      ];
+      if (subjects.some(k => lower.includes(k))) return true;
+      // education keywords
+      if (/(gcse|ks3|ks4|ks5|a-level|a level|degree|exam|syllabus|curriculum)/.test(lower)) return true;
+      // generic but plausible if has two+ words and not in ban list
+      return lower.split(/\s+/).filter(Boolean).length >= 2;
+    };
+
+    if (!isLikelyLearningTopic(text)) {
+      reply.header('cache-control', 'no-store');
+      reply.header('x-api', 'ingest-preview');
+      return reply.code(422).send({ error: { code: 'INVALID_TOPIC', message: 'That does not look like a learnable topic. Try a subject and focus, e.g., "GCSE Maths focus algebra" or "German speaking for travel".' } });
+    }
+
     // New logic: choose preview implementation based on brief length
     const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
     let modules: ModuleOutline[] = [];
