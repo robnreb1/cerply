@@ -194,12 +194,16 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
           answer = 'Free answers are graded against key ideas with partial credit. When you’re off, we show a short explainer and a follow-up prompt to reinforce the concept.';
         } else if (/privacy|pii|data/.test(lower)) {
           answer = 'We separate PII from learning data and issue anonymized learner IDs. Session cookies are httpOnly; you can export or delete your data on request.';
+        } else if (/plan|teach|modules|questions/.test(lower) || /cerply/.test(lower)) {
+          answer = 'We first clarify your goal, then plan a short set of modules tailored to your time and focus. Learning happens via questions (mostly free-text), with immediate explainers and adaptive follow‑ups. When certified materials exist, we reuse them to ensure quality and consistency.';
         }
         if (answer) {
           setMessages(prev => [...prev, { role: 'assistant', content: answer }]);
           return;
         }
-        // If the question isn’t About-related, fall through to clarify-first
+        // If the question isn’t About-related, provide a concise default and stop (don’t plan)
+        setMessages(prev => [...prev, { role: 'assistant', content: 'I can help with questions about Cerply. Try: “How do you plan modules?”, “How do you grade?”, or “How do you handle privacy?”' }]);
+        return;
       }
       // If waiting on clarify, combine and move to preview next
       if (awaitingClarify) {
