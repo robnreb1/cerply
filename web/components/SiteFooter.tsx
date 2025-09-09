@@ -18,8 +18,8 @@ export default function SiteFooter() {
           <button onClick={send("certified")} className="hover:text-zinc-900">Certified</button>
           <button onClick={send("challenge")} className="hover:text-zinc-900">Challenge</button>
           <button onClick={send("analytics")} className="hover:text-zinc-900">Analytics</button>
-          <Link href="/account" className="hover:text-zinc-900">Account</Link>
-          <Link href="/about" className="hover:text-zinc-900">About</Link>
+          <Link href="/account" className="hover:text-zinc-900 no-underline">Account</Link>
+          <Link href="/about" className="hover:text-zinc-900 no-underline">About</Link>
         </nav>
       </div>
     </footer>
