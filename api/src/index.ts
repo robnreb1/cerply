@@ -837,7 +837,7 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
     if (!isLikelyLearningTopic(text)) {
       reply.header('cache-control', 'no-store');
       reply.header('x-api', 'ingest-preview');
-      return reply.code(422).send({ error: { code: 'INVALID_TOPIC', message: 'This looks like a question rather than a learnable topic. I can answer it directly or, for learning, try a subject and focus (e.g. “GCSE Maths focus algebra”).' } });
+      return reply.code(422).send({ error: { code: 'INVALID_TOPIC', message: 'That looks like a question, not a topic to plan. Ask it directly here, or for learning try e.g. “GCSE Maths focus algebra (45 mins)”.' } });
     }
 
     // New logic: choose preview implementation based on brief length

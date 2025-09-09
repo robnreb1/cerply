@@ -23,6 +23,7 @@ const INTRO_MESSAGES = [
 export default function IngestInteraction() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [aboutThreadStart, setAboutThreadStart] = useState<number | null>(null);
   const [typingIndex, setTypingIndex] = useState(0);
   const [typedText, setTypedText] = useState("");
   const [activeTab, setActiveTab] = useState<"popular" | "certified" | "challenge" | "analytics">("popular");
@@ -71,6 +72,7 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
 <a href="#" data-cmd="return">Return to previous discussion</a>`;
         setMessages(prev => [...prev, { role: 'assistant', content: html, html: true }]);
         setAboutActive(true);
+        setAboutThreadStart(messages.length + 1);
         return;
       }
       if (tab && (tab === 'popular' || tab === 'certified' || tab === 'challenge' || tab === 'analytics')) setActiveTab(tab);
@@ -117,22 +119,23 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
           // Collapse last assistant HTML bubble (preserve to re-expand)
           setMessages(prev => {
             const next = [...prev];
-            for (let i = next.length - 1; i >= 0; i--) {
-              if (next[i].role === 'assistant' && (next[i] as any).html && !(next[i] as any).collapsed) {
-                const original = next[i];
-                next[i] = {
-                  role: 'assistant',
-                  content: 'This thread is minimized. You can expand it to continue reading.',
-                  collapsed: true,
-                  collapsedHtml: (original as any).content,
-                  collapsedTitle: 'About Cerply'
-                } as any;
-                break;
-              }
-            }
+            const start = aboutThreadStart ?? next.findIndex(m => (m as any).html && (m as any).content?.includes('About Cerply')) ?? next.length - 1;
+            const end = next.length - 1;
+            const slice = next.slice(start, end + 1);
+            const collapsedHtml = slice
+              .map(m => (m as any).html ? (m as any).content : `<p>${m.content}</p>`)
+              .join('');
+            next.splice(start, end - start + 1, {
+              role: 'assistant',
+              content: 'About thread minimized. Click to expand.',
+              collapsed: true,
+              collapsedHtml,
+              collapsedTitle: 'About Cerply'
+            } as any);
             return next;
           });
           setAboutActive(false);
+          setAboutThreadStart(null);
           return;
         }
         if (prompt === '__edit_brief__') {
@@ -288,8 +291,9 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
       });
       if (preview.ok) {
         const j = await preview.json();
-        if (j?.error) {
-          setMessages(prev => [...prev, { role: 'assistant', content: j.error?.message || 'That does not look like a learnable topic. Try something like “GCSE Maths focus algebra (45 mins)”.' }]);
+        if (!preview.ok || j?.error) {
+          const msg = j?.error?.message || 'I couldn’t reach the planner just now. Please try again.';
+          setMessages(prev => [...prev, { role: 'assistant', content: msg }]);
           return;
         }
         const modules: PlannedModule[] = Array.isArray(j?.modules) ? j.modules : [];
