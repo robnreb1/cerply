@@ -10,18 +10,18 @@ export default function BrandHeader({ className }: Props) {
     <header
       className={`w-full border-b border-zinc-100 bg-white shadow-sm ${className ?? ""}`}
     >
-      <div className="relative mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+      <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
         {/* Left: Logo */}
         <div className="min-w-0">
-          <Link href="/" className="inline-flex items-center gap-2 hover:opacity-90">
+          <Link href="/" className="inline-flex items-center gap-2 hover:opacity-90 overflow-hidden h-full">
             <Image
               src="/icons/icon-192x192.png"
               alt="Cerply"
-              width={56}
-              height={56}
+              width={64}
+              height={64}
               priority
               unoptimized
-              className="h-12 w-12"
+              className="h-14 w-14 sm:h-16 sm:w-16 object-contain transform scale-125 origin-left"
             />
           </Link>
         </div>
