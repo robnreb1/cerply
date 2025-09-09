@@ -71,7 +71,7 @@ export default function IngestInteraction() {
 
     try {
       // If we already proposed a plan and user says confirm/generate, proceed to generate
-      if (plan && /^(yes|ok|start|go|generate|confirm)/i.test(userMessage)) {
+      if (plan && /^(yes|ok|start|go|generate|confirm|let\'?s\s*(go|start))/i.test(userMessage)) {
         const gen = await fetch('/api/ingest/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -91,10 +91,11 @@ export default function IngestInteraction() {
         return;
       }
 
-      // Heuristic: if the input is too short or looks off-topic, ask a clarifying question first
+      // Heuristic: if the input is too short or looks off-topic/control phrase, ask a clarifying question first
       const tokenish = userMessage.split(/\s+/).filter(Boolean);
       const hasLetters = /[a-zA-Z]/.test(userMessage);
-      if (tokenish.length < 2 || !hasLetters) {
+      const controlPhrase = /^(let\'?s\s*(go|start)|ok(ay)?|start|next|proceed|continue)$/i.test(userMessage.trim());
+      if (tokenish.length < 2 || !hasLetters || controlPhrase) {
         const clarify = await fetch('/api/ingest/clarify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

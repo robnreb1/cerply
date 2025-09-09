@@ -805,6 +805,12 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
       // too short or mostly non-letters
       const letters = lower.replace(/[^a-z]/g, '').length;
       if (letters < 3) return false;
+      // conversation/control phrases (not topics)
+      const controls = [
+        "let's go","lets go","go","start","begin","next","proceed","continue","ok","okay","yes","no",
+        "thanks","thank you","confirm","generate","do it","let's start","lets start","let us begin"
+      ];
+      if (controls.some(p => lower === p)) return false;
       // everyday objects or chatter (extendable list)
       const banal = [
         'shoe','shoes','jacket','coat','banana','apple','table','chair','sofa','cup','hello','hi','hey',
