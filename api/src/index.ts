@@ -1017,6 +1017,14 @@ app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply
 
   reply.header('cache-control', 'no-store');
   reply.header('x-api', 'ingest-generate');
+  // Persist generated content for reuse
+  try {
+    const text = JSON.stringify(items);
+    await pool.query(
+      'insert into artefacts (kind, title, content, created_at) values ($1,$2,$3, now())',
+      ['lesson_pack', `Auto pack ${new Date().toISOString()}`, text]
+    );
+  } catch {}
   return reply.send({ ok: true, items });
 });
 
