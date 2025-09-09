@@ -264,39 +264,7 @@ export default function IngestInteraction() {
             <PaperAirplaneIcon className="h-4 w-4" />
           </button>
         </div>
-        {/* (removed duplicate chat bar) */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleFileUpload}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-50 text-zinc-700 ring-1 ring-zinc-200 hover:bg-zinc-100 transition-colors"
-            aria-label="Upload"
-            title="Upload"
-          >
-            <ArrowUpTrayIcon className="h-4 w-4" />
-          </button>
-          
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Tell me your goal..."
-              className="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-1 focus:ring-zinc-300"
-              disabled={isGenerating}
-            />
-          </div>
-          
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isGenerating}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-500 transition-colors"
-            aria-label="Send"
-            title="Send"
-          >
-            <PaperAirplaneIcon className="h-4 w-4" />
-          </button>
-        </div>
+        {/* duplicate input removed */}
         
         <input
           ref={fileRef}
