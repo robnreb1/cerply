@@ -31,7 +31,6 @@ jobs:
         run: npm run build
       
       - name: Deploy to Vercel (Preview)
-        working-directory: ./web
         run: |
           npx vercel@latest --prod=false --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
@@ -62,7 +61,6 @@ jobs:
         run: npm run build
       
       - name: Deploy to Vercel (Production)
-        working-directory: ./web
         run: |
           npx vercel@latest --prod=true --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
