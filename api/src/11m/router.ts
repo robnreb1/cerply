@@ -8,8 +8,9 @@ export type Task =
 export function pickModel(task: Task) {
   switch (task) {
     case "generate.modules":
+      return { name: "gpt-5", max_tokens: 4000, temperature: 0.2 };
     case "generate.items":
-      return { name: "gpt-5", max_tokens: 4000, temperature: 0.7 };
+      return { name: "gpt-5", max_tokens: 4000, temperature: 0.4 };
     case "chat.clarify":
     case "rewrite.micro":
       return { name: "gpt-5-mini", max_tokens: 1200, temperature: 0.3 };

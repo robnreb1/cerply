@@ -884,19 +884,16 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
           };
         }
       } else {
-        modules = proposeModules(intent.topic, intent.mins, intent.isIntro, intent.focus);
-        impl = 'v2-multi';
-        planner = 'heuristic';
-        diag = {
-          topic: intent.topic,
-          mins: intent.mins,
-          isIntro: intent.isIntro,
-          focus: intent.focus ?? null,
-          count: modules.length,
-          planner: 'heuristic',
-          reason: 'llm_disabled',
-          bounds
-        };
+        // Heuristic fallback disabled to avoid templated plans; ask user to refine instead
+        reply.header('cache-control', 'no-store');
+        reply.header('x-api', 'ingest-preview');
+        return reply.code(503).send({
+          error: {
+            code: 'PLANNER_UNAVAILABLE',
+            message: 'I need a little more detail (goal, focus, time). Please clarify and I will plan intelligently.',
+            details: { reason: 'llm_disabled' }
+          }
+        });
       }
     } else {
       modules = outlineFromText(text);
