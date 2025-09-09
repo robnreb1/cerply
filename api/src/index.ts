@@ -805,6 +805,9 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
       // too short or mostly non-letters
       const letters = lower.replace(/[^a-z]/g, '').length;
       if (letters < 3) return false;
+      // meta Q&A or brand questions → not a previewable learning topic
+      if (/[?]$/.test(lower) || /\b(why|how|who|what)\b/.test(lower)) return false;
+      if (/\bcerply\b/.test(lower)) return false;
       // conversation/control phrases (not topics)
       const controls = [
         "let's go","lets go","go","start","begin","next","proceed","continue","ok","okay","yes","no",
