@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default function Page() {
   return (
-    <main className="min-h-[calc(100vh-56px-48px)] pt-10 sm:pt-14 flex">
+    <main className="h-full flex">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 flex-1 flex flex-col">
         <IngestInteraction />
       </div>

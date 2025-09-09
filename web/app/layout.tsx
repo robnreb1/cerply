@@ -7,38 +7,21 @@ import SiteFooter from "@/components/SiteFooter";
 export const metadata: Metadata = {
   title: "Cerply",
   description: "Helping you master what matters",
-  // Add version param to bust CDN/browser caches on manifest updates
-  manifest: "/manifest.webmanifest?v=2",
-  metadataBase: new URL("https://cerply.com"),
-  openGraph: {
-    title: "Cerply — Turn information into knowledge",
-    description: "Plan-first AI learning that adapts and proves progress.",
-    url: "https://cerply.com/",
-    siteName: "Cerply",
-    images: [
-      { url: "/icons/icon-512x512.png", width: 512, height: 512, alt: "Cerply" }
-    ],
-    locale: "en_GB",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Cerply — Turn information into knowledge",
-    description: "Plan-first AI learning that adapts and proves progress.",
-    images: ["/icons/icon-512x512.png"],
-  },
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">
+      <body className="min-h-screen antialiased flex flex-col">
         <ServiceWorkerRegistration />
         {/* Real top bar */}
         <BrandHeader />
         {/* Main content */}
-        {children}
-        {/* Global footer with shortcuts */}
+        <div className="flex-1 min-h-0">
+          {children}
+        </div>
+        {/* Global footer */}
         <SiteFooter />
       </body>
     </html>

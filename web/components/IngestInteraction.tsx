@@ -154,7 +154,7 @@ export default function IngestInteraction() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <div ref={topRef} />
       {/* Footer shortcuts moved to bottom; header nav removed */}
 
@@ -212,7 +212,7 @@ export default function IngestInteraction() {
             aria-label="Upload"
             title="Upload"
           >
-            <ArrowUpTrayIcon className="h-4 w-4" />
+            <ArrowUpTrayIcon className="h-5 w-5" />
           </button>
           {/* Text input */}
           <div className="flex-1 relative">
