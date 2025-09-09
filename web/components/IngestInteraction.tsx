@@ -35,11 +35,59 @@ export default function IngestInteraction() {
   useEffect(() => {
     const onShortcut = (e: any) => {
       const tab = e?.detail?.tab as typeof activeTab;
+      if (tab === 'about') {
+        // Inject interactive About explainer
+        const html = `
+<strong>About Cerply</strong><br/>
+Cerply turns information into knowledge by planning focused modules and then teaching via questions (the fastest way to learn).<br/>
+Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" data-cmd="how-do-you-grade">How do you grade free answers?</a> · <a href="#" data-cmd="privacy">How do you handle privacy?</a><br/>
+<a href="#" data-cmd="return">Return to previous discussion</a>`;
+        setMessages(prev => [...prev, { role: 'assistant', content: html, html: true }]);
+        return;
+      }
       if (tab) setActiveTab(tab);
     };
     window.addEventListener('cerply-shortcut', onShortcut);
     return () => window.removeEventListener('cerply-shortcut', onShortcut);
   }, []);
+
+  // Handle clicks inside assistant HTML bubbles to inject follow-up prompts
+  useEffect(() => {
+    const handler = (ev: any) => {
+      const t = ev.target as HTMLElement;
+      if (t && t.matches('a[data-cmd]')) {
+        ev.preventDefault();
+        const cmd = t.getAttribute('data-cmd') || '';
+        const map: Record<string, string> = {
+          'what-can-you-do': 'Explain how Cerply plans modules and teaches via questions.',
+          'how-do-you-grade': 'Explain how grading works for free-text answers, and how explainers are generated.',
+          'privacy': 'Explain how Cerply handles PII and anonymized learner IDs.',
+          'return': '__return_to_discussion__'
+        };
+        const prompt = map[cmd];
+        if (!prompt) return;
+        if (prompt === '__return_to_discussion__') {
+          // Collapse last assistant HTML bubble by replacing it with a one-liner and continue
+          setMessages(prev => {
+            const next = [...prev];
+            for (let i = next.length - 1; i >= 0; i--) {
+              if (next[i].role === 'assistant' && next[i].html) {
+                next[i] = { role: 'assistant', content: 'Returning to your learning plan and questions…' } as any;
+                break;
+              }
+            }
+            return next;
+          });
+          return;
+        }
+        // Inject as a user message then auto-handle send
+        setInput(prompt);
+        setTimeout(() => handleSend(), 0);
+      }
+    };
+    window.addEventListener('click', handler);
+    return () => window.removeEventListener('click', handler);
+  }, [handleSend]);
 
   // Typewriter effect for initial assistant messages
   useEffect(() => {
@@ -233,7 +281,7 @@ export default function IngestInteraction() {
               }`}
             >
               {message.html ? (
-                <div className="text-sm" dangerouslySetInnerHTML={{ __html: message.content }} />
+                <div className="prose prose-zinc text-sm max-w-none" dangerouslySetInnerHTML={{ __html: message.content }} />
               ) : (
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               )}
