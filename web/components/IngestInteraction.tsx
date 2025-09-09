@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpTrayIcon, PaperAirplaneIcon } from "@heroicons/react/24/solid";
 
 type Message = { role: "user" | "assistant"; content: string; html?: boolean };
+type PlannedModule = { id?: string; title: string; estMinutes?: number };
 
 const INTRO_MESSAGES = [
   "What will you master today?",
@@ -19,6 +20,8 @@ export default function IngestInteraction() {
   const [typedText, setTypedText] = useState("");
   const [activeTab, setActiveTab] = useState<"popular" | "certified" | "challenge" | "analytics">("popular");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [plan, setPlan] = useState<PlannedModule[] | null>(null);
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
@@ -67,29 +70,73 @@ export default function IngestInteraction() {
     setIsGenerating(true);
 
     try {
-      // Call the API for intelligent response
-      const response = await fetch('/api/ingest/clarify', {
+      // If we already proposed a plan and user says confirm/generate, proceed to generate
+      if (plan && /^(yes|ok|start|go|generate|confirm)/i.test(userMessage)) {
+        const gen = await fetch('/api/ingest/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modules: plan })
+        });
+        if (gen.ok) {
+          const j = await gen.json();
+          const count = Array.isArray(j?.items) ? j.items.length : 0;
+          setMessages(prev => [
+            ...prev,
+            { role: 'assistant', content: `Great — I generated ${count} lesson drafts. Ready when you are.` }
+          ]);
+          setAwaitingConfirm(false);
+        } else {
+          setMessages(prev => [...prev, { role: 'assistant', content: 'I had trouble generating items. Please try again.' }]);
+        }
+        return;
+      }
+
+      // Heuristic: if the input is too short or looks off-topic, ask a clarifying question first
+      const tokenish = userMessage.split(/\s+/).filter(Boolean);
+      const hasLetters = /[a-zA-Z]/.test(userMessage);
+      if (tokenish.length < 2 || !hasLetters) {
+        const clarify = await fetch('/api/ingest/clarify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: userMessage })
+        });
+        if (clarify.ok) {
+          const j = await clarify.json();
+          const chips = Array.isArray(j?.chips) && j.chips.length ? `\nOptions: ${j.chips.join(' · ')}` : '';
+          setMessages(prev => [...prev, { role: 'assistant', content: `${j?.question || 'Can you clarify your goal?'}${chips}` }]);
+          return;
+        }
+      }
+
+      // Otherwise, request a plan preview from the API
+      const preview = await fetch('/api/ingest/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: userMessage })
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        const aiResponse = data.ok ? 
-          `I understand you want to master "${userMessage}". Let me create a personalized learning plan for you.` :
-          `I'll help you with "${userMessage}". What specific aspects would you like to focus on?`;
-        setMessages(prev => [...prev, { role: "assistant", content: aiResponse }]);
+      if (preview.ok) {
+        const j = await preview.json();
+        const modules: PlannedModule[] = Array.isArray(j?.modules) ? j.modules : [];
+        if (modules.length) {
+          setPlan(modules);
+          setAwaitingConfirm(true);
+          const bullets = modules.map((m: any, i: number) => `${i + 1}. ${m.title}${m.estMinutes ? ` (${m.estMinutes}m)` : ''}`).join('\n');
+          const diag = j?.diagnostics?.planner ? `\nPlanner: ${j.diagnostics.planner}${j.diagnostics.model ? ` (${j.diagnostics.model})` : ''}` : '';
+          setMessages(prev => [
+            ...prev,
+            { role: 'assistant', content: `Here’s a plan for "${userMessage}":\n${bullets}${diag}\nReply “confirm” to start, or say what to change.` }
+          ]);
+        } else {
+          setMessages(prev => [...prev, { role: 'assistant', content: `I couldn’t form a plan from that. Can you add a little more detail?` }]);
+        }
       } else {
-        // Fallback response
-        const aiResponse = `I understand you want to master "${userMessage}". Let me create a personalized learning plan for you.`;
-        setMessages(prev => [...prev, { role: "assistant", content: aiResponse }]);
+        // Fallback response if preview fails
+        setMessages(prev => [...prev, { role: 'assistant', content: `I couldn’t reach the planner just now. Please try again.` }]);
       }
     } catch (error) {
       console.error("Error sending message:", error);
       // Fallback response
-      const aiResponse = `I understand you want to master "${userMessage}". Let me create a personalized learning plan for you.`;
-      setMessages(prev => [...prev, { role: "assistant", content: aiResponse }]);
+      setMessages(prev => [...prev, { role: "assistant", content: `Something went wrong — please try again.` }]);
     } finally {
       setIsGenerating(false);
     }
@@ -181,7 +228,11 @@ export default function IngestInteraction() {
                   : "bg-zinc-50 border border-zinc-200 text-zinc-900"
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {message.html ? (
+                <div className="text-sm" dangerouslySetInnerHTML={{ __html: message.content }} />
+              ) : (
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              )}
             </div>
           </div>
         ))}
@@ -237,6 +288,36 @@ export default function IngestInteraction() {
             <PaperAirplaneIcon className="h-4 w-4" />
           </button>
         </div>
+        {awaitingConfirm && plan && (
+          <div className="max-w-3xl mx-auto px-4 pb-2">
+            <button
+              onClick={async () => {
+                if (isGenerating) return;
+                setIsGenerating(true);
+                try {
+                  const gen = await fetch('/api/ingest/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ modules: plan })
+                  });
+                  if (gen.ok) {
+                    const j = await gen.json();
+                    const count = Array.isArray(j?.items) ? j.items.length : 0;
+                    setMessages(prev => [...prev, { role: 'assistant', content: `Great — I generated ${count} lesson drafts. Ready when you are.` }]);
+                    setAwaitingConfirm(false);
+                  } else {
+                    setMessages(prev => [...prev, { role: 'assistant', content: 'I had trouble generating items. Please try again.' }]);
+                  }
+                } finally {
+                  setIsGenerating(false);
+                }
+              }}
+              className="mt-1 inline-flex items-center rounded-md bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-800"
+            >
+              Confirm and generate
+            </button>
+          </div>
+        )}
         {/* duplicate input removed */}
         
         <input
