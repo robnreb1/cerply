@@ -130,9 +130,8 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
           });
           return;
         }
-        // Inject as a user message then auto-handle send
-        setInput(prompt);
-        setTimeout(() => handleSend(), 0);
+        // Execute prompt immediately (do not just populate input)
+        handleSend(prompt);
       }
     };
     window.addEventListener('click', handler);
@@ -159,18 +158,18 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
     }
   }, [typingIndex, messages.length]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isGenerating) return;
+  const handleSend = async (override?: string) => {
+    const messageText = (override ?? input).trim();
+    if (!messageText || isGenerating) return;
 
-    const userMessage = input.trim();
-    setInput("");
+    if (!override) setInput("");
     setMessages(prev => [...prev, { role: "user", content: userMessage }]);
     setIsGenerating(true);
 
     try {
       // If waiting on clarify, combine and move to preview next
       if (awaitingClarify) {
-        const combined = `${pendingBrief}. ${userMessage}`.trim();
+        const combined = `${pendingBrief}. ${messageText}`.trim();
         setAwaitingClarify(false);
         setPendingBrief("");
         // proceed to preview using combined
@@ -204,7 +203,7 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
       }
 
       // If we already proposed a plan and user says confirm/generate, proceed to generate
-      if (plan && /^(yes|ok|start|go|generate|confirm|let\'?s\s*(go|start))/i.test(userMessage)) {
+      if (plan && /^(yes|ok|start|go|generate|confirm|let\'?s\s*(go|start))/i.test(messageText)) {
         const gen = await fetch('/api/ingest/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -225,20 +224,20 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
       }
 
       // Clarify first: always ask a clarifying question/confirmation
-      const tokenish = userMessage.split(/\s+/).filter(Boolean);
-      const hasLetters = /[a-zA-Z]/.test(userMessage);
-      const controlPhrase = /^(let\'?s\s*(go|start)|ok(ay)?|start|next|proceed|continue)$/i.test(userMessage.trim());
+      const tokenish = messageText.split(/\s+/).filter(Boolean);
+      const hasLetters = /[a-zA-Z]/.test(messageText);
+      const controlPhrase = /^(let\'?s\s*(go|start)|ok(ay)?|start|next|proceed|continue)$/i.test(messageText.trim());
       const clarify = await fetch('/api/ingest/clarify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: userMessage })
+        body: JSON.stringify({ text: messageText })
       });
       if (clarify.ok) {
         const j = await clarify.json();
         const chips = Array.isArray(j?.chips) && j.chips.length ? `\nOptions: ${j.chips.join(' · ')}` : '';
         setMessages(prev => [...prev, { role: 'assistant', content: `${j?.question || 'Can you clarify your goal?'}${chips}` }]);
         setAwaitingClarify(true);
-        setPendingBrief(userMessage);
+        setPendingBrief(messageText);
         return;
       }
 
@@ -246,7 +245,7 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
       const preview = await fetch('/api/ingest/preview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: userMessage })
+        body: JSON.stringify({ text: messageText })
       });
       if (preview.ok) {
         const j = await preview.json();
@@ -261,7 +260,7 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
           const bullets = modules.map((m: any, i: number) => `${i + 1}. ${m.title}`).join('\n');
           setMessages(prev => [
             ...prev,
-            { role: 'assistant', content: `Here’s a plan for "${userMessage}":\n${bullets}\nReply “confirm” to start, or say what to change.` }
+            { role: 'assistant', content: `Here’s a plan for "${messageText}":\n${bullets}\nReply “confirm” to start, or say what to change.` }
           ]);
         } else {
           setMessages(prev => [...prev, { role: 'assistant', content: `I couldn’t form a plan from that. Can you add a little more detail?` }]);
