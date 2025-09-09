@@ -31,8 +31,9 @@ jobs:
         run: npm run build
       
       - name: Deploy to Vercel (Preview)
+        working-directory: ./web
         run: |
-          npx vercel@latest --prod=false --yes --token=${{ secrets.VERCEL_TOKEN }} --cwd=web
+          npx vercel@latest --prod=false --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           # yamllint disable-line rule:truthy
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -61,8 +62,9 @@ jobs:
         run: npm run build
       
       - name: Deploy to Vercel (Production)
+        working-directory: ./web
         run: |
-          npx vercel@latest --prod=true --yes --token=${{ secrets.VERCEL_TOKEN }} --cwd=web
+          npx vercel@latest --prod=true --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           # yamllint disable-line rule:truthy
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
