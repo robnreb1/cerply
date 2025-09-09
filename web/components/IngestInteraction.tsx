@@ -4,7 +4,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpTrayIcon, PaperAirplaneIcon } from "@heroicons/react/24/solid";
 
-type Message = { role: "user" | "assistant"; content: string; html?: boolean };
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  html?: boolean;
+  collapsed?: boolean;
+  collapsedHtml?: string;
+  collapsedTitle?: string;
+};
 type PlannedModule = { id?: string; title: string; estMinutes?: number };
 
 const INTRO_MESSAGES = [
@@ -22,6 +29,8 @@ export default function IngestInteraction() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [plan, setPlan] = useState<PlannedModule[] | null>(null);
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+  const [awaitingClarify, setAwaitingClarify] = useState(false);
+  const [pendingBrief, setPendingBrief] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
@@ -68,12 +77,19 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
         const prompt = map[cmd];
         if (!prompt) return;
         if (prompt === '__return_to_discussion__') {
-          // Collapse last assistant HTML bubble by replacing it with a one-liner and continue
+          // Collapse last assistant HTML bubble (preserve to re-expand)
           setMessages(prev => {
             const next = [...prev];
             for (let i = next.length - 1; i >= 0; i--) {
-              if (next[i].role === 'assistant' && next[i].html) {
-                next[i] = { role: 'assistant', content: 'Returning to your learning plan and questions…' } as any;
+              if (next[i].role === 'assistant' && (next[i] as any).html && !(next[i] as any).collapsed) {
+                const original = next[i];
+                next[i] = {
+                  role: 'assistant',
+                  content: 'This thread is minimized. You can expand it to continue reading.',
+                  collapsed: true,
+                  collapsedHtml: (original as any).content,
+                  collapsedTitle: 'About Cerply'
+                } as any;
                 break;
               }
             }
@@ -119,6 +135,41 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
     setIsGenerating(true);
 
     try {
+      // If waiting on clarify, combine and move to preview next
+      if (awaitingClarify) {
+        const combined = `${pendingBrief}. ${userMessage}`.trim();
+        setAwaitingClarify(false);
+        setPendingBrief("");
+        // proceed to preview using combined
+        const preview = await fetch('/api/ingest/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: combined })
+        });
+        if (preview.ok) {
+          const j = await preview.json();
+          if (j?.error) {
+            setMessages(prev => [...prev, { role: 'assistant', content: j.error?.message || 'That does not look like a learnable topic.' }]);
+            return;
+          }
+          const modules: PlannedModule[] = Array.isArray(j?.modules) ? j.modules : [];
+          if (modules.length) {
+            setPlan(modules);
+            setAwaitingConfirm(true);
+            const bullets = modules.map((m: any, i: number) => `${i + 1}. ${m.title}`).join('\n');
+            setMessages(prev => [
+              ...prev,
+              { role: 'assistant', content: `Here’s a plan for "${combined}":\n${bullets}\nReply “confirm” to start, or say what to change.` }
+            ]);
+          } else {
+            setMessages(prev => [...prev, { role: 'assistant', content: `I couldn’t form a plan from that. Can you add a little more detail?` }]);
+          }
+        } else {
+          setMessages(prev => [...prev, { role: 'assistant', content: `I couldn’t reach the planner just now. Please try again.` }]);
+        }
+        return;
+      }
+
       // If we already proposed a plan and user says confirm/generate, proceed to generate
       if (plan && /^(yes|ok|start|go|generate|confirm|let\'?s\s*(go|start))/i.test(userMessage)) {
         const gen = await fetch('/api/ingest/generate', {
@@ -140,22 +191,22 @@ Ask: <a href="#" data-cmd="what-can-you-do">What can you do?</a> · <a href="#" 
         return;
       }
 
-      // Heuristic: if the input is too short or looks off-topic/control phrase, ask a clarifying question first
+      // Clarify first: always ask a clarifying question/confirmation
       const tokenish = userMessage.split(/\s+/).filter(Boolean);
       const hasLetters = /[a-zA-Z]/.test(userMessage);
       const controlPhrase = /^(let\'?s\s*(go|start)|ok(ay)?|start|next|proceed|continue)$/i.test(userMessage.trim());
-      if (tokenish.length < 2 || !hasLetters || controlPhrase) {
-        const clarify = await fetch('/api/ingest/clarify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: userMessage })
-        });
-        if (clarify.ok) {
-          const j = await clarify.json();
-          const chips = Array.isArray(j?.chips) && j.chips.length ? `\nOptions: ${j.chips.join(' · ')}` : '';
-          setMessages(prev => [...prev, { role: 'assistant', content: `${j?.question || 'Can you clarify your goal?'}${chips}` }]);
-          return;
-        }
+      const clarify = await fetch('/api/ingest/clarify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: userMessage })
+      });
+      if (clarify.ok) {
+        const j = await clarify.json();
+        const chips = Array.isArray(j?.chips) && j.chips.length ? `\nOptions: ${j.chips.join(' · ')}` : '';
+        setMessages(prev => [...prev, { role: 'assistant', content: `${j?.question || 'Can you clarify your goal?'}${chips}` }]);
+        setAwaitingClarify(true);
+        setPendingBrief(userMessage);
+        return;
       }
 
       // Otherwise, request a plan preview from the API
