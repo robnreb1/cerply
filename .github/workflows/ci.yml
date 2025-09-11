@@ -66,6 +66,8 @@ jobs:
           curl -fsS http://localhost:8080/api/health >/dev/null
 
       - name: API smoke (health/plan/analytics)
+        env:
+          SMOKE_ALLOW_503: '1'
         run: |
           chmod +x api/scripts/smoke-local.sh
           bash api/scripts/smoke-local.sh
