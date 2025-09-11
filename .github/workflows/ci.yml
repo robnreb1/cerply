@@ -43,6 +43,7 @@ jobs:
       # NEW — start server before smoke
       - name: Start API (background)
         env:
+
           NODE_ENV: production
           PORT: 8080
           RATE_LIMIT_ENABLED: 'false'
@@ -53,31 +54,31 @@ jobs:
 
           # Wait up to 60s for /api/health to respond
           for i in {1..60}; do
+
             if curl -fsS http://localhost:8080/api/health >/dev/null; then
               echo "API is up"
               break
             fi
             sleep 1
           done
+
           # One last check so the step fails early if server didn't come up
           curl -fsS http://localhost:8080/api/health >/dev/null
-
 
       - name: API smoke (health/plan/analytics)
         run: |
           chmod +x api/scripts/smoke-local.sh
           bash api/scripts/smoke-local.sh
 
-
       - name: Stop API
         if: always()
         run: |
           if [ -f /tmp/api_pid.txt ]; then
+
             kill "$(cat /tmp/api_pid.txt)" 2>/dev/null || true
           fi
           # Fallback: ensure any lingering API node process is stopped
           pkill -f "node .*api/dist/index.js" 2>/dev/null || true
-
 
   pr-typecheck:
     if: ${{ github.event_name == 'pull_request' }}
