@@ -39,6 +39,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
         run: npm -w api run test
 
+
       # NEW — start server before smoke
       - name: Start API (background)
         env:
@@ -57,10 +58,12 @@ jobs:
             sleep 1
           done
 
+
       - name: API smoke (health/plan/analytics)
         run: |
           chmod +x api/scripts/smoke-local.sh
           bash api/scripts/smoke-local.sh
+
 
       - name: Stop API
         if: always()
@@ -69,27 +72,34 @@ jobs:
             kill "$(cat /tmp/api_pid.txt)" || true
           fi
 
+
   pr-typecheck:
     if: ${{ github.event_name == 'pull_request' }}
     name: Typecheck (API & Web)
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
       - name: Install deps (api)
         working-directory: api
         run: npm install --no-audit --no-fund
+
       - name: Typecheck (api)
         working-directory: api
         run: npm run typecheck
+
       - name: Install deps (web)
         working-directory: web
         run: npm install --no-audit --no-fund
+
       - name: Typecheck (web)
         working-directory: web
         run: npm run typecheck
@@ -105,6 +115,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up QEMU (for multi-arch)
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
@@ -115,6 +126,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
@@ -125,6 +137,7 @@ jobs:
             type=sha
             type=ref,event=tag
             type=semver,pattern={{version}}
+
       - name: Build & Push
         uses: docker/build-push-action@v6
         with:
