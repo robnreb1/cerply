@@ -39,3 +39,6 @@ fi
 echo ""
 echo "Smoke test completed!"
 
+echo "\n[web smoke] ping API /api/health"
+curl -fsS "$API_BASE/api/health" | jq . || true
+

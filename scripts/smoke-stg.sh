@@ -14,7 +14,7 @@ curl -sS -i "$STG/ping" | sed -n '1,20p'
 echo
 
 echo "==> GET $STG/api/health"
-curl -sS -i "$STG/api/health" "${BYPASS_HEADER[@]}" | sed -n '1,40p'
+curl -sS -i "$STG/api/health" | sed -n '1,40p'
 echo
 
 echo "==> API health (direct)"
@@ -27,12 +27,12 @@ echo
 
 if [[ "${VERCEL_BYPASS:-}" != "" ]]; then
   echo "==> GET $STG/api/prompts"
-  curl -sS -i "$STG/api/prompts" "${BYPASS_HEADER[@]}" | sed -n '1,60p'
+  curl -sS -i "$STG/api/prompts" "${BYPASS_HEADER[@]:-}" | sed -n '1,60p'
   echo
 
   echo "==> POST $STG/api/ingest/preview"
   curl -sS -i -X POST "$STG/api/ingest/preview" \
-    "${BYPASS_HEADER[@]}" \
+    "${BYPASS_HEADER[@]:-}" \
     -H 'content-type: application/json' \
     --data '{"text":"Astrophysics for beginners, focus on cosmology, 45 mins"}' \
     | sed -n '1,120p'
