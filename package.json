@@ -10,9 +10,11 @@
     "build": "npm -w api run build && npm -w web run build",
     "build:api": "npm -w api run build",
     "test": "npm -w api run test",
-    "smoke": "node smoke.js",
+    "smoke": "npm run smoke:api && npm run smoke:web",
     "smoke:check": "npm run smoke",
-    "typecheck": "npm -w api run typecheck && npm -w web run typecheck"
+    "typecheck": "npm -w api run typecheck && npm -w web run typecheck",
+    "smoke:api": "bash api/scripts/smoke-local.sh",
+    "smoke:web": "bash web/scripts/smoke.sh"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
@@ -20,5 +22,8 @@
   "workspaces": [
     "api",
     "web"
-  ]
+  ],
+  "engines": {
+    "node": ">=20"
+  }
 }
