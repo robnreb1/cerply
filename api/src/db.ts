@@ -1,9 +1,9 @@
-import pg from 'pg';
-const { Pool } = pg;
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://cerply:cerply@db:5432/cerply',
-});
+const connectionString = process.env.DATABASE_URL || '';
+export const pool = new Pool({ connectionString });
+export const db = drizzle(pool);
 
 export async function query<T = any>(sql: string, params?: unknown[]): Promise<{ rows: T[] }> {
   const res = await pool.query(sql, params as any);
