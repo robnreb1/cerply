@@ -78,6 +78,7 @@ else
   echo "==> Skipping WEB /api/health (no __vercel_protection_bypass cookie)"
 fi
 
+
 # --- API (direct): /api/health ---
 line
 echo "==> API health (direct) ${API_BASE%/}/api/health"
@@ -109,6 +110,7 @@ else
 fi
 
 line
+
 echo "Assertions passed."
 
 # --- Optional: Legacy ingest smoke (guarded) ---
