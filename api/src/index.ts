@@ -1706,9 +1706,9 @@ app.post('/api/score', async (req: FastifyRequest, reply: FastifyReply) => {
 
 // Connectors (ff_connectors_basic_v1)
 app.post('/import/url', async (req: FastifyRequest, reply: FastifyReply) => {
-  if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: 'ff_connectors_basic_v1 disabled' });
+  if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: { code: 'FEATURE_DISABLED', message: 'ff_connectors_basic_v1 disabled' } });
   const body = (req as any).body as { url?: string; scopeId?: string; template?: string };
-  if (!body?.url) return reply.code(400).send({ error: 'Missing url' });
+  if (!body?.url) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing url' } });
   const chunks = [`[stub] extracted summary from ${body.url}`, `[stub] key points from ${body.url}`];
   return { scopeId: body.scopeId ?? 'demo', template: body.template ?? 'policy', chunks };
 });
@@ -1718,7 +1718,7 @@ app.options('/import/file', async (_req: FastifyRequest, reply: FastifyReply) =>
 
 // Robust file import: accepts text or base64; PDFs/DOCX return a stub chunk
 app.post('/import/file', async (req: FastifyRequest, reply: FastifyReply) => {
-  if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: 'ff_connectors_basic_v1 disabled' });
+  if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: { code: 'FEATURE_DISABLED', message: 'ff_connectors_basic_v1 disabled' } });
 
   const b = ((req as any).body ?? {}) as {
     name?: string;
@@ -1737,7 +1737,7 @@ app.post('/import/file', async (req: FastifyRequest, reply: FastifyReply) => {
 
   if (!name || (!content && !contentBase64)) {
     (req as any).log?.warn?.({ bodyKeys: Object.keys(b || {}) }, 'import/file missing content');
-    return reply.code(400).send({ error: 'Missing name or content' });
+    return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing name or content' } });
   }
 
   // Heuristic: treat .pdf/.docx (or PDFs/ZIPs by magic) as binary and skip deep parsing
@@ -1767,7 +1767,7 @@ app.post('/import/file', async (req: FastifyRequest, reply: FastifyReply) => {
 
     const normalized = text.replace(/\r\n/g, '\n').trim();
     if (!normalized) {
-      return reply.code(400).send({ error: 'Content empty after decoding' });
+      return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Content empty after decoding' } });
     }
     
     const chunks = chunkPlaintext(normalized);
@@ -1778,14 +1778,14 @@ app.post('/import/file', async (req: FastifyRequest, reply: FastifyReply) => {
     return reply.send({ scopeId, template, chunks });
   } catch (e: any) {
     (req as any).log?.error?.({ err: e }, 'import/file failure');
-    return reply.code(500).send({ error: e?.message || 'import failed' });
+    return reply.code(500).send({ error: { code: 'INTERNAL', message: e?.message || 'import failed' } });
   }
 });
 
 app.post('/import/transcript', async (req: FastifyRequest, reply: FastifyReply) => {
-  if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: 'ff_connectors_basic_v1 disabled' });
+  if (!FLAGS.ff_connectors_basic_v1) return reply.code(501).send({ error: { code: 'FEATURE_DISABLED', message: 'ff_connectors_basic_v1 disabled' } });
   const body = (req as any).body as { content?: string; scopeId?: string; template?: string };
-  if (!body?.content) return reply.code(400).send({ error: 'Missing content' });
+  if (!body?.content) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing content' } });
   const lines = body.content.split(/\n/).map(s => s.trim()).filter(Boolean);
   const chunks: string[] = [];
   for (let i = 0; i < lines.length; i += 5) chunks.push(lines.slice(i, i + 5).join(' '));
@@ -1807,9 +1807,9 @@ function bannedFlags(stem: string): string[] {
   return flags;
 }
 app.post('/curator/quality/compute', async (req: FastifyRequest, reply: FastifyReply) => {
-  if (!FLAGS.ff_quality_bar_v1) return reply.code(501).send({ error: 'ff_quality_bar_v1 disabled' });
+  if (!FLAGS.ff_quality_bar_v1) return reply.code(501).send({ error: { code: 'FEATURE_DISABLED', message: 'ff_quality_bar_v1 disabled' } });
   const body = (req as any).body as { items: MCQItem[] };
-  if (!body?.items?.length) return reply.code(400).send({ error: 'Missing items' });
+  if (!body?.items?.length) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing items' } });
   const items = body.items.map((it) => {
     const read = approxReadability(it.stem);
     const banned = bannedFlags(it.stem);
@@ -1822,7 +1822,7 @@ app.post('/curator/quality/compute', async (req: FastifyRequest, reply: FastifyR
 
 // Certified SLA status (ff_certified_sla_status_v1)
 app.get('/certified/status', async (req: FastifyRequest, reply: FastifyReply) => {
-  if (!FLAGS.ff_certified_sla_status_v1) return reply.code(501).send({ error: 'ff_certified_sla_status_v1 disabled' });
+  if (!FLAGS.ff_certified_sla_status_v1) return reply.code(501).send({ error: { code: 'FEATURE_DISABLED', message: 'ff_certified_sla_status_v1 disabled' } });
   const q = (req as any).query as { packId?: string };
   const packId = q?.packId ?? 'demo-pack';
   const now = new Date();
@@ -1839,7 +1839,7 @@ app.get('/certified/status', async (req: FastifyRequest, reply: FastifyReply) =>
 
 // Marketplace/Guild ledger summary (ff_marketplace_ledgers_v1)
 app.get('/marketplace/ledger/summary', async (_req: FastifyRequest, reply: FastifyReply) => {
-  if (!FLAGS.ff_marketplace_ledgers_v1) return reply.code(501).send({ error: 'ff_marketplace_ledgers_v1 disabled' });
+  if (!FLAGS.ff_marketplace_ledgers_v1) return reply.code(501).send({ error: { code: 'FEATURE_DISABLED', message: 'ff_marketplace_ledgers_v1 disabled' } });
   return {
     month: new Date().toISOString().slice(0,7),
     payouts: [
@@ -2031,29 +2031,50 @@ app.patch('/api/expert/modules/:id', async (req: FastifyRequest, reply: FastifyR
 
 // Groups & Challenges (ff_group_challenges_v1)
 app.post('/groups', async (req: FastifyRequest, reply: FastifyReply) => {
-  if (!FLAGS.ff_group_challenges_v1) return reply.code(501).send({ error: 'ff_group_challenges_v1 disabled' });
+  if (!FLAGS.ff_group_challenges_v1) return reply.code(501).send({ error: { code: 'FEATURE_DISABLED', message: 'ff_group_challenges_v1 disabled' } });
   const body = (req as any).body as { name?: string };
-  if (!body?.name) return reply.code(400).send({ error: 'Missing name' });
+  if (!body?.name) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing name' } });
   const g: Group = { id: crypto.randomUUID(), name: body.name, createdAt: new Date().toISOString() };
   _groups.push(g);
   return g;
 });
 app.post('/challenges', async (req: FastifyRequest, reply: FastifyReply) => {
-  if (!FLAGS.ff_group_challenges_v1) return reply.code(501).send({ error: 'ff_group_challenges_v1 disabled' });
+  if (!FLAGS.ff_group_challenges_v1) return reply.code(501).send({ error: { code: 'FEATURE_DISABLED', message: 'ff_group_challenges_v1 disabled' } });
   const body = (req as any).body as { groupId?: string; packId?: string; windowDays?: number; prizeText?: string };
-  if (!body?.groupId || !body?.packId) return reply.code(400).send({ error: 'Missing groupId or packId' });
+  if (!body?.groupId || !body?.packId) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing groupId or packId' } });
   const ch: Challenge = { id: crypto.randomUUID(), groupId: body.groupId, packId: body.packId, windowDays: body.windowDays ?? 14, prizeText: body.prizeText, createdAt: new Date().toISOString() };
   _challenges.push(ch);
   return ch;
 });
 app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: FastifyReply) => {
-  if (!FLAGS.ff_group_challenges_v1) return reply.code(501).send({ error: 'ff_group_challenges_v1 disabled' });
+  if (!FLAGS.ff_group_challenges_v1) return reply.code(501).send({ error: { code: 'FEATURE_DISABLED', message: 'ff_group_challenges_v1 disabled' } });
   const { id } = (req as any).params as { id: string };
   const rows = _attempts.filter(a => a.challengeId === id).sort((a,b) => b.score - a.score).slice(0, 50);
   return { challengeId: id, leaderboard: rows };
 });
 
 // ---------------------
+  // ---------------------
+  // Final global handlers (registered last)
+  // ---------------------
+  app.setNotFoundHandler((request, reply) => {
+    reply.code(404).send({
+      error: {
+        code: 'NOT_FOUND',
+        message: `Route ${request.method}:${request.url} not found`
+      }
+    });
+  });
+
+  app.setErrorHandler((err, _req, reply) => {
+    const status = typeof (err as any)?.statusCode === 'number' ? (err as any).statusCode : 500;
+    const code = (typeof (err as any)?.code === 'string' && (err as any).code)
+      ? (err as any).code as string
+      : (status >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST');
+    const message = (err as any)?.message || 'Unexpected error';
+    reply.code(status).send({ error: { code, message } });
+  });
+
   return app;
 }
 
