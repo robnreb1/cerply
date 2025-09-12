@@ -3,6 +3,17 @@ import { z } from 'zod';
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development','test','production']).default('development'),
   OPENAI_API_KEY: z.string().optional(),
+  // LLM planner routing and toggles (optional; defaults in code)
+  LLM_PLANNER: z.string().optional(),
+  LLM_PREVIEW: z.string().optional(),
+  LLM_PLANNER_PROVIDER: z.string().optional(),
+  LLM_PLANNER_MODEL: z.string().optional(),
+  LLM_PLANNER_FALLBACK_MODEL: z.string().optional(),
+  CHAT_MODEL: z.string().optional(),
+  CHAT_FALLBACK_MODEL: z.string().optional(),
+  ITEMS_MODEL: z.string().optional(),
+  ITEMS_MODEL_FALLBACK: z.string().optional(),
+  ITEMS_MODEL_FALLBACK_2: z.string().optional(),
   ALLOW_DEV_ADMIN: z.enum(['true','false']).optional(),
   RATE_LIMIT_ENABLED: z.enum(['true','false']).optional(),
   CORS_ORIGINS: z.string().optional(),

@@ -241,6 +241,12 @@ app.get('/flags', async (_req, reply) => {
   return reply.send({ flags: FLAGS });
 });
 
+// API-prefixed flags (mirror)
+app.get('/api/flags', async (_req, reply) => {
+  reply.header('x-api', 'flags');
+  return reply.send({ flags: FLAGS });
+});
+
 // --- Test endpoint ---
 app.get('/test', async () => ({ message: 'test endpoint working' }));
 
