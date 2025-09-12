@@ -2077,6 +2077,7 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
 
   // DB health
   app.get('/api/db/health', async (_req, reply) => {
+
     reply.header('x-api', 'db-health');
     const urlStr = String(process.env.DATABASE_URL || '');
     if (!urlStr) {
@@ -2087,6 +2088,7 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
     try {
       const { rows } = await pool.query('select 1 as ok');
       if (rows && rows.length > 0) return reply.send({ ok: true, host });
+
       return reply.code(500).send({ error: { code: 'INTERNAL', message: 'DB health check failed' } });
     } catch (e: any) {
       return reply.code(500).send({ error: { code: 'INTERNAL', message: e?.message || 'DB error' } });
