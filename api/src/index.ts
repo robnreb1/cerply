@@ -2077,9 +2077,18 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
 
   // DB health
   app.get('/api/db/health', async (_req, reply) => {
+
+    reply.header('x-api', 'db-health');
+    const urlStr = String(process.env.DATABASE_URL || '');
+    if (!urlStr) {
+      return reply.code(503).send({ error: { code: 'DATABASE_UNCONFIGURED', message: 'DATABASE_URL not set' } });
+    }
+    let host = 'unknown';
+    try { host = new URL(urlStr).host; } catch {}
     try {
       const { rows } = await pool.query('select 1 as ok');
-      if (rows && rows.length > 0) return reply.send({ ok: true });
+      if (rows && rows.length > 0) return reply.send({ ok: true, host });
+
       return reply.code(500).send({ error: { code: 'INTERNAL', message: 'DB health check failed' } });
     } catch (e: any) {
       return reply.code(500).send({ error: { code: 'INTERNAL', message: e?.message || 'DB error' } });
