@@ -35,7 +35,7 @@
 @layer base {
   html, body { @apply h-full; }
   body {
-    background: var(--brand-bg);
+    background: #ffffff; /* requested white background */
     color: var(--brand-ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

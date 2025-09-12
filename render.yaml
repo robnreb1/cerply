@@ -13,6 +13,8 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false            # supply via Render dashboard after first sync
+      - key: DATABASE_URL
+        sync: false            # set to your external Render Postgres URL (postgres://...)
       - key: LLM_PREVIEW
         value: "1"
       - key: LLM_PLANNER_MODEL

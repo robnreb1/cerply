@@ -40,11 +40,10 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const sample = JSON.stringify({
-      ok: true,
-      modules: [{ id: 'mod-00', title: 'About: Sample', estMinutes: 5 }],
+      error: { code: 'EDGE_PREVIEW_FALLBACK', message: 'Planner unavailable. Please try again.' }
     });
     return new Response(sample, {
-      status: 200,
+      status: 503,
       headers: {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'no-store',

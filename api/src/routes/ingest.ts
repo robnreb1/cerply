@@ -58,14 +58,7 @@ function guessTime(s: string | undefined): number | undefined {
 function heuristicModules(topic: string, timeBudgetMinutes?: number): PlannedModule[] {
   const t = (topic || 'Topic').trim();
   // Make it a bit less generic, but still deterministic
-  const seeds = [
-    `${t}: Key Ideas`,
-    `${t}: Worked Examples`,
-    `${t}: Common Pitfalls`,
-    `${t}: Check Your Understanding`,
-    `${t}: Apply It`,
-    `${t}: Quick Review`,
-  ];
+  const seeds = Array.from({ length: 6 }, (_, i) => `${t}: Topic ${i + 1}`);
   // pick a sensible count vs time budget
   const per = 8; // default 8 mins/module
   const maxByTime = timeBudgetMinutes ? Math.max(3, Math.min(10, Math.round(timeBudgetMinutes / per))) : 4;
