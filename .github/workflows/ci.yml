@@ -72,6 +72,13 @@ jobs:
           chmod +x api/scripts/smoke-local.sh
           bash api/scripts/smoke-local.sh
 
+      - name: DB migrate (if DATABASE_URL)
+        if: ${{ env.DATABASE_URL != '' }}
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+        run: |
+          npm -w api run db:migrate || true
+
       - name: API smoke (legacy ingest)
         if: ${{ env.LEGACY_INGEST_SMOKE == 'true' || env.LEGACY_INGEST_SMOKE == '1' }}
         env:

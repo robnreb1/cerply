@@ -15,7 +15,11 @@
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "seed:demo": "node scripts/seed_demo.js",
-    "test": "vitest run --reporter=verbose"
+    "test": "vitest run --reporter=verbose",
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
+    "db:push": "drizzle-kit push --config=drizzle.config.ts",
+    "db:seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^9.4.0",
@@ -30,6 +34,7 @@
     "pdf-parse": "^1.1.1",
     "pg": "^8.11.3",
     "pino": "^9.3.2",
+    "drizzle-orm": "^0.33.0",
     "undici": "^7.13.0",
     "zod": "^3.25.76"
   },
@@ -45,6 +50,7 @@
     "tsx": "^4.15.7",
     "typescript": "^5.4.5",
     "vite": "^5.4.20",
-    "vitest": "^1.6.1"
+    "vitest": "^1.6.1",
+    "drizzle-kit": "^0.24.0"
   }
 }

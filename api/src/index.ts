@@ -2075,6 +2075,17 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
     reply.code(status).send({ error: { code, message } });
   });
 
+  // DB health
+  app.get('/api/db/health', async (_req, reply) => {
+    try {
+      const { rows } = await pool.query('select 1 as ok');
+      if (rows && rows.length > 0) return reply.send({ ok: true });
+      return reply.code(500).send({ error: { code: 'INTERNAL', message: 'DB health check failed' } });
+    } catch (e: any) {
+      return reply.code(500).send({ error: { code: 'INTERNAL', message: e?.message || 'DB error' } });
+    }
+  });
+
   return app;
 }
 
