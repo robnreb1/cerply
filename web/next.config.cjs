@@ -1,12 +1,10 @@
 // Next.js config (CJS)
 const path = require('path');
 
-const RAW_API =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:8080';
-// Normalize to avoid trailing slashes producing //api/... which can 404 on Fastify
-const API = RAW_API.replace(/\/+$/, '');
+const getApiBase = () => {
+  const raw = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+  return raw.replace(/\/+$/, '');
+};
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -23,14 +21,14 @@ const nextConfig = {
     return config;
   },
   async rewrites() {
+    const API = getApiBase();
     return [
       // IMPORTANT: preserve the /api prefix in the destination
       { source: '/api/:path*',       destination: `${API}/api/:path*` },
+      // Keep curated non-/api rewrites already accepted
       { source: '/curator/:path*',   destination: `${API}/curator/:path*` },
       { source: '/evidence/:path*',  destination: `${API}/evidence/:path*` },
       { source: '/learn/:path*',     destination: `${API}/learn/:path*` },
-
-      // Temporary diagnostic to prove rewrites are active (expect 204)
       { source: '/ping', destination: 'https://httpbin.org/status/204' },
     ];
   },
