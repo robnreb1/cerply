@@ -14,6 +14,7 @@ const EnvSchema = z.object({
   ITEMS_MODEL: z.string().optional(),
   ITEMS_MODEL_FALLBACK: z.string().optional(),
   ITEMS_MODEL_FALLBACK_2: z.string().optional(),
+  DATABASE_URL: z.string().url().optional(),
   ALLOW_DEV_ADMIN: z.enum(['true','false']).optional(),
   RATE_LIMIT_ENABLED: z.enum(['true','false']).optional(),
   CORS_ORIGINS: z.string().optional(),
