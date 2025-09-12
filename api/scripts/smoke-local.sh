@@ -46,3 +46,4 @@ curl_json -X POST "$API_BASE/api/analytics/record" \
   --data '{"kind":"smoke-stg","ts":"'"$(date -Iseconds)"'"}' | jq .
 
 echo "[smoke-stg] done"
+
