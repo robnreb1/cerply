@@ -72,6 +72,15 @@ jobs:
           chmod +x api/scripts/smoke-local.sh
           bash api/scripts/smoke-local.sh
 
+      - name: API smoke (legacy ingest)
+        if: ${{ env.LEGACY_INGEST_SMOKE == 'true' || env.LEGACY_INGEST_SMOKE == '1' }}
+        env:
+          LEGACY_INGEST_SMOKE: ${{ env.LEGACY_INGEST_SMOKE }}
+          API_BASE: http://localhost:8080
+        run: |
+          chmod +x scripts/smoke-stg.sh
+          bash scripts/smoke-stg.sh | sed -n '1,200p'
+
       - name: Stop API
         if: always()
         run: |

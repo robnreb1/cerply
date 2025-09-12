@@ -110,3 +110,30 @@ fi
 
 line
 echo "Assertions passed."
+
+# --- Optional: Legacy ingest smoke (guarded) ---
+if [[ "${LEGACY_INGEST_SMOKE:-}" == "1" || "${LEGACY_INGEST_SMOKE:-}" == "true" ]]; then
+  line
+  echo "==> Legacy ingest smoke (guarded)"
+
+  echo "-- unauth generate -> 401"
+  $CURL_BIN -sS -i "${API_BASE%/}/api/ingest/generate" \
+    -H 'content-type: application/json' \
+    --data '{"modules":[{"id":"m1","title":"Test","estMinutes":5}]}' | head -n 20 || true
+
+  echo "-- dev login"
+  LOGIN_NEXT=$($CURL_BIN -sS -X POST "${API_BASE%/}/api/auth/login" \
+    -H 'content-type: application/json' --data '{"email":"dev@local"}' | $JQ_BIN -r .next)
+  $CURL_BIN -sS -i -c /tmp/cerply.cookies "${API_BASE%/}${LOGIN_NEXT}&redirect=http://localhost:3000/" >/dev/null || true
+
+  echo "-- stubbed generate -> 200"
+  $CURL_BIN -sS -i -b /tmp/cerply.cookies "${API_BASE%/}/api/ingest/generate" \
+    -H 'content-type: application/json' -H 'x-generate-impl: v3-stub' \
+    --data '{"modules":[{"id":"m1","title":"Test","estMinutes":5}]}' | head -n 40 || true
+
+  echo "-- parse/preview/clarify/followup basic shape"
+  $CURL_BIN -sS -i "${API_BASE%/}/api/ingest/parse"    -X POST -H 'content-type: application/json' --data '{}' | head -n 20 || true
+  $CURL_BIN -sS -i "${API_BASE%/}/api/ingest/preview"  -X POST -H 'content-type: application/json' --data '{}' | head -n 20 || true
+  $CURL_BIN -sS -i "${API_BASE%/}/api/ingest/clarify"  -X POST -H 'content-type: application/json' --data '{}' | head -n 20 || true
+  $CURL_BIN -sS -i "${API_BASE%/}/api/ingest/followup" -X POST -H 'content-type: application/json' --data '{}' | head -n 20 || true
+fi
