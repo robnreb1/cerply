@@ -10,8 +10,9 @@ RUN npm ci --include=dev
 # 2) Build with the dev toolchain
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+# Install deps in the build stage to ensure scripts and bins are present
 COPY package*.json ./
+RUN npm ci --include=dev
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
