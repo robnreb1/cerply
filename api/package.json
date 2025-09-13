@@ -7,7 +7,7 @@
   },
   "scripts": {
     "clean": "rimraf dist",
-    "build": "tsup src/index.ts --out-dir dist --format cjs --sourcemap",
+    "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "start:dev": "tsx watch src/index.ts",
