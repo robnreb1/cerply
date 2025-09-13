@@ -215,11 +215,25 @@ const FLAGS = {
 };
 
 // Health endpoints
-app.get('/api/health', async (_req, reply) => {
+app.get('/api/health', async (req, reply) => {
   reply.header('x-api', 'api-health');
   // Advertise default planner choice for quick CLI checks
   reply.header('x-planner-default', modelFamily(PLANNER_PRIMARY));
-  return reply.send({
+  const q = (req as any).query as { db?: string } | undefined;
+  let dbInfo: any = undefined;
+  if (q && String(q.db || '').trim() === '1') {
+    const urlStr = String(process.env.DATABASE_URL || '');
+    let host = 'unset';
+    try { if (urlStr) host = new URL(urlStr).host; } catch {}
+    try {
+      if (!urlStr) throw new Error('DATABASE_URL not set');
+      const r = await pool.query('select 1 as ok');
+      dbInfo = { ok: Array.isArray(r?.rows) && r.rows.length > 0, host };
+    } catch (e: any) {
+      dbInfo = { ok: false, host, error: String(e?.message || e) };
+    }
+  }
+  const body: any = {
     ok: true,
     env: process.env.NODE_ENV ?? 'unknown',
     planner: {
@@ -228,7 +242,9 @@ app.get('/api/health', async (_req, reply) => {
       fallback: PLANNER_FALLBACK,
       enabled: LLM_PLANNER_ENABLED,
     },
-  });
+  };
+  if (dbInfo) body.db = dbInfo;
+  return reply.send(body);
 });
 
 app.get('/health', async (_req, reply) => {
