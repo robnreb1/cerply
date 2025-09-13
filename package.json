@@ -14,7 +14,9 @@
     "smoke:check": "npm run smoke",
     "typecheck": "npm -w api run typecheck && npm -w web run typecheck",
     "smoke:api": "bash api/scripts/smoke-local.sh",
-    "smoke:web": "bash web/scripts/smoke.sh"
+    "smoke:web": "bash web/scripts/smoke.sh",
+    "smoke:stg": "bash scripts/smoke-stg.sh",
+    "smoke:prod": "bash scripts/smoke-prod.sh"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

@@ -7,7 +7,7 @@
   },
   "scripts": {
     "clean": "rimraf dist",
-    "build": "tsup src/index.ts --out-dir dist --format cjs --sourcemap",
+    "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "start:dev": "tsx watch src/index.ts",
@@ -36,7 +36,6 @@
     "pdf-parse": "^1.1.1",
     "pg": "^8.11.3",
     "pino": "^9.3.2",
-    "drizzle-orm": "^0.33.0",
     "undici": "^7.13.0",
     "zod": "^3.25.76"
   },
@@ -49,6 +48,7 @@
     "rimraf": "^6.0.1",
     "supertest": "^7.1.4",
     "tsup": "^8.0.2",
+    "esbuild": "^0.21.5",
     "tsx": "^4.15.7",
     "typescript": "^5.4.5",
     "vite": "^5.4.20",

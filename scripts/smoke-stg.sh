@@ -3,12 +3,12 @@ set -euo pipefail
 
 # Usage:
 #   WEB_BASE="https://cerply-staging.vercel.app" \
-#   API_BASE="https://api-stg.cerply.com" \
+#   API_BASE="https://cerply-api-staging.onrender.com" \
 #   VERCEL_BYPASS="your-bypass-token" \
 #   bash scripts/smoke-stg.sh
 
 WEB_BASE="${WEB_BASE:-https://cerply-staging.vercel.app}"
-API_BASE="${API_BASE:-https://api-stg.cerply.com}"
+API_BASE="${API_BASE:-https://cerply-api-staging.onrender.com}"
 
 # Allow overrides if needed
 CURL_BIN="${CURL_BIN:-curl}"
@@ -84,6 +84,11 @@ line
 echo "==> API health (direct) ${API_BASE%/}/api/health"
 status_head "${API_BASE%/}/api/health" || true
 $CURL_BIN -sS "${API_BASE%/}/api/health" | $JQ_BIN . 2>/dev/null || true
+
+line
+echo "==> API db health (direct) ${API_BASE%/}/api/db/health"
+status_head "${API_BASE%/}/api/db/health" || true
+$CURL_BIN -sS "${API_BASE%/}/api/db/health" | $JQ_BIN . 2>/dev/null || true
 
 # --- API (direct): routes dump if available ---
 line
