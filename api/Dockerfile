@@ -1,27 +1,29 @@
-# --- build stage ---
-    FROM node:20-alpine AS build
+# --- deps stage: install deps incl. dev for build ---
+    FROM node:20-alpine AS deps
     WORKDIR /app
-    
-    # Only install api workspace deps
-    COPY api/package*.json ./
+    COPY package*.json ./
     RUN npm ci
     
-    # Copy the api source and build it
-    COPY api/ ./
+    # --- build stage: build TypeScript to dist/ ---
+    FROM deps AS build
+    WORKDIR /app
+    COPY tsconfig.json ./
+    COPY src ./src
     RUN npm run build
     
-    # --- runtime stage ---
-    FROM node:20-alpine
-    ENV NODE_ENV=production
+    # --- prod runtime: copy built app + production deps ---
+    FROM node:20-alpine AS runtime
     WORKDIR /app
-    
-    # Bring over the built app and package files
+    ENV NODE_ENV=production
+    # copy node_modules from deps (already resolved via npm ci)
+    COPY --from=deps /app/node_modules ./node_modules
+    # copy built JS
     COPY --from=build /app/dist ./dist
-    COPY --from=build /app/package*.json ./
+    # if you have any runtime-only assets (emails/templates/etc), copy them here:
+    # COPY assets ./assets
     
-    # Install only production deps
-    RUN npm ci --omit=dev
-    
-    # Render listens on 10000 in Node services/containers
+    # Fastify on Render listens on $PORT; default in code is often 10000.
+    ENV PORT=10000
     EXPOSE 10000
-    CMD ["node","dist/index.js"]
+    
+    CMD ["node", "dist/index.js"]
