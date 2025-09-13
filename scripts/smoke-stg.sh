@@ -85,6 +85,11 @@ echo "==> API health (direct) ${API_BASE%/}/api/health"
 status_head "${API_BASE%/}/api/health" || true
 $CURL_BIN -sS "${API_BASE%/}/api/health" | $JQ_BIN . 2>/dev/null || true
 
+line
+echo "==> API db health (direct) ${API_BASE%/}/api/db/health"
+status_head "${API_BASE%/}/api/db/health" || true
+$CURL_BIN -sS "${API_BASE%/}/api/db/health" | $JQ_BIN . 2>/dev/null || true
+
 # --- API (direct): routes dump if available ---
 line
 echo "==> Routes count (direct)"
