@@ -1,7 +1,9 @@
 node_modules
-npm-debug.log
+dist
+.git
 Dockerfile
 .dockerignore
-dist
 .env*
+logs/
+tmp/
 drizzle/
