@@ -17,6 +17,8 @@ ENV CI=true
 RUN npm ci --include=dev --no-audit --no-fund
 COPY tsconfig.json ./
 COPY src ./src
+# Rollup native binary may be unavailable in minimal containers; force JS fallback
+ENV ROLLUP_SKIP_NODEJS_NATIVE=true
 RUN npm run build
 
 # 3) Slim runtime with only prod deps
