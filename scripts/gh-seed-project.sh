@@ -33,15 +33,48 @@ create_or_locate_project_number() {
 PROJECT_NUMBER="$(create_or_locate_project_number || true)"
 if [[ -n "${PROJECT_NUMBER:-}" ]]; then
   echo "PROJECT_NUMBER=$PROJECT_NUMBER"
-  # Ensure basic fields exist (use number + owner)
-  if ! gh project field-list --owner "$ORG" --number "$PROJECT_NUMBER" --format json | jq -e '.[] | select(.name=="Status")' >/dev/null; then
-    gh project field-create --owner "$ORG" --number "$PROJECT_NUMBER" --name Status --data-type SINGLE_SELECT --single-select-options "Todo,In Progress,Done" >/dev/null
+  # Helpers to support both new and older gh CLIs
+  project_field_list() {
+    if OUT=$(gh project field-list --owner "$ORG" --number "$PROJECT_NUMBER" --format json 2>/dev/null); then
+      echo "$OUT"
+    else
+      gh project field-list "$PROJECT_NUMBER" --owner "$ORG" --format json
+    fi
+  }
+  project_field_create_single_select() {
+    local name="$1" options="$2"
+    if gh project field-create --owner "$ORG" --number "$PROJECT_NUMBER" --name "$name" --data-type SINGLE_SELECT --single-select-options "$options" >/dev/null 2>/dev/null; then
+      return 0
+    else
+      gh project field-create "$PROJECT_NUMBER" --owner "$ORG" --name "$name" --data-type SINGLE_SELECT --single-select-options "$options" >/dev/null
+    fi
+  }
+  project_field_create_text() {
+    local name="$1"
+    if gh project field-create --owner "$ORG" --number "$PROJECT_NUMBER" --name "$name" --data-type TEXT >/dev/null 2>/dev/null; then
+      return 0
+    else
+      gh project field-create "$PROJECT_NUMBER" --owner "$ORG" --name "$name" --data-type TEXT >/dev/null
+    fi
+  }
+  project_item_add() {
+    local url="$1"
+    if OUT=$(gh project item-add --owner "$ORG" --number "$PROJECT_NUMBER" --url "$url" --format json 2>/dev/null); then
+      echo "$OUT" | jq -r .id
+    else
+      gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$url" --format json | jq -r .id
+    fi
+  }
+
+  # Ensure basic fields exist
+  if ! project_field_list | jq -e '.[] | select(.name=="Status")' >/dev/null; then
+    project_field_create_single_select "Status" "Todo,In Progress,Done"
   fi
-  if ! gh project field-list --owner "$ORG" --number "$PROJECT_NUMBER" --format json | jq -e '.[] | select(.name=="Epic")' >/dev/null; then
-    gh project field-create --owner "$ORG" --number "$PROJECT_NUMBER" --name Epic --data-type TEXT >/dev/null
+  if ! project_field_list | jq -e '.[] | select(.name=="Epic")' >/dev/null; then
+    project_field_create_text "Epic"
   fi
-  FIELD_STATUS_ID="$(gh project field-list --owner "$ORG" --number "$PROJECT_NUMBER" --format json | jq -r '.[] | select(.name=="Status").id')"
-  FIELD_EPIC_ID="$(gh project field-list --owner "$ORG" --number "$PROJECT_NUMBER" --format json | jq -r '.[] | select(.name=="Epic").id')"
+  FIELD_STATUS_ID="$(project_field_list | jq -r '.[] | select(.name=="Status").id')"
+  FIELD_EPIC_ID="$(project_field_list | jq -r '.[] | select(.name=="Epic").id')"
 else
   echo "ℹ️  Could not create or locate project; will create issues only."
 fi
@@ -88,7 +121,7 @@ for (( i=0; i< len; i++ )); do
   echo "    #$number"
   if [[ -n "${PROJECT_NUMBER:-}" ]]; then
     echo "    adding to project…"
-    item_id=$(gh project item-add --owner "$ORG" --number "$PROJECT_NUMBER" --url "https://github.com/$ORG/$REPO/issues/$number" --format json | jq -r .id)
+    item_id=$(project_item_add "https://github.com/$ORG/$REPO/issues/$number")
     gh project item-edit --id "$item_id" --field-id "$FIELD_STATUS_ID" --single-select-option-name "Todo" >/dev/null
     gh project item-edit --id "$item_id" --field-id "$FIELD_EPIC_ID" --text "$title" >/dev/null
   fi
