@@ -39,6 +39,7 @@ import { isAdminAllowed, hasSessionFromReq } from './admin';
 import { parseEnv } from './env';
 import { registerChatRoutes } from './routes/chat';
 import { registerIngestRoutes } from './routes/ingest';
+import { registerAuthRoutes } from './routes/auth';
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -276,42 +277,8 @@ app.get('/api/analytics/pilot', async () => {
   };
 });
 
-// ---------------------
-// Auth (per spec)
-// ---------------------
-const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'cerply_session';
-const isProd = process.env.NODE_ENV === 'production';
-
-app.post('/api/auth/login', async (req, reply) => {
-  const { email } = ((req as any).body ?? {}) as { email?: string };
-  if (!email || typeof email !== 'string') {
-    return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'missing email' } });
-  }
-  const token = Buffer.from(`${email}:${Date.now()}`).toString('base64url');
-  const next = `/api/auth/callback?token=${token}`;
-  return reply.send({ ok: true, dev: true, next });
-});
-
-app.get('/api/auth/callback', async (req, reply) => {
-  const q = (req as any).query as { token?: string; redirect?: string };
-  const token = q?.token;
-  if (!token) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'missing token' } });
-  reply.setCookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  const target = q?.redirect && /^https?:\/\//i.test(q.redirect) ? q.redirect : 'http://localhost:3000/';
-  return reply.redirect(302, target);
-});
-
-app.get('/api/auth/me', async (req, reply) => {
-  const cookie = getSessionCookie(req, COOKIE_NAME);
-  if (!cookie) return reply.code(401).send({ ok: false, user: null });
-  return reply.send({ ok: true, user: { id: 'dev', email: 'dev@local' } });
-});
+// Auth routes
+await registerAuthRoutes(app);
 
 
 function modelFamily(name: string): string {
