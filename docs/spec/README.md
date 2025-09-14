@@ -1,3 +1,8 @@
+# Spec Index
+
+- [Functional Spec](../functional-spec.md)
+- [Launch Plan v4.1](../launch/plan-v4.1.md)
+
 # Cerply Spec (working set)
 Source of truth lives here. Update BEFORE coding. Keep docs/functional-spec.md as the high-level summary.
 

@@ -1051,6 +1051,7 @@ app.get('/__dev', async (_req, reply) => {
 // Ingest: parse (normalize raw input into text)  ← simple normalizer used by web/app/api/ingest/parse proxy
 // ---------------------
 async function handleIngestParse(req: FastifyRequest, reply: FastifyReply) {
+  const startedAt = Date.now();
   try {
     // Support JSON {text?, url?} or text/plain
     const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
@@ -1082,14 +1083,21 @@ async function handleIngestParse(req: FastifyRequest, reply: FastifyReply) {
       kind = 'text';
     }
 
+    // Build a minimal, stable outline
+    const bytes = Buffer.byteLength(text, 'utf8');
+    const rawSections = text.split(/\n\s*\n+/).map(s => s.trim()).filter(Boolean);
+    const sections = rawSections.map((s, i) => ({ id: `sec-${String(i + 1).padStart(2,'0')}`, title: s.split(/\s+/).slice(0, 8).join(' ') }));
+    const wordCounts: Record<string, number> = {};
+    for (const w of text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)) {
+      if (w.length < 3) continue;
+      wordCounts[w] = (wordCounts[w] || 0) + 1;
+    }
+    const topics = Object.entries(wordCounts).sort((a,b) => b[1]-a[1]).slice(0, 8).map(([term, count], i) => ({ id: `topic-${String(i+1).padStart(2,'0')}`, term, weight: count }));
+
     reply.header('cache-control', 'no-store');
     reply.header('x-api', 'ingest-parse');
-    return reply.send({
-      ok: true,
-      parsed: { kind, text },
-      bytes: Buffer.byteLength(text, 'utf8'),
-      ts: new Date().toISOString(),
-    });
+    (req as any).log?.info?.({ route: '/api/ingest/parse', kind, bytes, durationMs: Date.now() - startedAt, reqId: (req as any).id }, 'ingest_parse');
+    return reply.send({ sections, topics });
   } catch (err: any) {
     (req as any).log?.error?.({ err }, 'ingest/parse failed');
     return reply.code(500).send({ error: { code: 'INTERNAL', message: 'parse failed' } });
@@ -1115,6 +1123,7 @@ function pickText(contentType: string | undefined, body: any, rawText?: string):
 // ---------------------
 
 async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
+  const startedAt = Date.now();
   try {
     // Test/stub toggle via header
     const implHeader = String((req.headers as any)['x-preview-impl'] ?? '');
@@ -1345,7 +1354,17 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
     reply.header('x-preview-impl', impl || 'v3-llm');
     if (planner) reply.header('x-planner', planner);
     if (modelUsed) reply.header('x-model', modelUsed);
-    return reply.send(diag ? { ok: true, modules, diagnostics: diag } : { ok: true, modules });
+    const shaped = modules.map((m: any, i: number) => ({
+      id: String(m?.id ?? `mod-${String(i + 1).padStart(2,'0')}`),
+      title: String(m?.title ?? `Module ${i + 1}`),
+      estMinutes: Math.max(5, Math.min(25, Number(m?.estMinutes ?? 10))),
+      exampleQuestions: [
+        `Explain ${String(m?.title ?? 'this')} in a few sentences.`,
+        `Give one example where ${String(m?.title ?? 'this')} applies.`,
+      ],
+    }));
+    (req as any).log?.info?.({ route: '/api/ingest/preview', impl, planner, durationMs: Date.now() - startedAt, reqId: (req as any).id }, 'ingest_preview');
+    return reply.send({ modules: shaped });
   } catch (err: any) {
     (req as any).log?.error?.({ err }, 'ingest/preview failed');
     return reply.code(500).send({ error: { code: 'INTERNAL', message: 'preview failed' } });
@@ -1360,8 +1379,9 @@ app.post('/ingest/preview', handleIngestPreview);
 // Ingest: clarify (per spec)
 // ---------------------
 app.post('/api/ingest/clarify', async (req: FastifyRequest, reply: FastifyReply) => {
-  const body = ((req as any).body ?? {}) as { text?: string };
-  const input = (body.text ?? '').toString();
+  const startedAt = Date.now();
+  const body = ((req as any).body ?? {}) as { question?: string; context?: string; text?: string };
+  const input = (body.question ?? body.text ?? '').toString();
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
   const lowerInput = input.toLowerCase();
 
@@ -1383,6 +1403,7 @@ app.post('/api/ingest/clarify', async (req: FastifyRequest, reply: FastifyReply)
         const modules = llm.modules.slice(0, 6);
         reply.header('cache-control', 'no-store');
         reply.header('x-api', 'ingest-clarify');
+        (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'propose', count: modules.length, durationMs: Date.now() - startedAt }, 'ingest_clarify');
         return reply.send({ propose: modules });
       } catch (e) {
         // Simple fallback scaffold if planner hiccups
@@ -1396,6 +1417,7 @@ app.post('/api/ingest/clarify', async (req: FastifyRequest, reply: FastifyReply)
         ].slice(0, 6).map((title, i) => ({ id: `mod-${String(i+1).padStart(2,'0')}`, title, estMinutes: 10 }));
         reply.header('cache-control', 'no-store');
         reply.header('x-api', 'ingest-clarify');
+        (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'fallback-propose', count: seeds.length, durationMs: Date.now() - startedAt }, 'ingest_clarify');
         return reply.send({ propose: seeds });
       }
     }
@@ -1438,13 +1460,18 @@ app.post('/api/ingest/clarify', async (req: FastifyRequest, reply: FastifyReply)
       title: String(m?.title ?? `Module ${i + 1}`),
       estMinutes: Math.max(5, Math.min(25, Number(m?.estMinutes ?? 10)))
     })).slice(0, 6);
+      (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'llm-propose', count: modules.length, durationMs: Date.now() - startedAt }, 'ingest_clarify');
       return reply.send({ propose: modules });
     }
-    return reply.send({ question: question || "What’s your aim and current level? Any particular focus to start with?" });
+    const q = question || "What’s your aim and current level? Any particular focus to start with?";
+    (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'llm-question', durationMs: Date.now() - startedAt }, 'ingest_clarify');
+    return reply.send({ question: q });
   } catch {
     reply.header('cache-control', 'no-store');
     reply.header('x-api', 'ingest-clarify');
-    return reply.send({ question: "What’s your aim and current level? Any particular focus to start with?" });
+    const q = "What’s your aim and current level? Any particular focus to start with?";
+    (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'fallback-question', durationMs: Date.now() - startedAt }, 'ingest_clarify');
+    return reply.send({ question: q });
   }
 });
 
@@ -1491,6 +1518,7 @@ app.post('/api/ingest/followup', async (req: FastifyRequest, reply: FastifyReply
 });
 
 app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply) => {
+  const startedAt = Date.now();
   // Auth gate: require session unconditionally (legacy wrapper)
   if (!hasSessionFromReq(req as any)) {
     reply.header('www-authenticate', 'Session realm="cerply"');
@@ -1498,6 +1526,7 @@ app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply
   }
   if (shouldStubGenerate(req)) {
     reply.header('x-api', 'ingest-generate');
+    (req as any).log?.info?.({ route: '/api/ingest/generate', impl: 'v3-stub', durationMs: Date.now() - startedAt, reqId: (req as any).id }, 'ingest_generate');
     return reply.send({ ok: true, items: deterministicGenerateStub() });
   }
   const b = ((req as any).body ?? {}) as { modules?: { id: string; title: string; estMinutes?: number }[] };
@@ -1568,6 +1597,7 @@ app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply
       ['lesson_pack', `Auto pack ${new Date().toISOString()}`, JSON.stringify(items)]
     );
   } catch {}
+  (req as any).log?.info?.({ route: '/api/ingest/generate', impl: OPENAI_API_KEY ? 'llm' : 'mock:router', durationMs: Date.now() - startedAt, reqId: (req as any).id }, 'ingest_generate');
   return reply.send({ ok: true, items });
 });
 
