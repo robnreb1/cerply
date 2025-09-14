@@ -117,8 +117,23 @@ for (( i=0; i< len; i++ )); do
   title="${EPIC_TITLES[$i]}"
   body="Epic: ${EPIC_TITLES[$i]}\n\n${EPIC_BODIES[$i]}"
   echo "==> Creating issue: $title"
-  number=$(gh issue create --repo "$ORG/$REPO" --title "$title" --body "$body" --label "v4.1" --json number --jq .number)
-  echo "    #$number"
+  # Older gh versions don't support --json; capture URL from stdout
+  url=$(gh issue create --repo "$ORG/$REPO" --title "$title" --body "$body" --label "v4.1" 2>/dev/null || true)
+  # Fallback: print to stderr for visibility
+  if [[ -z "$url" ]]; then
+    >&2 echo "⚠️  gh issue create did not return a URL; attempting to fetch last created issue by title"
+    # Try to find issue by title (may return multiple; pick first open)
+    url=$(gh issue list --repo "$ORG/$REPO" --state open --search "$title in:title" --limit 1 --json url --jq '.[0].url' 2>/dev/null || true)
+  fi
+  number=""
+  if [[ -n "$url" ]]; then
+    number=$(echo "$url" | sed -n 's#.*/issues/\([0-9][0-9]*\).*#\1#p' | head -n1)
+  fi
+  if [[ -z "$number" ]]; then
+    >&2 echo "❌ Could not determine issue number for '$title'"
+    continue
+  fi
+  echo "    #$number ($url)"
   if [[ -n "${PROJECT_NUMBER:-}" ]]; then
     echo "    adding to project…"
     item_id=$(project_item_add "https://github.com/$ORG/$REPO/issues/$number")
