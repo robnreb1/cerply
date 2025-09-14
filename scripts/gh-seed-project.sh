@@ -16,7 +16,7 @@ REPO="${REPO:-cerply}"
 PROJECT_TITLE="${PROJECT_TITLE:-Cerply v4.1 Launch}"
 
 create_or_locate_project_number() {
-  echo "==> Creating/locating project: $PROJECT_TITLE (owner: $ORG)"
+  >&2 echo "==> Creating/locating project: $PROJECT_TITLE (owner: $ORG)"
   # Try list first
   if LIST_JSON=$(gh project list --owner "$ORG" --format json 2>/dev/null); then
     NUM=$(echo "$LIST_JSON" | jq -r ".[] | select(.title==\"$PROJECT_TITLE\").number" | head -n1)
@@ -32,7 +32,7 @@ create_or_locate_project_number() {
 
 PROJECT_NUMBER="$(create_or_locate_project_number || true)"
 if [[ -n "${PROJECT_NUMBER:-}" ]]; then
-  echo "PROJECT_NUMBER=$PROJECT_NUMBER"
+  >&2 echo "PROJECT_NUMBER=$PROJECT_NUMBER"
   # Helpers to support both new and older gh CLIs
   project_field_list() {
     if OUT=$(gh project field-list --owner "$ORG" --number "$PROJECT_NUMBER" --format json 2>/dev/null); then
