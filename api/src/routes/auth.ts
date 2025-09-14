@@ -17,7 +17,7 @@ function buildCookie(token: string) {
     'SameSite=Lax',
     `Max-Age=${maxAge}`
   ];
-  if (process.env.NODE_ENV && process.env.NODE_ENV !== 'dev') parts.push('Secure');
+  if (process.env.NODE_ENV === 'production') parts.push('Secure');
   return parts.join('; ');
 }
 
