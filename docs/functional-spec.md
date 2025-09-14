@@ -134,6 +134,8 @@ Headers: x-planner, x-model, x-api: chat-orchestrate.
 	•	GET /api/auth/callback?token=... → sets cerply_session cookie (HttpOnly, SameSite=Lax)
 	•	GET /api/auth/me → { ok, user|null }
 
+	> Gate /api/ingest/generate requires session when REQUIRE_AUTH_FOR_GENERATE=1 (401 + WWW-Authenticate: Session). Cookie flags: HttpOnly, SameSite=Lax, Max-Age=30d; Secure in production.
+
 	•	GET /api/db/health → { ok, host } (500 with { error } on failure); sets x-api: db-health
 
 LLM planner toggles: OPENAI_API_KEY, LLM_PREVIEW=1, LLM_PLANNER_PROVIDER=openai, LLM_PLANNER_MODEL=gpt-4o-mini (overrideable), hard 503 on missing/invalid.
