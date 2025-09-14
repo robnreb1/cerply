@@ -61,6 +61,12 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     if (!sess) return { ok: false, user: null };
     return { ok: true, user: { email: sess.email } };
   });
+
+  app.post('/api/auth/logout', async (_req, reply) => {
+    reply.header('x-api', 'auth-logout');
+    reply.header('Set-Cookie', 'cerply_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+    return { ok: true };
+  });
 }
 
 
