@@ -32,6 +32,9 @@ else
   fail "db/health unexpected status: $STATUS"
 fi
 
+# Auth acceptance (requires REQUIRE_AUTH_FOR_GENERATE=1 in prod)
+BASE="${PROD:-https://api.cerply.com}" bash ./scripts/acceptance-auth.sh
+
 # Chat acceptance (prod-safe: clarifier/plan only)
 BASE="${PROD:-https://api.cerply.com}" bash ./scripts/acceptance-chat.sh
 
