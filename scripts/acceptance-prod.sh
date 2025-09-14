@@ -32,6 +32,9 @@ else
   fail "db/health unexpected status: $STATUS"
 fi
 
+# Chat acceptance (prod-safe: clarifier/plan only)
+BASE="${PROD:-https://api.cerply.com}" bash ./scripts/acceptance-chat.sh
+
 # --- Parse (text) ---
 RES=$(curl -sS -i -X POST "$PROD/api/ingest/parse" -H 'content-type: application/json' \
   --data '{"text":"Intro to statistics: mean, variance, confidence intervals."}')
