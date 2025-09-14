@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+PNUM_ENV="${PNUM:-}"
 
 : "${ORG:?Set ORG=your-user-or-org}"
 : "${REPO:?Set REPO=your-repo}"
@@ -8,37 +9,63 @@ PROJECT_TITLE="${PROJECT_TITLE:-Cerply v4.1 Launch}"
 echo "==> gh auth check" >&2
 gh auth status -h github.com >/dev/null
 
-# Resolve your actual login; used for listing/adding items
+# Resolve your actual login & id
 SELF_LOGIN="$(gh api user -q .login)"
+SELF_ID="$(gh api user -q .id)"
 
-# Helper: get project number by title for a given owner
-get_pnum() {
+get_pnum_cli() {
   local owner="$1"
   gh project list --owner "$owner" --json number,title \
     --jq '.[] | select(.title=="'"$PROJECT_TITLE"'") | .number' 2>/dev/null || true
 }
 
-echo "==> Locate or create user/org project: $SELF_LOGIN / '$PROJECT_TITLE'" >&2
-PNUM="$(get_pnum "$SELF_LOGIN")"
-if [[ -z "${PNUM:-}" ]]; then
-  # Create under @me for best compatibility with older gh
-  echo "   Creating project under @me…" >&2
-  # Print the number directly from create (gh 2.76 supports --template)
-  created_num="$(gh project create --owner "@me" --title "$PROJECT_TITLE" --template '{{.number}}' 2>/dev/null || true)"
-  # Poll until visible on your login (eventual consistency)
-  for i in {1..10}; do
-    sleep 2
-    PNUM="$(get_pnum "$SELF_LOGIN")"
-    [[ -n "$PNUM" ]] && break
-  done
-  # If still empty, fall back to the number we captured from create
-  if [[ -z "${PNUM:-}" && -n "${created_num:-}" ]]; then
-    PNUM="$created_num"
+get_pnum_gql() {
+  gh api graphql \
+    -f query='query($login:String!,$title:String!){
+      user(login:$login){
+        projectsV2(first:50, query:$title){ nodes { number title } }
+      }
+    }' \
+    -F login="$SELF_LOGIN" -F title="$PROJECT_TITLE" \
+    -q '.data.user.projectsV2.nodes[] | select(.title=="'"$PROJECT_TITLE"'") | .number' 2>/dev/null || true
+}
+
+create_project_gql() {
+  gh api graphql \
+    -f query='mutation($owner:ID!,$title:String!){
+      createProjectV2(input:{ownerId:$owner, title:$title}){
+        projectV2{ number title url }
+      }
+    }' \
+    -F owner="$SELF_ID" -F title="$PROJECT_TITLE" \
+    -q .data.createProjectV2.projectV2.number
+}
+
+echo "==> Locate or create user project: $SELF_LOGIN / '$PROJECT_TITLE'" >&2
+
+if [[ -n "$PNUM_ENV" ]]; then
+  PNUM="$PNUM_ENV"
+  echo "Using provided PROJECT_NUMBER=$PNUM" >&2
+else
+  PNUM="$(get_pnum_cli "$SELF_LOGIN")"
+  [[ -z "$PNUM" ]] && PNUM="$(get_pnum_gql)"
+  if [[ -z "$PNUM" ]]; then
+    echo "   Creating via GraphQL…" >&2
+    created_num="$(create_project_gql || true)"
+    # Poll CLI then GQL up to ~20s
+    for i in {1..10}; do
+      sleep 2
+      PNUM="$(get_pnum_cli "$SELF_LOGIN")"
+      [[ -n "$PNUM" ]] && break
+      PNUM="$(get_pnum_gql)"
+      [[ -n "$PNUM" ]] && break
+    done
+    [[ -z "$PNUM" && -n "$created_num" ]] && PNUM="$created_num"
   fi
 fi
 
 if [[ -z "${PNUM:-}" ]]; then
-  echo "ERROR: Could not obtain project number. Try: gh project list --owner @me and gh project list --owner $SELF_LOGIN" >&2
+  echo "ERROR: Could not obtain project number. Try: gh project list --owner $SELF_LOGIN" >&2
   exit 1
 fi
 echo "PROJECT_NUMBER=$PNUM" >&2
