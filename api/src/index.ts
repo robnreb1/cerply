@@ -38,6 +38,7 @@ import { adaptModulesForProfile } from './profileAdapt';
 import { isAdminAllowed, hasSessionFromReq } from './admin';
 import { parseEnv } from './env';
 import { registerChatRoutes } from './routes/chat';
+import { registerIngestRoutes } from './routes/ingest';
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -321,6 +322,7 @@ function modelFamily(name: string): string {
 }
 
 await registerChatRoutes(app);
+await registerIngestRoutes(app);
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
@@ -1179,234 +1181,16 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
 }
 
 // Register preview on both URLs
-app.post('/api/ingest/preview', handleIngestPreview);
 app.post('/ingest/preview', handleIngestPreview);
 
 // ---------------------
 // Ingest: clarify (per spec)
 // ---------------------
-app.post('/api/ingest/clarify', async (req: FastifyRequest, reply: FastifyReply) => {
-  const startedAt = Date.now();
-  const body = ((req as any).body ?? {}) as { question?: string; context?: string; text?: string };
-  const input = (body.question ?? body.text ?? '').toString();
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
-  const lowerInput = input.toLowerCase();
-
-  // If no LLM key, hard fail (no heuristic clarifier)
-  if (!OPENAI_API_KEY) {
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-clarify');
-    return reply.code(503).send({ error: { code: 'MODEL_UNAVAILABLE', message: 'OpenAI API key missing. Set OPENAI_API_KEY in api/.env.local and restart the API.' } });
-  }
-
-  // Propose-first for instruction-style briefs (e.g., "train me to…", "how to…", "start a business like…")
-  try {
-    const instruct = /\b(train|teach|help|show)\s+me\b/.test(lowerInput) || /\bhow\s+to\b/.test(lowerInput) || /start\s+(a\s+)?business\b/.test(lowerInput) || /build\s+(a\s+)?business\b/.test(lowerInput);
-    if (instruct) {
-      // Use planner to draft a short scaffold directly
-      const intent = analyzeIntent(input);
-      try {
-        const llm = await planModulesLLM({ topic: intent.topic, mins: intent.mins, isIntro: intent.isIntro, focus: intent.focus });
-        const modules = llm.modules.slice(0, 6);
-        reply.header('cache-control', 'no-store');
-        reply.header('x-api', 'ingest-clarify');
-        (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'propose', count: modules.length, durationMs: Date.now() - startedAt }, 'ingest_clarify');
-        return reply.send({ propose: modules });
-      } catch (e) {
-        // Simple fallback scaffold if planner hiccups
-        const seeds = [
-          'Pick a problem worth solving (first principles)',
-          'Market research: users, pain, willingness to pay',
-          'Build a fast MVP (speed over polish)',
-          'Capital and risk: funding, cash-flow, pricing',
-          'Hiring and culture for execution',
-          'Launch, iterate, and scale'
-        ].slice(0, 6).map((title, i) => ({ id: `mod-${String(i+1).padStart(2,'0')}`, title, estMinutes: 10 }));
-        reply.header('cache-control', 'no-store');
-        reply.header('x-api', 'ingest-clarify');
-        (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'fallback-propose', count: seeds.length, durationMs: Date.now() - startedAt }, 'ingest_clarify');
-        return reply.send({ propose: seeds });
-      }
-    }
-  } catch {}
-
-  const system = [
-    'You are an expert educator in every known topic (up to PhD level) who speaks in clear, non‑patronising language.',
-    'When the user asks open-endedly (e.g., "how to build a business in the style of Elon Musk", "how to do X"), do not stall with level questions. Instead, propose a short, sensible module scaffold immediately (2–6 modules) that would teach this from a reasonable starting point. Keep titles specific. After proposing, you may ask one follow-up to tailor depth.',
-    'When the user explicitly mentions an exam syllabus (GCSE/A‑Level/KS3–5), ask level/board succinctly; otherwise avoid generic level questions and prefer proposing a draft scaffold first.',
-    'Save useful learner signals (level, preferences like refresher vs dive-deep, focus) as prefs for future sessions.',
-    'Return STRICT JSON: { "question?": string, "propose?": [ { "id": string, "title": string, "estMinutes": number } ], "prefs?": object } — If "propose" is present, keep it to 2–6 modules; if you truly cannot propose, fallback to a single short "question".'
-  ].join(' ');
-
-  const user = JSON.stringify({ brief: input });
-  try {
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify(makeChatBody('gpt-5', system, user, true, 0.2))
-    });
-    if (!r.ok) throw new Error(String(r.status));
-    const j = await r.json().catch(() => ({}));
-    let parsed: any = {};
-    try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    const proposed = Array.isArray(parsed?.propose) ? parsed.propose : [];
-    const question = typeof parsed?.question === 'string' && parsed.question.trim() ? parsed.question.trim() : undefined;
-    const prefs = parsed?.prefs && typeof parsed.prefs === 'object' ? parsed.prefs : undefined;
-    if (prefs) {
-      // Store to learner profile best-effort
-      try {
-        await pool.query('insert into artefacts (kind, title, content, created_at) values ($1,$2,$3, now())', ['learner_profile_note', 'clarify_prefs', JSON.stringify(prefs)]);
-      } catch {}
-    }
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-clarify');
-    if (proposed.length) {
-      // Pass back a draft scaffold so the web can show a plan immediately
-    const modules = proposed.map((m: any, i: number) => ({
-      id: typeof m?.id === 'string' ? m.id : `mod-${String(i + 1).padStart(2, '0')}`,
-      title: String(m?.title ?? `Module ${i + 1}`),
-      estMinutes: Math.max(5, Math.min(25, Number(m?.estMinutes ?? 10)))
-    })).slice(0, 6);
-      (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'llm-propose', count: modules.length, durationMs: Date.now() - startedAt }, 'ingest_clarify');
-      return reply.send({ propose: modules });
-    }
-    const q = question || "What’s your aim and current level? Any particular focus to start with?";
-    (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'llm-question', durationMs: Date.now() - startedAt }, 'ingest_clarify');
-    return reply.send({ question: q });
-  } catch {
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-clarify');
-    const q = "What’s your aim and current level? Any particular focus to start with?";
-    (req as any).log?.info?.({ route: '/api/ingest/clarify', mode: 'fallback-question', durationMs: Date.now() - startedAt }, 'ingest_clarify');
-    return reply.send({ question: q });
-  }
-});
 
 // ---------------------
 // Ingest: followup (per spec)
 // ---------------------
-app.post('/api/ingest/followup', async (req: FastifyRequest, reply: FastifyReply) => {
-  const body = ((req as any).body ?? {}) as {
-    message?: string;
-    modules?: { id: string; title: string; estMinutes?: number }[];
-  };
-  const message = (body.message ?? '').toString();
-  const modules = Array.isArray(body.modules) ? body.modules : [];
-  const lower = message.toLowerCase();
 
-  // add/include → updated-plan
-  const addMatch = lower.match(/(?:add|include)\s+(.+?)(?:\.|$)/);
-  if (addMatch && modules.length) {
-    const title = `Focus: ${addMatch[1].trim()}`;
-    const exists = modules.some(m => m.title.toLowerCase() === title.toLowerCase());
-    const updated = exists ? modules : [...modules, { id: `mod-${String(modules.length + 1).padStart(2, '0')}`, title, estMinutes: 10 }];
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-followup');
-    return reply.send({ action: 'updated-plan', modules: updated });
-  }
-
-  // generate/create items → generated-items
-  if (/(generate|create).*(items|lesson|questions)/.test(lower) && modules.length) {
-  const items = modules.map((m: any, i: number) => ({
-    moduleId: m.id,
-    title: m.title,
-    explanation: `Overview of "${m.title}"`,
-    questions: { mcq: mkItem(`Which statement best captures "${m.title}"?`, i), free: { prompt: `In 2–3 sentences, explain "${m.title}" to a colleague.` } }
-  }));
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-followup');
-    return reply.send({ action: 'generated-items', items });
-  }
-
-  // default → refine
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'ingest-followup');
-  return reply.send({ action: 'refine', brief: message, message });
-});
-
-app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply) => {
-  const startedAt = Date.now();
-  // Auth gate: require session unconditionally (legacy wrapper)
-  if (!hasSessionFromReq(req as any)) {
-    reply.header('www-authenticate', 'Session realm="cerply"');
-    return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'Login required to generate items' } });
-  }
-  if (shouldStubGenerate(req)) {
-    reply.header('x-api', 'ingest-generate');
-    (req as any).log?.info?.({ route: '/api/ingest/generate', impl: 'v3-stub', durationMs: Date.now() - startedAt, reqId: (req as any).id }, 'ingest_generate');
-    return reply.send({ ok: true, items: deterministicGenerateStub() });
-  }
-  const b = ((req as any).body ?? {}) as { modules?: { id: string; title: string; estMinutes?: number }[] };
-  const mods = Array.isArray(b.modules) ? b.modules : [];
-  if (mods.length === 0) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'modules[] required' } });
-  // Prefer GPT-5-Thinking for lesson item generation; fallback to a compatible model; no heuristic templates
-  const ITEMS_PRIMARY_MODEL = (process.env.ITEMS_MODEL ?? 'gpt-5-thinking').toString();
-  const ITEMS_FALLBACK_MODEL = (process.env.ITEMS_MODEL_FALLBACK ?? 'gpt-4o').toString();
-  const ITEMS_FALLBACK_MODEL_2 = (process.env.ITEMS_MODEL_FALLBACK_2 ?? 'gpt-4o-mini').toString();
-  async function callItems(modelName: string) {
-    const sys = [
-      'You generate compact, high-quality lesson items from a short module list.',
-      'Return STRICT JSON: { "items": [ { "moduleId": string, "title": string, "explanation": string, "questions": { "mcq": {"id": string, "stem": string, "options": string[4], "correctIndex": number }, "free": { "prompt": string } } } ] }.',
-      'Explanations should be 2–4 sentences and avoid boilerplate wording like "Overview of…". The free-text prompt should be natural (e.g., "Explain X in a few sentences for a peer"). MCQ must have exactly 4 plausible options.'
-    ].join(' ');
-    const user = JSON.stringify({ modules: mods });
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify(makeChatBody(modelName, sys, user, true, 0.0))
-    });
-    return r;
-  }
-  let items: any[] = [];
-  let usedModel = '';
-  try {
-    if (!OPENAI_API_KEY) throw new Error('missing_key');
-    let r = await callItems(ITEMS_PRIMARY_MODEL);
-    if (!r.ok) {
-      const r2 = await callItems(ITEMS_FALLBACK_MODEL);
-      if (!r2.ok) {
-        const r3 = await callItems(ITEMS_FALLBACK_MODEL_2);
-        if (!r3.ok) throw new Error(`openai_${r.status}_${r2.status}_${r3.status}`);
-        r = r3;
-        usedModel = ITEMS_FALLBACK_MODEL_2;
-      } else {
-        r = r2;
-        usedModel = ITEMS_FALLBACK_MODEL;
-      }
-    } else {
-      usedModel = ITEMS_PRIMARY_MODEL;
-    }
-    const j = await r.json().catch(() => ({}));
-    let parsed: any = {};
-    try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    if (Array.isArray(parsed?.items)) items = parsed.items;
-  } catch (e) {
-    (req as any).log?.error?.({ err: String(e) }, 'items llm generate failed');
-  }
-  if (!items.length) {
-    return reply.code(503).send({ error: { code: 'MODEL_UNAVAILABLE', message: 'Could not generate lesson items right now. Please try again shortly.' } });
-  }
-
-  // Optional lightweight generation ledger
-  if (FLAGS.ff_cost_guardrails_v1) {
-    const now = new Date().toISOString();
-    for (const row of items) {
-      const itemId = row?.questions?.mcq?.id || `auto-${Math.random().toString(36).slice(2,8)}`;
-      _genLedger.push({ itemId, modelUsed: OPENAI_API_KEY ? (usedModel || ITEMS_PRIMARY_MODEL) : 'mock:router', costCents: 1, createdAt: now });
-    }
-  }
-
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'ingest-generate');
-  try {
-    await pool.query(
-      'insert into artefacts (kind, title, content, created_at) values ($1,$2,$3, now())',
-      ['lesson_pack', `Auto pack ${new Date().toISOString()}`, JSON.stringify(items)]
-    );
-  } catch {}
-  (req as any).log?.info?.({ route: '/api/ingest/generate', impl: OPENAI_API_KEY ? 'llm' : 'mock:router', durationMs: Date.now() - startedAt, reqId: (req as any).id }, 'ingest_generate');
-  return reply.send({ ok: true, items });
-});
 
 // ---------------------
 // /api/items/generate (MVP)
