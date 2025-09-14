@@ -80,7 +80,7 @@ create_or_get_issue() {
     --json url,title --jq '.[] | select(.title=="'"$title"'") | .url' 2>/dev/null | head -n1)"
   if [[ -z "$url" ]]; then
     url="$(gh api -X POST "repos/$ORG/$REPO/issues" \
-      -f title="$title" -f body="$body" -f labels='["epic"]' --jq .html_url)"
+      -f title="$title" -f body="$body" -f labels[]=epic --jq .html_url)"
   fi
   printf "%s" "$url"
 }
@@ -91,7 +91,7 @@ while read -r t; do
   echo "  -> $t" >&2
   IU="$(create_or_get_issue "$t" "See docs/launch/plan-v4.1.md")"
   echo "     $IU" >&2
-  gh project item-add --owner "$SELF_LOGIN" --number "$PNUM" --url "$IU" >/dev/null
+  gh project item-add "$PNUM" --owner "$SELF_LOGIN" --url "$IU" >/dev/null
 done <<'EOF'
 Conversational Orchestrator & Loop-Guard
 Learner Engine (MVP)
