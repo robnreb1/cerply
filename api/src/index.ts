@@ -1181,7 +1181,11 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
 }
 
 // Register preview on both URLs
-app.post('/ingest/preview', handleIngestPreview);
+app.post('/ingest/preview', async (_req, reply) => {
+  reply.header('x-deprecated', 'true');
+  reply.header('link', '</api/ingest/preview>; rel="successor-version"');
+  return reply.code(307).send({ next: '/api/ingest/preview' });
+});
 
 // ---------------------
 // Ingest: clarify (per spec)
