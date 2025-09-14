@@ -1,5 +1,6 @@
 # Spec Index
 
+- [Launch Status (2025-09-14)](../launch/status-2025-09-14.md)
 - [Functional Spec](../functional-spec.md)
 - [Launch Plan v4.1](../launch/plan-v4.1.md)
 
