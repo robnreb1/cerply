@@ -15,54 +15,66 @@ ORG="${ORG:-@me}"
 REPO="${REPO:-cerply}"
 PROJECT_TITLE="${PROJECT_TITLE:-Cerply v4.1 Launch}"
 
+PROJECT_SCOPE=""
 create_or_locate_project_number() {
-  >&2 echo "==> Creating/locating project: $PROJECT_TITLE (owner: $ORG)"
-  # Try list first
+  # Try repo-scoped first
+  >&2 echo "==> Locating project in repo: $ORG/$REPO"
+  if LIST_JSON=$(gh project list --repo "$ORG/$REPO" --format json 2>/dev/null); then
+    NUM=$(echo "$LIST_JSON" | jq -r ".[] | select(.title==\"$PROJECT_TITLE\").number" | head -n1)
+    if [[ -n "${NUM:-}" ]]; then PROJECT_SCOPE="repo"; echo "$NUM"; return 0; fi
+  fi
+  # Try owner-scoped
+  >&2 echo "==> Locating project in owner: $ORG"
   if LIST_JSON=$(gh project list --owner "$ORG" --format json 2>/dev/null); then
     NUM=$(echo "$LIST_JSON" | jq -r ".[] | select(.title==\"$PROJECT_TITLE\").number" | head -n1)
-    if [[ -n "${NUM:-}" ]]; then echo "$NUM"; return 0; fi
+    if [[ -n "${NUM:-}" ]]; then PROJECT_SCOPE="owner"; echo "$NUM"; return 0; fi
   fi
-  # Create if not found
+  # Create repo-scoped
+  >&2 echo "==> Creating repo project: $ORG/$REPO"
+  if CREATED=$(gh project create --repo "$ORG/$REPO" --title "$PROJECT_TITLE" --format json 2>/dev/null); then
+    PROJECT_SCOPE="repo"; echo "$CREATED" | jq -r .number; return 0
+  fi
+  # Create owner-scoped
+  >&2 echo "==> Creating owner project: $ORG"
   if CREATED=$(gh project create --owner "$ORG" --title "$PROJECT_TITLE" --format json 2>/dev/null); then
-    echo "$CREATED" | jq -r .number
-    return 0
+    PROJECT_SCOPE="owner"; echo "$CREATED" | jq -r .number; return 0
   fi
   return 1
 }
 
 PROJECT_NUMBER="$(create_or_locate_project_number || true)"
 if [[ -n "${PROJECT_NUMBER:-}" ]]; then
-  >&2 echo "PROJECT_NUMBER=$PROJECT_NUMBER"
+  >&2 echo "PROJECT_NUMBER=$PROJECT_NUMBER (scope=$PROJECT_SCOPE)"
   # Helpers to support both new and older gh CLIs
   project_field_list() {
-    if OUT=$(gh project field-list --owner "$ORG" --number "$PROJECT_NUMBER" --format json 2>/dev/null); then
-      echo "$OUT"
+    if [[ "$PROJECT_SCOPE" == "repo" ]]; then
+      if OUT=$(gh project field-list --repo "$ORG/$REPO" --number "$PROJECT_NUMBER" --format json 2>/dev/null); then echo "$OUT"; else gh project field-list "$PROJECT_NUMBER" --repo "$ORG/$REPO" --format json; fi
     else
-      gh project field-list "$PROJECT_NUMBER" --owner "$ORG" --format json
+      if OUT=$(gh project field-list --owner "$ORG" --number "$PROJECT_NUMBER" --format json 2>/dev/null); then echo "$OUT"; else gh project field-list "$PROJECT_NUMBER" --owner "$ORG" --format json; fi
     fi
   }
   project_field_create_single_select() {
     local name="$1" options="$2"
-    if gh project field-create --owner "$ORG" --number "$PROJECT_NUMBER" --name "$name" --data-type SINGLE_SELECT --single-select-options "$options" >/dev/null 2>/dev/null; then
-      return 0
+    if [[ "$PROJECT_SCOPE" == "repo" ]]; then
+      if gh project field-create --repo "$ORG/$REPO" --number "$PROJECT_NUMBER" --name "$name" --data-type SINGLE_SELECT --single-select-options "$options" >/dev/null 2>/dev/null; then return 0; else gh project field-create "$PROJECT_NUMBER" --repo "$ORG/$REPO" --name "$name" --data-type SINGLE_SELECT --single-select-options "$options" >/dev/null; fi
     else
-      gh project field-create "$PROJECT_NUMBER" --owner "$ORG" --name "$name" --data-type SINGLE_SELECT --single-select-options "$options" >/dev/null
+      if gh project field-create --owner "$ORG" --number "$PROJECT_NUMBER" --name "$name" --data-type SINGLE_SELECT --single-select-options "$options" >/dev/null 2>/dev/null; then return 0; else gh project field-create "$PROJECT_NUMBER" --owner "$ORG" --name "$name" --data-type SINGLE_SELECT --single-select-options "$options" >/dev/null; fi
     fi
   }
   project_field_create_text() {
     local name="$1"
-    if gh project field-create --owner "$ORG" --number "$PROJECT_NUMBER" --name "$name" --data-type TEXT >/dev/null 2>/dev/null; then
-      return 0
+    if [[ "$PROJECT_SCOPE" == "repo" ]]; then
+      if gh project field-create --repo "$ORG/$REPO" --number "$PROJECT_NUMBER" --name "$name" --data-type TEXT >/dev/null 2>/dev/null; then return 0; else gh project field-create "$PROJECT_NUMBER" --repo "$ORG/$REPO" --name "$name" --data-type TEXT >/dev/null; fi
     else
-      gh project field-create "$PROJECT_NUMBER" --owner "$ORG" --name "$name" --data-type TEXT >/dev/null
+      if gh project field-create --owner "$ORG" --number "$PROJECT_NUMBER" --name "$name" --data-type TEXT >/dev/null 2>/dev/null; then return 0; else gh project field-create "$PROJECT_NUMBER" --owner "$ORG" --name "$name" --data-type TEXT >/dev/null; fi
     fi
   }
   project_item_add() {
     local url="$1"
-    if OUT=$(gh project item-add --owner "$ORG" --number "$PROJECT_NUMBER" --url "$url" --format json 2>/dev/null); then
-      echo "$OUT" | jq -r .id
+    if [[ "$PROJECT_SCOPE" == "repo" ]]; then
+      if OUT=$(gh project item-add --repo "$ORG/$REPO" --number "$PROJECT_NUMBER" --url "$url" --format json 2>/dev/null); then echo "$OUT" | jq -r .id; else gh project item-add "$PROJECT_NUMBER" --repo "$ORG/$REPO" --url "$url" --format json | jq -r .id; fi
     else
-      gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$url" --format json | jq -r .id
+      if OUT=$(gh project item-add --owner "$ORG" --number "$PROJECT_NUMBER" --url "$url" --format json 2>/dev/null); then echo "$OUT" | jq -r .id; else gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$url" --format json | jq -r .id; fi
     fi
   }
 
@@ -118,7 +130,7 @@ for (( i=0; i< len; i++ )); do
   body="Epic: ${EPIC_TITLES[$i]}\n\n${EPIC_BODIES[$i]}"
   echo "==> Creating issue: $title"
   # Older gh versions don't support --json; capture URL from stdout
-  url=$(gh issue create --repo "$ORG/$REPO" --title "$title" --body "$body" --label "v4.1" 2>/dev/null || true)
+  url=$(gh issue create --repo "$ORG/$REPO" --title "$title" --body "$body" --label "v4.1" 2>&1 || true)
   # Fallback: print to stderr for visibility
   if [[ -z "$url" ]]; then
     >&2 echo "⚠️  gh issue create did not return a URL; attempting to fetch last created issue by title"
