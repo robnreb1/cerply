@@ -66,8 +66,8 @@ function updateStrength(prev: number, correct: boolean, tMs?: number|null) {
 }
 
 export async function registerLearnRoutes(app: FastifyInstance) {
-  // GET /learn/next?planId=...
-  app.get('/learn/next', async (req, reply) => {
+  // GET /api/learn/next?planId=...
+  app.get('/api/learn/next', async (req, reply) => {
     reply.header('x-api', 'learn-next');
     const planId = (req.query as any)?.planId || 'default-plan';
     const userId = userIdFromReq(req);
@@ -101,8 +101,8 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     };
   });
 
-  // POST /learn/submit
-  app.post('/learn/submit', async (req, reply) => {
+  // POST /api/learn/submit
+  app.post('/api/learn/submit', async (req, reply) => {
     reply.header('x-api', 'learn-submit');
     const body = req.body as SubmitReq;
     const planId = body.planId || 'default-plan';
@@ -155,5 +155,18 @@ export async function registerLearnRoutes(app: FastifyInstance) {
       ok: true,
       result: { correct, strength: Number(nextS.toFixed(3)), nextReviewAt: new Date(nextAt).toISOString() }
     };
+  });
+
+  // Aliases (non-API) → deprecate with redirect
+  app.get('/learn/next', async (_req, reply) => {
+    reply.header('x-deprecated', 'true');
+    reply.header('link', '</api/learn/next>; rel="successor-version"');
+    return reply.code(307).send({ next: '/api/learn/next' });
+  });
+
+  app.post('/learn/submit', async (_req, reply) => {
+    reply.header('x-deprecated', 'true');
+    reply.header('link', '</api/learn/submit>; rel="successor-version"');
+    return reply.code(307).send({ next: '/api/learn/submit' });
   });
 }
