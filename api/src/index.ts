@@ -40,6 +40,7 @@ import { parseEnv } from './env';
 import { registerChatRoutes } from './routes/chat';
 import { registerIngestRoutes } from './routes/ingest';
 import { registerAuthRoutes } from './routes/auth';
+import { registerLearnRoutes } from './routes/learn';
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -290,6 +291,7 @@ function modelFamily(name: string): string {
 
 await registerChatRoutes(app);
 await registerIngestRoutes(app);
+await registerLearnRoutes(app);
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
@@ -1231,29 +1233,7 @@ const BANK: MCQItem[] = [
 ];
 const _sessions = new Map<string, { idx: number }>();
 
-app.post('/learn/next', async (req: FastifyRequest, reply: FastifyReply) => {
-  const sessionId = (req as any).body?.sessionId as string | undefined;
-  let sid = sessionId;
-  if (!sid || !_sessions.has(sid)) {
-    sid = crypto.randomUUID();
-    _sessions.set(sid, { idx: 0 });
-  }
-  const s = _sessions.get(sid)!;
-  const item = BANK[s.idx % BANK.length];
-  s.idx++;
-  return reply.send({ sessionId: sid, item });
-});
-
-app.post('/learn/submit', async (req: FastifyRequest, reply: FastifyReply) => {
-  const body = (req as any).body as { sessionId?: string; itemId?: string; answerIndex?: number };
-  if (!body?.sessionId || !_sessions.has(body.sessionId)) {
-    return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Unknown sessionId' } });
-  }
-  const item = BANK.find(i => i.id === body.itemId);
-  if (!item) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Unknown itemId' } });
-  const correct = Number(body.answerIndex) === item.correctIndex;
-  return reply.send({ correct, correctIndex: item.correctIndex, explainer: correct ? 'Nice! You chose the best answer.' : 'Review the stem and options; focus on the key concept.' });
-});
+// legacy /learn routes removed in favor of registerLearnRoutes
 
 // ---------------------
 // Group 3 — Daily queue & scoring (deterministic MVP)
