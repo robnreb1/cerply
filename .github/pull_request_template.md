@@ -38,6 +38,9 @@ curl -i -H 'content-type: application/json' \
 ## Summary
 What changed & why.
 
+## Auth Gate & Cookies
+Gate /api/ingest/generate requires session when REQUIRE_AUTH_FOR_GENERATE=1 (401 + WWW-Authenticate: Session). Cookie flags: HttpOnly, SameSite=Lax, Max-Age=30d; Secure in production.
+
 ## Spec Impact
 - [ ] Updated `docs/functional-spec.md` (status ticks)
 - [ ] Added/edited `docs/spec/use-cases.md` (acceptance)
