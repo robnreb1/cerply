@@ -68,6 +68,8 @@ if [[ -z "${PNUM:-}" ]]; then
   echo "ERROR: Could not obtain project number. Try: gh project list --owner $SELF_LOGIN" >&2
   exit 1
 fi
+# Normalize to a single numeric line (if duplicates exist, take the highest)
+PNUM="$(printf "%s\n" "$PNUM" | tr -d '\r' | awk '/^[0-9]+$/{print $1}' | sort -rn | head -n1)"
 echo "PROJECT_NUMBER=$PNUM" >&2
 
 echo "==> Ensure 'epic' label exists on $ORG/$REPO" >&2
@@ -91,7 +93,7 @@ while read -r t; do
   echo "  -> $t" >&2
   IU="$(create_or_get_issue "$t" "See docs/launch/plan-v4.1.md")"
   echo "     $IU" >&2
-  gh project item-add "$PNUM" --owner "$SELF_LOGIN" --url "$IU" >/dev/null
+  gh project item-add "$PNUM" --owner "@me" --url "$IU" >/dev/null
 done <<'EOF'
 Conversational Orchestrator & Loop-Guard
 Learner Engine (MVP)
