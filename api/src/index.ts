@@ -37,6 +37,7 @@ import { modulesLoad, modulesStore, analyticsRecord } from './tools';
 import { adaptModulesForProfile } from './profileAdapt';
 import { isAdminAllowed, hasSessionFromReq } from './admin';
 import { parseEnv } from './env';
+import { registerChatRoutes } from './routes/chat';
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -312,10 +313,6 @@ app.get('/api/auth/me', async (req, reply) => {
 });
 
 
-// ---------------------
-// /api/chat — Orchestrator (v3.3 — env-driven planner w/ strict headers)
-// ---------------------
-
 function modelFamily(name: string): string {
   const n = (name || '').toLowerCase();
   if (n.startsWith('gpt-5')) return 'gpt-5';
@@ -323,197 +320,7 @@ function modelFamily(name: string): string {
   return name;
 }
 
-app.post('/api/chat', async (req: FastifyRequest, reply: FastifyReply) => {
-  const startedAt = Date.now();
-
-  // Read planner config once, from env (primary gpt-5, fallback 4o by default)
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
-  const PLANNER_PRIMARY = (process.env.LLM_PLANNER_MODEL ?? 'gpt-5').toString();
-  const PLANNER_FALLBACK = (process.env.LLM_PLANNER_FALLBACK_MODEL ?? 'gpt-4o').toString();
-  const CHAT_PRIMARY = (process.env.CHAT_MODEL ?? PLANNER_PRIMARY).toString();       // clarifier default
-  const CHAT_FALLBACK = (process.env.CHAT_FALLBACK_MODEL ?? PLANNER_FALLBACK).toString();
-
-  // Always stamp route headers
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'chat-orchestrate');
-
-  if (!OPENAI_API_KEY) {
-    reply.header('x-planner', 'unavailable');
-    reply.header('x-model', 'n/a');
-    return reply.code(503).send({ error: { code: 'MODEL_UNAVAILABLE', message: 'OpenAI API key missing. Set OPENAI_API_KEY in api/.env.local.' } });
-  }
-
-  const body = ((req as any).body ?? {}) as Partial<ChatReq> & { useFallback?: boolean; profile?: { userId?: string; prefs?: Record<string, any> } };
-  const thread = Array.isArray(body.messages) ? body.messages.filter(m => m && typeof m.content === 'string') : [];
-  if (thread.length === 0) {
-    reply.header('x-planner', 'n/a');
-    reply.header('x-model', 'n/a');
-    return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'messages[] required' } });
-  }
-
-  const userId = (body?.profile?.userId || 'dev').toString();
-  const profilePrefs: Record<string, any> | undefined = body?.profile?.prefs && typeof body.profile.prefs === 'object' ? body.profile.prefs : undefined;
-  const lastUser = [...thread].reverse().find(m => m.role === 'user');
-  const lastText = (lastUser?.content || '').toString();
-  const lower = lastText.toLowerCase();
-
-  // Helper: JSON call
-  async function callJSON(model: string, system: string, user: string) {
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify(makeChatBody(model, system, user, true, 0.2))
-    });
-    return r;
-  }
-
-  // Planner (env-driven, gpt-5 primary)
-  async function planWithLLM(brief: string, prefs?: Record<string, any>, forceFallback?: boolean) {
-    const sys = [
-      "You are Cerply's planner. Propose logically grouped, syllabus-aware modules for the learner brief.",
-      'Return STRICT JSON: { "modules": [ { "id": "mod-01", "title": string, "estMinutes": number } ] }',
-      'Titles must be specific; avoid generic names. Module count is variable based on scope.',
-      'Consider learner preferences when relevant (refresher vs dive-deep, level hints).'
-    ].join(' ');
-    const primary = forceFallback ? PLANNER_FALLBACK : PLANNER_PRIMARY;
-    const fallback = PLANNER_FALLBACK;
-    let used = primary;
-    let r = await callJSON(primary, sys, JSON.stringify({ brief, prefs: prefs ?? null }));
-    if (!r.ok) {
-      const r2 = await callJSON(fallback, sys, JSON.stringify({ brief, prefs: prefs ?? null }));
-      if (!r2.ok) throw new Error(`planner_${r.status}_${r2.status}`);
-      r = r2; used = fallback;
-    }
-    const j = await r.json().catch(() => ({}));
-    let parsed: any = {}; try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    const mods: OrchestratorModule[] = Array.isArray(parsed?.modules)
-      ? parsed.modules.map((m: any, i: number) => ({ id: typeof m?.id === 'string' ? m.id : `mod-${String(i + 1).padStart(2,'0')}`, title: String(m?.title ?? `Module ${i+1}`), estMinutes: Math.max(5, Math.min(25, Number(m?.estMinutes ?? 10))) }))
-      : [];
-    if (!mods.length) throw new Error('no_modules');
-    return { modules: mods.slice(0, 12), model: used };
-  }
-
-  // Items generator (gpt-5-thinking preferred; env overrideable)
-  async function generateItems(mods: OrchestratorModule[], prefs?: Record<string, any>) {
-    const primary = (process.env.ITEMS_MODEL ?? 'gpt-5-thinking').toString();
-    const fallbacks = [
-      (process.env.ITEMS_MODEL_FALLBACK ?? 'gpt-4o').toString(),
-      (process.env.ITEMS_MODEL_FALLBACK_2 ?? 'gpt-4o-mini').toString()
-    ];
-    const sys = 'You generate compact, high-quality lesson items. Return STRICT JSON: {"items":[{ "moduleId":string, "title":string, "explanation":string, "questions": { "mcq":{"id":string,"stem":string,"options":string[4],"correctIndex":number}, "free":{"prompt":string} } } ] }';
-    const user = JSON.stringify({ modules: mods, prefs: prefs ?? null });
-    async function call(model: string) {
-      return fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
-        body: JSON.stringify(makeChatBody(model, sys, user, true, 0.0))
-      });
-    }
-    let used = primary; let r = await call(primary);
-    if (!r.ok) { for (const m of fallbacks) { const r2 = await call(m); if (r2.ok) { r = r2; used = m; break; } } }
-    if (!r.ok) throw new Error('items_unavailable');
-    const j = await r.json().catch(() => ({}));
-    let parsed: any = {}; try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    const items = Array.isArray(parsed?.items) ? parsed.items : [];
-    if (!items.length) throw new Error('items_empty');
-    return { items, model: used };
-  }
-
-  // Popular/meta prompts (cheap path first)
-  if (/(inspire|suggest|recommend|ideas|what\s+is\s+popular|what\'s\s+popular|popular)/.test(lower)) {
-    const notice = 'Here are some popular starting points: 🧮 Algebra basics • 🧪 Chemistry essentials • 🌍 World history • 🐍 Python for data • 🛰️ Space science • 🧠 Memory techniques. Want one of these, or a tailored plan?';
-    reply.header('x-planner', modelFamily(PLANNER_PRIMARY));
-    reply.header('x-model', 'n/a');
-    return reply.send({ action: 'meta', data: { notice } });
-  }
-
-  try {
-    // Read existing plan & decide action (guarded)
-    let existingPlan: OrchestratorModule[] | null = null;
-    try {
-      existingPlan = await modulesLoad(userId);
-    } catch (e) {
-      (req as any).log?.warn?.({ err: String(e) }, 'modulesLoad failed; proceeding without existing plan');
-      existingPlan = null;
-    }
-    const hasPlan = Array.isArray(existingPlan) && existingPlan.length > 0;
-    const decision = decideNextAction(thread as any, hasPlan);
-    // Revise (append) from free-text like "add speaking practice"
-    if (decision.action === 'revise') {
-      const current = Array.isArray(existingPlan) ? existingPlan : [];
-      const title = extractAppendModuleTitle(lastText) || '';
-      const exists = current.some(m => m.title.toLowerCase() === title.toLowerCase());
-      const updated = exists ? current : [...current, { id: `mod-${String(current.length + 1).padStart(2,'0')}`, title, estMinutes: 10 }];
-      await modulesStore(userId, updated);
-      await analyticsRecord({ kind: 'plan_updated', userId, delta: 'append', title });
-
-      reply.header('x-planner', modelFamily(PLANNER_PRIMARY));
-      reply.header('x-model', 'n/a');
-      (req as any).log?.info?.({ route: '/api/chat', decision: 'revise', durationMs: Date.now() - startedAt, status: 200 }, 'chat_revise');
-      return reply.send({ action: 'plan', data: { modules: updated } });
-    }
-
-    // Confirm/generate
-    if (decision.action === 'generate') {
-      const plan = Array.isArray(existingPlan) ? existingPlan : [];
-      if (!plan.length) {
-        reply.header('x-planner', 'n/a');
-        reply.header('x-model', 'n/a');
-        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'No plan to generate from' } });
-      }
-      // Optional confirm summary (env gate)
-      const confirmOnly = /(confirm|looks\s+good|sounds\s+good|approve|ship\s+it|begin|start|go\s+on\s+then|let\'?s\s*go|okay|ok\b|go\s+ahead|proceed|do\s+it)/i.test(lower) && !/(generate|create|make).*(items|lesson|questions)/i.test(lower);
-      const showSummaryOnly = ((process.env.CONFIRM_SHOW_SUMMARY ?? '').toString().toLowerCase() === '1' || (process.env.CONFIRM_SHOW_SUMMARY ?? '').toString().toLowerCase() === 'true');
-      if (confirmOnly && showSummaryOnly) {
-      const summary = `Confirmed ${plan.length} module${plan.length === 1 ? '' : 's'}: ` + plan.map((m: OrchestratorModule) => m.title).join('; ');
-        reply.header('x-planner', 'confirmation');
-        reply.header('x-model', 'n/a');
-        (req as any).log?.info?.({ route: '/api/chat', decision: 'confirm', durationMs: Date.now() - startedAt, status: 200 }, 'chat_confirm');
-        return reply.send({ action: 'confirm', data: { summary } });
-      }
-      const gen = await generateItems(plan, profilePrefs);
-      reply.header('x-planner', modelFamily(PLANNER_PRIMARY));
-      reply.header('x-model', gen.model);
-      (req as any).log?.info?.({ route: '/api/chat', decision: 'generate', itemsModel: gen.model, durationMs: Date.now() - startedAt, status: 200 }, 'chat_generate');
-      return reply.send({ action: 'items', data: { items: gen.items } });
-    }
-
-    // Plan new or re-plan
-    if (decision.action === 'plan') {
-      const llm = await planWithLLM(lastText, profilePrefs, !!body?.useFallback);
-      const adapted = adaptModulesForProfile(llm.modules, profilePrefs);
-      await modulesStore(userId, adapted);
-      await analyticsRecord({ kind: 'plan_generated', userId, count: adapted.length, adapted: adapted.length !== llm.modules.length });
-
-      reply.header('x-planner', modelFamily(llm.model));
-      reply.header('x-model', llm.model);
-      (req as any).log?.info?.({ route: '/api/chat', decision: 'plan', plannerModel: llm.model, durationMs: Date.now() - startedAt, status: 200 }, 'chat_plan');
-      return reply.send({ action: 'plan', data: { modules: adapted } });
-    }
-
-    // Clarify (CHAT_PRIMARY → CHAT_FALLBACK)
-    {
-      let model = !!body?.useFallback ? CHAT_FALLBACK : CHAT_PRIMARY;
-      const sys = 'Ask ONE short clarifying question about goal/level/focus/time today. Return JSON: {"question": string}.';
-      let r = await callJSON(model, sys, lastText);
-      if (!r.ok && model !== CHAT_FALLBACK) { model = CHAT_FALLBACK; r = await callJSON(model, sys, lastText); }
-      if (!r.ok) throw new Error(`clarify_${r.status}`);
-      const j = await r.json().catch(() => ({}));
-      let parsed: any = {}; try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-      const question = typeof parsed?.question === 'string' && parsed.question.trim() ? parsed.question.trim() : "What’s your aim and current level? Any particular focus to start with?";
-
-      reply.header('x-planner', modelFamily(model));
-      reply.header('x-model', model);
-      (req as any).log?.info?.({ route: '/api/chat', decision: 'clarify', plannerModel: model, durationMs: Date.now() - startedAt, status: 200 }, 'chat_clarify');
-      return reply.send({ action: 'clarify', data: { question } });
-    }
-  } catch (e: any) {
-    reply.header('x-planner', 'unavailable');
-    reply.header('x-model', 'n/a');
-    (req as any).log?.error?.({ route: '/api/chat', err: String(e), durationMs: Date.now() - startedAt, status: 503 }, 'chat_error');
-    return reply.code(503).send({ error: { code: 'MODEL_UNAVAILABLE', message: 'Planner models unavailable' } });
-  }
-});
+await registerChatRoutes(app);
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
