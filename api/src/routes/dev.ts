@@ -126,3 +126,26 @@ module.exports.registerDevSeed = async function registerDevSeed(app) {
   });
 };
 
+/* Backfill review_schedule for items lacking entries */
+module.exports.registerDevBackfill = async function registerDevBackfill(app) {
+  if (!process.env.ENABLE_DEV_ROUTES) return;
+  app.post('/api/dev/backfill/reviews', async (_req, reply) => {
+    const db = app.db;
+    if (!db?.execute) return { ok:false, db:false, created:0 };
+    // naive: one review per item without schedule, due tomorrow
+    const rows = await db.execute(
+      `with missing as (
+         select i.id as item_id from items i
+         left join review_schedule r on r.item_id=i.id
+         where r.id is null
+       )
+       insert into review_schedule(item_id, user_id, next_at, strength_score)
+       select item_id, null, now() + interval '1 day', 300 from missing
+       returning id`,
+       []
+    );
+    reply.header('x-api','dev-backfill');
+    return { ok:true, db:true, created:(rows||[]).length };
+  });
+};
+

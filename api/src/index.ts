@@ -294,6 +294,8 @@ const { registerDevMigrate } = require('./routes/dev');
 await registerDevMigrate(app);
 const { registerDevSeed } = require('./routes/dev');
 await registerDevSeed(app);
+const { registerDevBackfill } = require('./routes/dev');
+await registerDevBackfill(app);
 await registerDbHealth(app);
 const { registerAnalyticsRoutes } = require('./routes/analytics');
 const { registerRoutesDump } = require('./routes/routesDump');
