@@ -94,3 +94,29 @@ export async function registerDevRoutes(app: any) {
   });
 }
 
+
+/* Seed DB with a demo plan/modules/items (idempotent). Gated by ENABLE_DEV_ROUTES */
+module.exports.registerDevSeed = async function registerDevSeed(app) {
+  if (!process.env.ENABLE_DEV_ROUTES) return;
+  app.post('/api/dev/seed', async (_req, reply) => {
+    const db = app.db;
+    if (!db?.execute) return reply.send({ ok:false, db:false, seeded:false });
+    // minimal demo seed
+    const u = await db.execute(`insert into users(email) values('demo@cerply.dev')
+      on conflict (email) do update set last_seen_at=now()
+      returning id`);
+    const userId = u[0].id;
+    const p = await db.execute(`insert into plans(user_id, brief, status) values($1,'Demo Pack','active')
+      returning id`, [userId]);
+    const planId = p[0].id;
+    const m = await db.execute(`insert into modules(plan_id,title,"order") values
+      ($1,'Getting Started',1), ($1,'Practice MCQs',2)
+      returning id`, [planId]);
+    const m1 = m[0].id, m2 = m[1].id;
+    await db.execute(`insert into items(module_id,type,stem,options,answer,explainer) values
+      ($1,'explainer','Welcome to Cerply!','[]',0,'This is a demo explainer.'),
+      ($2,'mcq','Which option matches #2?', '["A","B","C","D"]', 1, null)`, [m1, m2]);
+    return { ok:true, db:true, planId };
+  });
+};
+

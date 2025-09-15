@@ -290,6 +290,8 @@ await registerChatRoutes(app);
 await registerIngestRoutes(app);
 await registerLearnRoutes(app);
 await registerDevRoutes(app);
+const { registerDevSeed } = require('./routes/dev');
+await registerDevSeed(app);
 await registerDbHealth(app);
 const { registerAnalyticsRoutes } = require('./routes/analytics');
 const { registerRoutesDump } = require('./routes/routesDump');
