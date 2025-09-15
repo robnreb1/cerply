@@ -307,6 +307,8 @@ const { registerDevSeed } = require('./routes/dev');
 await registerDevSeed(app);
 const { registerDevBackfill } = require('./routes/dev');
 await registerDevBackfill(app);
+const { registerDevStats } = require('./routes/dev');
+await registerDevStats(app);
 await registerDbHealth(app);
 const { registerAnalyticsRoutes } = require('./routes/analytics');
 const { registerRoutesDump } = require('./routes/routesDump');

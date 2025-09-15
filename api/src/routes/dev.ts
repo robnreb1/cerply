@@ -159,3 +159,20 @@ module.exports.registerDevBackfill = async function registerDevBackfill(app) {
   });
 };
 
+/* DB stats for acceptance */
+module.exports.registerDevStats = async function registerDevStats(app) {
+  if (!process.env.ENABLE_DEV_ROUTES) return;
+  app.get('/api/dev/stats', async (_req, reply) => {
+    const db = app.db;
+    if (!db?.execute) return { ok:false, db:false };
+    const one = async (sql,args)=> (await db.execute(sql,args))[0]?.n || 0;
+    const plans   = await one('select count(*)::int as n from plans',[]);
+    const modules = await one('select count(*)::int as n from modules',[]);
+    const items   = await one('select count(*)::int as n from items',[]);
+    const attempts= await one('select count(*)::int as n from attempts',[]);
+    const reviews = await one('select count(*)::int as n from review_schedule',[]);
+    reply.header('x-api','dev-stats');
+    return { ok:true, db:true, counts:{plans,modules,items,attempts,reviews} };
+  });
+};
+
