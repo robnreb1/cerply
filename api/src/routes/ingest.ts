@@ -41,7 +41,7 @@ export async function registerIngestRoutes(app: FastifyInstance) {
     try {
       const db: any = (app as any).db;
       if (db?.insert) {
-        const { genLedger } = require('../db/observability'); // lazy-load to satisfy esbuild
+        const { genLedger } = require('../db/observability.cjs'); // lazy-load to satisfy esbuild
         const model = process.env.LLM_GENERATOR_MODEL || 'gpt-4o-mini';
         const cost = 12; // cents (stub for MVP; replace when real token usage available)
         await db.insert(genLedger).values({

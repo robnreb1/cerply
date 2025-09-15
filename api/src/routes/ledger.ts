@@ -6,7 +6,7 @@ module.exports.registerLedgerRoutes = async function registerLedgerRoutes(app: a
     if (!db?.execute) return { ok: false, db: false, totals: [] };
 
     // (lazy require kept for symmetry, not used directly here)
-    require('../db/observability');
+    require('../db/observability.cjs');
 
     const q: any = req.query || {};
     const from = q.from ? new Date(String(q.from)) : null;

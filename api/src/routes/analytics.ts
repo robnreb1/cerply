@@ -10,7 +10,7 @@ module.exports.registerAnalyticsRoutes = async function registerAnalyticsRoutes(
     const db: any = (app as any).db;
 
     // lazy-load model to avoid top-level require quirks
-    const { events } = require('../db/observability');
+    const { events } = require('../db/observability.cjs');
 
     app.log?.info?.({ event: type, user: !!sess }, 'analytics.event');
 
