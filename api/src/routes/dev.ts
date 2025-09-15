@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------------
 import { FastifyInstance } from 'fastify';
-import { plans, modules as modTable, items as itemTable } from '../db/core';
+import * as core from '../db/core';
 import { attempts, reviewSchedule } from '../db/learner';
 
 const DEMO_SLUG = 'demo-pack';
@@ -36,7 +36,7 @@ export async function registerDevRoutes(app: FastifyInstance) {
     if (existing) {
       planId = existing.id;
     } else {
-      const [p] = await db.insert(plans).values({ brief: 'Demo Pack', status: 'active', slug: DEMO_SLUG }).returning({ id: plans.id });
+      const [p] = await db.insert(core.plans).values({ brief: 'Demo Pack', status: 'active', slug: DEMO_SLUG }).returning({ id: core.plans.id });
       planId = p.id;
     }
 
@@ -47,7 +47,7 @@ export async function registerDevRoutes(app: FastifyInstance) {
       const title = moduleTitles[i];
       const row = await db.query.modules.findFirst({ where: (m: any, { and, eq }: any) => and(eq(m.planId, planId), eq(m.title, title)) });
       if (row) { modIds.push(row.id); continue; }
-      const [m] = await db.insert(modTable).values({ planId, title, order: i + 1 }).returning({ id: modTable.id });
+      const [m] = await db.insert(core.modules).values({ planId, title, order: i + 1 }).returning({ id: core.modules.id });
       modIds.push(m.id);
     }
 
@@ -60,7 +60,7 @@ export async function registerDevRoutes(app: FastifyInstance) {
         [mid, stem]
       ).then((r: any) => r[0]);
       if (existingItem) continue;
-      await db.insert(itemTable).values({
+      await db.insert(core.items).values({
         moduleId: mid,
         type: 'mcq',
         stem,
