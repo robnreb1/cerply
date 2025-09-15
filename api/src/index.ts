@@ -35,7 +35,7 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { decideNextAction, extractAppendModuleTitle } from './orchestrator';
 import { modulesLoad, modulesStore, analyticsRecord } from './tools';
 import { adaptModulesForProfile } from './profileAdapt';
-import { isAdminAllowed, hasSessionFromReq } from './admin';
+import { isAdminAllowed, hasSessionFromReq, COOKIE_NAME } from './admin';
 import { parseEnv } from './env';
 import { registerChatRoutes } from './routes/chat';
 import { registerIngestRoutes } from './routes/ingest';
