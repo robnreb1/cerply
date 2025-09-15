@@ -1,6 +1,9 @@
-------------------------------------------------------------------------------
-/* Core entities for persistence uplift (Plan/Module/Item) */
-import { pgTable, uuid, text, integer, timestamp, jsonb } from 'drizzle-orm/pg-core';
+/**
+ * Drizzle core tables (Plans/Modules/Items)
+ * Use require() to avoid esbuild/tsx named-import parse quirks.
+ */
+/* eslint-disable @typescript-eslint/no-var-requires */
+const { pgTable, uuid, text, integer, timestamp, jsonb } = require('drizzle-orm/pg-core');
 
 export const plans = pgTable('plans', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -28,5 +31,4 @@ export const items = pgTable('items', {
   explainer: text('explainer'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
-------------------------------------------------------------------------------
 
