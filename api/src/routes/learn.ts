@@ -159,16 +159,47 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     const correct = (typeof body.answerIndex === 'number') ? (body.answerIndex === item.answerIndex) : false;
     const tMs = body.responseTimeMs ?? null;
 
+    
+    let _dbAttempted = false;
+    let _dbScheduled = false;
+    
     try {
-      const db:any = (app as any).db;
-      if (db?.execute) {
-        await db.execute(
-          `insert into attempts(user_id,item_id,answer_index,correct,time_ms)
-           values (null,$1,$2,$3,$4)`,
-          [body.itemId, body.answerIndex ?? null, correct ? 1 : 0, body.responseTimeMs ?? null]
-        );
+      const db = (app && app.db) || null;
+      if (db && db.execute) {
+        // persist attempt
+        try {
+          await db.execute(
+            `insert into attempts(user_id,item_id,answer_index,correct,time_ms)
+             values (null,$1,$2,$3,$4)`,
+            [body.itemId, body.answerIndex ?? null, correct ? 1 : 0, body.responseTimeMs ?? null]
+          );
+          _dbAttempted = true;
+        } catch {}
+
+        // upsert simple schedule
+        try {
+          const prevRow = await db.execute(
+            `select strength_score::int as s from review_schedule where item_id = $1 and user_id is null limit 1`,
+            [body.itemId]
+          );
+          const prev = (prevRow && prevRow[0] && prevRow[0].s) || 300;
+          const s = Math.max(0, Math.min(1000, correct ? prev + Math.round((1000 - prev) * 0.25) : Math.round(prev * 0.6)));
+          const days = s >= 800 ? 21 : s >= 600 ? 7 : s >= 400 ? 3 : 1;
+          const nextAt = new Date(Date.now() + days * 86400e3);
+
+          await db.execute(`delete from review_schedule where item_id = $1 and user_id is null`, [body.itemId]);
+          await db.execute(
+            `insert into review_schedule(item_id, user_id, next_at, strength_score) values ($1, null, $2, $3)`,
+            [body.itemId, nextAt, s]
+          );
+          _dbScheduled = true;
+        } catch {}
       }
     } catch {}
+    
+    // expose DB effects as headers for acceptance
+    reply.header('x-learn-attempt-db', _dbAttempted ? '1' : '0');
+    reply.header('x-learn-db-scheduled', _dbScheduled ? '1' : '0');
 
     try {
       const db = (app && app.db) || null;
@@ -203,31 +234,16 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     else { sched.push({ itemId: item.id, strength: nextS, nextAt }); }
     SCHEDULE.set(schedKey, sched);
 
-    // persist attempt & schedule if DB present
+    // persist to in-memory attempts when no DB present
     try {
       const db: any = (app as any).db;
-      if (db?.insert) {
-        await db.insert(attempts).values({
-          userId, itemId: item.id, answerIndex: body.answerIndex ?? null, correct, timeMs: tMs ?? null
-        });
-        // upsert review_schedule
-        const rs = await db.query.reviewSchedule.findFirst({ where: and(eq(reviewSchedule.userId, userId), eq(reviewSchedule.itemId, item.id)) });
-        if (rs) {
-          await db.update(reviewSchedule)
-            .set({ strengthScore: nextS, nextAt: new Date(nextAt) })
-            .where(and(eq(reviewSchedule.userId, userId), eq(reviewSchedule.itemId, item.id)));
-        } else {
-          await db.insert(reviewSchedule).values({ userId, itemId: item.id, strengthScore: nextS, nextAt: new Date(nextAt) });
-        }
-      } else {
+      if (!db?.execute) {
         const k = `${userId}|${planId}`;
         const list = ATTEMPTS.get(k) || [];
         list.push({ itemId: item.id, answerIndex: body.answerIndex, correct, timeMs: tMs, at: Date.now() });
         ATTEMPTS.set(k, list);
       }
-    } catch {
-      // swallow persistence errors for MVP; telemetry can log later
-    }
+    } catch {}
 
     try {
       const db: any = (app as any).db;
