@@ -13,21 +13,6 @@ export async function registerDevRoutes(app: any) {
   const enableDev = process.env.ENABLE_DEV_ROUTES === '1' || process.env.NODE_ENV !== 'production';
   if (!enableDev) return;
 
-  // Seed status (works even without a DB wired in dev)
-  app.get('/api/dev/seed-status', async (_req: any, reply: any) => {
-    reply.header('x-api', 'dev-seed-status');
-    const db: any = (app as any).db;
-    if (!db?.select) {
-      return { ok: true, db: false, counts: { plans: 0, modules: 0, items: 0, attempts: 0, review: 0 } };
-    }
-    const [pc] = await db.execute('select count(*)::int as c from plans');
-    const [mc] = await db.execute('select count(*)::int as c from modules');
-    const [ic] = await db.execute('select count(*)::int as c from items');
-    const [ac] = await db.execute('select count(*)::int as c from attempts');
-    const [rc] = await db.execute('select count(*)::int as c from review_schedule');
-    return { ok: true, db: true, counts: { plans: pc.c, modules: mc.c, items: ic.c, attempts: ac.c, review: rc.c } };
-  });
-
   // seed route moved to registerDevSeed to avoid duplication
 }
 
@@ -69,28 +54,75 @@ module.exports.registerDevMigrate = async function registerDevMigrate(app) {
 };
 
 
-/* Seed DB with a demo plan/modules/items (idempotent). Gated by ENABLE_DEV_ROUTES */
+/* Idempotent seed + status */
 module.exports.registerDevSeed = async function registerDevSeed(app) {
   if (!process.env.ENABLE_DEV_ROUTES) return;
+
+  app.get('/api/dev/seed-status', async (_req, reply) => {
+    const db = app.db;
+    if (!db?.execute) return { ok:false, db:false };
+    const q = async (sql,args)=> (await db.execute(sql,args))[0]?.count || 0;
+    const plans = await q('select count(*)::int as count from plans',[]);
+    const modules = await q('select count(*)::int as count from modules',[]);
+    const items = await q('select count(*)::int as count from items',[]);
+    reply.header('x-api','dev-seed-status');
+    return { ok:true, db:true, counts:{ plans, modules, items } };
+  });
+
   app.post('/api/dev/seed', async (_req, reply) => {
     const db = app.db;
-    if (!db?.execute) return reply.send({ ok:false, db:false, seeded:false });
-    // minimal demo seed
-    const u = await db.execute(`insert into users(email) values('demo@cerply.dev')
-      on conflict (email) do update set last_seen_at=now()
-      returning id`);
+    if (!db?.execute) return { ok:false, db:false, seeded:false };
+
+    // user upsert
+    const u = await db.execute(
+      `insert into users(email) values('demo@cerply.dev')
+       on conflict (email) do update set last_seen_at=now()
+       returning id`, []
+    );
     const userId = u[0].id;
-    const p = await db.execute(`insert into plans(user_id, brief, status) values($1,'Demo Pack','active')
-      returning id`, [userId]);
-    const planId = p[0].id;
-    const m = await db.execute(`insert into modules(plan_id,title,"order") values
-      ($1,'Getting Started',1), ($1,'Practice MCQs',2)
-      returning id`, [planId]);
-    const m1 = m[0].id, m2 = m[1].id;
-    await db.execute(`insert into items(module_id,type,stem,options,answer,explainer) values
-      ($1,'explainer','Welcome to Cerply!','[]',0,'This is a demo explainer.'),
-      ($2,'mcq','Which option matches #2?', '["A","B","C","D"]', 1, null)`, [m1, m2]);
-    return { ok:true, db:true, planId };
+
+    // ensure a single demo plan
+    const p = await db.execute(
+      `insert into plans(user_id, brief, status)
+       values($1,'Demo Pack','active')
+       on conflict do nothing
+       returning id`,
+      [userId]
+    );
+    const planId = p[0]?.id || (await db.execute(
+      `select id from plans where brief='Demo Pack' and user_id=$1 limit 1`, [userId]
+    ))[0]?.id;
+
+    // modules (idempotent by title+plan)
+    await db.execute(
+      `insert into modules(plan_id,title,"order")
+       values ($1,'Getting Started',1) on conflict do nothing`, [planId]
+    );
+    await db.execute(
+      `insert into modules(plan_id,title,"order")
+       values ($1,'Practice MCQs',2) on conflict do nothing`, [planId]
+    );
+
+    const m1 = (await db.execute(
+      `select id from modules where plan_id=$1 and title='Getting Started' limit 1`, [planId]
+    ))[0].id;
+    const m2 = (await db.execute(
+      `select id from modules where plan_id=$1 and title='Practice MCQs' limit 1`, [planId]
+    ))[0].id;
+
+    // items (idempotent by module+stem)
+    await db.execute(
+      `insert into items(module_id,type,stem,options,answer,explainer)
+       values ($1,'explainer','Welcome to Cerply!','[]',0,'This is a demo explainer.')
+       on conflict do nothing`, [m1]
+    );
+    await db.execute(
+      `insert into items(module_id,type,stem,options,answer,explainer)
+       values ($1,'mcq','Which option matches #2?','["A","B","C","D"]',1,null)
+       on conflict do nothing`, [m2]
+    );
+
+    reply.header('x-api','dev-seed'); return { ok:true, db:true, seeded:true, planId };
   });
 };
 
