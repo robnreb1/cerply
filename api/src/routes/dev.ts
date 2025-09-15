@@ -32,6 +32,43 @@ export async function registerDevRoutes(app: any) {
 }
 
 
+/* Dev migrations runner: POST /api/dev/migrate (idempotent, gated) */
+const fs = require('fs');
+const path = require('path');
+
+module.exports.registerDevMigrate = async function registerDevMigrate(app) {
+  if (!process.env.ENABLE_DEV_ROUTES) return;
+  app.get('/api/dev/migrations', async (_req, reply) => {
+    const dir = path.join(__dirname, '..', '..', 'migrations');
+    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort() : [];
+    reply.header('x-api','dev-migrations'); return { ok:true, files };
+  });
+
+  app.post('/api/dev/migrate', async (_req, reply) => {
+    const db = (app && app.db) || null;
+    if (!db || !db.execute) return { ok:false, db:false, applied:[] };
+
+    const dir = path.join(__dirname, '..', '..', 'migrations');
+    if (!fs.existsSync(dir)) return { ok:true, db:true, applied:[] };
+
+    const files = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
+    const applied = [];
+    try {
+      await db.execute('begin', []);
+      for (const f of files) {
+        const sql = fs.readFileSync(path.join(dir, f), 'utf8');
+        if (sql && sql.trim()) { await db.execute(sql, []); applied.push(f); }
+      }
+      await db.execute('commit', []);
+      reply.header('x-api','dev-migrate'); return { ok:true, db:true, applied };
+    } catch (e) {
+      try { await db.execute('rollback', []); } catch {}
+      return { ok:false, db:true, error:String(e), applied };
+    }
+  });
+};
+
+
 /* Seed DB with a demo plan/modules/items (idempotent). Gated by ENABLE_DEV_ROUTES */
 module.exports.registerDevSeed = async function registerDevSeed(app) {
   if (!process.env.ENABLE_DEV_ROUTES) return;
