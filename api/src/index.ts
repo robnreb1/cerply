@@ -295,11 +295,15 @@ const { registerAnalyticsRoutes } = require('./routes/analytics');
 const { registerRoutesDump } = require('./routes/routesDump');
 const { registerLedgerRoutes } = require('./routes/ledger');
 const { registerAnalyticsPilot } = require('./routes/analyticsPilot');
+const { registerExportRoutes }  = require('./routes/exports');
+const { registerBudgetAlarm }   = require('./routes/budget');
 
 await registerAnalyticsRoutes(app);
 await registerLedgerRoutes(app);
 await registerRoutesDump(app);
 await registerAnalyticsPilot(app);
+await registerExportRoutes(app);
+await registerBudgetAlarm(app);
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
