@@ -43,8 +43,7 @@ import { registerAuthRoutes } from './routes/auth';
 import { registerLearnRoutes } from './routes/learn';
 import { registerDevRoutes } from './routes/dev';
 import { registerDbHealth } from './routes/dbHealth';
-import { registerAnalyticsRoutes } from './routes/analytics';
-import { registerRoutesDump } from './routes/routesDump';
+ 
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -298,7 +297,12 @@ await registerIngestRoutes(app);
 await registerLearnRoutes(app);
 await registerDevRoutes(app);
 await registerDbHealth(app);
+const { registerAnalyticsRoutes } = require('./routes/analytics');
+const { registerRoutesDump } = require('./routes/routesDump');
+const { registerLedgerRoutes } = require('./routes/ledger');
+
 await registerAnalyticsRoutes(app);
+await registerLedgerRoutes(app);
 await registerRoutesDump(app);
 
 // ---------------------
