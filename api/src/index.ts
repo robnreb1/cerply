@@ -41,6 +41,7 @@ import { registerChatRoutes } from './routes/chat';
 import { registerIngestRoutes } from './routes/ingest';
 import { registerAuthRoutes } from './routes/auth';
 import { registerLearnRoutes } from './routes/learn';
+import { registerDevRoutes } from './routes/dev';
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -292,6 +293,7 @@ function modelFamily(name: string): string {
 await registerChatRoutes(app);
 await registerIngestRoutes(app);
 await registerLearnRoutes(app);
+await registerDevRoutes(app);
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
