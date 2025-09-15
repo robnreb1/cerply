@@ -1,0 +1,27 @@
+name: smoke-staging
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "12 * * * *"  # hourly
+
+jobs:
+  smoke-stg:
+    runs-on: ubuntu-latest
+    env:
+      BASE: https://cerply-api-staging.onrender.com
+    steps:
+      - name: Curl health
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/health")
+          echo "health=$code"
+          test "$code" = "200"
+      - name: Curl db health (may be 200 or 5xx but never 404)
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/db/health")
+          echo "db_health=$code"
+          test "$code" != "404"
+      - name: Routes dump sanity
+        run: |
+          curl -s "$BASE/__routes.json" | jq -e '.ok==true' >/dev/null
+
