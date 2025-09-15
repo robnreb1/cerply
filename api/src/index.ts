@@ -42,6 +42,7 @@ import { registerIngestRoutes } from './routes/ingest';
 import { registerAuthRoutes } from './routes/auth';
 import { registerLearnRoutes } from './routes/learn';
 import { registerDevRoutes } from './routes/dev';
+import { registerDbHealth } from './routes/dbHealth';
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -294,6 +295,7 @@ await registerChatRoutes(app);
 await registerIngestRoutes(app);
 await registerLearnRoutes(app);
 await registerDevRoutes(app);
+await registerDbHealth(app);
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
@@ -1665,25 +1667,7 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
     reply.code(status).send({ error: { code, message } });
   });
 
-  // DB health
-  app.get('/api/db/health', async (_req, reply) => {
-
-    reply.header('x-api', 'db-health');
-    const urlStr = String(process.env.DATABASE_URL || '');
-    if (!urlStr) {
-      return reply.code(503).send({ error: { code: 'DATABASE_UNCONFIGURED', message: 'DATABASE_URL not set' } });
-    }
-    let host = 'unknown';
-    try { host = new URL(urlStr).host; } catch {}
-    try {
-      const { rows } = await pool.query('select 1 as ok');
-      if (rows && rows.length > 0) return reply.send({ ok: true, host });
-
-      return reply.code(500).send({ error: { code: 'INTERNAL', message: 'DB health check failed' } });
-    } catch (e: any) {
-      return reply.code(500).send({ error: { code: 'INTERNAL', message: e?.message || 'DB error' } });
-    }
-  });
+  
 
   return app;
 }
