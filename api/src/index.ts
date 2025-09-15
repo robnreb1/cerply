@@ -154,6 +154,17 @@ try {
   await app.register(helmet, { contentSecurityPolicy: false });
 } catch {}
 
+// Attach simple DB adapter when Postgres is reachable (used by dev routes)
+try {
+  await pool.query('select 1');
+  (app as any).db = {
+    execute: async (sql: string, params?: any[]) => {
+      const r = await pool.query(sql, params as any);
+      return r.rows as any[];
+    },
+  };
+} catch {}
+
 // Rate limit (env-guarded; default on outside test)
 try {
   const rateLimit = (await import('@fastify/rate-limit')).default as any;

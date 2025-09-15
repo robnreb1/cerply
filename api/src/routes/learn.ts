@@ -74,13 +74,20 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     const db:any = (app as any).db;
     if (db?.execute && (req as any).query?.planId) {
       // pick the earliest item not yet attempted (simple demo heuristic)
+      const selector = String((req as any).query.planId || '');
       const rows = await db.execute(
         `select i.id, i.type, i.stem, i.options, i.answer
            from items i
-          where i.module_id in (select id from modules where plan_id in
-                (select id from plans where id = $1 or brief = $1))
-          order by i.created_at asc limit 1`,
-        [String((req as any).query.planId)]
+          where i.module_id in (
+            select id from modules
+             where plan_id in (
+               select id from plans
+                where id::text = $1 or brief = $1
+             )
+          )
+          order by i.created_at asc
+          limit 1`,
+        [selector]
       );
       if (rows.length) {
         reply.header('x-learn-source','db');

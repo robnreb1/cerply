@@ -36,9 +36,19 @@ module.exports.registerDevMigrate = async function registerDevMigrate(app) {
     const dir = path.join(__dirname, '..', '..', 'migrations');
     if (!fs.existsSync(dir)) return { ok:true, db:true, applied:[] };
 
-    const files = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
-    const applied = [];
+    const all = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
+    // Prefer new-series migrations only to avoid legacy conflicts (fresh DB flow)
+    const series = all.filter(f => f.startsWith('2025-'));
+    const extFiles = series.filter(f => /extensions/i.test(f));
+    const files = series.filter(f => !/extensions/i.test(f));
+    const applied: string[] = [];
     try {
+      // Run extensions first (outside txn for safety)
+      for (const f of extFiles) {
+        const sql = fs.readFileSync(path.join(dir, f), 'utf8');
+        if (sql && sql.trim()) { await db.execute(sql, []); applied.push(f); }
+      }
+      // Then transactional for core/schema
       await db.execute('begin', []);
       for (const f of files) {
         const sql = fs.readFileSync(path.join(dir, f), 'utf8');
