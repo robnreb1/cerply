@@ -71,6 +71,31 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     reply.header('x-api', 'learn-next');
     const planId = (req.query as any)?.planId || 'default-plan';
     const userId = userIdFromReq(req);
+    const db:any = (app as any).db;
+    if (db?.execute && (req as any).query?.planId) {
+      // pick the earliest item not yet attempted (simple demo heuristic)
+      const rows = await db.execute(
+        `select i.id, i.type, i.stem, i.options, i.answer
+           from items i
+          where i.module_id in (select id from modules where plan_id in
+                (select id from plans where id = $1 or brief = $1))
+          order by i.created_at asc limit 1`,
+        [String((req as any).query.planId)]
+      );
+      if (rows.length) {
+        reply.header('x-learn-source','db');
+        const it = rows[0];
+        const options = Array.isArray(it.options) ? it.options : (it.options?.values ?? []);
+        return {
+          itemId: it.id,
+          type: it.type,
+          stem: it.stem ?? '—',
+          options: options.length ? options : ['A','B','C','D'],
+          dueAt: new Date().toISOString(),
+          debugAnswerIndex: typeof it.answer === 'number' ? it.answer : 0
+        };
+      }
+    }
     const items = ensurePlanItems(planId);
     const schedKey = keyFor(userId, planId);
     const now = Date.now();
@@ -126,6 +151,17 @@ export async function registerLearnRoutes(app: FastifyInstance) {
 
     const correct = (typeof body.answerIndex === 'number') ? (body.answerIndex === item.answerIndex) : false;
     const tMs = body.responseTimeMs ?? null;
+
+    try {
+      const db:any = (app as any).db;
+      if (db?.execute) {
+        await db.execute(
+          `insert into attempts(user_id,item_id,answer_index,correct,time_ms)
+           values (null,$1,$2,$3,$4)`,
+          [body.itemId, body.answerIndex ?? null, correct ? 1 : 0, body.responseTimeMs ?? null]
+        );
+      }
+    } catch {}
 
     // update schedule (memory)
     const schedKey = keyFor(userId, planId);

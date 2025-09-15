@@ -28,70 +28,7 @@ export async function registerDevRoutes(app: any) {
     return { ok: true, db: true, counts: { plans: pc.c, modules: mc.c, items: ic.c, attempts: ac.c, review: rc.c } };
   });
 
-  // Idempotent demo seed
-  app.post('/api/dev/seed', async (_req: any, reply: any) => {
-    reply.header('x-api', 'dev-seed');
-    const db: any = (app as any).db;
-    if (!db?.insert) {
-      return reply.code(200).send({ ok: true, db: false, note: 'No DB in dev; skipped seeding.' });
-    }
-
-    // Upsert plan by slug
-    const existing = await db.query.plans.findFirst({
-      where: (p: any, { eq }: any) => eq(p.slug, DEMO_SLUG),
-    });
-
-    let planId: string;
-    if (existing) {
-      planId = existing.id;
-    } else {
-      const [p] = await db
-        .insert(core.plans)
-        .values({ brief: 'Demo Pack', status: 'active', slug: DEMO_SLUG })
-        .returning({ id: core.plans.id });
-      planId = p.id;
-    }
-
-    // Minimal 3 modules
-    const moduleTitles = ['Foundations', 'Core Techniques', 'Applied Practice'];
-    const modIds: string[] = [];
-    for (let i = 0; i < moduleTitles.length; i++) {
-      const title = moduleTitles[i];
-      const row = await db.query.modules.findFirst({
-        where: (m: any, { and, eq }: any) => and(eq(m.planId, planId), eq(m.title, title)),
-      });
-      if (row) {
-        modIds.push(row.id);
-        continue;
-      }
-      const [m] = await db
-        .insert(core.modules)
-        .values({ planId, title, order: i + 1 })
-        .returning({ id: core.modules.id });
-      modIds.push(m.id);
-    }
-
-    // 10 MCQ items spread across modules
-    for (let i = 0; i < 10; i++) {
-      const mid = modIds[i % modIds.length];
-      const stem = `Demo question #${i + 1}`;
-      const existingItem = await db
-        .execute('select id from items where module_id=$1 and stem=$2 limit 1', [mid, stem])
-        .then((r: any) => r[0]);
-      if (existingItem) continue;
-
-      await db.insert(core.items).values({
-        moduleId: mid,
-        type: 'mcq',
-        stem,
-        options: JSON.stringify(['A', 'B', 'C', 'D']),
-        answer: i % 4,
-        explainer: `Answer is ${'ABCD'[i % 4]} because ...`,
-      });
-    }
-
-    return { ok: true, planId, modules: modIds.length, items: 10 };
-  });
+  // seed route moved to registerDevSeed to avoid duplication
 }
 
 
