@@ -88,6 +88,14 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     const due = sched.find(s => s.nextAt <= now) || sched[0];
     const item = items.find(i => i.id === due.itemId)!;
 
+    // Emit source + plan key headers
+    const planKey = planId;
+    const fromMemory = items.some(it => it.id?.startsWith(`${planKey}-q`));
+    const source = fromMemory ? 'memory' : 'db';
+    reply.header('x-api', 'learn-next');
+    reply.header('x-learn-source', source);
+    reply.header('x-plan-key', planKey);
+
     // DEV-only helper: include answerIndex to support tests; hide in production
     const debugAnswerIndex = process.env.NODE_ENV === 'production' ? undefined : item.answerIndex;
 
@@ -108,6 +116,11 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     const planId = body.planId || 'default-plan';
     const userId = userIdFromReq(req);
     const items = ensurePlanItems(planId);
+    const planKey = planId;
+    const fromMemory = items.some(it => it.id?.startsWith(`${planKey}-q`));
+    reply.header('x-api', 'learn-submit');
+    reply.header('x-learn-source', fromMemory ? 'memory' : 'db');
+    reply.header('x-plan-key', planKey);
     const item = items.find(i => i.id === body.itemId);
     if (!item) return reply.code(400).send({ ok:false, error: 'unknown-item' });
 
