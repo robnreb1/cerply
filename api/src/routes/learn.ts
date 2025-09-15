@@ -164,6 +164,21 @@ export async function registerLearnRoutes(app: FastifyInstance) {
       // swallow persistence errors for MVP; telemetry can log later
     }
 
+    try {
+      const db: any = (app as any).db;
+      if (db?.execute) {
+        const { events } = require('../db/observability.cjs');
+        await db.insert(events).values({
+          userId: null,
+          type: 'learn.submit',
+          payload: {
+            itemId: body?.itemId, correct, responseTimeMs: body?.responseTimeMs ?? null,
+            planId: body?.planId || null
+          }
+        });
+      }
+    } catch { /* ignore */ }
+
     return {
       ok: true,
       result: { correct, strength: Number(nextS.toFixed(3)), nextReviewAt: new Date(nextAt).toISOString() }

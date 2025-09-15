@@ -54,6 +54,18 @@ export async function registerIngestRoutes(app: FastifyInstance) {
       // ignore ledger write errors for MVP
     }
 
+    try {
+      const db: any = (app as any).db;
+      if (db?.execute) {
+        const { events } = require('../db/observability.cjs');
+        await db.insert(events).values({
+          userId: null,
+          type: 'ingest.generate',
+          payload: { types: (body?.types || []), planId: body?.planId || null, moduleId: body?.moduleId || null }
+        });
+      }
+    } catch { /* ignore */ }
+
     return {
       action: 'items',
       data: { items }
