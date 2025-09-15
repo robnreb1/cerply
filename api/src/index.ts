@@ -43,6 +43,8 @@ import { registerAuthRoutes } from './routes/auth';
 import { registerLearnRoutes } from './routes/learn';
 import { registerDevRoutes } from './routes/dev';
 import { registerDbHealth } from './routes/dbHealth';
+import { registerAnalyticsRoutes } from './routes/analytics';
+import { registerRoutesDump } from './routes/routesDump';
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -296,6 +298,8 @@ await registerIngestRoutes(app);
 await registerLearnRoutes(app);
 await registerDevRoutes(app);
 await registerDbHealth(app);
+await registerAnalyticsRoutes(app);
+await registerRoutesDump(app);
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
@@ -799,10 +803,7 @@ app.get('/__routes', async (_req, reply) => {
   }
 });
 
-// JSON route table (based on onRoute hook)
-app.get('/__routes.json', async (_req, reply) => {
-  reply.type('application/json').send({ routes: __ROUTES, ts: new Date().toISOString() });
-});
+// JSON route table handled by registerRoutesDump
 
 // Whoami (which process is serving this port)
 app.get('/__whoami', async (_req, reply) => {
