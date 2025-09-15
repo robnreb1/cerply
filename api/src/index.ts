@@ -273,13 +273,7 @@ app.get('/api/flags', async (_req, reply) => {
 // --- Test endpoint ---
 app.get('/test', async () => ({ message: 'test endpoint working' }));
 
-app.get('/api/analytics/pilot', async () => {
-  return {
-    completion21d: 0.67,
-    spacedCoverage: 0.45,
-    lift: { d7: 0.23, d30: 0.41 }
-  };
-});
+ 
 
 // Auth routes
 await registerAuthRoutes(app);
