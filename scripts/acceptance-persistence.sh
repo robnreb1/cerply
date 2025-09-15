@@ -11,7 +11,7 @@ iid=$(jq -r .itemId <<<"$resp"); ans=$(jq -r '.debugAnswerIndex // 0' <<<"$resp"
 
 curl -s -D /tmp/sub.h -H 'content-type: application/json' \
   -d '{"itemId":"'"$iid"'","answerIndex":'"$ans"',"responseTimeMs":3000,"planId":"Demo Pack"}' \
-  "$BASE/learn/submit" >/dev/null
+  "$BASE/api/learn/submit" >/dev/null
 
 # Optional header checks
 grep -i '^x-learn-attempt-db:'   /tmp/sub.h || true

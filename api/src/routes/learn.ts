@@ -153,10 +153,22 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     reply.header('x-api', 'learn-submit');
     reply.header('x-learn-source', fromMemory ? 'memory' : 'db');
     reply.header('x-plan-key', planKey);
-    const item = items.find(i => i.id === body.itemId);
-    if (!item) return reply.code(400).send({ ok:false, error: 'unknown-item' });
-
-    const correct = (typeof body.answerIndex === 'number') ? (body.answerIndex === item.answerIndex) : false;
+    let item = items.find(i => i.id === body.itemId);
+    let correct = false;
+    if (typeof body.answerIndex === 'number') {
+      if (item) {
+        correct = body.answerIndex === item.answerIndex;
+      } else {
+        try {
+          const db = (app as any)?.db;
+          if (db && db.execute) {
+            const row = await db.execute('select answer from items where id = $1 limit 1', [body.itemId]).then((r: any) => r && r[0]);
+            const ans = (row && typeof row.answer === 'number') ? row.answer : null;
+            if (ans !== null) correct = Number(body.answerIndex) === ans;
+          }
+        } catch {}
+      }
+    }
     const tMs = body.responseTimeMs ?? null;
 
     
@@ -226,13 +238,17 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     // update schedule (memory)
     const schedKey = keyFor(userId, planId);
     const sched = SCHEDULE.get(schedKey) || [];
-    const entry = sched.find(s => s.itemId === item.id)!;
-    const prev = entry?.strength ?? 0.3;
-    const nextS = updateStrength(prev, !!correct, tMs);
-    const nextAt = Date.now() + nextIntervalMs(nextS);
-    if (entry) { entry.strength = nextS; entry.nextAt = nextAt; }
-    else { sched.push({ itemId: item.id, strength: nextS, nextAt }); }
-    SCHEDULE.set(schedKey, sched);
+    let nextS: number | undefined;
+    let nextAt: number | undefined;
+    if (item) {
+      const entry = sched.find(s => s.itemId === item.id)!;
+      const prev = entry?.strength ?? 0.3;
+      nextS = updateStrength(prev, !!correct, tMs);
+      nextAt = Date.now() + nextIntervalMs(nextS);
+      if (entry) { entry.strength = nextS; entry.nextAt = nextAt; }
+      else { sched.push({ itemId: item.id, strength: nextS, nextAt: nextAt! }); }
+      SCHEDULE.set(schedKey, sched);
+    }
 
     // persist to in-memory attempts when no DB present
     try {
@@ -262,7 +278,11 @@ export async function registerLearnRoutes(app: FastifyInstance) {
 
     return {
       ok: true,
-      result: { correct, strength: Number(nextS.toFixed(3)), nextReviewAt: new Date(nextAt).toISOString() }
+      result: {
+        correct,
+        strength: typeof nextS === 'number' ? Number((nextS as number).toFixed(3)) : undefined,
+        nextReviewAt: typeof nextAt === 'number' ? new Date(nextAt as number).toISOString() : undefined
+      }
     };
   });
 
