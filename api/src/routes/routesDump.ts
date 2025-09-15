@@ -1,4 +1,5 @@
-/* __routes.json → dumps app.printRoutes() for ops checks (CJS export) */
+/* __routes.json → dumps app.printRoutes() for ops checks (pure CJS) */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 module.exports.registerRoutesDump = async function registerRoutesDump(app: any) {
   app.get('/__routes.json', async (_req: any, reply: any) => {
     const text = app.printRoutes ? app.printRoutes() : '';
