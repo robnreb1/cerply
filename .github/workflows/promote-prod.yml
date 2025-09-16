@@ -68,8 +68,15 @@ jobs:
           test -n "$SRC_DIGEST" -a "$SRC_DIGEST" = "$PROD_DIGEST"
 
       - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          curl -fsSL -X POST "https://api.render.com/deploy/srv-d31ukuadbo4c739vm180?key=4Bwf6NVzl4M"
+          set -euo pipefail
+          if [ -z "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
+            echo "Missing secret RENDER_DEPLOY_HOOK_URL" >&2
+            exit 1
+          fi
+          curl -fsSL -X POST "$RENDER_DEPLOY_HOOK_URL"
 
       - name: Wait for health
         run: |
