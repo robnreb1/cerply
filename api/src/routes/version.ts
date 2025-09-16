@@ -14,8 +14,8 @@ module.exports.registerVersionRoutes = async function registerVersionRoutes(app:
       now: new Date().toISOString(),
     };
     reply.header('x-api', 'version');
-    if (data.image.sha)   reply.header('x-image-revision', String(data.image.sha));
-    if (data.image.tag)   reply.header('x-image-tag', String(data.image.tag));
+    if (data.image.sha)     reply.header('x-image-revision', String(data.image.sha));
+    if (data.image.tag)     reply.header('x-image-tag', String(data.image.tag));
     if (data.image.created) reply.header('x-image-created', String(data.image.created));
     return data;
   });
