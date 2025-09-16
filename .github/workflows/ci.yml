@@ -31,6 +31,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+
       - name: Verify lockfiles unchanged
         run: |
           npm ci --ignore-scripts --no-audit --no-fund

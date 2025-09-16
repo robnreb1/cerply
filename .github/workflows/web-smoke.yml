@@ -1,3 +1,4 @@
+
 name: Web Smoke (API-linked)
 
 on:
@@ -40,7 +41,3 @@ jobs:
           NEXT_PUBLIC_API_BASE: ${{ inputs.api_base || 'https://cerply-api-staging.onrender.com' }}
           SMOKE_TIMEOUT_MS: "8000"
         run: npm run smoke:api
-
- 
-
-
