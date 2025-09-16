@@ -29,6 +29,8 @@ jobs:
       - name: Resolve source_tag if empty
         id: resolve
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ -z "${{ github.event.inputs.source_tag }}" ]; then
