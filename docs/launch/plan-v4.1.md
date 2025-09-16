@@ -26,6 +26,14 @@ A) Habit (daily learning loop), B) Certified supply, C) Pilot outcomes, D) Reven
 5) Infra & Deployment
 - Outcome: Repro deploys (Render + GHCR + Vercel).
 - Actions: image tagging by SHA; env/flags review; CI builds + smoke.
+ - Acceptance:
+   - [x] Green CI
+   - [x] Can roll forward/back via image tag
+   - [x] Render deploy auto-trigger after :prod promotion
+ - Ops Notes:
+   - GHCR tags: resolver picks latest non-prod tag; :prod retagged automatically.
+   - Render deploy: GitHub Actions posts to service hook and waits for /api/health 200.
+   - Manual verify: `gh api /users/$OWNER/packages/container/cerply-api/versions?per_page=10 | jq ...` to confirm `prod` tag is on the newest digest.
 
 6) Observability + Telemetry & Cost Ledger
 - Outcome: Route index + events + per-model costs.
