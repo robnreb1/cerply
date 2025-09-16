@@ -40,4 +40,10 @@ jobs:
           echo "src=$SRC_DIGEST prod=$PROD_DIGEST"
           test -n "$SRC_DIGEST" -a "$SRC_DIGEST" = "$PROD_DIGEST"
 
+      - name: Trigger Render deploy
+        run: |
+          curl --fail -sS https://api.render.com/deploy/srv-d31ukuadbo4c739vm180?key=4Bwf6NVzl4M
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.https://api.render.com/deploy/srv-d31ukuadbo4c739vm180?key=4Bwf6NVzl4M }}
+
 
