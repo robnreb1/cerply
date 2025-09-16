@@ -31,6 +31,12 @@ RUN npm -w api run build
 
 # 6) Runtime: only what we need to run the API
 FROM node:20-alpine AS runner
+ARG IMAGE_TAG="local"
+ARG GIT_SHA="unknown"
+ARG IMAGE_CREATED="unknown"
+ENV IMAGE_TAG=${IMAGE_TAG} \
+    IMAGE_SHA=${GIT_SHA} \
+    IMAGE_CREATED=${IMAGE_CREATED}
 WORKDIR /app
 ENV NODE_ENV=production
 # app code
