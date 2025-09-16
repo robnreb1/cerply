@@ -3,6 +3,8 @@ name: Build & Push API Docker image
 on:
   push:
     branches: [ main, staging ]
+    tags:
+      - 'sha-*'
     paths:
       - 'api/**'
       - '.github/workflows/api-docker.yml'
