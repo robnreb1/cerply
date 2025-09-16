@@ -216,27 +216,7 @@ export async function registerLearnRoutes(app: FastifyInstance & { db?: any }) {
     reply.header('x-learn-attempt-db', _dbAttempted ? '1' : '0');
     reply.header('x-learn-db-scheduled', _dbScheduled ? '1' : '0');
 
-    try {
-      const db = (app && app.db) || null;
-      if (db && db.execute) {
-        // simple strength model: 0..1000
-        const prev = await db.execute(
-          `select strength_score::int as s from review_schedule where item_id = $1 and user_id is null limit 1`,
-          [body.itemId]
-        ).then((r:any[]) => (r[0] && (r[0] as any).s) || 300);
-        const s = Math.max(0, Math.min(1000, correct ? prev + Math.round((1000 - prev) * 0.25) : Math.round(prev * 0.6)));
-        // bucket → next interval
-        const days = s >= 800 ? 21 : s >= 600 ? 7 : s >= 400 ? 3 : 1;
-        const nextAt = new Date(Date.now() + days * 86400e3);
-        // replace row for (user_id null, item)
-        await db.execute(`delete from review_schedule where item_id = $1 and user_id is null`, [body.itemId]);
-        await db.execute(
-          `insert into review_schedule(item_id, user_id, next_at, strength_score) values ($1, null, $2, $3)`,
-          [body.itemId, nextAt, s]
-        );
-        reply.header('x-learn-db-scheduled', '1');
-      }
-    } catch {}
+    
 
     // update schedule (memory)
     const schedKey = keyFor(userId, planId);
