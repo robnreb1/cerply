@@ -1,7 +1,7 @@
 # Deploying API via GHCR + Render
 
 ## Build & Push
-Trigger **Build & Push API Docker image** in Actions. Then verify tags/digests:
+Use GitHub Actions: **Build & Push API Docker image**. Verify tags/digests:
 ```bash
 ./scripts/ghcr-latest.sh
 
