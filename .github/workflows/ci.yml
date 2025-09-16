@@ -16,6 +16,8 @@ jobs:
   api:
     name: Build & Test (API)
     runs-on: ubuntu-latest
+    env:
+      ROLLUP_USE_NODE_JS: 'true'
 
     steps:
       - name: Checkout
@@ -103,6 +105,8 @@ jobs:
     if: ${{ github.event_name == 'pull_request' }}
     name: Typecheck (API & Web)
     runs-on: ubuntu-latest
+    env:
+      ROLLUP_USE_NODE_JS: 'true'
 
     steps:
       - name: Checkout
