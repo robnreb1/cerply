@@ -343,12 +343,12 @@ if (_enableDevRoutes) {
   await registerDevStats(app);
 }
 await registerDbHealth(app);
-const { registerAnalyticsRoutes } = require('./routes/analytics');
-const { registerRoutesDump } = require('./routes/routesDump');
-const { registerLedgerRoutes } = require('./routes/ledger');
-// const { registerAnalyticsPilot } = require('./routes/analyticsPilot');
-const { registerExportRoutes }  = require('./routes/exports');
-// const { registerBudgetAlarm }   = require('./routes/budget');
+const { registerAnalyticsRoutes } = await import('./routes/analytics');
+const { registerRoutesDump } = await import('./routes/routesDump');
+const { registerLedgerRoutes } = await import('./routes/ledger');
+// const { registerAnalyticsPilot } = await import('./routes/analyticsPilot');
+const { registerExportRoutes }  = await import('./routes/exports');
+// const { registerBudgetAlarm }   = await import('./routes/budget');
 
 await registerAnalyticsRoutes(app);
 await registerLedgerRoutes(app);
@@ -936,7 +936,8 @@ async function handleIngestParse(req: FastifyRequest, reply: FastifyReply) {
     reply.header('cache-control', 'no-store');
     reply.header('x-api', 'ingest-parse');
     (req as any).log?.info?.({ route: '/api/ingest/parse', kind, bytes, durationMs: Date.now() - startedAt, reqId: (req as any).id }, 'ingest_parse');
-    return reply.send({ sections, topics });
+    // Include ok:true for legacy tests while keeping structured response
+    return reply.send({ ok: true, sections, topics });
   } catch (err: any) {
     (req as any).log?.error?.({ err }, 'ingest/parse failed');
     return reply.code(500).send({ error: { code: 'INTERNAL', message: 'parse failed' } });

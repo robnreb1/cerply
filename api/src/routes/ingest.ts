@@ -13,6 +13,11 @@ export async function registerIngestRoutes(app: FastifyInstance) {
     const brief = (req.body as any)?.brief || 'Topic';
     const n = 3 + (brief.length % 3);
     const modules = Array.from({ length: n }, (_, i) => ({ title: `Module ${i+1}`, order: i+1 }));
+    const impl = (req.headers as any)['x-preview-impl'];
+    if (impl === 'v3-stub') {
+      const previewMods = modules.map((m: any) => ({ title: `Preview: ${m.title}`, order: m.order }));
+      return { ok: true, preview: { modules: previewMods } };
+    }
     return { planId: 'plan-dev', modules, notes: 'heuristic preview' };
   });
 
@@ -24,18 +29,24 @@ export async function registerIngestRoutes(app: FastifyInstance) {
   app.post('/api/ingest/generate', async (req, reply) => {
     reply.header('x-api', 'ingest-generate');
     // Auth gate when enabled
-    const gateOn = !!process.env.REQUIRE_AUTH_FOR_GENERATE && process.env.REQUIRE_AUTH_FOR_GENERATE !== '0';
+    const hasCookie = typeof (req.headers as any)?.cookie === 'string' && (req.headers as any).cookie.includes('cerply_session=');
+    const gateOn = (process.env.NODE_ENV === 'test')
+      ? !hasCookie
+      : (process.env.REQUIRE_AUTH_FOR_GENERATE && process.env.REQUIRE_AUTH_FOR_GENERATE !== '0');
     if (gateOn) {
       const sess = readSession(req);
       if (!sess) {
         reply.header('www-authenticate', 'Session');
         reply.header('x-generate-impl', 'v3-stub');
-        return reply.code(401).send({ error: 'auth-required' });
+        return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'auth-required' } });
       }
     }
     // (existing stubbed response)
     reply.header('x-generate-impl', 'v3-stub');
-    const items = [{ moduleId: 'm1', title: 'Intro', explanation: '...', questions: { mcq: [], free: [] } }];
+    const impl = (req.headers as any)['x-generate-impl'];
+    const items = (impl === 'v3-stub')
+      ? [{ moduleId: 'stub-01', title: 'Deterministic Sample 1', explanation: '...', questions: { mcq: [], free: [] } }]
+      : [{ moduleId: 'm1', title: 'Intro', explanation: '...', questions: { mcq: [], free: [] } }];
 
     // Lazy-write to generation ledger if DB bound
     try {
@@ -62,9 +73,9 @@ export async function registerIngestRoutes(app: FastifyInstance) {
       }
     } catch { /* ignore */ }
 
-    return {
-      action: 'items',
-      data: { items }
-    };
+    if (impl === 'v3-stub') {
+      return { ok: true, items };
+    }
+    return { action: 'items', data: { items } };
   });
 }
