@@ -1,6 +1,5 @@
-/* /api/ledger/totals → sum by model and grand total (DB-aware, pure CJS) */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-module.exports.registerLedgerRoutes = async function registerLedgerRoutes(app: any) {
+export async function registerLedgerRoutes(app: any) {
   app.get('/api/ledger/totals', async (req: any, reply: any) => {
     reply.header('x-api', 'ledger-totals');
     const db: any = (app as any).db;
@@ -78,4 +77,4 @@ module.exports.registerLedgerRoutes = async function registerLedgerRoutes(app: a
     for (const r of rows) lines.push(`${r.ts},${JSON.stringify(r.model_used)},${r.cost_cents},${JSON.stringify(r.item_id)}`);
     return lines.join('\n');
   });
-};
+}

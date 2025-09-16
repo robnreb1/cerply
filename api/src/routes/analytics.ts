@@ -1,5 +1,5 @@
-/* Lightweight analytics POST (DB-aware, CJS export, lazy require) */
-module.exports.registerAnalyticsRoutes = async function registerAnalyticsRoutes(app: any) {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export async function registerAnalyticsRoutes(app: any) {
   app.post('/api/analytics/event', async (req: any, reply: any) => {
     reply.header('x-api','analytics-event');
     const body = (req.body || {}) as any;
@@ -64,4 +64,4 @@ module.exports.registerAnalyticsRoutes = async function registerAnalyticsRoutes(
     } catch {}
     return out;
   });
-};
+}
