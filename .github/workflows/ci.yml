@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ROLLUP_USE_NODE_JS: 'true'
+      ROLLUP_SKIP_NODEJS_NATIVE: '1'
 
     steps:
       - name: Checkout
@@ -107,6 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ROLLUP_USE_NODE_JS: 'true'
+      ROLLUP_SKIP_NODEJS_NATIVE: '1'
 
     steps:
       - name: Checkout
