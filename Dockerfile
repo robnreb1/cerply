@@ -24,6 +24,7 @@ RUN npm ci --include-workspace-root -w api -w web
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/api/node_modules ./api/node_modules
 COPY . .
 RUN npm -w api run build
 
