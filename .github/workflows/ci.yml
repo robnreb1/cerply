@@ -205,9 +205,10 @@ jobs:
 
       - name: Trigger Render staging deploy (on staging only)
         if: ${{ github.ref == 'refs/heads/staging' }}
-        env:
-          RENDER_STAGING_DEPLOY_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
         run: |
           set -euo pipefail
-          HOOK="${RENDER_STAGING_DEPLOY_HOOK:-https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0}"
+          HOOK="${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}"
+          if [ -z "$HOOK" ]; then
+            HOOK="https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0"
+          fi
           curl -fsS -X POST "$HOOK"
