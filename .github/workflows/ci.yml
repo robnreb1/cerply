@@ -31,7 +31,7 @@ jobs:
           cache: 'npm'
 
       - name: Install deps (api workspace)
-        run: npm --prefix api ci || npm --prefix api install --no-audit --no-fund
+        run: npm --prefix api install --no-audit --no-fund
 
       - name: Build API
         run: npm --prefix api run build
