@@ -23,6 +23,12 @@ RUN npm run build
 
 # 3) Slim runtime with only prod deps
 FROM node:20-bullseye-slim AS runtime
+ARG IMAGE_TAG="local"
+ARG GIT_SHA="unknown"
+ARG IMAGE_CREATED="unknown"
+ENV IMAGE_TAG=${IMAGE_TAG} \
+    IMAGE_SHA=${GIT_SHA} \
+    IMAGE_CREATED=${IMAGE_CREATED}
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./
