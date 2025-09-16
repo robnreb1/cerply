@@ -62,7 +62,7 @@ jobs:
           build-args: |
             GIT_SHA=${{ github.sha }}
             IMAGE_TAG=${{ steps.meta.outputs.version || github.ref_name }}
-            IMAGE_CREATED=${{ steps.meta.outputs.created || steps.meta.outputs.labels['org.opencontainers.image.created'] || '' }}
+            IMAGE_CREATED=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] || github.event.head_commit.timestamp || '' }}
 
       # Optional: trigger Render deploy (uncomment when secrets are added)
       # - name: Trigger Render deploy
