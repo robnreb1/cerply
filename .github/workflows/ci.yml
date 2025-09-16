@@ -30,8 +30,12 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install deps (api workspace)
-        run: npm --prefix api install --no-audit --no-fund
+      - name: Install deps (api workspace incl. dev)
+        env:
+          NODE_ENV: development
+          NPM_CONFIG_PRODUCTION: 'false'
+        run: |
+          npm --prefix api ci --include=dev || npm --prefix api install --no-audit --no-fund --include=dev
 
       - name: Ensure Rollup native binary on Linux
         run: npm --prefix api install -D @rollup/rollup-linux-x64-gnu@latest || true
