@@ -29,4 +29,53 @@ module.exports.registerLedgerRoutes = async function registerLedgerRoutes(app: a
 
     return { ok: true, db: true, totals: byModel, totalCents: total };
   });
+
+  app.get('/api/ledger/alarm', async (_req, reply) => {
+    reply.header('x-api','ledger-alarm');
+    const thresh = Number(process.env.BUDGET_DAILY_CENTS || '');
+    const enabled = Number.isFinite(thresh) && thresh > 0;
+
+    let db = false, total = 0;
+    try {
+      const dbc = (app as any).db;
+      if (dbc?.execute) {
+        const row = await dbc.execute(
+          `select coalesce(sum(cost_cents)::int,0) as c
+             from gen_ledger
+            where ts >= now() - interval '24 hours'`
+        );
+        total = (row && row[0] && row[0].c) || 0;
+        db = true;
+      }
+    } catch {}
+
+    const over = enabled ? total > thresh : false;
+    if (enabled && over) reply.header('x-alarm','budget-breached-24h');
+    return { ok:true, db, enabled, windowHours:24, thresholdCents: enabled?thresh:null, totalCents: total, over };
+  });
+
+  app.get('/api/ledger/export.csv', async (_req, reply) => {
+    reply.header('x-api','ledger-export-csv');
+    reply.header('content-type','text/csv; charset=utf-8');
+    let rows:any[] = []; let dbUsed=false;
+    try {
+      const db = (app as any).db;
+      if (db?.execute) {
+        rows = await db.execute(
+          `select to_char(ts,'YYYY-MM-DD"T"HH24:MI:SS"Z"') as ts,
+                  coalesce(model_used,'unknown') as model_used,
+                  coalesce(cost_cents,0)::int as cost_cents,
+                  coalesce(item_id,'') as item_id
+             from gen_ledger
+            order by ts desc
+            limit 2000`
+        );
+        dbUsed = true;
+      }
+    } catch {}
+    if (!dbUsed) return 'ok,db=false';
+    const lines = ['ts,model_used,cost_cents,item_id'];
+    for (const r of rows) lines.push(`${r.ts},${JSON.stringify(r.model_used)},${r.cost_cents},${JSON.stringify(r.item_id)}`);
+    return lines.join('\n');
+  });
 };
