@@ -26,6 +26,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/api/node_modules ./api/node_modules
 COPY . .
+ENV PATH="/app/api/node_modules/.bin:/app/node_modules/.bin:${PATH}"
 RUN npm -w api run build
 
 # 6) Runtime: only what we need to run the API
