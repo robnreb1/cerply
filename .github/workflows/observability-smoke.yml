@@ -1,0 +1,22 @@
+name: Observability Smoke
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "api/src/routes/**"
+      - "api/migrations/**"
+      - "scripts/acceptance-observability.sh"
+      - "scripts/ci-observability.sh"
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: chmod +x scripts/acceptance-observability.sh scripts/ci-observability.sh
+      - run: scripts/ci-observability.sh
+
+
