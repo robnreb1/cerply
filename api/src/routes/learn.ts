@@ -247,15 +247,10 @@ export async function registerLearnRoutes(app: FastifyInstance & { db?: any }) {
     try {
       const db: any = (app as any).db;
       if (db?.execute) {
-        const { events } = require('../db/observability.cjs');
-        await db.insert(events).values({
-          userId: null,
-          type: 'learn.submit',
-          payload: {
-            itemId: body?.itemId, correct, responseTimeMs: body?.responseTimeMs ?? null,
-            planId: body?.planId || null
-          }
-        });
+        await db.execute(
+          `insert into events(user_id, type, payload) values ($1,$2,$3)`,
+          [null, 'learn.submit', { itemId: body?.itemId, correct, responseTimeMs: body?.responseTimeMs ?? null, planId: body?.planId || null }]
+        );
       }
     } catch { /* ignore */ }
 

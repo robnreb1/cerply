@@ -14,7 +14,19 @@ const EnvSchema = z.object({
   ITEMS_MODEL: z.string().optional(),
   ITEMS_MODEL_FALLBACK: z.string().optional(),
   ITEMS_MODEL_FALLBACK_2: z.string().optional(),
-  DATABASE_URL: z.string().url().optional(),
+  // Accept postgres:// (and postgresql://) as well as http(s) if ever used
+  DATABASE_URL: z
+    .string()
+    .optional()
+    .refine(
+      (v) =>
+        !v ||
+        /^(postgres(ql)?:\/\/)/i.test(v) ||
+        /^https?:\/\//i.test(v),
+      {
+        message: 'Invalid url',
+      }
+    ),
   ALLOW_DEV_ADMIN: z.enum(['true','false']).optional(),
   RATE_LIMIT_ENABLED: z.enum(['true','false']).optional(),
   CORS_ORIGINS: z.string().optional(),

@@ -331,14 +331,17 @@ await registerChatRoutes(app);
 await registerIngestRoutes(app);
 await registerLearnRoutes(app);
 await registerDevRoutes(app);
-const { registerDevMigrate } = require('./routes/dev');
-await registerDevMigrate(app);
-const { registerDevSeed } = require('./routes/dev');
-await registerDevSeed(app);
-const { registerDevBackfill } = require('./routes/dev');
-await registerDevBackfill(app);
-const { registerDevStats } = require('./routes/dev');
-await registerDevStats(app);
+const _enableDevRoutes = process.env.ENABLE_DEV_ROUTES === '1' || process.env.NODE_ENV !== 'production';
+if (_enableDevRoutes) {
+  const { registerDevMigrate } = require('./routes/dev');
+  await registerDevMigrate(app);
+  const { registerDevSeed } = require('./routes/dev');
+  await registerDevSeed(app);
+  const { registerDevBackfill } = require('./routes/dev');
+  await registerDevBackfill(app);
+  const { registerDevStats } = require('./routes/dev');
+  await registerDevStats(app);
+}
 await registerDbHealth(app);
 const { registerAnalyticsRoutes } = require('./routes/analytics');
 const { registerRoutesDump } = require('./routes/routesDump');

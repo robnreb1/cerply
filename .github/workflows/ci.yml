@@ -27,17 +27,17 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install deps
-        run: npm ci
+      - name: Install deps (api workspace)
+        run: npm --prefix api ci || npm --prefix api install --no-audit --no-fund
 
       - name: Build API
-        run: npm -w api run build
+        run: npm --prefix api run build
 
       - name: Run API tests
         env:
           NODE_ENV: test
           RATE_LIMIT_ENABLED: 'false'
-        run: npm -w api run test
+        run: npm --prefix api run test
 
 
       # NEW — start server before smoke
@@ -49,7 +49,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
         run: |
           # Launch the API from the workspace so Node can resolve its deps
-          npm -w api run start &
+          npm --prefix api run start &
           echo $! > /tmp/api_pid.txt
 
           # Wait up to 60s for /api/health to respond

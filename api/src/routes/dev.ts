@@ -4,7 +4,7 @@
  */
 /* eslint-disable @typescript-eslint/no-var-requires */
 
-const core = require('../db/core'); // plans/modules/items
+// note: legacy core seeding removed; not required for current dev routes
 
 const DEMO_SLUG = 'demo-pack';
 
