@@ -15,7 +15,7 @@
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "seed:demo": "node scripts/seed_demo.js",
-    "test": "ROLLUP_USE_NODE_JS=true ROLLUP_SKIP_NODEJS_NATIVE=1 vitest run --reporter=verbose",
+    "test": "node -e \"process.env.ROLLUP_USE_NODE_JS='true'; process.env.ROLLUP_SKIP_NODEJS_NATIVE='1'; require('vitest/cli').run(['run','--reporter=verbose']);\"",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:push": "drizzle-kit push --config=drizzle.config.ts",
