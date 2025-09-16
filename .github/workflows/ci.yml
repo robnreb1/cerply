@@ -153,6 +153,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute short SHA
+        id: git
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
@@ -160,13 +164,13 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/cerply-api
           tags: |
             type=raw,value=sha-${{ github.sha }}
-            type=raw,value=sha-${{ github.sha_short }}
+            type=raw,value=sha-${{ steps.git.outputs.short }}
             # main branch
             type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
-            type=raw,value=main-${{ github.sha_short }},enable=${{ github.ref_name == 'main' }}
+            type=raw,value=main-${{ steps.git.outputs.short }},enable=${{ github.ref_name == 'main' }}
             # staging branch
             type=raw,value=staging-latest,enable=${{ github.ref_name == 'staging' }}
-            type=raw,value=staging-${{ github.sha_short }},enable=${{ github.ref_name == 'staging' }}
+            type=raw,value=staging-${{ steps.git.outputs.short }},enable=${{ github.ref_name == 'staging' }}
 
       - name: Build & Push
         uses: docker/build-push-action@v6
