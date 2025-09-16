@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,6 +17,9 @@ jobs:
   api:
     name: Build & Test (API)
     runs-on: ubuntu-latest
+    env:
+      ROLLUP_USE_NODE_JS: 'true'
+      ROLLUP_SKIP_NODEJS_NATIVE: '1'
 
     steps:
       - name: Checkout
@@ -27,17 +31,26 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install deps
-        run: npm ci
+      - name: Install deps (api workspace incl. dev)
+        env:
+          NODE_ENV: development
+          NPM_CONFIG_PRODUCTION: 'false'
+        run: |
+          npm --prefix api ci --include=dev || npm --prefix api install --no-audit --no-fund --include=dev
+
+      - name: Ensure Rollup native binary on Linux
+        run: npm --prefix api install -D @rollup/rollup-linux-x64-gnu@latest || true
 
       - name: Build API
-        run: npm -w api run build
+        run: npm --prefix api run build
 
       - name: Run API tests
         env:
           NODE_ENV: test
           RATE_LIMIT_ENABLED: 'false'
-        run: npm -w api run test
+          ROLLUP_USE_NODE_JS: 'true'
+          ROLLUP_SKIP_NODEJS_NATIVE: '1'
+        run: npm --prefix api run test
 
 
       # NEW — start server before smoke
@@ -49,7 +62,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
         run: |
           # Launch the API from the workspace so Node can resolve its deps
-          npm -w api run start &
+          npm --prefix api run start &
           echo $! > /tmp/api_pid.txt
 
           # Wait up to 60s for /api/health to respond
@@ -103,6 +116,9 @@ jobs:
     if: ${{ github.event_name == 'pull_request' }}
     name: Typecheck (API & Web)
     runs-on: ubuntu-latest
+    env:
+      ROLLUP_USE_NODE_JS: 'true'
+      ROLLUP_SKIP_NODEJS_NATIVE: '1'
 
     steps:
       - name: Checkout

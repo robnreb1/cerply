@@ -35,8 +35,20 @@ import type { FastifyRequest, FastifyReply } from 'fastify';
 import { decideNextAction, extractAppendModuleTitle } from './orchestrator';
 import { modulesLoad, modulesStore, analyticsRecord } from './tools';
 import { adaptModulesForProfile } from './profileAdapt';
-import { isAdminAllowed, hasSessionFromReq } from './admin';
+import { isAdminAllowed, hasSessionFromReq, COOKIE_NAME } from './admin';
 import { parseEnv } from './env';
+import { registerChatRoutes } from './routes/chat';
+import { registerIngestRoutes } from './routes/ingest';
+import { registerAuthRoutes } from './routes/auth';
+import { registerLearnRoutes } from './routes/learn';
+import { registerDevRoutes } from './routes/dev';
+import { registerDbHealth } from './routes/dbHealth';
+import { registerAnalyticsRoutes } from './routes/analytics';
+import { registerRoutesDump }     from './routes/routesDump';
+import { registerLedgerRoutes }   from './routes/ledger';
+import { registerExportRoutes }   from './routes/exports';
+
+
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -116,6 +128,36 @@ function deterministicGenerateStub() {
 export async function createApp() {
   // --- App bootstrap ---
   const app = Fastify({ logger: true });
+  
+  // ── Observability: per-request duration headers + optional DB sampling ──
+  const OBS_PCT = Number(process.env.OBS_SAMPLE_PCT || '0'); // 0..100
+  app.addHook('onRequest', async (req:any, _reply:any) => {
+    req.__t0 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
+  });
+  app.addHook('onSend', async (req:any, reply:any, payload:any) => {
+    const t1 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
+    const ms = Math.max(0, Math.round((t1 - (req.__t0 || t1)) * 10) / 10);
+    reply.header('Server-Timing', `app;dur=${ms}`);
+    reply.header('x-req-ms', String(ms));
+
+    // probabilistic DB sink of latency as event payload
+    try {
+      if (OBS_PCT > 0 && Math.random() * 100 < OBS_PCT) {
+        const db = (app as any).db;
+        if (db?.execute) {
+          const payload = {
+            route: String((req.routerPath || req.url || '')).slice(0, 120),
+            method: req.method,
+            status: reply.statusCode,
+            ms
+          };
+          await db.execute(`insert into events(user_id, type, payload) values ($1,$2,$3)`, [null, 'latency', payload]);
+        }
+      }
+    } catch {}
+    return payload;
+  });
+  // ────────────────────────────────────────────────────────────────────────
   // Request ID header and availability on req
   app.addHook('onRequest', async (req, reply) => {
     const rid = (req as any).id || (req.headers as any)['x-request-id'] || `req-${Math.random().toString(36).slice(2,8)}`;
@@ -145,6 +187,17 @@ await app.register(fastifyCookie);
 try {
   const helmet = (await import('@fastify/helmet')).default as any;
   await app.register(helmet, { contentSecurityPolicy: false });
+} catch {}
+
+// Attach simple DB adapter when Postgres is reachable (used by dev routes)
+try {
+  await pool.query('select 1');
+  (app as any).db = {
+    execute: async (sql: string, params?: any[]) => {
+      const r = await pool.query(sql, params as any);
+      return r.rows as any[];
+    },
+  };
 } catch {}
 
 // Rate limit (env-guarded; default on outside test)
@@ -266,55 +319,11 @@ app.get('/api/flags', async (_req, reply) => {
 // --- Test endpoint ---
 app.get('/test', async () => ({ message: 'test endpoint working' }));
 
-app.get('/api/analytics/pilot', async () => {
-  return {
-    completion21d: 0.67,
-    spacedCoverage: 0.45,
-    lift: { d7: 0.23, d30: 0.41 }
-  };
-});
+ 
 
-// ---------------------
-// Auth (per spec)
-// ---------------------
-const COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'cerply_session';
-const isProd = process.env.NODE_ENV === 'production';
+// Auth routes
+await registerAuthRoutes(app);
 
-app.post('/api/auth/login', async (req, reply) => {
-  const { email } = ((req as any).body ?? {}) as { email?: string };
-  if (!email || typeof email !== 'string') {
-    return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'missing email' } });
-  }
-  const token = Buffer.from(`${email}:${Date.now()}`).toString('base64url');
-  const next = `/api/auth/callback?token=${token}`;
-  return reply.send({ ok: true, dev: true, next });
-});
-
-app.get('/api/auth/callback', async (req, reply) => {
-  const q = (req as any).query as { token?: string; redirect?: string };
-  const token = q?.token;
-  if (!token) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'missing token' } });
-  reply.setCookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 30,
-  });
-  const target = q?.redirect && /^https?:\/\//i.test(q.redirect) ? q.redirect : 'http://localhost:3000/';
-  return reply.redirect(302, target);
-});
-
-app.get('/api/auth/me', async (req, reply) => {
-  const cookie = getSessionCookie(req, COOKIE_NAME);
-  if (!cookie) return reply.code(401).send({ ok: false, user: null });
-  return reply.send({ ok: true, user: { id: 'dev', email: 'dev@local' } });
-});
-
-
-// ---------------------
-// /api/chat — Orchestrator (v3.3 — env-driven planner w/ strict headers)
-// ---------------------
 
 function modelFamily(name: string): string {
   const n = (name || '').toLowerCase();
@@ -323,197 +332,29 @@ function modelFamily(name: string): string {
   return name;
 }
 
-app.post('/api/chat', async (req: FastifyRequest, reply: FastifyReply) => {
-  const startedAt = Date.now();
+await registerChatRoutes(app);
+await registerIngestRoutes(app);
+await registerLearnRoutes(app);
+await registerDevRoutes(app);
+const _enableDevRoutes = process.env.ENABLE_DEV_ROUTES === '1';
+if (_enableDevRoutes) {
+  const { registerDevMigrate } = require('./routes/dev');
+  await registerDevMigrate(app);
+  const { registerDevSeed } = require('./routes/dev');
+  await registerDevSeed(app);
+  const { registerDevBackfill } = require('./routes/dev');
+  await registerDevBackfill(app);
+  const { registerDevStats } = require('./routes/dev');
+  await registerDevStats(app);
+}
+await registerDbHealth(app);
 
-  // Read planner config once, from env (primary gpt-5, fallback 4o by default)
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
-  const PLANNER_PRIMARY = (process.env.LLM_PLANNER_MODEL ?? 'gpt-5').toString();
-  const PLANNER_FALLBACK = (process.env.LLM_PLANNER_FALLBACK_MODEL ?? 'gpt-4o').toString();
-  const CHAT_PRIMARY = (process.env.CHAT_MODEL ?? PLANNER_PRIMARY).toString();       // clarifier default
-  const CHAT_FALLBACK = (process.env.CHAT_FALLBACK_MODEL ?? PLANNER_FALLBACK).toString();
-
-  // Always stamp route headers
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'chat-orchestrate');
-
-  if (!OPENAI_API_KEY) {
-    reply.header('x-planner', 'unavailable');
-    reply.header('x-model', 'n/a');
-    return reply.code(503).send({ error: { code: 'MODEL_UNAVAILABLE', message: 'OpenAI API key missing. Set OPENAI_API_KEY in api/.env.local.' } });
-  }
-
-  const body = ((req as any).body ?? {}) as Partial<ChatReq> & { useFallback?: boolean; profile?: { userId?: string; prefs?: Record<string, any> } };
-  const thread = Array.isArray(body.messages) ? body.messages.filter(m => m && typeof m.content === 'string') : [];
-  if (thread.length === 0) {
-    reply.header('x-planner', 'n/a');
-    reply.header('x-model', 'n/a');
-    return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'messages[] required' } });
-  }
-
-  const userId = (body?.profile?.userId || 'dev').toString();
-  const profilePrefs: Record<string, any> | undefined = body?.profile?.prefs && typeof body.profile.prefs === 'object' ? body.profile.prefs : undefined;
-  const lastUser = [...thread].reverse().find(m => m.role === 'user');
-  const lastText = (lastUser?.content || '').toString();
-  const lower = lastText.toLowerCase();
-
-  // Helper: JSON call
-  async function callJSON(model: string, system: string, user: string) {
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify(makeChatBody(model, system, user, true, 0.2))
-    });
-    return r;
-  }
-
-  // Planner (env-driven, gpt-5 primary)
-  async function planWithLLM(brief: string, prefs?: Record<string, any>, forceFallback?: boolean) {
-    const sys = [
-      "You are Cerply's planner. Propose logically grouped, syllabus-aware modules for the learner brief.",
-      'Return STRICT JSON: { "modules": [ { "id": "mod-01", "title": string, "estMinutes": number } ] }',
-      'Titles must be specific; avoid generic names. Module count is variable based on scope.',
-      'Consider learner preferences when relevant (refresher vs dive-deep, level hints).'
-    ].join(' ');
-    const primary = forceFallback ? PLANNER_FALLBACK : PLANNER_PRIMARY;
-    const fallback = PLANNER_FALLBACK;
-    let used = primary;
-    let r = await callJSON(primary, sys, JSON.stringify({ brief, prefs: prefs ?? null }));
-    if (!r.ok) {
-      const r2 = await callJSON(fallback, sys, JSON.stringify({ brief, prefs: prefs ?? null }));
-      if (!r2.ok) throw new Error(`planner_${r.status}_${r2.status}`);
-      r = r2; used = fallback;
-    }
-    const j = await r.json().catch(() => ({}));
-    let parsed: any = {}; try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    const mods: OrchestratorModule[] = Array.isArray(parsed?.modules)
-      ? parsed.modules.map((m: any, i: number) => ({ id: typeof m?.id === 'string' ? m.id : `mod-${String(i + 1).padStart(2,'0')}`, title: String(m?.title ?? `Module ${i+1}`), estMinutes: Math.max(5, Math.min(25, Number(m?.estMinutes ?? 10))) }))
-      : [];
-    if (!mods.length) throw new Error('no_modules');
-    return { modules: mods.slice(0, 12), model: used };
-  }
-
-  // Items generator (gpt-5-thinking preferred; env overrideable)
-  async function generateItems(mods: OrchestratorModule[], prefs?: Record<string, any>) {
-    const primary = (process.env.ITEMS_MODEL ?? 'gpt-5-thinking').toString();
-    const fallbacks = [
-      (process.env.ITEMS_MODEL_FALLBACK ?? 'gpt-4o').toString(),
-      (process.env.ITEMS_MODEL_FALLBACK_2 ?? 'gpt-4o-mini').toString()
-    ];
-    const sys = 'You generate compact, high-quality lesson items. Return STRICT JSON: {"items":[{ "moduleId":string, "title":string, "explanation":string, "questions": { "mcq":{"id":string,"stem":string,"options":string[4],"correctIndex":number}, "free":{"prompt":string} } } ] }';
-    const user = JSON.stringify({ modules: mods, prefs: prefs ?? null });
-    async function call(model: string) {
-      return fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
-        body: JSON.stringify(makeChatBody(model, sys, user, true, 0.0))
-      });
-    }
-    let used = primary; let r = await call(primary);
-    if (!r.ok) { for (const m of fallbacks) { const r2 = await call(m); if (r2.ok) { r = r2; used = m; break; } } }
-    if (!r.ok) throw new Error('items_unavailable');
-    const j = await r.json().catch(() => ({}));
-    let parsed: any = {}; try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    const items = Array.isArray(parsed?.items) ? parsed.items : [];
-    if (!items.length) throw new Error('items_empty');
-    return { items, model: used };
-  }
-
-  // Popular/meta prompts (cheap path first)
-  if (/(inspire|suggest|recommend|ideas|what\s+is\s+popular|what\'s\s+popular|popular)/.test(lower)) {
-    const notice = 'Here are some popular starting points: 🧮 Algebra basics • 🧪 Chemistry essentials • 🌍 World history • 🐍 Python for data • 🛰️ Space science • 🧠 Memory techniques. Want one of these, or a tailored plan?';
-    reply.header('x-planner', modelFamily(PLANNER_PRIMARY));
-    reply.header('x-model', 'n/a');
-    return reply.send({ action: 'meta', data: { notice } });
-  }
-
-  try {
-    // Read existing plan & decide action (guarded)
-    let existingPlan: OrchestratorModule[] | null = null;
-    try {
-      existingPlan = await modulesLoad(userId);
-    } catch (e) {
-      (req as any).log?.warn?.({ err: String(e) }, 'modulesLoad failed; proceeding without existing plan');
-      existingPlan = null;
-    }
-    const hasPlan = Array.isArray(existingPlan) && existingPlan.length > 0;
-    const decision = decideNextAction(thread as any, hasPlan);
-    // Revise (append) from free-text like "add speaking practice"
-    if (decision.action === 'revise') {
-      const current = Array.isArray(existingPlan) ? existingPlan : [];
-      const title = extractAppendModuleTitle(lastText) || '';
-      const exists = current.some(m => m.title.toLowerCase() === title.toLowerCase());
-      const updated = exists ? current : [...current, { id: `mod-${String(current.length + 1).padStart(2,'0')}`, title, estMinutes: 10 }];
-      await modulesStore(userId, updated);
-      await analyticsRecord({ kind: 'plan_updated', userId, delta: 'append', title });
-
-      reply.header('x-planner', modelFamily(PLANNER_PRIMARY));
-      reply.header('x-model', 'n/a');
-      (req as any).log?.info?.({ route: '/api/chat', decision: 'revise', durationMs: Date.now() - startedAt, status: 200 }, 'chat_revise');
-      return reply.send({ action: 'plan', data: { modules: updated } });
-    }
-
-    // Confirm/generate
-    if (decision.action === 'generate') {
-      const plan = Array.isArray(existingPlan) ? existingPlan : [];
-      if (!plan.length) {
-        reply.header('x-planner', 'n/a');
-        reply.header('x-model', 'n/a');
-        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'No plan to generate from' } });
-      }
-      // Optional confirm summary (env gate)
-      const confirmOnly = /(confirm|looks\s+good|sounds\s+good|approve|ship\s+it|begin|start|go\s+on\s+then|let\'?s\s*go|okay|ok\b|go\s+ahead|proceed|do\s+it)/i.test(lower) && !/(generate|create|make).*(items|lesson|questions)/i.test(lower);
-      const showSummaryOnly = ((process.env.CONFIRM_SHOW_SUMMARY ?? '').toString().toLowerCase() === '1' || (process.env.CONFIRM_SHOW_SUMMARY ?? '').toString().toLowerCase() === 'true');
-      if (confirmOnly && showSummaryOnly) {
-      const summary = `Confirmed ${plan.length} module${plan.length === 1 ? '' : 's'}: ` + plan.map((m: OrchestratorModule) => m.title).join('; ');
-        reply.header('x-planner', 'confirmation');
-        reply.header('x-model', 'n/a');
-        (req as any).log?.info?.({ route: '/api/chat', decision: 'confirm', durationMs: Date.now() - startedAt, status: 200 }, 'chat_confirm');
-        return reply.send({ action: 'confirm', data: { summary } });
-      }
-      const gen = await generateItems(plan, profilePrefs);
-      reply.header('x-planner', modelFamily(PLANNER_PRIMARY));
-      reply.header('x-model', gen.model);
-      (req as any).log?.info?.({ route: '/api/chat', decision: 'generate', itemsModel: gen.model, durationMs: Date.now() - startedAt, status: 200 }, 'chat_generate');
-      return reply.send({ action: 'items', data: { items: gen.items } });
-    }
-
-    // Plan new or re-plan
-    if (decision.action === 'plan') {
-      const llm = await planWithLLM(lastText, profilePrefs, !!body?.useFallback);
-      const adapted = adaptModulesForProfile(llm.modules, profilePrefs);
-      await modulesStore(userId, adapted);
-      await analyticsRecord({ kind: 'plan_generated', userId, count: adapted.length, adapted: adapted.length !== llm.modules.length });
-
-      reply.header('x-planner', modelFamily(llm.model));
-      reply.header('x-model', llm.model);
-      (req as any).log?.info?.({ route: '/api/chat', decision: 'plan', plannerModel: llm.model, durationMs: Date.now() - startedAt, status: 200 }, 'chat_plan');
-      return reply.send({ action: 'plan', data: { modules: adapted } });
-    }
-
-    // Clarify (CHAT_PRIMARY → CHAT_FALLBACK)
-    {
-      let model = !!body?.useFallback ? CHAT_FALLBACK : CHAT_PRIMARY;
-      const sys = 'Ask ONE short clarifying question about goal/level/focus/time today. Return JSON: {"question": string}.';
-      let r = await callJSON(model, sys, lastText);
-      if (!r.ok && model !== CHAT_FALLBACK) { model = CHAT_FALLBACK; r = await callJSON(model, sys, lastText); }
-      if (!r.ok) throw new Error(`clarify_${r.status}`);
-      const j = await r.json().catch(() => ({}));
-      let parsed: any = {}; try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-      const question = typeof parsed?.question === 'string' && parsed.question.trim() ? parsed.question.trim() : "What’s your aim and current level? Any particular focus to start with?";
-
-      reply.header('x-planner', modelFamily(model));
-      reply.header('x-model', model);
-      (req as any).log?.info?.({ route: '/api/chat', decision: 'clarify', plannerModel: model, durationMs: Date.now() - startedAt, status: 200 }, 'chat_clarify');
-      return reply.send({ action: 'clarify', data: { question } });
-    }
-  } catch (e: any) {
-    reply.header('x-planner', 'unavailable');
-    reply.header('x-model', 'n/a');
-    (req as any).log?.error?.({ route: '/api/chat', err: String(e), durationMs: Date.now() - startedAt, status: 503 }, 'chat_error');
-    return reply.code(503).send({ error: { code: 'MODEL_UNAVAILABLE', message: 'Planner models unavailable' } });
-  }
-});
+await registerAnalyticsRoutes(app);
+await registerRoutesDump(app);
+await registerLedgerRoutes(app);
+// await registerAnalyticsPilot(app);
+await registerExportRoutes(app);
+// await registerBudgetAlarm(app);
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
@@ -1017,10 +858,7 @@ app.get('/__routes', async (_req, reply) => {
   }
 });
 
-// JSON route table (based on onRoute hook)
-app.get('/__routes.json', async (_req, reply) => {
-  reply.type('application/json').send({ routes: __ROUTES, ts: new Date().toISOString() });
-});
+// JSON route table handled by registerRoutesDump
 
 // Whoami (which process is serving this port)
 app.get('/__whoami', async (_req, reply) => {
@@ -1051,6 +889,7 @@ app.get('/__dev', async (_req, reply) => {
 // Ingest: parse (normalize raw input into text)  ← simple normalizer used by web/app/api/ingest/parse proxy
 // ---------------------
 async function handleIngestParse(req: FastifyRequest, reply: FastifyReply) {
+  const startedAt = Date.now();
   try {
     // Support JSON {text?, url?} or text/plain
     const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
@@ -1082,14 +921,22 @@ async function handleIngestParse(req: FastifyRequest, reply: FastifyReply) {
       kind = 'text';
     }
 
+    // Build a minimal, stable outline
+    const bytes = Buffer.byteLength(text, 'utf8');
+    const rawSections = text.split(/\n\s*\n+/).map(s => s.trim()).filter(Boolean);
+    const sections = rawSections.map((s, i) => ({ id: `sec-${String(i + 1).padStart(2,'0')}`, title: s.split(/\s+/).slice(0, 8).join(' ') }));
+    const wordCounts: Record<string, number> = {};
+    for (const w of text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)) {
+      if (w.length < 3) continue;
+      wordCounts[w] = (wordCounts[w] || 0) + 1;
+    }
+    const topics = Object.entries(wordCounts).sort((a,b) => b[1]-a[1]).slice(0, 8).map(([term, count], i) => ({ id: `topic-${String(i+1).padStart(2,'0')}`, term, weight: count }));
+
     reply.header('cache-control', 'no-store');
     reply.header('x-api', 'ingest-parse');
-    return reply.send({
-      ok: true,
-      parsed: { kind, text },
-      bytes: Buffer.byteLength(text, 'utf8'),
-      ts: new Date().toISOString(),
-    });
+    (req as any).log?.info?.({ route: '/api/ingest/parse', kind, bytes, durationMs: Date.now() - startedAt, reqId: (req as any).id }, 'ingest_parse');
+    // Include ok:true for legacy tests while keeping structured response
+    return reply.send({ ok: true, sections, topics });
   } catch (err: any) {
     (req as any).log?.error?.({ err }, 'ingest/parse failed');
     return reply.code(500).send({ error: { code: 'INTERNAL', message: 'parse failed' } });
@@ -1115,6 +962,7 @@ function pickText(contentType: string | undefined, body: any, rawText?: string):
 // ---------------------
 
 async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
+  const startedAt = Date.now();
   try {
     // Test/stub toggle via header
     const implHeader = String((req.headers as any)['x-preview-impl'] ?? '');
@@ -1345,7 +1193,17 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
     reply.header('x-preview-impl', impl || 'v3-llm');
     if (planner) reply.header('x-planner', planner);
     if (modelUsed) reply.header('x-model', modelUsed);
-    return reply.send(diag ? { ok: true, modules, diagnostics: diag } : { ok: true, modules });
+    const shaped = modules.map((m: any, i: number) => ({
+      id: String(m?.id ?? `mod-${String(i + 1).padStart(2,'0')}`),
+      title: String(m?.title ?? `Module ${i + 1}`),
+      estMinutes: Math.max(5, Math.min(25, Number(m?.estMinutes ?? 10))),
+      exampleQuestions: [
+        `Explain ${String(m?.title ?? 'this')} in a few sentences.`,
+        `Give one example where ${String(m?.title ?? 'this')} applies.`,
+      ],
+    }));
+    (req as any).log?.info?.({ route: '/api/ingest/preview', impl, planner, durationMs: Date.now() - startedAt, reqId: (req as any).id }, 'ingest_preview');
+    return reply.send({ modules: shaped });
   } catch (err: any) {
     (req as any).log?.error?.({ err }, 'ingest/preview failed');
     return reply.code(500).send({ error: { code: 'INTERNAL', message: 'preview failed' } });
@@ -1353,223 +1211,20 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
 }
 
 // Register preview on both URLs
-app.post('/api/ingest/preview', handleIngestPreview);
-app.post('/ingest/preview', handleIngestPreview);
+app.post('/ingest/preview', async (_req, reply) => {
+  reply.header('x-deprecated', 'true');
+  reply.header('link', '</api/ingest/preview>; rel="successor-version"');
+  return reply.code(307).send({ next: '/api/ingest/preview' });
+});
 
 // ---------------------
 // Ingest: clarify (per spec)
 // ---------------------
-app.post('/api/ingest/clarify', async (req: FastifyRequest, reply: FastifyReply) => {
-  const body = ((req as any).body ?? {}) as { text?: string };
-  const input = (body.text ?? '').toString();
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY ?? '';
-  const lowerInput = input.toLowerCase();
-
-  // If no LLM key, hard fail (no heuristic clarifier)
-  if (!OPENAI_API_KEY) {
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-clarify');
-    return reply.code(503).send({ error: { code: 'MODEL_UNAVAILABLE', message: 'OpenAI API key missing. Set OPENAI_API_KEY in api/.env.local and restart the API.' } });
-  }
-
-  // Propose-first for instruction-style briefs (e.g., "train me to…", "how to…", "start a business like…")
-  try {
-    const instruct = /\b(train|teach|help|show)\s+me\b/.test(lowerInput) || /\bhow\s+to\b/.test(lowerInput) || /start\s+(a\s+)?business\b/.test(lowerInput) || /build\s+(a\s+)?business\b/.test(lowerInput);
-    if (instruct) {
-      // Use planner to draft a short scaffold directly
-      const intent = analyzeIntent(input);
-      try {
-        const llm = await planModulesLLM({ topic: intent.topic, mins: intent.mins, isIntro: intent.isIntro, focus: intent.focus });
-        const modules = llm.modules.slice(0, 6);
-        reply.header('cache-control', 'no-store');
-        reply.header('x-api', 'ingest-clarify');
-        return reply.send({ propose: modules });
-      } catch (e) {
-        // Simple fallback scaffold if planner hiccups
-        const seeds = [
-          'Pick a problem worth solving (first principles)',
-          'Market research: users, pain, willingness to pay',
-          'Build a fast MVP (speed over polish)',
-          'Capital and risk: funding, cash-flow, pricing',
-          'Hiring and culture for execution',
-          'Launch, iterate, and scale'
-        ].slice(0, 6).map((title, i) => ({ id: `mod-${String(i+1).padStart(2,'0')}`, title, estMinutes: 10 }));
-        reply.header('cache-control', 'no-store');
-        reply.header('x-api', 'ingest-clarify');
-        return reply.send({ propose: seeds });
-      }
-    }
-  } catch {}
-
-  const system = [
-    'You are an expert educator in every known topic (up to PhD level) who speaks in clear, non‑patronising language.',
-    'When the user asks open-endedly (e.g., "how to build a business in the style of Elon Musk", "how to do X"), do not stall with level questions. Instead, propose a short, sensible module scaffold immediately (2–6 modules) that would teach this from a reasonable starting point. Keep titles specific. After proposing, you may ask one follow-up to tailor depth.',
-    'When the user explicitly mentions an exam syllabus (GCSE/A‑Level/KS3–5), ask level/board succinctly; otherwise avoid generic level questions and prefer proposing a draft scaffold first.',
-    'Save useful learner signals (level, preferences like refresher vs dive-deep, focus) as prefs for future sessions.',
-    'Return STRICT JSON: { "question?": string, "propose?": [ { "id": string, "title": string, "estMinutes": number } ], "prefs?": object } — If "propose" is present, keep it to 2–6 modules; if you truly cannot propose, fallback to a single short "question".'
-  ].join(' ');
-
-  const user = JSON.stringify({ brief: input });
-  try {
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify(makeChatBody('gpt-5', system, user, true, 0.2))
-    });
-    if (!r.ok) throw new Error(String(r.status));
-    const j = await r.json().catch(() => ({}));
-    let parsed: any = {};
-    try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    const proposed = Array.isArray(parsed?.propose) ? parsed.propose : [];
-    const question = typeof parsed?.question === 'string' && parsed.question.trim() ? parsed.question.trim() : undefined;
-    const prefs = parsed?.prefs && typeof parsed.prefs === 'object' ? parsed.prefs : undefined;
-    if (prefs) {
-      // Store to learner profile best-effort
-      try {
-        await pool.query('insert into artefacts (kind, title, content, created_at) values ($1,$2,$3, now())', ['learner_profile_note', 'clarify_prefs', JSON.stringify(prefs)]);
-      } catch {}
-    }
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-clarify');
-    if (proposed.length) {
-      // Pass back a draft scaffold so the web can show a plan immediately
-    const modules = proposed.map((m: any, i: number) => ({
-      id: typeof m?.id === 'string' ? m.id : `mod-${String(i + 1).padStart(2, '0')}`,
-      title: String(m?.title ?? `Module ${i + 1}`),
-      estMinutes: Math.max(5, Math.min(25, Number(m?.estMinutes ?? 10)))
-    })).slice(0, 6);
-      return reply.send({ propose: modules });
-    }
-    return reply.send({ question: question || "What’s your aim and current level? Any particular focus to start with?" });
-  } catch {
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-clarify');
-    return reply.send({ question: "What’s your aim and current level? Any particular focus to start with?" });
-  }
-});
 
 // ---------------------
 // Ingest: followup (per spec)
 // ---------------------
-app.post('/api/ingest/followup', async (req: FastifyRequest, reply: FastifyReply) => {
-  const body = ((req as any).body ?? {}) as {
-    message?: string;
-    modules?: { id: string; title: string; estMinutes?: number }[];
-  };
-  const message = (body.message ?? '').toString();
-  const modules = Array.isArray(body.modules) ? body.modules : [];
-  const lower = message.toLowerCase();
 
-  // add/include → updated-plan
-  const addMatch = lower.match(/(?:add|include)\s+(.+?)(?:\.|$)/);
-  if (addMatch && modules.length) {
-    const title = `Focus: ${addMatch[1].trim()}`;
-    const exists = modules.some(m => m.title.toLowerCase() === title.toLowerCase());
-    const updated = exists ? modules : [...modules, { id: `mod-${String(modules.length + 1).padStart(2, '0')}`, title, estMinutes: 10 }];
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-followup');
-    return reply.send({ action: 'updated-plan', modules: updated });
-  }
-
-  // generate/create items → generated-items
-  if (/(generate|create).*(items|lesson|questions)/.test(lower) && modules.length) {
-  const items = modules.map((m: any, i: number) => ({
-    moduleId: m.id,
-    title: m.title,
-    explanation: `Overview of "${m.title}"`,
-    questions: { mcq: mkItem(`Which statement best captures "${m.title}"?`, i), free: { prompt: `In 2–3 sentences, explain "${m.title}" to a colleague.` } }
-  }));
-    reply.header('cache-control', 'no-store');
-    reply.header('x-api', 'ingest-followup');
-    return reply.send({ action: 'generated-items', items });
-  }
-
-  // default → refine
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'ingest-followup');
-  return reply.send({ action: 'refine', brief: message, message });
-});
-
-app.post('/api/ingest/generate', async (req: FastifyRequest, reply: FastifyReply) => {
-  // Auth gate: require session unconditionally (legacy wrapper)
-  if (!hasSessionFromReq(req as any)) {
-    reply.header('www-authenticate', 'Session realm="cerply"');
-    return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'Login required to generate items' } });
-  }
-  if (shouldStubGenerate(req)) {
-    reply.header('x-api', 'ingest-generate');
-    return reply.send({ ok: true, items: deterministicGenerateStub() });
-  }
-  const b = ((req as any).body ?? {}) as { modules?: { id: string; title: string; estMinutes?: number }[] };
-  const mods = Array.isArray(b.modules) ? b.modules : [];
-  if (mods.length === 0) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'modules[] required' } });
-  // Prefer GPT-5-Thinking for lesson item generation; fallback to a compatible model; no heuristic templates
-  const ITEMS_PRIMARY_MODEL = (process.env.ITEMS_MODEL ?? 'gpt-5-thinking').toString();
-  const ITEMS_FALLBACK_MODEL = (process.env.ITEMS_MODEL_FALLBACK ?? 'gpt-4o').toString();
-  const ITEMS_FALLBACK_MODEL_2 = (process.env.ITEMS_MODEL_FALLBACK_2 ?? 'gpt-4o-mini').toString();
-  async function callItems(modelName: string) {
-    const sys = [
-      'You generate compact, high-quality lesson items from a short module list.',
-      'Return STRICT JSON: { "items": [ { "moduleId": string, "title": string, "explanation": string, "questions": { "mcq": {"id": string, "stem": string, "options": string[4], "correctIndex": number }, "free": { "prompt": string } } } ] }.',
-      'Explanations should be 2–4 sentences and avoid boilerplate wording like "Overview of…". The free-text prompt should be natural (e.g., "Explain X in a few sentences for a peer"). MCQ must have exactly 4 plausible options.'
-    ].join(' ');
-    const user = JSON.stringify({ modules: mods });
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${OPENAI_API_KEY}` },
-      body: JSON.stringify(makeChatBody(modelName, sys, user, true, 0.0))
-    });
-    return r;
-  }
-  let items: any[] = [];
-  let usedModel = '';
-  try {
-    if (!OPENAI_API_KEY) throw new Error('missing_key');
-    let r = await callItems(ITEMS_PRIMARY_MODEL);
-    if (!r.ok) {
-      const r2 = await callItems(ITEMS_FALLBACK_MODEL);
-      if (!r2.ok) {
-        const r3 = await callItems(ITEMS_FALLBACK_MODEL_2);
-        if (!r3.ok) throw new Error(`openai_${r.status}_${r2.status}_${r3.status}`);
-        r = r3;
-        usedModel = ITEMS_FALLBACK_MODEL_2;
-      } else {
-        r = r2;
-        usedModel = ITEMS_FALLBACK_MODEL;
-      }
-    } else {
-      usedModel = ITEMS_PRIMARY_MODEL;
-    }
-    const j = await r.json().catch(() => ({}));
-    let parsed: any = {};
-    try { parsed = JSON.parse(j?.choices?.[0]?.message?.content ?? '{}'); } catch {}
-    if (Array.isArray(parsed?.items)) items = parsed.items;
-  } catch (e) {
-    (req as any).log?.error?.({ err: String(e) }, 'items llm generate failed');
-  }
-  if (!items.length) {
-    return reply.code(503).send({ error: { code: 'MODEL_UNAVAILABLE', message: 'Could not generate lesson items right now. Please try again shortly.' } });
-  }
-
-  // Optional lightweight generation ledger
-  if (FLAGS.ff_cost_guardrails_v1) {
-    const now = new Date().toISOString();
-    for (const row of items) {
-      const itemId = row?.questions?.mcq?.id || `auto-${Math.random().toString(36).slice(2,8)}`;
-      _genLedger.push({ itemId, modelUsed: OPENAI_API_KEY ? (usedModel || ITEMS_PRIMARY_MODEL) : 'mock:router', costCents: 1, createdAt: now });
-    }
-  }
-
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'ingest-generate');
-  try {
-    await pool.query(
-      'insert into artefacts (kind, title, content, created_at) values ($1,$2,$3, now())',
-      ['lesson_pack', `Auto pack ${new Date().toISOString()}`, JSON.stringify(items)]
-    );
-  } catch {}
-  return reply.send({ ok: true, items });
-});
 
 // ---------------------
 // /api/items/generate (MVP)
@@ -1639,29 +1294,7 @@ const BANK: MCQItem[] = [
 ];
 const _sessions = new Map<string, { idx: number }>();
 
-app.post('/learn/next', async (req: FastifyRequest, reply: FastifyReply) => {
-  const sessionId = (req as any).body?.sessionId as string | undefined;
-  let sid = sessionId;
-  if (!sid || !_sessions.has(sid)) {
-    sid = crypto.randomUUID();
-    _sessions.set(sid, { idx: 0 });
-  }
-  const s = _sessions.get(sid)!;
-  const item = BANK[s.idx % BANK.length];
-  s.idx++;
-  return reply.send({ sessionId: sid, item });
-});
-
-app.post('/learn/submit', async (req: FastifyRequest, reply: FastifyReply) => {
-  const body = (req as any).body as { sessionId?: string; itemId?: string; answerIndex?: number };
-  if (!body?.sessionId || !_sessions.has(body.sessionId)) {
-    return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Unknown sessionId' } });
-  }
-  const item = BANK.find(i => i.id === body.itemId);
-  if (!item) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Unknown itemId' } });
-  const correct = Number(body.answerIndex) === item.correctIndex;
-  return reply.send({ correct, correctIndex: item.correctIndex, explainer: correct ? 'Nice! You chose the best answer.' : 'Review the stem and options; focus on the key concept.' });
-});
+// legacy /learn routes removed in favor of registerLearnRoutes
 
 // ---------------------
 // Group 3 — Daily queue & scoring (deterministic MVP)
@@ -2091,25 +1724,7 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
     reply.code(status).send({ error: { code, message } });
   });
 
-  // DB health
-  app.get('/api/db/health', async (_req, reply) => {
-
-    reply.header('x-api', 'db-health');
-    const urlStr = String(process.env.DATABASE_URL || '');
-    if (!urlStr) {
-      return reply.code(503).send({ error: { code: 'DATABASE_UNCONFIGURED', message: 'DATABASE_URL not set' } });
-    }
-    let host = 'unknown';
-    try { host = new URL(urlStr).host; } catch {}
-    try {
-      const { rows } = await pool.query('select 1 as ok');
-      if (rows && rows.length > 0) return reply.send({ ok: true, host });
-
-      return reply.code(500).send({ error: { code: 'INTERNAL', message: 'DB health check failed' } });
-    } catch (e: any) {
-      return reply.code(500).send({ error: { code: 'INTERNAL', message: e?.message || 'DB error' } });
-    }
-  });
+  
 
   return app;
 }

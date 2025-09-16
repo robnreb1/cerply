@@ -1,4 +1,4 @@
-Cerply — Functional Specification (v3.3, AI-First)
+Cerply — Functional Specification (v3.4, AI-First)
 
 1) Product vision
 
@@ -12,6 +12,7 @@ D2C ships first (wow factor + daily value), then expand to teams & enterprise (p
 	•	Ship a stable D2C web app with conversational intake → clarify → plan → confirm → lessons → daily review.
 	•	Establish moats (data telemetry; human-in-loop certification; groups/teams; refined prompts; delightful UX; reinforcement).
 	•	Land 3–5 enterprise pilots (L&D/Compliance) on the same codebase.
+	•	Opos hardening (live): Render staging/prod services, GHCR Docker images for prod, lockfile sync, smoke/acceptance scripts, domain + TLS verified.
 	•	Keep infra simple: Fastify API + Next.js; OpenAI for orchestration & planning (env-flag guarded).
 
 2.1) UI freeze (no visual regressions)
@@ -43,7 +44,7 @@ This spec must not trigger any front-end visual changes. The current UI (header,
 		- Lesson creation: GPT‑5 Thinking.
 		- Cerply Certified alt-lesson generation: Gemini Ultra.
 		- Cerply Certified review/compare/refine: Anthropic Claude Opus.
-	•	Data: Start in-memory (MVP), with planned Postgres persistence. Telemetry & event logs from Day 1.
+	•	Data: Postgres persistence live on Render (Drizzle migrations + seed); in‑memory caches okay for throughput but Postgres is source of truth. Telemetry & event logs from Day 1.
 
 ⸻
 
@@ -133,6 +134,10 @@ Headers: x-planner, x-model, x-api: chat-orchestrate.
 	•	GET /api/auth/callback?token=... → sets cerply_session cookie (HttpOnly, SameSite=Lax)
 	•	GET /api/auth/me → { ok, user|null }
 
+	> Gate /api/ingest/generate requires session when REQUIRE_AUTH_FOR_GENERATE=1 (401 + WWW-Authenticate: Session). Cookie flags: HttpOnly, SameSite=Lax, Max-Age=30d; Secure in production.
+
+	•	GET /api/db/health → { ok, host } (500 with { error } on failure); sets x-api: db-health
+
 LLM planner toggles: OPENAI_API_KEY, LLM_PREVIEW=1, LLM_PLANNER_PROVIDER=openai, LLM_PLANNER_MODEL=gpt-4o-mini (overrideable), hard 503 on missing/invalid.
 
 ⸻
@@ -211,10 +216,21 @@ Certified modules are intended for scenarios where reliability, auditability, an
 
 ⸻
 
+⸻
+
+Ops & Deploy (current state)
+	•	Render services: cerply-api-staging (branch deploy) and cerply-api-prod (Docker image from GHCR).
+	•	Images: GHCR ghcr.io/&lt;org or user&gt;/cerply-api:&lt;short-sha&gt; (main) with :latest on main.
+	•	Custom domains:
+		•	Staging: https://cerply-api-staging.onrender.com
+		•	Prod: https://api.cerply.com (CNAME → cerply-api-prod.onrender.com)
+	•	Monitoring: use /__routes.json to confirm route presence; headers x-api and x-req-id for tracing.
+
 11) Observability
-	•	API structured logs (route, duration, status, planner/model, token usage).
+	•	API structured logs (route, duration, status, planner/model, token usage), includes x-req-id and x-api headers per route.
 	•	Frontend event log: time to clarifier/plan/generate, scroll-lock state, loop-guard triggers.
-	•	Basic counters for usage and cost when LLM enabled.
+	•	Counters for usage and cost when LLM enabled.
+	•	Ops endpoints: /api/health, /api/db/health, /__routes.json; verify presence in acceptance.
 
 ⸻
 
@@ -238,9 +254,15 @@ Certified modules are intended for scenarios where reliability, auditability, an
 	•	Web only: npm -w web run dev (Next.js on :3000)
 	•	Kill blockers on 3000/8080 if needed.
 	•	Env basics:
-	•	Web: NEXT_PUBLIC_USE_MOCKS=false, NEXT_PUBLIC_API_BASE=http://localhost:8080
-	•	API (LLM optional): OPENAI_API_KEY=..., LLM_PREVIEW=1, LLM_PLANNER_PROVIDER=openai, LLM_PLANNER_MODEL=gpt-4o-mini
-	•	Gate generate: REQUIRE_AUTH_FOR_GENERATE=1
+		•	Web: NEXT_PUBLIC_USE_MOCKS=false, NEXT_PUBLIC_API_BASE=http://localhost:8080
+		•	API (LLM optional): OPENAI_API_KEY=..., LLM_PREVIEW=1, LLM_PLANNER_PROVIDER=openai, LLM_PLANNER_MODEL=gpt-4o-mini
+		•	Gate generate: REQUIRE_AUTH_FOR_GENERATE=1
+	•	Staging (Render): https://cerply-api-staging.onrender.com
+	•	Production (Render + custom domain): https://api.cerply.com
+	•	Smoke scripts (root):
+		•	scripts/smoke-stg.sh  → hits /api/health and db health
+		•	scripts/smoke-prod.sh → hits /api/health and db health
+	•	Acceptance scripts: scripts/acceptance-stg.sh, scripts/acceptance-prod.sh
 
 ⸻
 
@@ -284,6 +306,7 @@ AC: Set-Cookie verified.
 	•	/curator/quality/compute accepts items → 200/400, never 404/405.
 	•	/evidence/coverage returns summary + gaps; web /coverage (if present) proxies cleanly.
 	•	Health routes return 200 JSON on Vercel and local (proxy permitted).
+	•	/api/db/health returns 200 on healthy DB; 5xx with JSON error on faults; never 404 in live environments.
 
 14.6 Loop guard
 	•	Assistant never repeats the same planning/generating notice twice without new content.
@@ -302,6 +325,7 @@ AC: Duplicate intents coalesced; “Still thinking…” appears once; a follow-
 ⸻
 
 16) Change log
+	•	2025-09-13: v3.4 — Ops hardening: Render staging/prod configured; GHCR Docker image for prod live; db health route exposed and verified; smoke/acceptance scripts added; domains configured (api.cerply.com) and TLS verified.
 	•	2025-09-06: v3.3 — Added Cerply Certified (admin-only multi-agent frontier refinement) and Expert Certified (human expert/company certification). Updated LLM routing to use GPT‑5 for planning and lesson generation, Gemini Ultra for alternative lesson generation, Claude Opus for review/refine, with GPT‑4o fallback. Added admin workflow for Cerply Certified.
 	•	2025-09-05: v3.2 — Removed fixed module count; clarified assertive tone; tightened loop-guard UX; re-affirmed UI freeze; acceptance updated to variable module counts.
 	•	2025-09-04: v3.1 — Orchestrator elevated to primary (/api/chat); tools contract documented; acceptance tightened; legacy ingest wrapped.

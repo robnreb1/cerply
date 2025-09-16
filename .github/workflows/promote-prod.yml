@@ -1,0 +1,43 @@
+name: Promote API image to :prod
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: "Source tag or @digest (e.g., sha-<short> or @sha256:...)"
+        required: true
+  push:
+    tags:
+      - "sha-*"
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login GHCR
+        run: echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Promote
+        env:
+          GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/cerply-api
+          SOURCE_TAG: ${{ github.event.inputs.source_tag || github.ref_name }}
+          TARGET_TAG: prod
+        run: |
+          bash scripts/ghcr-promote.sh
+      - name: Verify digest match
+        env:
+          GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/cerply-api
+          SOURCE_TAG: ${{ github.event.inputs.source_tag || github.ref_name }}
+        run: |
+          REF="${GHCR_IMAGE}:${SOURCE_TAG}"
+          [[ "$SOURCE_TAG" == @sha256:* ]] && REF="${GHCR_IMAGE}${SOURCE_TAG}"
+          SRC_DIGEST=$(docker buildx imagetools inspect "$REF" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          PROD_DIGEST=$(docker buildx imagetools inspect "${GHCR_IMAGE}:prod" --format '{{json .Manifest.Digest}}' | tr -d '"')
+          echo "src=$SRC_DIGEST prod=$PROD_DIGEST"
+          test -n "$SRC_DIGEST" -a "$SRC_DIGEST" = "$PROD_DIGEST"
+
+

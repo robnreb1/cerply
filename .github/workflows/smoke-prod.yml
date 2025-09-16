@@ -1,0 +1,25 @@
+name: smoke-prod
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "27 * * * *"
+
+jobs:
+  smoke-prod:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      BASE: https://api.cerply.com
+    steps:
+      - name: Curl health
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/health")
+          echo "health=$code"
+          test "$code" = "200"
+      - name: DB health never 404
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/db/health")
+          echo "db_health=$code"
+          test "$code" != "404"
+
