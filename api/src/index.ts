@@ -356,6 +356,12 @@ await registerLedgerRoutes(app);
 await registerExportRoutes(app);
 // await registerBudgetAlarm(app);
 
+// Version endpoint (runtime-identifiable image/version)
+try {
+  const versionRoutes: any = require('./routes/version');
+  await versionRoutes.registerVersionRoutes(app);
+} catch {}
+
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
 // ---------------------
