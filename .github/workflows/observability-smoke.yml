@@ -8,6 +8,12 @@ on:
       - "api/migrations/**"
       - "scripts/acceptance-observability.sh"
       - "scripts/ci-observability.sh"
+  pull_request:
+    paths:
+      - "api/src/routes/**"
+      - "api/migrations/**"
+      - "scripts/acceptance-observability.sh"
+      - "scripts/ci-observability.sh"
 jobs:
   smoke:
     runs-on: ubuntu-latest
