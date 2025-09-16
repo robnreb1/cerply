@@ -202,3 +202,12 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Trigger Render staging deploy (on staging only)
+        if: ${{ github.ref == 'refs/heads/staging' }}
+        env:
+          RENDER_STAGING_DEPLOY_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
+        run: |
+          set -euo pipefail
+          HOOK="${RENDER_STAGING_DEPLOY_HOOK:-https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0}"
+          curl -fsS -X POST "$HOOK"
