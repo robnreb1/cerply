@@ -123,6 +123,36 @@ function deterministicGenerateStub() {
 export async function createApp() {
   // --- App bootstrap ---
   const app = Fastify({ logger: true });
+  
+  // ── Observability: per-request duration headers + optional DB sampling ──
+  const OBS_PCT = Number(process.env.OBS_SAMPLE_PCT || '0'); // 0..100
+  app.addHook('onRequest', async (req:any, _reply:any) => {
+    req.__t0 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
+  });
+  app.addHook('onSend', async (req:any, reply:any, payload:any) => {
+    const t1 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
+    const ms = Math.max(0, Math.round((t1 - (req.__t0 || t1)) * 10) / 10);
+    reply.header('Server-Timing', `app;dur=${ms}`);
+    reply.header('x-req-ms', String(ms));
+
+    // probabilistic DB sink of latency as event payload
+    try {
+      if (OBS_PCT > 0 && Math.random() * 100 < OBS_PCT) {
+        const db = (app as any).db;
+        if (db?.execute) {
+          const payload = {
+            route: String((req.routerPath || req.url || '')).slice(0, 120),
+            method: req.method,
+            status: reply.statusCode,
+            ms
+          };
+          await db.execute(`insert into events(user_id, type, payload) values ($1,$2,$3)`, [null, 'latency', payload]);
+        }
+      }
+    } catch {}
+    return payload;
+  });
+  // ────────────────────────────────────────────────────────────────────────
   // Request ID header and availability on req
   app.addHook('onRequest', async (req, reply) => {
     const rid = (req as any).id || (req.headers as any)['x-request-id'] || `req-${Math.random().toString(36).slice(2,8)}`;
