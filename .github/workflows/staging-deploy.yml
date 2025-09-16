@@ -18,7 +18,7 @@ jobs:
       OWNER: ${{ github.repository_owner }}
       PKG: cerply-api
       API_DOCKERFILE: ./api/Dockerfile
-      RENDER_STG_HOOK: ${{ secrets.RENDER_STG_HOOK }}  # <-- add in GH repo settings
+      RENDER_STG_HOOK: ${{ secrets.RENDER_STG_HOOK || '' }}  # <-- add in GH repo settings
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
           build-args: |
             GIT_SHA=${{ github.sha }}
             IMAGE_TAG=stg-${{ github.sha }}
-            IMAGE_CREATED=${{ steps.meta.outputs.created }}
+            IMAGE_CREATED=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] || github.event.head_commit.timestamp || '' }}
 
       - name: Trigger Render staging deploy
         if: ${{ env.RENDER_STG_HOOK != '' }}
