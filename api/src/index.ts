@@ -43,13 +43,20 @@ import { registerAuthRoutes } from './routes/auth';
 import { registerLearnRoutes } from './routes/learn';
 import { registerDevRoutes } from './routes/dev';
 import { registerDbHealth } from './routes/dbHealth';
- 
+
 /* eslint-disable @typescript-eslint/no-var-requires */
-const analyticsRoutes: any  = require('./routes/analytics');
-const routesDumpRoutes: any = require('./routes/routesDump');
-const ledgerRoutes: any     = require('./routes/ledger');
-const exportRoutes: any     = require('./routes/exports');
-/* eslint-enable @typescript-eslint/no-var-requires */
+// Detect whether we are running the TS sources (dev/tests) or compiled JS (dist)
+const __EXT = __filename.endsWith('.ts') ? '.ts' : '.js';
+
+function loadRoute(modBase: string) {
+  try { return require(`${modBase}${__EXT}`); } catch {}
+  return require(modBase);
+}
+
+const analyticsRoutes: any   = loadRoute('./routes/analytics');
+const routesDumpRoutes: any  = loadRoute('./routes/routesDump');
+const ledgerRoutes: any      = loadRoute('./routes/ledger');
+const exportRoutes: any      = loadRoute('./routes/exports');
 
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
