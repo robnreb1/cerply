@@ -1,17 +1,12 @@
-# Keep node_modules out of context
 node_modules
 **/node_modules
 
-# Allow lockfiles (critical for npm ci)
+# keep lockfiles in context (place these at the BOTTOM so they win)
 !package-lock.json
 !**/package-lock.json
 
-# Usual noise
+# usual noise
 .git
 .gitignore
 .DS_Store
 npm-debug.log
-Dockerfile
-docker-compose.yml
-**/*.log
-**/.env*
