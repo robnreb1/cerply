@@ -40,6 +40,8 @@ jobs:
         env:
           NODE_ENV: test
           RATE_LIMIT_ENABLED: 'false'
+          ROLLUP_USE_NODE_JS: 'true'
+          ROLLUP_SKIP_NODEJS_NATIVE: '1'
         run: npm --prefix api run test
 
 
