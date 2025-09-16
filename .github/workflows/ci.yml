@@ -181,10 +181,14 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/cerply-api
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha
-            type=ref,event=tag
-            type=semver,pattern={{version}}
+            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=sha-${{ github.sha_short }}
+            # main branch
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+            type=raw,value=main-${{ github.sha_short }},enable=${{ github.ref_name == 'main' }}
+            # staging branch
+            type=raw,value=staging-latest,enable=${{ github.ref_name == 'staging' }}
+            type=raw,value=staging-${{ github.sha_short }},enable=${{ github.ref_name == 'staging' }}
 
       - name: Build & Push
         uses: docker/build-push-action@v6
