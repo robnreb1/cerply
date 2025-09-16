@@ -43,20 +43,11 @@ import { registerAuthRoutes } from './routes/auth';
 import { registerLearnRoutes } from './routes/learn';
 import { registerDevRoutes } from './routes/dev';
 import { registerDbHealth } from './routes/dbHealth';
+import { registerAnalyticsRoutes } from './routes/analytics';
+import { registerRoutesDump }     from './routes/routesDump';
+import { registerLedgerRoutes }   from './routes/ledger';
+import { registerExportRoutes }   from './routes/exports';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
-// Detect whether we are running the TS sources (dev/tests) or compiled JS (dist)
-const __EXT = __filename.endsWith('.ts') ? '.ts' : '.js';
-
-function loadRoute(modBase: string) {
-  try { return require(`${modBase}${__EXT}`); } catch {}
-  return require(modBase);
-}
-
-const analyticsRoutes: any   = loadRoute('./routes/analytics');
-const routesDumpRoutes: any  = loadRoute('./routes/routesDump');
-const ledgerRoutes: any      = loadRoute('./routes/ledger');
-const exportRoutes: any      = loadRoute('./routes/exports');
 
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
@@ -358,19 +349,11 @@ if (_enableDevRoutes) {
 }
 await registerDbHealth(app);
 
-if (analyticsRoutes?.registerAnalyticsRoutes) {
-  await analyticsRoutes.registerAnalyticsRoutes(app);
-}
-if (routesDumpRoutes?.registerRoutesDump) {
-  await routesDumpRoutes.registerRoutesDump(app);
-}
-if (ledgerRoutes?.registerLedgerRoutes) {
-  await ledgerRoutes.registerLedgerRoutes(app);
-}
+await registerAnalyticsRoutes(app);
+await registerRoutesDump(app);
+await registerLedgerRoutes(app);
 // await registerAnalyticsPilot(app);
-if (exportRoutes?.registerExportRoutes) {
-  await exportRoutes.registerExportRoutes(app);
-}
+await registerExportRoutes(app);
 // await registerBudgetAlarm(app);
 
 // ---------------------
