@@ -10,9 +10,15 @@ BASE="http://localhost:8080"
 echo "Starting Postgres (Docker) ..."
 docker rm -f cerply-ci-pg >/dev/null 2>&1 || true
 docker run --rm -d --name cerply-ci-pg -e POSTGRES_USER=cerply -e POSTGRES_PASSWORD=cerply -e POSTGRES_DB=cerply -p 0:5432 postgres:15 >/dev/null
-# Discover mapped host port
-PG_PORT=$(docker port cerply-ci-pg 5432/tcp | sed 's/.*://')
-if [ -z "${PG_PORT:-}" ]; then echo "Failed to detect Postgres host port"; exit 1; fi
+# Discover mapped host port (first mapping line only)
+PG_PORT=""
+for i in $(seq 1 30); do
+  PG_LINE=$(docker port cerply-ci-pg 5432/tcp 2>/dev/null | head -n1 | tr -d '\r') || true
+  PG_PORT=${PG_LINE##*:}
+  if [ -n "$PG_PORT" ]; then break; fi
+  sleep 1
+done
+if [ -z "${PG_PORT:-}" ]; then echo "Failed to detect Postgres host port"; docker logs cerply-ci-pg || true; exit 1; fi
 export DATABASE_URL="postgres://cerply:cerply@localhost:${PG_PORT}/cerply"
 # Wait for Postgres readiness
 for i in $(seq 1 30); do
