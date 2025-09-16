@@ -69,10 +69,8 @@ jobs:
 
       - name: Trigger Render staging deploy
         if: ${{ steps.hook.outputs.has_hook == 'true' }}
-        env:
-          RENDER_STG_HOOK: ${{ steps.hook.outputs.hook }}
         run: |
-          curl -fsSL -X POST "$RENDER_STG_HOOK"
+          curl -fsSL -X POST "${{ steps.hook.outputs.hook }}"
 
       - name: Wait for staging health
         run: |
