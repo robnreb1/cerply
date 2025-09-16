@@ -44,6 +44,13 @@ import { registerLearnRoutes } from './routes/learn';
 import { registerDevRoutes } from './routes/dev';
 import { registerDbHealth } from './routes/dbHealth';
  
+/* eslint-disable @typescript-eslint/no-var-requires */
+const analyticsRoutes: any  = require('./routes/analytics');
+const routesDumpRoutes: any = require('./routes/routesDump');
+const ledgerRoutes: any     = require('./routes/ledger');
+const exportRoutes: any     = require('./routes/exports');
+/* eslint-enable @typescript-eslint/no-var-requires */
+
 // Helper: get session cookie from parsed cookies or raw header
 function getSessionCookie(req: FastifyRequest, name: string): string | undefined {
   const parsed = (req as any).cookies?.[name];
@@ -343,18 +350,20 @@ if (_enableDevRoutes) {
   await registerDevStats(app);
 }
 await registerDbHealth(app);
-const { registerAnalyticsRoutes } = await import('./routes/analytics');
-const { registerRoutesDump } = await import('./routes/routesDump');
-const { registerLedgerRoutes } = await import('./routes/ledger');
-// const { registerAnalyticsPilot } = await import('./routes/analyticsPilot');
-const { registerExportRoutes }  = await import('./routes/exports');
-// const { registerBudgetAlarm }   = await import('./routes/budget');
 
-await registerAnalyticsRoutes(app);
-await registerLedgerRoutes(app);
-await registerRoutesDump(app);
+if (analyticsRoutes?.registerAnalyticsRoutes) {
+  await analyticsRoutes.registerAnalyticsRoutes(app);
+}
+if (routesDumpRoutes?.registerRoutesDump) {
+  await routesDumpRoutes.registerRoutesDump(app);
+}
+if (ledgerRoutes?.registerLedgerRoutes) {
+  await ledgerRoutes.registerLedgerRoutes(app);
+}
 // await registerAnalyticsPilot(app);
-await registerExportRoutes(app);
+if (exportRoutes?.registerExportRoutes) {
+  await exportRoutes.registerExportRoutes(app);
+}
 // await registerBudgetAlarm(app);
 
 // ---------------------
