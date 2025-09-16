@@ -31,6 +31,11 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Verify lockfiles unchanged
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          git diff --exit-code package-lock.json || (echo "Root lockfile drifted"; exit 1)
+
       - name: Install deps (api workspace incl. dev)
         env:
           NODE_ENV: development
