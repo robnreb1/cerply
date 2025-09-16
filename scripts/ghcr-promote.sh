@@ -27,14 +27,18 @@ elif command -v crane >/dev/null 2>&1; then
   CMD=(crane copy "$SRC" "${GHCR_IMAGE}:${TARGET_TAG}")
 else
   # Fallback: recreate manifest tag using docker buildx imagetools (multi-arch friendly)
-  # Resolve digest first (supports tag or digest input)
+  # In DRY_RUN, avoid network calls and skip digest resolution.
   REF="${GHCR_IMAGE}:${SOURCE_TAG}"
   [[ "$SOURCE_TAG" == @sha256:* ]] && REF="${GHCR_IMAGE}${SOURCE_TAG}"
-  echo "-> resolving digest for $REF"
-  DIGEST=$(docker buildx imagetools inspect "$REF" --format '{{json .Manifest.Digest}}' | tr -d '"')
-  [[ -z "$DIGEST" || "$DIGEST" == "null" ]] && { echo "ERR: cannot resolve digest"; exit 1; }
-  SRC="${GHCR_IMAGE}@${DIGEST}"
-  CMD=(docker buildx imagetools create --tag "${GHCR_IMAGE}:${TARGET_TAG}" "$SRC")
+  if [[ "$DRY_RUN" == "1" ]]; then
+    CMD=(docker buildx imagetools create --tag "${GHCR_IMAGE}:${TARGET_TAG}" "$REF")
+  else
+    echo "-> resolving digest for $REF"
+    DIGEST=$(docker buildx imagetools inspect "$REF" --format '{{json .Manifest.Digest}}' | tr -d '"')
+    [[ -z "$DIGEST" || "$DIGEST" == "null" ]] && { echo "ERR: cannot resolve digest"; exit 1; }
+    SRC="${GHCR_IMAGE}@${DIGEST}"
+    CMD=(docker buildx imagetools create --tag "${GHCR_IMAGE}:${TARGET_TAG}" "$SRC")
+  fi
 fi
 
 echo "-> ${CMD[*]}"
