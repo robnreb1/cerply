@@ -9,17 +9,21 @@ COPY package.json package-lock.json ./
 COPY api/package.json api/package.json
 COPY web/package.json web/package.json
 
-# 3) Install ALL workspaces with the lockfile
+# 3) Preflight: verify lockfile present and show versions
+RUN node -v && npm -v && ls -la && \
+    test -s package-lock.json || (echo "❌ package-lock.json missing or empty in /app"; exit 1)
+
+# 4) Install ALL workspaces with the lockfile
 RUN npm ci --workspaces --include-workspace-root
 
-# 4) Builder: bring in sources and build API
+# 5) Builder: bring in sources and build API
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm -w api run build
 
-# 5) Runtime: only what we need to run the API
+# 6) Runtime: only what we need to run the API
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
