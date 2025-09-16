@@ -8,8 +8,17 @@ BASE="http://localhost:8080"
 
 # boot PG (CI) and API
 echo "Starting Postgres (Docker) ..."
-docker run --rm -d --name cerply-ci-pg -e POSTGRES_USER=cerply -e POSTGRES_PASSWORD=cerply -e POSTGRES_DB=cerply -p 5432:5432 postgres:15
-sleep 5
+docker rm -f cerply-ci-pg >/dev/null 2>&1 || true
+docker run --rm -d --name cerply-ci-pg -e POSTGRES_USER=cerply -e POSTGRES_PASSWORD=cerply -e POSTGRES_DB=cerply -p 0:5432 postgres:15 >/dev/null
+# Discover mapped host port
+PG_PORT=$(docker port cerply-ci-pg 5432/tcp | sed 's/.*://')
+if [ -z "${PG_PORT:-}" ]; then echo "Failed to detect Postgres host port"; exit 1; fi
+export DATABASE_URL="postgresql://cerply:cerply@localhost:${PG_PORT}/cerply"
+# Wait for Postgres readiness
+for i in $(seq 1 30); do
+  docker exec cerply-ci-pg pg_isready -U cerply -d cerply >/dev/null 2>&1 && break
+  sleep 1
+done
 echo "Starting API ..."
 ENABLE_DEV_ROUTES=1 OBS_SAMPLE_PCT=100 DATABASE_URL="$DATABASE_URL" npm -w api run dev >/tmp/api.log 2>&1 & echo $! > /tmp/api.pid
 
