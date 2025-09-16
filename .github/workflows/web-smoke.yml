@@ -41,24 +41,6 @@ jobs:
           SMOKE_TIMEOUT_MS: "8000"
         run: npm run smoke:api
 
-name: Web Smoke (links API health)
-on:
-  workflow_dispatch:
-    inputs:
-      api_base:
-        description: "API base (e.g., https://cerply-api-staging.onrender.com)"
-        required: true
-jobs:
-  smoke:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: chmod +x scripts/ci-web-smoke.sh
-      - name: Web smoke
-        env:
-          NEXT_PUBLIC_API_BASE: ${{ github.event.inputs.api_base }}
-        run: scripts/ci-web-smoke.sh
+ 
 
 
