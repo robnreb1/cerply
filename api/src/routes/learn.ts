@@ -65,7 +65,7 @@ function updateStrength(prev: number, correct: boolean, tMs?: number|null) {
   return s;
 }
 
-export async function registerLearnRoutes(app: FastifyInstance) {
+export async function registerLearnRoutes(app: FastifyInstance & { db?: any }) {
   // GET /api/learn/next?planId=...
   app.get('/api/learn/next', async (req, reply) => {
     reply.header('x-api', 'learn-next');
@@ -91,7 +91,7 @@ export async function registerLearnRoutes(app: FastifyInstance) {
       );
       if (rows.length) {
         reply.header('x-learn-source','db');
-        const it = rows[0];
+        const it: any = rows[0];
         const options = Array.isArray(it.options) ? it.options : (it.options?.values ?? []);
         return {
           itemId: it.id,
@@ -118,7 +118,10 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     // choose due item (earliest nextAt, then lowest strength)
     sched.sort((a,b) => a.nextAt - b.nextAt || a.strength - b.strength);
     const due = sched.find(s => s.nextAt <= now) || sched[0];
-    const item = items.find(i => i.id === due.itemId)!;
+    const item = items.find(i => i.id === due.itemId);
+    if (!item) {
+      return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'No item available' } });
+    }
 
     // Emit source + plan key headers
     const planKey = planId;
@@ -220,7 +223,7 @@ export async function registerLearnRoutes(app: FastifyInstance) {
         const prev = await db.execute(
           `select strength_score::int as s from review_schedule where item_id = $1 and user_id is null limit 1`,
           [body.itemId]
-        ).then(r => (r[0] && r[0].s) || 300);
+        ).then((r:any[]) => (r[0] && (r[0] as any).s) || 300);
         const s = Math.max(0, Math.min(1000, correct ? prev + Math.round((1000 - prev) * 0.25) : Math.round(prev * 0.6)));
         // bucket → next interval
         const days = s >= 800 ? 21 : s >= 600 ? 7 : s >= 400 ? 3 : 1;
@@ -253,7 +256,7 @@ export async function registerLearnRoutes(app: FastifyInstance) {
     // persist to in-memory attempts when no DB present
     try {
       const db: any = (app as any).db;
-      if (!db?.execute) {
+      if (!db?.execute && item) {
         const k = `${userId}|${planId}`;
         const list = ATTEMPTS.get(k) || [];
         list.push({ itemId: item.id, answerIndex: body.answerIndex, correct, timeMs: tMs, at: Date.now() });

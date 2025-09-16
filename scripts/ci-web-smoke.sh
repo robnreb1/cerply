@@ -11,7 +11,8 @@ code=$(curl -s -o /dev/null -w "%{http_code}" "$NEXT_PUBLIC_API_BASE/api/health"
 [ "$code" = "200" ] || { echo "API not healthy ($code)"; exit 1; }
 
 # Build and start Next.js web
-npm -w web ci --no-audit --no-fund || npm -w web install
+# Ensure devDependencies are installed for build (tailwind/postcss)
+NPM_CONFIG_PRODUCTION=false npm -w web ci --no-audit --no-fund || NPM_CONFIG_PRODUCTION=false npm -w web install
 npm -w web run build
 npm -w web run start -- -p "$PORT" >/tmp/web.log 2>&1 & echo $! > /tmp/web.pid
 

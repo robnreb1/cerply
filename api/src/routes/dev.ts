@@ -21,26 +21,26 @@ export async function registerDevRoutes(app: any) {
 const fs = require('fs');
 const path = require('path');
 
-module.exports.registerDevMigrate = async function registerDevMigrate(app) {
+module.exports.registerDevMigrate = async function registerDevMigrate(app: any) {
   if (!process.env.ENABLE_DEV_ROUTES) return;
-  app.get('/api/dev/migrations', async (_req, reply) => {
+  app.get('/api/dev/migrations', async (_req: any, reply: any) => {
     const dir = path.join(__dirname, '..', '..', 'migrations');
-    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort() : [];
+    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f: string) => f.endsWith('.sql')).sort() : [];
     reply.header('x-api','dev-migrations'); return { ok:true, files };
   });
 
-  app.post('/api/dev/migrate', async (_req, reply) => {
+  app.post('/api/dev/migrate', async (_req: any, reply: any) => {
     const db = (app && app.db) || null;
     if (!db || !db.execute) return { ok:false, db:false, applied:[] };
 
     const dir = path.join(__dirname, '..', '..', 'migrations');
     if (!fs.existsSync(dir)) return { ok:true, db:true, applied:[] };
 
-    const all = fs.readdirSync(dir).filter(f => f.endsWith('.sql')).sort();
+    const all = fs.readdirSync(dir).filter((f: string) => f.endsWith('.sql')).sort();
     // Prefer new-series migrations only to avoid legacy conflicts (fresh DB flow)
-    const series = all.filter(f => f.startsWith('2025-'));
-    const extFiles = series.filter(f => /extensions/i.test(f));
-    const files = series.filter(f => !/extensions/i.test(f));
+    const series = all.filter((f: string) => f.startsWith('2025-'));
+    const extFiles = series.filter((f: string) => /extensions/i.test(f));
+    const files = series.filter((f: string) => !/extensions/i.test(f));
     const applied: string[] = [];
     try {
       // Run extensions first (outside txn for safety)
@@ -65,13 +65,13 @@ module.exports.registerDevMigrate = async function registerDevMigrate(app) {
 
 
 /* Idempotent seed + status */
-module.exports.registerDevSeed = async function registerDevSeed(app) {
+module.exports.registerDevSeed = async function registerDevSeed(app: any) {
   if (!process.env.ENABLE_DEV_ROUTES) return;
 
-  app.get('/api/dev/seed-status', async (_req, reply) => {
+  app.get('/api/dev/seed-status', async (_req: any, reply: any) => {
     const db = app.db;
     if (!db?.execute) return { ok:false, db:false };
-    const q = async (sql,args)=> (await db.execute(sql,args))[0]?.count || 0;
+    const q = async (sql: string, args: any[])=> (await db.execute(sql,args))[0]?.count || 0;
     const plans = await q('select count(*)::int as count from plans',[]);
     const modules = await q('select count(*)::int as count from modules',[]);
     const items = await q('select count(*)::int as count from items',[]);
@@ -79,7 +79,7 @@ module.exports.registerDevSeed = async function registerDevSeed(app) {
     return { ok:true, db:true, counts:{ plans, modules, items } };
   });
 
-  app.post('/api/dev/seed', async (_req, reply) => {
+  app.post('/api/dev/seed', async (_req: any, reply: any) => {
     const db = app.db;
     if (!db?.execute) return { ok:false, db:false, seeded:false };
 
@@ -137,9 +137,9 @@ module.exports.registerDevSeed = async function registerDevSeed(app) {
 };
 
 /* Backfill review_schedule for items lacking entries */
-module.exports.registerDevBackfill = async function registerDevBackfill(app) {
+module.exports.registerDevBackfill = async function registerDevBackfill(app: any) {
   if (!process.env.ENABLE_DEV_ROUTES) return;
-  app.post('/api/dev/backfill/reviews', async (_req, reply) => {
+  app.post('/api/dev/backfill/reviews', async (_req: any, reply: any) => {
     const db = app.db;
     if (!db?.execute) return { ok:false, db:false, created:0 };
     // naive: one review per item without schedule, due tomorrow
@@ -160,12 +160,12 @@ module.exports.registerDevBackfill = async function registerDevBackfill(app) {
 };
 
 /* DB stats for acceptance */
-module.exports.registerDevStats = async function registerDevStats(app) {
+module.exports.registerDevStats = async function registerDevStats(app: any) {
   if (!process.env.ENABLE_DEV_ROUTES) return;
-  app.get('/api/dev/stats', async (_req, reply) => {
+  app.get('/api/dev/stats', async (_req: any, reply: any) => {
     const db = app.db;
     if (!db?.execute) return { ok:false, db:false };
-    const one = async (sql,args)=> (await db.execute(sql,args))[0]?.n || 0;
+    const one = async (sql: string, args: any[])=> (await db.execute(sql,args))[0]?.n || 0;
     const plans   = await one('select count(*)::int as n from plans',[]);
     const modules = await one('select count(*)::int as n from modules',[]);
     const items   = await one('select count(*)::int as n from items',[]);

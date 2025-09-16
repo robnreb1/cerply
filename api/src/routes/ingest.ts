@@ -40,15 +40,13 @@ export async function registerIngestRoutes(app: FastifyInstance) {
     // Lazy-write to generation ledger if DB bound
     try {
       const db: any = (app as any).db;
-      if (db?.insert) {
-        const { genLedger } = require('../db/observability.cjs'); // lazy-load to satisfy esbuild
+      if (db?.execute) {
         const model = process.env.LLM_GENERATOR_MODEL || 'gpt-4o-mini';
-        const cost = 12; // cents (stub for MVP; replace when real token usage available)
-        await db.insert(genLedger).values({
-          itemId: (Array.isArray(items) && items[0]?.id) ? (items as any)[0].id : null,
-          modelUsed: model,
-          costCents: cost
-        });
+        const cost = 12; // cents (stub for MVP)
+        await db.execute(
+          `insert into gen_ledger(item_id, model_used, cost_cents) values ($1,$2,$3)`,
+          [null, model, cost]
+        );
       }
     } catch (e) {
       // ignore ledger write errors for MVP
@@ -57,12 +55,10 @@ export async function registerIngestRoutes(app: FastifyInstance) {
     try {
       const db: any = (app as any).db;
       if (db?.execute) {
-        const { events } = require('../db/observability.cjs');
-        await db.insert(events).values({
-          userId: null,
-          type: 'ingest.generate',
-          payload: { types: (body?.types || []), planId: body?.planId || null, moduleId: body?.moduleId || null }
-        });
+        await db.execute(
+          `insert into events(user_id, type, payload) values ($1,$2,$3)`,
+          [null, 'ingest.generate', { }]
+        );
       }
     } catch { /* ignore */ }
 

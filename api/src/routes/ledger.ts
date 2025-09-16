@@ -30,7 +30,7 @@ module.exports.registerLedgerRoutes = async function registerLedgerRoutes(app: a
     return { ok: true, db: true, totals: byModel, totalCents: total };
   });
 
-  app.get('/api/ledger/alarm', async (_req, reply) => {
+  app.get('/api/ledger/alarm', async (_req: any, reply: any) => {
     reply.header('x-api','ledger-alarm');
     const thresh = Number(process.env.BUDGET_DAILY_CENTS || '');
     const enabled = Number.isFinite(thresh) && thresh > 0;
@@ -54,7 +54,7 @@ module.exports.registerLedgerRoutes = async function registerLedgerRoutes(app: a
     return { ok:true, db, enabled, windowHours:24, thresholdCents: enabled?thresh:null, totalCents: total, over };
   });
 
-  app.get('/api/ledger/export.csv', async (_req, reply) => {
+  app.get('/api/ledger/export.csv', async (_req: any, reply: any) => {
     reply.header('x-api','ledger-export-csv');
     reply.header('content-type','text/csv; charset=utf-8');
     let rows:any[] = []; let dbUsed=false;

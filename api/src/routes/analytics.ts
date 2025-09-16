@@ -21,7 +21,7 @@ module.exports.registerAnalyticsRoutes = async function registerAnalyticsRoutes(
     return { ok:true, db:dbw };
   });
 
-  app.get('/api/analytics/events.csv', async (_req, reply) => {
+  app.get('/api/analytics/events.csv', async (_req: any, reply: any) => {
     reply.header('x-api','analytics-events-csv');
     reply.header('content-type','text/csv; charset=utf-8');
     let rows:any[] = []; let dbUsed=false;
@@ -39,7 +39,7 @@ module.exports.registerAnalyticsRoutes = async function registerAnalyticsRoutes(
   });
 
   // Pilot metrics (24h window): events, attempts, items, ledger spend
-  app.get('/api/analytics/pilot', async (_req, reply) => {
+  app.get('/api/analytics/pilot', async (_req: any, reply: any) => {
     reply.header('x-api','analytics-pilot');
     const out:any = { ok:true, db:false, windowHours:24, events:{ total:0, byType:{} }, attempts:0, items:0, ledgerCents:0 };
 
