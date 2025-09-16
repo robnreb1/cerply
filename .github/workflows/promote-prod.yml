@@ -1,13 +1,8 @@
-name: Promote API image to :prod
+name: Promote API image to prod
 on:
   workflow_dispatch:
-    inputs:
-      source_tag:
-        description: "Source tag or @digest (e.g., sha-<short> or @sha256:...)"
-        required: true
   push:
-    tags:
-      - "sha-*"
+    branches: [ main, master ]
 
 jobs:
   promote:
@@ -40,28 +35,16 @@ jobs:
           echo "src=$SRC_DIGEST prod=$PROD_DIGEST"
           test -n "$SRC_DIGEST" -a "$SRC_DIGEST" = "$PROD_DIGEST"
 
-      - name: Trigger Render deploy (prod)
-        if: ${{ success() }}
-        shell: bash
+      - name: Trigger Render deploy
         run: |
-          set -euo pipefail
-          # Do not echo the URL to logs; just POST it
-          curl -fsS -X POST "https://api.render.com/deploy/srv-d31ukuadbo4c739vm180?key=4Bwf6NVzl4M"
+          curl -fsSL -X POST "https://api.render.com/deploy/srv-d31ukuadbo4c739vm180?key=4Bwf6NVzl4M"
 
-      - name: Wait for API health (prod)
-        if: ${{ success() }}
-        shell: bash
-        env:
-          BASE: https://api.cerply.com
+      - name: Wait for health
         run: |
           set -euo pipefail
-          for i in {1..40}; do
-            code="$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/health" || true)"
-            if [ "$code" = "200" ]; then
-              echo "API healthy (200)"
-              exit 0
-            fi
-            sleep 5
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://api.cerply.com/api/health || true)
+            [ "$code" = "200" ] && exit 0
+            sleep 10
           done
-          echo "API health never reached 200" >&2
-          exit 1
+          echo "health check failed"; exit 1
