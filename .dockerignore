@@ -1,9 +1,12 @@
 node_modules
-api/node_modules
-web/node_modules
+**/node_modules
+
+# keep lockfiles in context (place these at the BOTTOM so they win)
+!package-lock.json
+!**/package-lock.json
+
+# usual noise
 .git
 .gitignore
-Dockerfile
-docker-compose.yml
-**/*.log
-**/.env*
+.DS_Store
+npm-debug.log

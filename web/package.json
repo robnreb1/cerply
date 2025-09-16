@@ -12,7 +12,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "smoke:vercel": "bash ./scripts/vercel-smoke.sh"
+    "smoke:vercel": "bash ./scripts/vercel-smoke.sh",
+    "smoke:api": "node ./scripts/smoke-api.mjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

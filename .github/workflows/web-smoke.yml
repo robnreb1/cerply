@@ -1,21 +1,43 @@
-name: Web Smoke (links API health)
+
+name: Web Smoke (API-linked)
+
 on:
   workflow_dispatch:
     inputs:
       api_base:
-        description: "API base (e.g., https://cerply-api-staging.onrender.com)"
+        description: "API base URL (e.g., https://cerply-api-staging.onrender.com)"
         required: true
+        default: "https://cerply-api-staging.onrender.com"
+  pull_request:
+    paths:
+      - "web/**"
+      - "api/**"
+      - ".github/workflows/web-smoke.yml"
+
+concurrency:
+  group: web-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: chmod +x scripts/ci-web-smoke.sh
-      - name: Web smoke
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install web deps (ci)
+        run: npm ci
+
+      - name: Run Web Smoke (links API health)
         env:
-          NEXT_PUBLIC_API_BASE: ${{ github.event.inputs.api_base }}
-        run: scripts/ci-web-smoke.sh
-
-
+          NEXT_PUBLIC_API_BASE: ${{ inputs.api_base || 'https://cerply-api-staging.onrender.com' }}
+          SMOKE_TIMEOUT_MS: "8000"
+        run: npm run smoke:api

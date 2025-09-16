@@ -1,13 +1,17 @@
-name: Promote API image to :prod
+
+name: Promote API image to prod
+
 on:
   workflow_dispatch:
     inputs:
       source_tag:
         description: "Source tag or @digest (e.g., sha-<short> or @sha256:...)"
-        required: true
+
+        required: false
+        default: ""
   push:
-    tags:
-      - "sha-*"
+    branches: [ main, master ]
+
 
 jobs:
   promote:
@@ -21,17 +25,40 @@ jobs:
         uses: docker/setup-buildx-action@v3
       - name: Login GHCR
         run: echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Resolve source_tag if empty
+        id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${{ github.event.inputs.source_tag }}" ]; then
+            OWNER="${{ github.repository_owner }}"
+            PKG="cerply-api"
+            SRC=$(gh api -H "Accept: application/vnd.github+json" \
+              "/users/$OWNER/packages/container/$PKG/versions?per_page=10" \
+              | jq -r '[.[] 
+                        | .metadata.container.tags // [] 
+                        | map(select(. != "prod" and . != "latest"))] 
+                       | flatten 
+                       | .[0]')
+            echo "source_tag=$SRC" >> "$GITHUB_OUTPUT"
+          else
+            echo "source_tag=${{ github.event.inputs.source_tag }}" >> "$GITHUB_OUTPUT"
+          fi
       - name: Promote
         env:
           GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/cerply-api
-          SOURCE_TAG: ${{ github.event.inputs.source_tag || github.ref_name }}
+          SOURCE_TAG: ${{ steps.resolve.outputs.source_tag }}
+
           TARGET_TAG: prod
         run: |
           bash scripts/ghcr-promote.sh
       - name: Verify digest match
         env:
           GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/cerply-api
-          SOURCE_TAG: ${{ github.event.inputs.source_tag || github.ref_name }}
+
+          SOURCE_TAG: ${{ steps.resolve.outputs.source_tag }}
+
         run: |
           REF="${GHCR_IMAGE}:${SOURCE_TAG}"
           [[ "$SOURCE_TAG" == @sha256:* ]] && REF="${GHCR_IMAGE}${SOURCE_TAG}"
@@ -40,4 +67,24 @@ jobs:
           echo "src=$SRC_DIGEST prod=$PROD_DIGEST"
           test -n "$SRC_DIGEST" -a "$SRC_DIGEST" = "$PROD_DIGEST"
 
+      - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
+            echo "Missing secret RENDER_DEPLOY_HOOK_URL" >&2
+            exit 1
+          fi
+          curl -fsSL -X POST "$RENDER_DEPLOY_HOOK_URL"
+
+      - name: Wait for health
+        run: |
+          set -euo pipefail
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" https://api.cerply.com/api/health || true)
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "health check failed"; exit 1
 
