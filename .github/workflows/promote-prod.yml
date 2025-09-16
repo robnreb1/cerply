@@ -40,10 +40,28 @@ jobs:
           echo "src=$SRC_DIGEST prod=$PROD_DIGEST"
           test -n "$SRC_DIGEST" -a "$SRC_DIGEST" = "$PROD_DIGEST"
 
-      - name: Trigger Render deploy
+      - name: Trigger Render deploy (prod)
+        if: ${{ success() }}
+        shell: bash
         run: |
-          curl --fail -sS https://api.render.com/deploy/srv-d31ukuadbo4c739vm180?key=4Bwf6NVzl4M
+          set -euo pipefail
+          # Do not echo the URL to logs; just POST it
+          curl -fsS -X POST "https://api.render.com/deploy/srv-d31ukuadbo4c739vm180?key=4Bwf6NVzl4M"
+
+      - name: Wait for API health (prod)
+        if: ${{ success() }}
+        shell: bash
         env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.https://api.render.com/deploy/srv-d31ukuadbo4c739vm180?key=4Bwf6NVzl4M }}
-
-
+          BASE: https://api.cerply.com
+        run: |
+          set -euo pipefail
+          for i in {1..40}; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/health" || true)"
+            if [ "$code" = "200" ]; then
+              echo "API healthy (200)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "API health never reached 200" >&2
+          exit 1
