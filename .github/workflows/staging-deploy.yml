@@ -55,10 +55,22 @@ jobs:
             IMAGE_TAG=stg-${{ github.sha }}
             IMAGE_CREATED=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] || github.event.head_commit.timestamp || '' }}
 
-      - name: Trigger Render staging deploy
-        if: ${{ secrets.RENDER_STG_HOOK != '' }}
+      - name: Prepare staging hook
+        id: hook
         env:
           RENDER_STG_HOOK: ${{ secrets.RENDER_STG_HOOK }}
+        run: |
+          if [ -n "${RENDER_STG_HOOK:-}" ]; then
+            echo "has_hook=true" >> "$GITHUB_OUTPUT"
+            echo "hook=${RENDER_STG_HOOK}" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_hook=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger Render staging deploy
+        if: ${{ steps.hook.outputs.has_hook == 'true' }}
+        env:
+          RENDER_STG_HOOK: ${{ steps.hook.outputs.hook }}
         run: |
           curl -fsSL -X POST "$RENDER_STG_HOOK"
 
