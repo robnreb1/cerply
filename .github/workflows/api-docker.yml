@@ -59,6 +59,10 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            IMAGE_TAG=${{ steps.meta.outputs.version || github.ref_name }}
+            IMAGE_CREATED=${{ steps.meta.outputs.created || steps.meta.outputs.labels['org.opencontainers.image.created'] || '' }}
 
       # Optional: trigger Render deploy (uncomment when secrets are added)
       # - name: Trigger Render deploy
