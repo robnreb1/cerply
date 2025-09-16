@@ -331,7 +331,7 @@ await registerChatRoutes(app);
 await registerIngestRoutes(app);
 await registerLearnRoutes(app);
 await registerDevRoutes(app);
-const _enableDevRoutes = process.env.ENABLE_DEV_ROUTES === '1' || process.env.NODE_ENV !== 'production';
+const _enableDevRoutes = process.env.ENABLE_DEV_ROUTES === '1';
 if (_enableDevRoutes) {
   const { registerDevMigrate } = require('./routes/dev');
   await registerDevMigrate(app);

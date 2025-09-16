@@ -10,7 +10,7 @@ module.exports.registerBudgetAlarm = async function registerBudgetAlarm(app:any)
 
     const since = new Date(Date.now()-hours*3600e3);
     const total = await db.execute(
-      `select coalesce(sum(cost_cents),0)::int as cents from gen_ledger where created_at >= $1`,
+      `select coalesce(sum(cost_cents),0)::int as cents from gen_ledger where ts >= $1`,
       [since]
     ).then((r:any)=> r[0]?.cents ?? 0);
     return { ok:true, db:true, enabled:true, limitCents:limit, windowHours:hours, totalCents: total, exceeds: total >= limit };

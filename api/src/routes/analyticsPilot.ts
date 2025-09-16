@@ -23,7 +23,7 @@ module.exports.registerAnalyticsPilot = async function registerAnalyticsPilot(ap
     const byModel = await db.execute(
       `select model_used as model, coalesce(sum(cost_cents),0)::int as cents
          from gen_ledger
-        where created_at >= $1
+        where ts >= $1
         group by model_used
         order by model_used`,
       [since]
@@ -32,7 +32,7 @@ module.exports.registerAnalyticsPilot = async function registerAnalyticsPilot(ap
     const total = await db.execute(
       `select coalesce(sum(cost_cents),0)::int as cents
          from gen_ledger
-        where created_at >= $1`,
+        where ts >= $1`,
       [since]
     ).then((r:any)=> r[0]?.cents ?? 0);
 

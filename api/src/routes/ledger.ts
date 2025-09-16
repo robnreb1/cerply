@@ -12,8 +12,8 @@ module.exports.registerLedgerRoutes = async function registerLedgerRoutes(app: a
 
     let where = '';
     const args: any[] = [];
-    if (from) { args.push(from); where += (where ? ' AND ' : '') + `created_at >= $${args.length}`; }
-    if (to)   { args.push(to);   where += (where ? ' AND ' : '') + `created_at <  $${args.length}`; }
+    if (from) { args.push(from); where += (where ? ' AND ' : '') + `ts >= $${args.length}`; }
+    if (to)   { args.push(to);   where += (where ? ' AND ' : '') + `ts <  $${args.length}`; }
 
     const byModel = await db.execute(
       `select model_used as model, coalesce(sum(cost_cents),0)::int as cents
