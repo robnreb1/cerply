@@ -189,6 +189,9 @@ jobs:
     needs: api
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    env:
+      FALLBACK_CREATED: ""
+      RENDER_STAGING_DEPLOY_HOOK: ""
     permissions:
       contents: read
       packages: write

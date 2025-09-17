@@ -14,6 +14,8 @@ jobs:
     name: Deploy to Render (staging)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      RENDER_STAGING_DEPLOY_HOOK: ""
     permissions:
       contents: read
 
@@ -23,9 +25,11 @@ jobs:
 
       - name: Resolve staging deploy hook
         id: resolve_hook
+        env:
+          RENDER_STAGING_DEPLOY_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
         run: |
           set -euo pipefail
-          HOOK="${{ secrets.RENDER_STAGING_DEPLOY_HOOK || 'https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0' }}"
+          HOOK="${RENDER_STAGING_DEPLOY_HOOK:-https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0}"
           echo "value=$HOOK" >> "$GITHUB_OUTPUT"
 
       - name: Trigger Render staging deploy
