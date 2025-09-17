@@ -3,7 +3,7 @@ name: Staging Smoke
 on:
   push:
     branches: [staging]
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
