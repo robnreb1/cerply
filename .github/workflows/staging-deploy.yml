@@ -1,6 +1,86 @@
 name: Staging Deploy
 
 on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Staging API base (new image-based service)
+      BASE: https://cerply-api-staging.onrender.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Resolve the Render deploy hook (prefer secret; fallback to literal)
+      - name: Resolve staging deploy hook
+      id: resolve_hook
+      env:
+        RENDER_STAGING_DEPLOY_HOOK_SECRET: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
+      run: |
+        set -euo pipefail
+        HOOK="${RENDER_STAGING_DEPLOY_HOOK_SECRET:-https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0}"
+        echo "value=$HOOK" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Render staging deploy
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST "${{ steps.resolve_hook.outputs.value }}" >/dev/null
+
+      - name: Wait for staging health
+        env:
+          BASE: https://cerply-api-staging.onrender.com
+        run: |
+          set -euo pipefail
+          # Fail fast if the old (suspended) site is still wired by mistake
+          fail_if_suspended () {
+            local hdr="/tmp/h.txt"
+            if grep -qi '^x-render-routing: *suspend' "$hdr" 2>/dev/null; then
+              echo "ERROR: Render returned 'suspend' page (wrong service / domain?)" >&2
+              exit 1
+            fi
+            if grep -qi '^content-type: *text/html' "$hdr" 2>/dev/null; then
+              if grep -qi "Service Suspended" /tmp/body.txt 2>/dev/null; then
+                echo "ERROR: got suspended HTML page from Render" >&2
+                exit 1
+              fi
+            fi
+          }
+
+          for i in {1..90}; do
+            code=$(curl -sS -D /tmp/h.txt -o /tmp/body.txt -w "%{http_code}" "$BASE/api/health" || true)
+            if [ "$code" = "200" ]; then
+              echo "OK: health 200"
+              cat /tmp/h.txt | tr -d '\r' | grep -i '^x-api:' || true
+              break
+            fi
+            fail_if_suspended
+            echo "… waiting ($i) — got $code"; sleep 5
+          done
+
+          if [ "$code" != "200" ]; then
+            echo "Health never reached 200" >&2
+            exit 1
+          fi
+
+      - name: Version + image headers (best-effort)
+        run: |
+          set -euo pipefail
+          curl -sS -D /tmp/vh.txt "$BASE/api/version" | jq . || true
+          echo "--- image headers ---"
+          cat /tmp/vh.txt | tr -d '\r' | grep -Ei '^x-image-(tag|revision|created):' || true
+
+name: Staging Deploy
+
+on:
   workflow_dispatch:
   push:
     branches: [ "staging" ]
