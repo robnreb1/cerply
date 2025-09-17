@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process";
 
-const BASE = process.env.API_BASE || "https://cerply-api-staging.onrender.com";
+const BASE = process.env.API_BASE || "https://cerply-api-staging-latest.onrender.com";
 
 function sh(cmd) {
   return execSync(cmd, { stdio: "pipe" }).toString();
