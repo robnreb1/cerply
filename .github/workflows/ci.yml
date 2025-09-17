@@ -224,14 +224,9 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Set FALLBACK_CREATED
-        run: echo "FALLBACK_CREATED=$(date -u +%FT%TZ)" >> "$GITHUB_ENV"
-
-      - name: Compute build created timestamp
-        id: build_meta
-        run: |
-          set -euo pipefail
-          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - name: Set created timestamp
+        id: created
+        run: echo "now=$(date -u +%FT%TZ)" >> "$GITHUB_OUTPUT"
 
       - name: Build & Push
         uses: docker/build-push-action@v6
@@ -245,7 +240,7 @@ jobs:
           build-args: |
             IMAGE_TAG=${{ github.ref_name }}
             GIT_SHA=${{ github.sha }}
-            IMAGE_CREATED=${{ steps.build_meta.outputs.created || env.FALLBACK_CREATED }}
+            IMAGE_CREATED=${{ steps.created.outputs.now }}
 
       - name: Trigger Render staging deploy (on staging only)
         if: ${{ github.ref == 'refs/heads/staging' }}
