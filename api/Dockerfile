@@ -36,9 +36,9 @@ RUN npm ci --omit=dev --no-audit --no-fund
 COPY --from=build /app/dist ./dist
 
 # Re-declare build args in final stage and expose as envs & labels
-ARG IMAGE_TAG
-ARG GIT_SHA
-ARG IMAGE_CREATED
+ARG IMAGE_TAG=""
+ARG GIT_SHA=""
+ARG IMAGE_CREATED=""
 ENV IMAGE_TAG="${IMAGE_TAG}" \
     IMAGE_REVISION="${GIT_SHA}" \
     IMAGE_CREATED="${IMAGE_CREATED}"
