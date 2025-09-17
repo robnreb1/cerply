@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // web/app/api/prompts/route.ts
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -5,11 +6,15 @@ export const revalidate = 0;
 
 const API = process.env.NEXT_PUBLIC_API_BASE ?? process.env.API_BASE ?? 'https://api.cerply.com';
 
-export async function GET() {
+export async function GET(request: Request) {
   const url = `${API}/api/prompts`;
   try {
+    const auth = request.headers.get('authorization') || '';
     const resp = await fetch(url, {
-      headers: { accept: 'application/json' },
+      headers: {
+        accept: 'application/json',
+        ...(auth ? { authorization: auth } : {}),
+      },
       cache: 'no-store',
       redirect: 'follow',
     });
@@ -43,4 +48,9 @@ export async function GET() {
       'x-upstream': url,
     },
   });
+=======
+export const runtime = 'edge';
+export async function GET(): Promise<Response> {
+  return Response.json({ prompts: [], source: 'edge-stub' });
+>>>>>>> 3931c76 (feat(api): add working edge routes for /ping, /api/health, /api/prompts)
 }

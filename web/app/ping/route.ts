@@ -1,6 +1,4 @@
 export const runtime = 'edge';
-export const dynamic = 'force-static';
-
-export function GET() {
+export async function GET(): Promise<Response> {
   return new Response(null, { status: 204 });
 }
