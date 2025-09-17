@@ -3,7 +3,11 @@ name: Staging Smoke
 on:
   push:
     branches: [staging]
+<<<<<<< HEAD
   workflow_dispatch: {}
+=======
+  workflow_dispatch:
+>>>>>>> 6ca4d61 (ui: add top padding under header; ci: robust staging smoke (uses stable alias))
 
 jobs:
   smoke:
@@ -17,10 +21,33 @@ jobs:
       VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}
       API_STG: https://api-stg.cerply.com
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@v4
       - name: Run smoke
         shell: bash
         run: |
           set -euo pipefail
+=======
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install curl & jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq
+
+      - name: Run smoke tests against staging alias
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Prefer repo/org variable STG_URL; fall back to a stable Vercel alias.
+          STG="${{ vars.STG_URL }}"
+          if [[ -z "${STG}" ]]; then
+            STG="https://cerply-staging.vercel.app"
+          fi
+          export STG
+          export API_STG="https://api-stg.cerply.com"
+
+>>>>>>> 6ca4d61 (ui: add top padding under header; ci: robust staging smoke (uses stable alias))
           chmod +x scripts/smoke-stg.sh
           ./scripts/smoke-stg.sh
