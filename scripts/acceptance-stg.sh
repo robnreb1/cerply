@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-STG="${STG:-https://cerply-api-staging-latest.onrender.com}"
+STG="${STG:-https://cerply-api:staging-latest.onrender.com}"
 COOKIE="/tmp/cerply.cookies"
 pass() { echo "✅ $*"; }
 fail() { echo "❌ $*"; exit 1; }

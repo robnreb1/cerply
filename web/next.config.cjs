@@ -21,14 +21,15 @@ const nextConfig = {
     return config;
   },
   async rewrites() {
-    const API = getApiBase();
+    const API_ORIGIN = getApiBase();
+    const API = `${API_ORIGIN}/api`;
     return [
-      // IMPORTANT: preserve the /api prefix in the destination
-      { source: '/api/:path*',       destination: `${API}/api/:path*` },
-      // Keep curated non-/api rewrites already accepted
-      { source: '/curator/:path*',   destination: `${API}/curator/:path*` },
-      { source: '/evidence/:path*',  destination: `${API}/evidence/:path*` },
-      { source: '/learn/:path*',     destination: `${API}/learn/:path*` },
+      // Single rewrite for /api catch-all → ${API}/:path*
+      { source: '/api/:path*', destination: `${API}/:path*` },
+      // Keep curated non-/api rewrites already accepted (map to origin)
+      { source: '/curator/:path*',  destination: `${API_ORIGIN}/curator/:path*` },
+      { source: '/evidence/:path*', destination: `${API_ORIGIN}/evidence/:path*` },
+      { source: '/learn/:path*',    destination: `${API_ORIGIN}/learn/:path*` },
       { source: '/ping', destination: 'https://httpbin.org/status/204' },
     ];
   },

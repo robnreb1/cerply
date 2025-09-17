@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-BASE="${BASE:-https://cerply-api-staging-latest.onrender.com}"
+BASE="${BASE:-https://cerply-api:staging-latest.onrender.com}"
 echo "==> Budget alarm @ $BASE"
 resp="$(curl -s -D /tmp/alarm.h "$BASE/api/ledger/alarm")"
 echo "$resp" | jq
