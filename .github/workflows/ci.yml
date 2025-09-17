@@ -221,6 +221,9 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: Set FALLBACK_CREATED
+        run: echo "FALLBACK_CREATED=$(date -u +%FT%TZ)" >> "$GITHUB_ENV"
+
       - name: Compute build created timestamp
         id: build_meta
         run: |
@@ -239,7 +242,7 @@ jobs:
           build-args: |
             IMAGE_TAG=${{ github.ref_name }}
             GIT_SHA=${{ github.sha }}
-            IMAGE_CREATED=${{ steps.build_meta.outputs.created }}
+            IMAGE_CREATED=${{ steps.build_meta.outputs.created || env.FALLBACK_CREATED }}
 
       - name: Trigger Render staging deploy (on staging only)
         if: ${{ github.ref == 'refs/heads/staging' }}
