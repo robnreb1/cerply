@@ -389,17 +389,6 @@ app.post('/api/learner/profile', async (req: FastifyRequest, reply: FastifyReply
   return reply.send({ ok: true, profile: merged });
 });
 
-// --- Test endpoint ---
-app.get('/test', async () => ({ message: 'test endpoint working' }));
-
-app.get('/api/analytics/pilot', async () => {
-  return {
-    completion21d: 0.67,
-    spacedCoverage: 0.45,
-    lift: { d7: 0.23, d30: 0.41 }
-  };
-});
-
 // --- Prompt Library API (🧪 ff_prompts_lib_v1) ---
 if (FLAGS.ff_prompts_lib_v1) {
   const { listPrompts, getPrompt } = await import('./promptLoader');
@@ -1221,13 +1210,6 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
   }
 }
 
-// Register preview on both URLs
-app.post('/ingest/preview', async (_req, reply) => {
-  reply.header('x-deprecated', 'true');
-  reply.header('link', '</api/ingest/preview>; rel="successor-version"');
-  return reply.code(307).send({ next: '/api/ingest/preview' });
-});
-
 // ---------------------
 // Ingest: clarify (per spec)
 // ---------------------
@@ -1734,25 +1716,6 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
     const message = (err as any)?.message || 'Unexpected error';
     reply.code(status).send({ error: { code, message } });
   });
-
-  // DB health
-  app.get('/api/db/health', async (_req, reply) => {
-    reply.header('x-api', 'db-health');
-    const urlStr = String(process.env.DATABASE_URL || '');
-    if (!urlStr) {
-      return reply.code(503).send({ error: { code: 'DATABASE_UNCONFIGURED', message: 'DATABASE_URL not set' } });
-    }
-    let host = 'unknown';
-    try { host = new URL(urlStr).host; } catch {}
-    try {
-      const { rows } = await pool.query('select 1 as ok');
-      if (rows && rows.length > 0) return reply.send({ ok: true, host });
-      return reply.code(500).send({ error: { code: 'INTERNAL', message: 'DB health check failed' } });
-    } catch (e: any) {
-      return reply.code(500).send({ error: { code: 'INTERNAL', message: e?.message || 'DB error' } });
-    }
-  });
-  
 
   return app;
 }

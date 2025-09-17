@@ -70,25 +70,18 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
-
-      - name: Verify lockfiles unchanged
-        run: |
-          npm ci --ignore-scripts --no-audit --no-fund
-          git diff --exit-code package-lock.json || (echo "Root lockfile drifted"; exit 1)
-
-      - name: Install deps (api workspace incl. dev)
+      - name: Install deps
         env:
           NODE_ENV: development
           NPM_CONFIG_PRODUCTION: 'false'
         run: |
-          npm --prefix api ci --include=dev || npm --prefix api install --no-audit --no-fund --include=dev
-
-      - name: Ensure Rollup native binary on Linux
-        run: npm --prefix api install -D @rollup/rollup-linux-x64-gnu@latest || true
+          npm ci --workspaces --include-workspace-root --no-audit --no-fund
+          git diff --exit-code package-lock.json || (echo "Root lockfile drifted"; exit 1)
 
       - name: Build API
-        run: npm --prefix api run build
+        run: npm -w api run build
 
       - name: Run API tests
         env:
@@ -96,7 +89,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
           ROLLUP_USE_NODE_JS: 'true'
           ROLLUP_SKIP_NODEJS_NATIVE: '1'
-        run: npm --prefix api run test
+        run: npm -w api test -- --reporter=verbose
 
 
       # NEW — start server before smoke
@@ -108,7 +101,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
         run: |
           # Launch the API from the workspace so Node can resolve its deps
-          npm --prefix api run start &
+          npm -w api run start &
           echo $! > /tmp/api_pid.txt
 
           # Wait up to 60s for /api/health to respond
@@ -175,22 +168,19 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
-      - name: Install deps (api)
-        working-directory: api
-        run: npm install --no-audit --no-fund
+      - name: Install deps
+        env:
+          NODE_ENV: development
+          NPM_CONFIG_PRODUCTION: 'false'
+        run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
 
       - name: Typecheck (api)
-        working-directory: api
-        run: npm run typecheck
-
-      - name: Install deps (web)
-        working-directory: web
-        run: npm install --no-audit --no-fund
+        run: npm -w api run typecheck
 
       - name: Typecheck (web)
-        working-directory: web
-        run: npm run typecheck
+        run: npm -w web run typecheck
 
   docker:
     name: Build & Push Docker image
