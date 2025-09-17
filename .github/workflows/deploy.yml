@@ -1,14 +1,16 @@
 name: Deploy to Vercel
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
   workflow_dispatch:
 
 jobs:
   deploy-preview:
-    if: github.event_name == 'pull_request'
+    if: ${{ github.event_name == 'pull_request' }}
+    concurrency:
+      group: vercel-preview-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +35,10 @@ jobs:
           vercel-args: '--prod=false'
 
   deploy-production:
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
+    concurrency:
+      group: vercel-prod-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
