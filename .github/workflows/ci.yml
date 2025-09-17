@@ -209,12 +209,10 @@ jobs:
       - name: Resolve staging deploy hook
         if: ${{ github.ref == 'refs/heads/staging' }}
         id: staging_hook
-        env:
-          RENDER_STAGING_DEPLOY_HOOK_SECRET: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
-        run: |
-          set -euo pipefail
-          HOOK="${RENDER_STAGING_DEPLOY_HOOK_SECRET:-https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0}"
-          echo "value=$HOOK" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/resolve-render-hook
+        with:
+          secret: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
+          fallback: https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0
       - name: Trigger Render staging deploy
         if: ${{ github.ref == 'refs/heads/staging' }}
         run: |
