@@ -4,7 +4,7 @@
 - Endpoint: `GET /api/ledger/alarm` (env `BUDGET_DAILY_CENTS` enables it)
 - Render Cron example (every hour):
   - Command: `bash scripts/cron-budget-check.sh`
-  - Env: `BASE=https://cerply-api:staging-latest.onrender.com`, `BUDGET_DAILY_CENTS=500` (=$5.00)
+  - Env: `BASE=https://cerply-api-staging-latest.onrender.com`, `BUDGET_DAILY_CENTS=500` (=$5.00)
 
 ## Quick SQLs (paste into Metabase/Grafana)
 - Last 24h spend:

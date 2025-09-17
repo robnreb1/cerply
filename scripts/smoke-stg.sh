@@ -3,12 +3,12 @@ set -euo pipefail
 
 # Usage:
 #   WEB_BASE="https://cerply-staging.vercel.app" \
-#   API_BASE="https://cerply-api:staging-latest.onrender.com" \
+#   API_BASE="https://cerply-api-staging-latest.onrender.com" \
 #   VERCEL_BYPASS="your-bypass-token" \
 #   bash scripts/smoke-stg.sh
 
 WEB_BASE="${WEB_BASE:-https://cerply-staging.vercel.app}"
-API_BASE="${API_BASE:-https://cerply-api:staging-latest.onrender.com}"
+API_BASE="${API_BASE:-https://cerply-api-staging-latest.onrender.com}"
 
 # Allow overrides if needed
 CURL_BIN="${CURL_BIN:-curl}"
