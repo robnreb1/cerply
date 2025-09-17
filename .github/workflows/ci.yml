@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   vercel-preview:
-    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref_name != 'main') }}
+    if: github.event_name == 'pull_request'
     name: Vercel Preview (PRs and non-main pushes)
     runs-on: ubuntu-latest
     steps:
@@ -38,7 +38,9 @@ jobs:
           npx vercel deploy --prebuilt --token "$VERCEL_TOKEN" || { echo "Preview deploy hit a limit; skipping."; exit 0; }
 
   vercel-prod:
-    if: ${{ (github.event_name == 'push' && github.ref_name == 'main') || (github.event_name == 'workflow_dispatch' && inputs.deploy_prod == 'true') }}
+    if: >
+      (github.ref == 'refs/heads/main') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     name: Vercel Production (main/manual)
     runs-on: ubuntu-latest
     steps:
@@ -234,9 +236,11 @@ jobs:
       - name: Resolve staging deploy hook
         if: ${{ github.ref == 'refs/heads/staging' }}
         id: staging_hook
+        env:
+          RENDER_STAGING_DEPLOY_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
         run: |
           set -euo pipefail
-          HOOK="${{ secrets.RENDER_STAGING_DEPLOY_HOOK || 'https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0' }}"
+          HOOK="${RENDER_STAGING_DEPLOY_HOOK:-https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0}"
           echo "value=$HOOK" >> "$GITHUB_OUTPUT"
       - name: Trigger Render staging deploy
         if: ${{ github.ref == 'refs/heads/staging' }}
