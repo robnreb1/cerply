@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
+import { apiRoute } from '@/lib/apiBase';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const revalidate = 0;
 
-const API = process.env.NEXT_PUBLIC_API_BASE ?? process.env.API_BASE ?? 'https://api.cerply.com';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const auth = request.headers.get('authorization') || '';
 
-    const resp = await fetch(`${API}/api/curator/quality/compute`, {
+    const resp = await fetch(apiRoute('curator/quality/compute'), {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

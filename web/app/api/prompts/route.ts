@@ -3,11 +3,10 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-
-const API = process.env.NEXT_PUBLIC_API_BASE ?? process.env.API_BASE ?? 'https://api.cerply.com';
+import { apiRoute } from '@/lib/apiBase';
 
 export async function GET(request: Request) {
-  const url = `${API}/api/prompts`;
+  const url = apiRoute('prompts');
   try {
     const auth = request.headers.get('authorization') || '';
     const resp = await fetch(url, {
