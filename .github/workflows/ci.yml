@@ -202,4 +202,50 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          
+
+      - name: Trigger Render staging deploy (on staging only)
+        if: ${{ github.ref == 'refs/heads/staging' }}
+        run: echo "staging deploy starting"
+      - name: Resolve staging deploy hook
+        if: ${{ github.ref == 'refs/heads/staging' }}
+        id: staging_hook
+        env:
+          RENDER_STAGING_DEPLOY_HOOK_SECRET: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
+        run: |
+          set -euo pipefail
+          HOOK="${RENDER_STAGING_DEPLOY_HOOK_SECRET:-https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0}"
+          echo "value=$HOOK" >> "$GITHUB_OUTPUT"
+      - name: Trigger Render staging deploy
+        if: ${{ github.ref == 'refs/heads/staging' }}
+        run: |
+          set -euo pipefail
+          curl -fsS -X POST "${{ steps.staging_hook.outputs.value }}" >/dev/null
+
+      - name: Wait for staging health
+        if: ${{ github.ref == 'refs/heads/staging' }}
+        env:
+          BASE: https://cerply-api-staging.onrender.com
+        run: |
+          set -euo pipefail
+          for i in {1..90}; do
+            code=$(curl -sS -o /dev/null -w "%{http_code}" "$BASE/api/health" || true)
+            if [ "$code" = "200" ]; then
+              echo "OK: health 200"
+              curl -sS -D /tmp/h.txt "$BASE/api/health" >/dev/null || true
+              tr -d '\r' < /tmp/h.txt | grep -i '^x-api:' || true
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Health never reached 200" >&2
+          exit 1
+
+      - name: Version + image headers (best-effort)
+        if: ${{ github.ref == 'refs/heads/staging' }}
+        env:
+          BASE: https://cerply-api-staging.onrender.com
+        run: |
+          set -euo pipefail
+          curl -sS -D /tmp/vh.txt "$BASE/api/version" | jq . || true
+          echo "--- image headers ---"
+          tr -d '\r' < /tmp/vh.txt | grep -Ei '^x-image-(tag|revision|created):' || true
