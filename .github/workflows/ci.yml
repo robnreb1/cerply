@@ -221,14 +221,25 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
+      - name: Compute build created timestamp
+        id: build_meta
+        run: |
+          set -euo pipefail
+          echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
       - name: Build & Push
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: api/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            IMAGE_TAG=${{ github.ref_name }}
+            GIT_SHA=${{ github.sha }}
+            IMAGE_CREATED=${{ steps.build_meta.outputs.created }}
 
       - name: Trigger Render staging deploy (on staging only)
         if: ${{ github.ref == 'refs/heads/staging' }}

@@ -1,5 +1,10 @@
 # syntax=docker/dockerfile:1
 
+# Global image metadata (populated via build args)
+ARG IMAGE_TAG=unset
+ARG GIT_SHA=unset
+ARG IMAGE_CREATED=unset
+
 # 1) Install ALL deps (incl dev) for building
 FROM node:20-bullseye-slim AS deps
 WORKDIR /app
@@ -29,6 +34,17 @@ COPY package*.json ./
 ENV CI=true
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY --from=build /app/dist ./dist
+
+# Re-declare build args in final stage and expose as envs & labels
+ARG IMAGE_TAG
+ARG GIT_SHA
+ARG IMAGE_CREATED
+ENV IMAGE_TAG="${IMAGE_TAG}" \
+    IMAGE_REVISION="${GIT_SHA}" \
+    IMAGE_CREATED="${IMAGE_CREATED}"
+LABEL org.opencontainers.image.version="${IMAGE_TAG}" \
+      org.opencontainers.image.revision="${GIT_SHA}" \
+      org.opencontainers.image.created="${IMAGE_CREATED}"
 
 EXPOSE 8080
 CMD ["node", "dist/index.js"]
