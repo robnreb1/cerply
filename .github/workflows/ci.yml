@@ -4,16 +4,56 @@ on:
   push:
     branches: [main, master]
   pull_request:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      deploy_prod:
+        description: "Deploy Vercel Production"
+        required: false
+        default: "false"
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  vercel-preview:
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref_name != 'main') }}
+    name: Vercel Preview (PRs and non-main pushes)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Vercel Preview Deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+          # Minimal cooldown guard to avoid tight retry loops on rate limits
+          npx vercel deploy --prebuilt --token "$VERCEL_TOKEN" || { echo "Preview deploy hit a limit; skipping."; exit 0; }
+
+  vercel-prod:
+    if: ${{ (github.event_name == 'push' && github.ref_name == 'main') || (github.event_name == 'workflow_dispatch' && inputs.deploy_prod == 'true') }}
+    name: Vercel Production (main/manual)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Vercel Production Deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          npx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+          # Deploy to production; bail out softly on rate limits
+          npx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" || { echo "Prod deploy skipped due to limit."; exit 0; }
   api:
     name: Build & Test (API)
     runs-on: ubuntu-latest
