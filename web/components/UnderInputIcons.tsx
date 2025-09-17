@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import type { ChangeEventHandler } from "react";
 import {
   AcademicCapIcon,
   Squares2X2Icon,
@@ -16,11 +15,10 @@ type Props = {
   className?: string;
 };
 
-/** Heroicons are ForwardRefExoticComponent<SVGProps<...>>, so use ComponentType for SVG */
 type Item = {
   key: string;
   label: string;
-  Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  Icon: (props: React.ComponentProps<"svg">) => JSX.Element;
   emphasis?: boolean;
   onClick?: () => void;
 };
@@ -29,11 +27,10 @@ export default function UnderInputIcons({ onUpload, className }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const openPicker = () => fileRef.current?.click();
-
-  const handleChange: ChangeEventHandler<HTMLInputElement> = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
+  const handleChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    if (e.target.files?.length) {
       onUpload?.(e.target.files);
-      // reset so choosing the same file again still triggers change
+      // allow re-choosing the same file to trigger onChange again
       e.currentTarget.value = "";
     }
   };
@@ -43,7 +40,7 @@ export default function UnderInputIcons({ onUpload, className }: Props) {
     { key: "curate", label: "Curate", Icon: Squares2X2Icon },
     { key: "guild", label: "Guild", Icon: SparklesIcon },
     { key: "account", label: "Account", Icon: UserCircleIcon },
-    // Upload (bolder / black emphasis)
+    // Emphasised Upload (black)
     { key: "upload", label: "Upload", Icon: ArrowUpTrayIcon, emphasis: true, onClick: openPicker },
   ];
 
@@ -57,26 +54,26 @@ export default function UnderInputIcons({ onUpload, className }: Props) {
           key={key}
           type="button"
           onClick={onClick}
-          className={
-            emphasis
-              ? "flex-1 rounded-md px-2 py-3 text-center text-black hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-zinc-300"
-              : "group flex-1 rounded-md px-2 py-3 text-center text-zinc-500 hover:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-300"
-          }
+          className={`group flex-1 rounded-md px-2 py-3 text-center focus:outline-none focus:ring-2 focus:ring-zinc-300 ${
+            emphasis ? "text-black hover:text-zinc-900 font-medium" : "text-zinc-500 hover:text-zinc-700"
+          }`}
+          data-testid={`undericons-${key}`}
         >
           <Icon className="mx-auto h-5 w-5 stroke-1" aria-hidden="true" />
           <span className="mt-1 block text-xs">{label}</span>
+
+          {key === "upload" && (
+            <input
+              ref={fileRef}
+              type="file"
+              className="sr-only"
+              multiple
+              onChange={handleChange}
+              accept=".pdf,.doc,.docx,.txt,.md,.rtf,.ppt,.pptx,.csv,.xlsx,.xls,.json,.zip,.mp3,.m4a,.wav"
+            />
+          )}
         </button>
       ))}
-
-      {/* Hidden file input, triggered by Upload */}
-      <input
-        ref={fileRef}
-        type="file"
-        className="sr-only"
-        multiple
-        onChange={handleChange}
-        accept=".pdf,.doc,.docx,.txt,.md,.rtf,.ppt,.pptx,.csv,.xlsx,.xls,.json,.zip,.mp3,.m4a,.wav"
-      />
     </div>
   );
 }
