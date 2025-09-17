@@ -1760,7 +1760,27 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
 // Auto-start server only outside tests (can be disabled via FASTIFY_AUTOSTART=false)
 if ((process.env.NODE_ENV !== 'test') && ((process.env.FASTIFY_AUTOSTART ?? 'true') !== 'false')) {
   createApp()
-    .then(app => app.listen({ port: Number(process.env.PORT ?? 8080), host: process.env.HOST ?? '0.0.0.0' }))
+    .then(async app => {
+      // Ensure /api/version is registered before starting
+      try {
+        const { registerVersionRoutes } = await import('./routes/version');
+        await registerVersionRoutes(app);
+      } catch {}
+
+      const address = await app.listen({ port: Number(process.env.PORT ?? 8080), host: process.env.HOST ?? '0.0.0.0' });
+      app.log.info({ address }, 'Server listening');
+      // --- boot image banner (shows up in Render logs)
+      try {
+        const meta = {
+          tag: process.env.IMAGE_TAG || 'unset',
+          revision: process.env.IMAGE_REVISION || 'unset',
+          created: process.env.IMAGE_CREATED || 'unset',
+        };
+        app.log.info({ image: meta }, 'image meta');
+      } catch (e) {
+        // noop
+      }
+    })
     .catch(err => { console.error('fastify_boot_error', err); process.exit(1); });
 }
 
