@@ -28,10 +28,6 @@ jobs:
   gate:
     name: Gate (label present?)
     runs-on: ubuntu-latest
-    if: >
-      (github.event_name == 'workflow_dispatch')
-      || (github.event_name == 'pull_request'
-          && contains(toJson(github.event.pull_request.labels), '"preview"'))
     outputs:
       pr_number: ${{ steps.meta.outputs.pr_number }}
     steps:
@@ -46,7 +42,7 @@ jobs:
   deploy:
     name: Build & Deploy Preview
     needs: gate
-    if: ${{ needs.gate.outputs.pr_number != '' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.fork == false) }}
+    if: ${{ needs.gate.outputs.pr_number != '' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), '"preview"') && github.event.pull_request.head.repo.fork == false)) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,48 +67,79 @@ jobs:
         run: npm ci
 
       - name: Pull Vercel project (preview)
+
         working-directory: web
+
         run: |
           npx vercel --version
           npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
 
       - name: Build (inject preview API origin)
+
         working-directory: web
+
         env:
           NEXT_PUBLIC_API_BASE: ${{ env.PREVIEW_API_ORIGIN }}
         run: npx vercel build --token "$VERCEL_TOKEN"
 
-      - name: Deploy preview (soft-fail on rate limit)
+      - name: Deploy preview (structured JSON + API fallback)
         id: deploy
+
         working-directory: web
+
         continue-on-error: true
         env:
           PR: ${{ needs.gate.outputs.pr_number }}
         run: |
           set -o pipefail
-          out=$(npx vercel deploy --prebuilt \
-                --token "$VERCEL_TOKEN" \
-                --scope "$VERCEL_ORG_ID" \
-                --meta pr="$PR" \
-                --yes 2>&1 | tee /tmp/vercel.out) || true
 
-          url=$(grep -Eo 'https://[a-z0-9-]+\.vercel\.app' /tmp/vercel.out | tail -n1 || true)
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+          # 1) Try JSON output from Vercel CLI
+          npx vercel deploy --prebuilt \
+            --token "$VERCEL_TOKEN" \
+            --scope "$VERCEL_ORG_ID" \
+            --meta pr="$PR" \
+            --yes \
+            --json > /tmp/vercel.json 2>&1 || true
 
-          if echo "$out" | grep -Eqi 'rate limit|429|Exceeded usage'; then
-            echo "rate_limited=true" >> "$GITHUB_OUTPUT"
-            exit 0
+          # Extract URL candidates from JSON
+          url=$(jq -r '(.url // .inspectUrl // (.aliases[0] // "")) // ""' /tmp/vercel.json 2>/dev/null || echo "")
+          # Normalize to https scheme if missing
+          if [ -n "$url" ] && ! echo "$url" | grep -Eq '^https?://'; then
+            url="https://$url"
           fi
 
+          # 2) Detect rate limit in either JSON or stderr
+          if grep -Eqi 'rate limit|429|Exceeded usage' /tmp/vercel.json; then
+            echo "rate_limited=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          # 3) If URL still empty, fall back to Vercel API by meta.pr
           if [ -z "$url" ]; then
+            resp=$(curl -fsSL -H "Authorization: Bearer $VERCEL_TOKEN" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&meta-pr=$PR&limit=1" || true)
+            api_url=$(printf '%s' "$resp" | jq -r '.deployments[0].url // ""' 2>/dev/null || echo "")
+            api_alias=$(printf '%s' "$resp" | jq -r '.deployments[0].alias[0] // ""' 2>/dev/null || echo "")
+            if [ -n "$api_alias" ]; then
+              url="https://$api_alias"
+            elif [ -n "$api_url" ]; then
+              url="https://$api_url"
+            fi
+          fi
+
+          # 4) Export outputs for subsequent steps
+          if [ -n "$url" ]; then
+            echo "url=$url" >> "$GITHUB_OUTPUT"
+            echo "Resolved preview URL: $url"
+          else
             echo "deploy_failed=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "Could not resolve preview URL; see logs and /tmp/vercel.json"
           fi
 
       - name: Comment with preview URL
         if: steps.deploy.outputs.url != ''
         uses: marocchino/sticky-pull-request-comment@v2
         with:
+          number: ${{ needs.gate.outputs.pr_number }}
           header: preview-url
           recreate: true
           message: |
