@@ -41,9 +41,10 @@ jobs:
 
       - name: Run Web Smoke (echo + node)
         env:
-          NEXT_PUBLIC_API_BASE: ${{ inputs.api_base || 'https://cerply-api-staging-latest.onrender.com' }}
           SMOKE_TIMEOUT_MS: '15000'
           SMOKE_RETRIES: '6'
+          SMOKE_API_BASE: ${{ inputs.api_base || vars.PREVIEW_API_ORIGIN || 'https://cerply-api-staging-latest.onrender.com' }}
+          NEXT_PUBLIC_API_BASE: ${{ inputs.api_base || vars.PREVIEW_API_ORIGIN || 'https://cerply-api-staging-latest.onrender.com' }}
         run: |
           set -euo pipefail
           echo '--- scripts/smoke-api.mjs (first 60 lines) ---'

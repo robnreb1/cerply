@@ -4,8 +4,10 @@
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const API_BASE =
-  process.env.API_BASE ||
   process.env.SMOKE_API_BASE ||
+  process.env.API_BASE ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.api_base ||
   'https://cerply-api-staging-latest.onrender.com';
 
 const REQUIRED = [
