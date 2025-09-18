@@ -3,11 +3,6 @@ name: PR Preview (Vercel, label-gated)
 on:
   pull_request:
     types: [labeled, reopened, synchronize]
-    paths:
-      - 'web/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/pr-preview.yml'
   workflow_dispatch:
     inputs:
       pr:
@@ -18,6 +13,10 @@ permissions:
   contents: read
   pull-requests: write
   checks: write
+
+defaults:
+  run:
+    working-directory: web
 
 concurrency:
   group: pr-preview-${{ github.event.pull_request.number || inputs.pr }}-web
@@ -51,7 +50,7 @@ jobs:
   deploy:
     name: Build & Deploy Preview
     needs: gate
-    if: ${{ needs.gate.outputs.pr_number != '' }}
+    if: ${{ needs.gate.outputs.pr_number != '' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.fork == false) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +62,7 @@ jobs:
         with:
           node-version-file: 'package.json'
           cache: 'npm'
+          cache-dependency-path: 'package-lock.json'
 
       - name: Cache npm (root only)
         uses: actions/cache@v4
@@ -71,6 +71,7 @@ jobs:
           key: npm-${{ hashFiles('package-lock.json') }}
 
       - name: Install deps (root)
+        working-directory: .
         run: npm ci
 
       - name: Pull Vercel project (preview)
@@ -79,9 +80,9 @@ jobs:
           npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
 
       - name: Build (inject preview API origin)
-        run: |
-          export NEXT_PUBLIC_API_BASE="${PREVIEW_API_ORIGIN}"
-          npx vercel build --token "$VERCEL_TOKEN"
+        env:
+          NEXT_PUBLIC_API_BASE: ${{ env.PREVIEW_API_ORIGIN }}
+        run: npx vercel build --token "$VERCEL_TOKEN"
 
       - name: Deploy preview (soft-fail on rate limit)
         id: deploy
