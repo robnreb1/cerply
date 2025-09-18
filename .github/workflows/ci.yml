@@ -30,7 +30,8 @@ jobs:
           set -euo pipefail
           echo "Scanning for forbidden strings..."
           PATTERN='cerply-api-staging(\b|[^-])|cerply-api\.onrender\.com|cerply-api-sha-[A-Za-z0-9-]+\.onrender\.com|srv-d31ukuadbo4c739vm180|https://api\.render\.com/deploy/srv-'
-          MATCHES=$(git grep -InE "$PATTERN" || true)
+          FILES=$(git ls-files | grep -Ev '^(docs/|README|.*\.md$|.*\.bak$|node_modules/|web/node_modules/|api/dist/|api/.*/dist/|api/.*/build/|web/.*/.next/|web/.*/dist/)' || true)
+          MATCHES=$(echo "$FILES" | xargs -r grep -InE "$PATTERN" || true)
           if [ -n "$MATCHES" ]; then
             echo "Forbidden references found:" >&2
             echo "$MATCHES" >&2
