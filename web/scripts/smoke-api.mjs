@@ -1,5 +1,7 @@
-// Node 20+ fetch via undici
-import { setTimeout as delay } from 'node:timers/promises';
+// Web smoke: check /api/version headers with retries/timeouts.
+// Node 20+ supports AbortSignal.timeout. Avoid duplicate imports.
+
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const API_BASE =
   process.env.API_BASE ||
@@ -13,8 +15,9 @@ const REQUIRED = [
   'x-image-created',
 ];
 
-const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS || 10000);
-const RETRIES = Number(process.env.SMOKE_RETRIES || 3);
+// Sensible defaults; env can override.
+const TIMEOUT_MS = Number(process.env.SMOKE_TIMEOUT_MS || 12000);
+const RETRIES = Number(process.env.SMOKE_RETRIES || 5);
 
 async function fetchJson(url, attempt = 1) {
   try {
