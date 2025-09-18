@@ -69,6 +69,10 @@ Env vars:
 - `RUNTIME_CHANNEL`: set to `staging` on staging service; `prod` on production.
 - Vercel preview is optional and may retry/skip on free tier.
 
+See also:
+- Runbooks: [Deploy Staging](docs/runbooks/deploy-staging.md), [Promote Prod](docs/runbooks/promote-prod.md)
+- Epic Closure: [CI + Staging/Prod hardening & migration (Sept 2025)](docs/epics/2025-09-ci-staging-prod-hardening.md)
+
 
 ### Promotion to prod
 
