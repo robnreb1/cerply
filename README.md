@@ -40,7 +40,6 @@ open http://localhost:3000
 3. Verify
    - `/api/version` returns `{ image: { tag, revision, created }, runtime: { channel } }` and headers mirror those values.
 
-
 ### Promotion to prod
 
 - Do not push `:prod` (or `:staging`/`:staging-latest`) from local machines; CI builds amd64-only and promotion enforces it.
