@@ -1,0 +1,30 @@
+name: Resolve Render hook
+description: Resolves deploy hook from optional secret or provided fallback
+
+inputs:
+  secret:
+    description: Optional secret value of Render deploy hook
+    default: ""
+  fallback:
+    description: Fallback hook URL when secret is empty
+    required: true
+
+outputs:
+  value:
+    description: Resolved hook URL
+    value: ${{ steps.resolve.outputs.value }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+        HOOK="${{ inputs.secret }}"
+        if [ -z "$HOOK" ]; then
+          HOOK="${{ inputs.fallback }}"
+        fi
+        echo "value=$HOOK" >> "$GITHUB_OUTPUT"
+
+

@@ -155,6 +155,26 @@ export async function createApp() {
         }
       }
     } catch {}
+    // Inject runtime channel into /api/version response without changing existing fields
+    try {
+      const routePath = String((req as any).routerPath || (req as any).url || '').trim();
+      if (process.env.RUNTIME_CHANNEL && routePath === '/api/version') {
+        reply.header('x-runtime-channel', process.env.RUNTIME_CHANNEL);
+        if (payload && typeof payload === 'object') {
+          return { ...(payload as any), runtime: { channel: process.env.RUNTIME_CHANNEL } };
+        }
+        if (typeof payload === 'string') {
+          const trimmed = payload.trim();
+          if (trimmed.startsWith('{')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              const next = { ...parsed, runtime: { channel: process.env.RUNTIME_CHANNEL } };
+              return JSON.stringify(next);
+            } catch {}
+          }
+        }
+      }
+    } catch {}
     return payload;
   });
   // ────────────────────────────────────────────────────────────────────────
@@ -166,6 +186,8 @@ export async function createApp() {
   });
   // Validate environment
   parseEnv(process.env);
+  // Runtime deploy channel (optional): allows staging/prod to report environment without rebuilds
+  const RUNTIME_CHANNEL = process.env.RUNTIME_CHANNEL || '';
 // ---- debug route collection ----
 type RouteRow = { method: string; url: string };
 const __ROUTES: RouteRow[] = [];
@@ -1210,13 +1232,6 @@ async function handleIngestPreview(req: FastifyRequest, reply: FastifyReply) {
   }
 }
 
-// Register preview on both URLs
-app.post('/ingest/preview', async (_req, reply) => {
-  reply.header('x-deprecated', 'true');
-  reply.header('link', '</api/ingest/preview>; rel="successor-version"');
-  return reply.code(307).send({ next: '/api/ingest/preview' });
-});
-
 // ---------------------
 // Ingest: clarify (per spec)
 // ---------------------
@@ -1724,15 +1739,32 @@ app.get('/challenges/:id/leaderboard', async (req: FastifyRequest, reply: Fastif
     reply.code(status).send({ error: { code, message } });
   });
 
-  
-
   return app;
 }
 
 // Auto-start server only outside tests (can be disabled via FASTIFY_AUTOSTART=false)
 if ((process.env.NODE_ENV !== 'test') && ((process.env.FASTIFY_AUTOSTART ?? 'true') !== 'false')) {
   createApp()
-    .then(app => app.listen({ port: Number(process.env.PORT ?? 8080), host: process.env.HOST ?? '0.0.0.0' }))
+    .then(async app => {
+      // Ensure /api/version is registered before starting
+      try {
+        const { registerVersionRoutes } = await import('./routes/version');
+        await registerVersionRoutes(app);
+      } catch {}
+
+      const address = await app.listen({ port: Number(process.env.PORT ?? 8080), host: process.env.HOST ?? '0.0.0.0' });
+      app.log.info({ address }, 'Server listening');
+      // --- boot image banner (shows up in Render logs)
+      try {
+        app.log.info({ tag: process.env.IMAGE_TAG, rev: process.env.IMAGE_REVISION, created: process.env.IMAGE_CREATED }, 'image metadata');
+      } catch (e) {
+        // noop
+      }
+      // Augment startup log with runtime channel
+      try {
+        app.log.info({ tag: process.env.IMAGE_TAG, rev: process.env.IMAGE_REVISION, created: process.env.IMAGE_CREATED, runtimeChannel: (process.env.RUNTIME_CHANNEL || undefined) }, `Server listening at ${address}`);
+      } catch {}
+    })
     .catch(err => { console.error('fastify_boot_error', err); process.exit(1); });
 }
 

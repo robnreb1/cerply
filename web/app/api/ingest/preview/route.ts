@@ -1,24 +1,22 @@
-// Edge proxy for POST /api/ingest/preview
-export const runtime = 'edge';
+// Node proxy for POST /api/ingest/preview
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const API = (
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:8080'
-).replace(/\/+$/, '');
+export const revalidate = 0;
+import { apiRoute } from '@/lib/apiBase';
 
 export async function POST(req: Request) {
-  const url = `${API}/api/ingest/preview`;
+  const url = apiRoute('ingest/preview');
   try {
     const body = await req.text();
     const ct = req.headers.get('content-type') ?? 'application/json';
+    const auth = req.headers.get('authorization') || '';
 
     const upstream = await fetch(url, {
       method: 'POST',
       headers: new Headers({
         'content-type': ct,
         accept: 'application/json',
+        ...(auth ? { authorization: auth } : {}),
       }),
       body,
       cache: 'no-store',
@@ -40,14 +38,14 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const sample = JSON.stringify({
-      error: { code: 'EDGE_PREVIEW_FALLBACK', message: 'Planner unavailable. Please try again.' }
+      error: { code: 'PREVIEW_FALLBACK', message: 'Planner unavailable. Please try again.' }
     });
     return new Response(sample, {
       status: 503,
       headers: {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'no-store',
-        'x-edge': 'ingest-preview-fallback',
+        'x-api': 'ingest-preview-fallback',
         'x-upstream': url,
       },
     });

@@ -1,11 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-
-// Force dynamic rendering - prevent static generation during build
-export const dynamic = 'force-dynamic';
+import { NextRequest } from 'next/server';
+import { apiRoute } from '@/lib/apiBase';
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
 
 function stripHopByHop(headers: Headers) {
   const out = new Headers(headers);
@@ -20,11 +18,17 @@ function stripHopByHop(headers: Headers) {
 async function proxy(req: NextRequest, { params }: { params: { path?: string[] } }) {
   const path = (params.path ?? []).join('/');
   const src = new URL(req.url);
-  const target = `${API}/api/${path}${src.search}`;
+  const target = `${apiRoute(path)}${src.search}`;
 
+  const auth = req.headers.get('authorization') || '';
   const init: RequestInit = {
     method: req.method,
-    headers: stripHopByHop(req.headers),
+    headers: (() => {
+      const h = stripHopByHop(req.headers);
+      if (auth) h.set('authorization', auth);
+      return h;
+    })(),
+    cache: 'no-store',
     redirect: 'manual',
   };
   if (req.method !== 'GET' && req.method !== 'HEAD') {

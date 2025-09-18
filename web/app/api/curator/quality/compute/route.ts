@@ -1,37 +1,30 @@
 import { NextResponse } from 'next/server';
+import { apiRoute } from '@/lib/apiBase';
 
-// Force dynamic rendering - prevent static generation during build
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const revalidate = 0;
 
-const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    
-    const resp = await fetch(`${API}/curator/quality/compute`, { 
+    const body = await request.json().catch(() => ({}));
+    const auth = request.headers.get('authorization') || '';
+
+    const resp = await fetch(apiRoute('curator/quality/compute'), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Cerply-Web-Proxy'
+        'content-type': 'application/json',
+        ...(auth ? { authorization: auth } : {}),
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      cache: 'no-store',
+      redirect: 'follow',
     });
-    
-    if (!resp.ok) {
-      const errorData = await resp.json().catch(() => ({}));
-      return NextResponse.json(
-        errorData,
-        { status: resp.status }
-      );
-    }
-    
-    const data = await resp.json();
-    return NextResponse.json(data);
+
+    const data = await resp.json().catch(() => ({}));
+    return NextResponse.json(data, { status: resp.status });
   } catch (err: any) {
-    console.error('Quality compute proxy error:', err);
     return NextResponse.json(
       { error: 'proxy_error', message: String(err) },
       { status: 502 }

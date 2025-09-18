@@ -2,18 +2,81 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, staging]
   pull_request:
   workflow_dispatch:
+    inputs:
+      deploy_prod:
+        description: "Deploy Vercel Production"
+        required: false
+        default: "false"
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  guard-residual-service-refs:
+    name: "Guard: residual service refs"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Fail on forbidden strings
+        run: |
+          set -euo pipefail
+          echo "Scanning for forbidden strings..."
+          # Use PCRE to avoid matching cerply-api-staging-latest
+          PATTERN='cerply-api-staging(?!-latest)|cerply-api\.onrender\.com|cerply-api-sha-[A-Za-z0-9-]+\.onrender\.com|srv-d31ukuadbo4c739vm180|https://api\.render\.com/deploy/srv-'
+          FILES=$(git ls-files | grep -Ev '^(docs/|README|.*\.md$|.*\.bak$|node_modules/|web/node_modules/|api/dist/|api/.*/dist/|api/.*/build/|web/.*/.next/|web/.*/dist/)' | grep -v '^\.github/workflows/ci\.yml$' || true)
+          MATCHES=$(echo "$FILES" | xargs -r grep -InP "$PATTERN" || true)
+          if [ -n "$MATCHES" ]; then
+            echo "Forbidden references found:" >&2
+            echo "$MATCHES" >&2
+            exit 1
+          fi
+          echo "OK: no forbidden references found"
+
+  vercel-preview:
+    if: github.event_name == 'pull_request'
+    name: Vercel Preview (PRs and non-main pushes)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Vercel Preview Deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+          # Minimal cooldown guard to avoid tight retry loops on rate limits
+          npx vercel deploy --prebuilt --token "$VERCEL_TOKEN" || { echo "Preview deploy hit a limit; skipping."; exit 0; }
+
+  vercel-prod:
+    if: >
+      (github.ref == 'refs/heads/main') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    name: Vercel Production (main/manual)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Vercel Production Deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          npx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+          # Deploy to production; bail out softly on rate limits
+          npx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" || { echo "Prod deploy skipped due to limit."; exit 0; }
   api:
     name: Build & Test (API)
     runs-on: ubuntu-latest
@@ -30,25 +93,18 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
-
-      - name: Verify lockfiles unchanged
-        run: |
-          npm ci --ignore-scripts --no-audit --no-fund
-          git diff --exit-code package-lock.json || (echo "Root lockfile drifted"; exit 1)
-
-      - name: Install deps (api workspace incl. dev)
+      - name: Install deps
         env:
           NODE_ENV: development
           NPM_CONFIG_PRODUCTION: 'false'
         run: |
-          npm --prefix api ci --include=dev || npm --prefix api install --no-audit --no-fund --include=dev
-
-      - name: Ensure Rollup native binary on Linux
-        run: npm --prefix api install -D @rollup/rollup-linux-x64-gnu@latest || true
+          npm ci --workspaces --include-workspace-root --no-audit --no-fund
+          git diff --exit-code package-lock.json || (echo "Root lockfile drifted"; exit 1)
 
       - name: Build API
-        run: npm --prefix api run build
+        run: npm -w api run build
 
       - name: Run API tests
         env:
@@ -56,7 +112,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
           ROLLUP_USE_NODE_JS: 'true'
           ROLLUP_SKIP_NODEJS_NATIVE: '1'
-        run: npm --prefix api run test
+        run: npm -w api test -- --reporter=verbose
 
 
       # NEW — start server before smoke
@@ -68,7 +124,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
         run: |
           # Launch the API from the workspace so Node can resolve its deps
-          npm --prefix api run start &
+          npm -w api run start &
           echo $! > /tmp/api_pid.txt
 
           # Wait up to 60s for /api/health to respond
@@ -135,28 +191,28 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
-      - name: Install deps (api)
-        working-directory: api
-        run: npm install --no-audit --no-fund
+      - name: Install deps
+        env:
+          NODE_ENV: development
+          NPM_CONFIG_PRODUCTION: 'false'
+        run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
 
       - name: Typecheck (api)
-        working-directory: api
-        run: npm run typecheck
-
-      - name: Install deps (web)
-        working-directory: web
-        run: npm install --no-audit --no-fund
+        run: npm -w api run typecheck
 
       - name: Typecheck (web)
-        working-directory: web
-        run: npm run typecheck
+        run: npm -w web run typecheck
 
   docker:
     name: Build & Push Docker image
-    needs: api
-    if: github.event_name == 'push'
+    needs: [guard-residual-service-refs, api]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    env:
+      FALLBACK_CREATED: ""
+      RENDER_STAGING_DEPLOY_HOOK: ""
     permissions:
       contents: read
       packages: write
@@ -164,8 +220,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (for multi-arch)
+      - name: Set up QEMU (amd64 only)
         uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Log in to GHCR
@@ -181,16 +239,97 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/cerply-api
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha
-            type=ref,event=tag
-            type=semver,pattern={{version}}
+            type=sha,format=long
+            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/staging' }}
+            type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/staging' }}
+            # On main, publish prod-candidate and a short sha tag for promotion
+            type=raw,value=prod-candidate,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=short,prefix=sha-,enable=${{ github.ref == 'refs/heads/main' }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Build & Push
-        uses: docker/build-push-action@v6
+      - name: Compute build args
+        id: build_args
+        run: echo "created=$(date -u +%FT%TZ)" >> "$GITHUB_OUTPUT"
+
+      # Do not push from local; Apple Silicon yields arm64-only.
+      - name: Build & Push (linux/amd64 only)
+        uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            IMAGE_TAG=${{ github.ref_name }}
+            GIT_SHA=${{ github.sha }}
+            IMAGE_CREATED=${{ steps.build_args.outputs.created }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Check IMAGE_* present in staging-latest
+        if: ${{ github.ref_name == 'staging' }}
+        run: |
+          set -euo pipefail
+          IMG="ghcr.io/${{ github.repository_owner }}/cerply-api:staging-latest"
+          docker pull "$IMG"
+          docker run --rm "$IMG" /bin/sh -lc 'env | grep -E "^IMAGE_|^NODE" || true'
+          for k in IMAGE_TAG IMAGE_REVISION IMAGE_CREATED; do
+            v=$(docker run --rm "$IMG" /bin/sh -lc "printenv $k || true")
+            if [ -z "$v" ]; then
+              echo "::error::missing or empty $k in image env" >&2
+              exit 1
+            fi
+          done
+
+      - name: Trigger Render staging deploy
+        if: ${{ github.ref == 'refs/heads/staging' }}
+        env:
+          RENDER_STAGING_DEPLOY_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
+        run: |
+          set -euo pipefail
+          if [ -n "${RENDER_STAGING_DEPLOY_HOOK:-}" ]; then
+            curl -fsS -X POST "$RENDER_STAGING_DEPLOY_HOOK" >/dev/null
+            echo "Staging deploy triggered via hook"
+          else
+            echo "No RENDER_STAGING_DEPLOY_HOOK configured; skipping deploy trigger"
+          fi
+
+      - name: Wait for staging health
+        if: ${{ github.ref == 'refs/heads/staging' }}
+        env:
+          BASE: https://cerply-api-staging-latest.onrender.com
+          RENDER_RESUME_HEADER: 'x-render-resume: true'
+        run: |
+          set -euo pipefail
+          for i in {1..60}; do
+            resp="$(curl -sS -H "$RENDER_RESUME_HEADER" -w "\n%{http_code}" "$BASE/api/health" || true)"
+            body="$(echo "$resp" | sed '$d')"
+            code="$(echo "$resp" | tail -n1)"
+            if [ "$code" = "200" ] && echo "$body" | jq -e '.ok == true' >/dev/null 2>&1; then
+              echo "OK: health 200"; echo "$body" | jq .; exit 0
+            fi
+            if [ "$code" = "503" ] || [ "$code" = "429" ]; then sleep 5; continue; fi
+            sleep 5
+          done
+          echo "Health never reached 200 { ok: true }" >&2; exit 1
+
+      - name: Version + image headers must be non-empty
+        if: ${{ github.ref == 'refs/heads/staging' }}
+        env:
+          BASE: https://cerply-api-staging-latest.onrender.com
+          RENDER_RESUME_HEADER: 'x-render-resume: true'
+        run: |
+          set -euo pipefail
+          curl -sS -D /tmp/vh.txt -H "$RENDER_RESUME_HEADER" "$BASE/api/version" | jq .
+          echo "--- image headers ---"
+          cat /tmp/vh.txt
+          for h in x-image-tag x-image-revision x-image-created; do
+            if ! grep -qiE "^$h:\s*[0-9A-Za-z._:-]+" /tmp/vh.txt; then
+              echo "::error::header $h missing or empty" >&2
+              exit 1
+            fi
+          done

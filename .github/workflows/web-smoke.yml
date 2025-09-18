@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       api_base:
-        description: "API base URL (e.g., https://cerply-api-staging.onrender.com)"
+        description: "API base URL (e.g., https://cerply-api-staging-latest.onrender.com)"
         required: true
-        default: "https://cerply-api-staging.onrender.com"
+        default: "https://cerply-api-staging-latest.onrender.com"
   pull_request:
     paths:
       - "web/**"
@@ -38,6 +38,6 @@ jobs:
 
       - name: Run Web Smoke (links API health)
         env:
-          NEXT_PUBLIC_API_BASE: ${{ inputs.api_base || 'https://cerply-api-staging.onrender.com' }}
+          NEXT_PUBLIC_API_BASE: ${{ inputs.api_base || 'https://cerply-api-staging-latest.onrender.com' }}
           SMOKE_TIMEOUT_MS: "8000"
         run: npm run smoke:api

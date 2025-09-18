@@ -1,47 +1,45 @@
-export const runtime = 'edge';
+// web/app/api/ingest/generate/route.ts
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const API = (process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080').replace(/\/+$/, '');
+export const revalidate = 0;
+import { apiRoute } from '@/lib/apiBase';
 
 export async function POST(req: Request) {
-  const url = `${API}/api/ingest/generate`;
+  const url = apiRoute('ingest/generate');
   try {
+    const auth = req.headers.get('authorization') || '';
+    const ct = req.headers.get('content-type') ?? 'application/json';
+    const bodyText = await req.text();
     const upstream = await fetch(url, {
       method: 'POST',
       headers: {
-        'content-type': req.headers.get('content-type') ?? 'application/json',
+        'content-type': ct,
         accept: 'application/json',
+        ...(auth ? { authorization: auth } : {}),
       },
-      body: req.body,
-      redirect: 'follow',
+      body: bodyText,
       cache: 'no-store',
+      redirect: 'follow',
     });
-
-    const body = await upstream.text();
-    return new Response(body, {
+    const text = await upstream.text();
+    return new Response(text, {
       status: upstream.status,
       headers: {
         'content-type': upstream.headers.get('content-type') ?? 'application/json; charset=utf-8',
         'cache-control': 'no-store',
-        'x-edge': 'ingest-generate-proxy',
         'x-upstream': url,
       },
     });
-  } catch (err) {
-    const fallback = JSON.stringify({
-      ok: false,
-      error: 'generate upstream unreachable',
-      modules: [],
-      ts: new Date().toISOString(),
-    });
-    return new Response(fallback, {
+  } catch {
+    const body = JSON.stringify({ ok: false, error: 'generate upstream unreachable' });
+    return new Response(body, {
       status: 502,
       headers: {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'no-store',
-        'x-edge': 'ingest-generate-fallback',
         'x-upstream': url,
       },
     });
   }
 }
+

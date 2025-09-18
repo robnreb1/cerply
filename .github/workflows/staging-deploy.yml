@@ -1,0 +1,69 @@
+name: Staging Deploy
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch: {}
+
+concurrency:
+  group: staging-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to Render (staging)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RENDER_STAGING_DEPLOY_HOOK: ""
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trigger Render staging deploy (if hook present)
+        env:
+          RENDER_STAGING_DEPLOY_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
+        run: |
+          set -euo pipefail
+          if [ -n "${RENDER_STAGING_DEPLOY_HOOK:-}" ]; then
+            curl -fsS -X POST "$RENDER_STAGING_DEPLOY_HOOK"
+          else
+            echo "No RENDER_STAGING_DEPLOY_HOOK configured; skipping" 
+          fi
+
+      - name: Wait for staging health
+        env:
+          BASE: https://cerply-api-staging-latest.onrender.com
+        run: |
+          set -euo pipefail
+          for i in {1..60}; do
+            resp="$(curl -sS -w "\n%{http_code}" "$BASE/api/health" || true)"
+            body="$(echo "$resp" | sed '$d')"
+            code="$(echo "$resp" | tail -n1)"
+            if [ "$code" = "200" ] && echo "$body" | jq -e '.ok == true' >/dev/null 2>&1; then
+              echo "$body" | jq .
+              exit 0
+            fi
+            # tolerate warm-up 503/429
+            if [ "$code" = "503" ] || [ "$code" = "429" ]; then
+              sleep 5; continue
+            fi
+            sleep 5
+          done
+          echo "Health never reached 200 { ok: true }" >&2
+          exit 1
+
+      - name: Version + image headers (best-effort)
+        env:
+          BASE: https://cerply-api-staging-latest.onrender.com
+        run: |
+          set -euo pipefail
+          curl -sS -D /tmp/v.txt "$BASE/api/version" || true
+          echo "::group::x-image-*"
+          grep -Ei '^x-image-(tag|revision|created):' /tmp/v.txt || true
+          echo "::endgroup::"
+
+

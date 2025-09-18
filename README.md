@@ -9,6 +9,49 @@ docker compose up -d --build ai api web
 open http://localhost:3000
 ```
 
+### Docker images & CI (staging)
+
+- Only CI pushes `ghcr.io/<owner>/cerply-api:staging` and `:staging-latest`.
+- CI builds amd64-only images from the root `Dockerfile` using Buildx.
+- Do not push from local; Apple Silicon yields arm64-only images which Render rejects.
+- To force a rebuild via CI on `staging`:
+  ```bash
+  gh workflow run .github/workflows/ci.yml --ref staging
+  gh run watch --exit-status
+  ```
+
+## Environments
+
+| Environment | Base URL                                   |
+|-------------|---------------------------------------------|
+| Staging     | https://cerply-api-staging-latest.onrender.com |
+| Production  | https://api.cerply.com                      |
+
+## Release flow
+
+1. Push to `staging`
+   - CI builds from root `Dockerfile` (linux/amd64), passes IMAGE_* build-args.
+   - Tags `staging` and `staging-latest`, pushes to GHCR.
+   - Triggers Render staging via secret deploy hook and waits for health.
+   - Asserts non-empty `x-image-*` headers and `/api/version` values.
+2. Promote to prod
+   - Use workflow "Promote API image to prod" (default `source_tag=staging-latest`).
+   - Retags by digest to `:prod`, triggers Render prod deploy, waits for `/api/health`.
+3. Verify
+   - `/api/version` returns `{ image: { tag, revision, created }, runtime: { channel } }` and headers mirror those values.
+
+
+### Promotion to prod
+
+- Do not push `:prod` (or `:staging`/`:staging-latest`) from local machines; CI builds amd64-only and promotion enforces it.
+- CI on `main` publishes prod candidates: `prod-candidate` and `sha-<short>`.
+- Promotion asserts the source tag includes `linux/amd64` before retagging to `:prod`.
+- Run promotion manually:
+  ```bash
+  gh workflow run .github/workflows/promote-prod.yml -f tag=prod-candidate
+  gh run watch --exit-status
+  ```
+
 ## Feature Flags
 Env (API): FF_CURATOR_DASHBOARD_V1, FF_ADAPTIVE_ENGINE_V1, FF_TRUST_LABELS_V1
 Env (Web): NEXT_PUBLIC_FF_*

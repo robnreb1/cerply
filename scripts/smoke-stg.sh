@@ -3,12 +3,12 @@ set -euo pipefail
 
 # Usage:
 #   WEB_BASE="https://cerply-staging.vercel.app" \
-#   API_BASE="https://cerply-api-staging.onrender.com" \
+#   API_BASE="https://cerply-api-staging-latest.onrender.com" \
 #   VERCEL_BYPASS="your-bypass-token" \
 #   bash scripts/smoke-stg.sh
 
 WEB_BASE="${WEB_BASE:-https://cerply-staging.vercel.app}"
-API_BASE="${API_BASE:-https://cerply-api-staging.onrender.com}"
+API_BASE="${API_BASE:-https://cerply-api-staging-latest.onrender.com}"
 
 # Allow overrides if needed
 CURL_BIN="${CURL_BIN:-curl}"
@@ -23,18 +23,14 @@ echo "==> API_BASE: $API_BASE"
 
 if [[ -n "${VERCEL_BYPASS:-}" ]]; then
   echo "==> Using Vercel bypass token (cookie jar: $COOKIE_JAR)"
-  # Build a reusable bypass header and also set cookies on a few key paths.
   H_BYPASS=(-H "x-vercel-protection-bypass: ${VERCEL_BYPASS}")
-  # Hit multiple paths to get the bypass cookie scoped and persisted.
   for path in "/" "/api/health" "/ping"; do
     BYPASS_URL="${WEB_BASE%/}${path}?x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${VERCEL_BYPASS}"
-    # -L follow redirects; -D - prints headers (debug); -o /dev/null ignores body; -c writes cookies to jar
     $CURL_BIN -sS -L -D - -o /dev/null -c "$COOKIE_JAR" "${H_BYPASS[@]}" "$BYPASS_URL" || true
   done
   echo "==> Cookie jar contents after bypass:"
   cat "$COOKIE_JAR" || true
 
-  # Decide whether to run WEB checks based on presence of the real bypass cookie.
   HAS_BYPASS_COOKIE=0
   if grep -qi "__vercel_protection_bypass" "$COOKIE_JAR"; then
     HAS_BYPASS_COOKIE=1
@@ -78,12 +74,18 @@ else
   echo "==> Skipping WEB /api/health (no __vercel_protection_bypass cookie)"
 fi
 
-
 # --- API (direct): /api/health ---
 line
 echo "==> API health (direct) ${API_BASE%/}/api/health"
-status_head "${API_BASE%/}/api/health" || true
-$CURL_BIN -sS "${API_BASE%/}/api/health" | $JQ_BIN . 2>/dev/null || true
+for i in {1..60}; do
+  RESP="$($CURL_BIN -sS -w "\n%{http_code}" "${API_BASE%/}/api/health" || true)"
+  BODY="$(echo "$RESP" | sed '$d')"
+  CODE="$(echo "$RESP" | tail -n1)"
+  status_head "${API_BASE%/}/api/health" || true
+  if [ "$CODE" = "200" ] && echo "$BODY" | $JQ_BIN -e '.ok==true' >/dev/null 2>&1; then echo "$BODY" | $JQ_BIN .; break; fi
+  if [ "$CODE" = "503" ] || [ "$CODE" = "429" ]; then sleep 5; continue; fi
+  sleep 5
+done
 
 line
 echo "==> API db health (direct) ${API_BASE%/}/api/db/health"

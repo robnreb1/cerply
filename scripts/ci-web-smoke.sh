@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 echo "==> CI web smoke"
-: "${NEXT_PUBLIC_API_BASE:?Set NEXT_PUBLIC_API_BASE (e.g. https://cerply-api-staging.onrender.com)}"
+: "${NEXT_PUBLIC_API_BASE:?Set NEXT_PUBLIC_API_BASE (e.g. https://cerply-api-staging-latest.onrender.com)}"
 export NEXT_PUBLIC_API_BASE
 export NODE_ENV=production
 PORT="${PORT:-3000}"

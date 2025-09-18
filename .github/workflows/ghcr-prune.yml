@@ -1,0 +1,93 @@
+name: GHCR Prune
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        type: boolean
+        default: true
+      keep:
+        type: number
+        default: 30
+  schedule:
+    - cron: '15 3 * * 0'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve owner kind (user vs org)
+        id: owner
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          OWNER="${{ github.repository_owner }}"
+          if gh api -q .login "/orgs/$OWNER" >/dev/null 2>&1; then
+            echo "kind=org"   >> "$GITHUB_OUTPUT"
+          else
+            echo "kind=user"  >> "$GITHUB_OUTPUT"
+          fi
+          echo "owner=$OWNER" >> "$GITHUB_OUTPUT"
+
+      - name: List versions and compute deletions
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PKG: cerply-api
+          KEEP: ${{ inputs.keep }}
+        run: |
+          set -euo pipefail
+          OWNER="${{ steps.owner.outputs.owner }}"
+          KIND="${{ steps.owner.outputs.kind }}"
+          BASE="/$KIND/$OWNER/packages/container/$PKG"
+          VERS=$(gh api -H "Accept: application/vnd.github+json" "$BASE/versions?per_page=200")
+          KEEP_TAGS='["prod","latest","staging","staging-latest"]'
+          PLAN=$(echo "$VERS" | jq -r --argjson keepTags "$KEEP_TAGS" --argjson keepN "$KEEP" '
+            [ .[] | { id, updated_at, tags:(.metadata.container.tags // []) } ] as $all
+            | ($all | map(select([.tags[]?] | any(. as $t | $keepTags | index($t))))) as $tagged
+            | (($all | sort_by(.updated_at) | reverse)[:$keepN]) as $latest
+            | $all | map(. + { keep: (( $tagged | any(.id == .id)) or ( $latest | any(.id == .id))) })
+          ')
+          echo "$PLAN" | jq . > /tmp/plan.json
+          KEEP_IDS=$(jq -r 'map(select(.keep)) | map(.id) | join(",")' /tmp/plan.json)
+          DEL_IDS=$(jq -r 'map(select(.keep|not)) | map(.id) | join(",")' /tmp/plan.json)
+          echo "keep_ids=$KEEP_IDS" >> "$GITHUB_OUTPUT"
+          echo "del_ids=$DEL_IDS"   >> "$GITHUB_OUTPUT"
+          echo "Planned keep count: $(jq 'map(select(.keep)) | length' /tmp/plan.json)"
+          echo "Planned delete count: $(jq 'map(select(.keep|not)) | length' /tmp/plan.json)"
+
+      - name: Prune (dry-run or apply)
+        if: ${{ steps.plan.outputs.del_ids != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PKG: cerply-api
+          APPLY: ${{ inputs.dry_run != true }}
+        run: |
+          set -euo pipefail
+          OWNER="${{ steps.owner.outputs.owner }}"
+          KIND="${{ steps.owner.outputs.kind }}"
+          BASE="/$KIND/$OWNER/packages/container/$PKG"
+          IFS=',' read -r -a IDS <<< "${{ steps.plan.outputs.del_ids }}"
+          FAIL=0
+          for id in "${IDS[@]}"; do
+            if [ "$APPLY" = "true" ]; then
+              echo "Deleting $id …"
+              if ! gh api -X DELETE "$BASE/versions/$id" >/dev/null; then
+                echo "Delete failed for $id" >&2
+                FAIL=1
+              fi
+            else
+              echo "DRY-RUN would delete $id"
+            fi
+          done
+          if [ "$APPLY" = "true" ] && [ "$FAIL" = "1" ]; then
+            echo "One or more deletions failed" >&2
+            exit 1
+          fi
+
+

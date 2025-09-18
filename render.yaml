@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: cerply-api-staging
+    name: cerply-api
     env: node
     rootDir: api
     plan: starter

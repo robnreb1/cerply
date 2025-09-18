@@ -1,90 +1,121 @@
-
 name: Promote API image to prod
 
 on:
   workflow_dispatch:
     inputs:
       source_tag:
-        description: "Source tag or @digest (e.g., sha-<short> or @sha256:...)"
-
+        description: "Source tag to promote (default: staging-latest)"
         required: false
         default: ""
-  push:
-    branches: [ main, master ]
 
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   promote:
+    name: Promote to :prod (assert linux/amd64)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    env:
+      RENDER_PROD_DEPLOY_HOOK: ${{ secrets.RENDER_PROD_DEPLOY_HOOK }}
+      RENDER_PROD_BASE_URL: ${{ secrets.RENDER_PROD_BASE_URL }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Install buildx
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx (for imagetools)
         uses: docker/setup-buildx-action@v3
-      - name: Login GHCR
-        run: echo "${{ github.token }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Resolve source_tag if empty
-        id: resolve
-        shell: bash
+        id: resolve_tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [ -z "${{ github.event.inputs.source_tag }}" ]; then
-            OWNER="${{ github.repository_owner }}"
-            PKG="cerply-api"
-            SRC=$(gh api -H "Accept: application/vnd.github+json" \
-              "/users/$OWNER/packages/container/$PKG/versions?per_page=10" \
-              | jq -r '[.[] 
-                        | .metadata.container.tags // [] 
-                        | map(select(. != "prod" and . != "latest"))] 
-                       | flatten 
-                       | .[0]')
-            echo "source_tag=$SRC" >> "$GITHUB_OUTPUT"
-          else
-            echo "source_tag=${{ github.event.inputs.source_tag }}" >> "$GITHUB_OUTPUT"
+          SRC="${{ inputs.source_tag }}"
+          if [ -z "$SRC" ]; then
+            SRC="staging-latest"
           fi
-      - name: Promote
-        env:
-          GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/cerply-api
-          SOURCE_TAG: ${{ steps.resolve.outputs.source_tag }}
+          echo "Using source tag: $SRC"
+          echo "value=$SRC" >> "$GITHUB_OUTPUT"
 
-          TARGET_TAG: prod
-        run: |
-          bash scripts/ghcr-promote.sh
-      - name: Verify digest match
-        env:
-          GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/cerply-api
-
-          SOURCE_TAG: ${{ steps.resolve.outputs.source_tag }}
-
-        run: |
-          REF="${GHCR_IMAGE}:${SOURCE_TAG}"
-          [[ "$SOURCE_TAG" == @sha256:* ]] && REF="${GHCR_IMAGE}${SOURCE_TAG}"
-          SRC_DIGEST=$(docker buildx imagetools inspect "$REF" --format '{{json .Manifest.Digest}}' | tr -d '"')
-          PROD_DIGEST=$(docker buildx imagetools inspect "${GHCR_IMAGE}:prod" --format '{{json .Manifest.Digest}}' | tr -d '"')
-          echo "src=$SRC_DIGEST prod=$PROD_DIGEST"
-          test -n "$SRC_DIGEST" -a "$SRC_DIGEST" = "$PROD_DIGEST"
-
-      - name: Trigger Render deploy
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      - name: Assert source tag has linux/amd64
+        id: assert_amd64
         run: |
           set -euo pipefail
-          if [ -z "${RENDER_DEPLOY_HOOK_URL:-}" ]; then
-            echo "Missing secret RENDER_DEPLOY_HOOK_URL" >&2
+          IMG="ghcr.io/${{ github.repository_owner }}/cerply-api:${{ steps.resolve_tag.outputs.value }}"
+          echo "Inspecting $IMG"
+          docker buildx imagetools inspect "$IMG" | grep -q 'linux/amd64' || {
+            echo "❌ $IMG does not include linux/amd64 – rebuild in CI with platforms: linux/amd64" >&2
             exit 1
-          fi
-          curl -fsSL -X POST "$RENDER_DEPLOY_HOOK_URL"
+          }
 
-      - name: Wait for health
+      # Do not push :prod from local; CI builds amd64-only. Promotion enforces linux/amd64.
+      - name: Promote (retag digest to :prod)
         run: |
           set -euo pipefail
-          for i in {1..30}; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" https://api.cerply.com/api/health || true)
-            [ "$code" = "200" ] && exit 0
-            sleep 10
+          IMAGE="ghcr.io/${{ github.repository_owner }}/cerply-api"
+          SRC="${{ steps.resolve_tag.outputs.value }}"
+          DIGEST=$(docker buildx imagetools inspect "$IMAGE:$SRC" --raw | jq -r '.manifests[0].digest // .digest')
+          echo "Source digest: $DIGEST"
+          docker buildx imagetools create --tag "$IMAGE:prod" "$IMAGE@$DIGEST"
+
+      - name: Verify digest match
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository_owner }}/cerply-api"
+          SRC="${{ steps.resolve_tag.outputs.value }}"
+          SD=$(docker buildx imagetools inspect "$IMAGE:$SRC" --raw | jq -r '.manifests[0].digest // .digest')
+          PD=$(docker buildx imagetools inspect "$IMAGE:prod" --raw | jq -r '.manifests[0].digest // .digest')
+          echo "src=$SD"
+          echo "prod=$PD"
+          [ "$SD" = "$PD" ] || { echo "Digest mismatch"; exit 1; }
+
+      - name: Trigger Render prod deploy (if hook present)
+        env:
+          RENDER_PROD_DEPLOY_HOOK: ${{ secrets.RENDER_PROD_DEPLOY_HOOK }}
+        run: |
+          set -euo pipefail
+          if [ -n "${RENDER_PROD_DEPLOY_HOOK:-}" ]; then
+            curl -fsS -X POST "$RENDER_PROD_DEPLOY_HOOK" >/dev/null
+            echo "Render prod deploy triggered."
+          else
+            echo "No prod deploy hook configured; skipping."
+          fi
+
+      - name: Wait for prod health
+        run: |
+          set -euo pipefail
+          BASE="https://api.cerply.com"
+          for i in {1..80}; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/health" || true)
+            echo "health:$code"
+            [ "$code" = "200" ] && break
+            sleep 3
           done
-          echo "health check failed"; exit 1
+          [ "$code" = "200" ] || { echo "Prod health did not reach 200" >&2; exit 1; }
+
+      - name: Version + image headers must be present
+        run: |
+          set -euo pipefail
+          BASE="https://api.cerply.com"
+          curl -sS -D /tmp/prod.h "$BASE/api/version" | jq .
+          echo "--- image headers ---"
+          cat /tmp/prod.h
+          for h in x-image-tag x-image-revision x-image-created; do
+            if ! grep -qiE "^$h:\s*[0-9A-Za-z._:-]+" /tmp/prod.h; then
+              echo "::error::header $h missing or empty" >&2
+              exit 1
+            fi
+          done
 
