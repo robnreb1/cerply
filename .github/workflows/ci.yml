@@ -228,9 +228,9 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: Set created timestamp
-        id: created
-        run: echo "now=$(date -u +%FT%TZ)" >> "$GITHUB_OUTPUT"
+      - name: Compute build args
+        id: build_args
+        run: echo "created=$(date -u +%FT%TZ)" >> "$GITHUB_OUTPUT"
 
       # Do not push from local; Apple Silicon yields arm64-only.
       - name: Build & Push (linux/amd64 only)
@@ -245,7 +245,7 @@ jobs:
           build-args: |
             IMAGE_TAG=${{ github.ref_name }}
             GIT_SHA=${{ github.sha }}
-            IMAGE_CREATED=${{ steps.created.outputs.now }}
+            IMAGE_CREATED=${{ steps.build_args.outputs.created }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
