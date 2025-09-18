@@ -67,20 +67,26 @@ jobs:
         run: npm ci
 
       - name: Pull Vercel project (preview)
-        working-directory: .
+
+        working-directory: web
+
         run: |
           npx vercel --version
           npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
 
       - name: Build (inject preview API origin)
-        working-directory: .
+
+        working-directory: web
+
         env:
           NEXT_PUBLIC_API_BASE: ${{ env.PREVIEW_API_ORIGIN }}
         run: npx vercel build --token "$VERCEL_TOKEN"
 
       - name: Deploy preview (structured JSON + API fallback)
         id: deploy
-        working-directory: .
+
+        working-directory: web
+
         continue-on-error: true
         env:
           PR: ${{ needs.gate.outputs.pr_number }}
