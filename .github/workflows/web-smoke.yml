@@ -39,9 +39,14 @@ jobs:
       - name: Install web deps (ci)
         run: npm ci
 
-      - name: Run Web Smoke (links API health)
+      - name: Run Web Smoke (echo + node)
         env:
           NEXT_PUBLIC_API_BASE: ${{ inputs.api_base || 'https://cerply-api-staging-latest.onrender.com' }}
           SMOKE_TIMEOUT_MS: '15000'
           SMOKE_RETRIES: '6'
-        run: npm run smoke:api
+        run: |
+          set -euo pipefail
+          echo '--- scripts/smoke-api.mjs (first 60 lines) ---'
+          sed -n '1,60p' scripts/smoke-api.mjs
+          node --version
+          node scripts/smoke-api.mjs
