@@ -19,6 +19,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  guard-residual-service-refs:
+    name: Guard: residual service refs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Fail on forbidden strings
+        run: |
+          set -euo pipefail
+          echo "Scanning for forbidden strings..."
+          PATTERN='cerply-api-staging(\b|[^-])|cerply-api\.onrender\.com|cerply-api-sha-[A-Za-z0-9-]+\.onrender\.com|srv-d31ukuadbo4c739vm180|https://api\.render\.com/deploy/srv-'
+          MATCHES=$(git grep -InE "$PATTERN" || true)
+          if [ -n "$MATCHES" ]; then
+            echo "Forbidden references found:" >&2
+            echo "$MATCHES" >&2
+            exit 1
+          fi
+          echo "OK: no forbidden references found"
+
   vercel-preview:
     if: github.event_name == 'pull_request'
     name: Vercel Preview (PRs and non-main pushes)
@@ -186,7 +205,7 @@ jobs:
 
   docker:
     name: Build & Push Docker image
-    needs: api
+    needs: [guard-residual-service-refs, api]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
@@ -264,23 +283,18 @@ jobs:
             fi
           done
 
-      - name: Trigger Render staging deploy (on staging only)
+      - name: Trigger Render staging deploy
         if: ${{ github.ref == 'refs/heads/staging' }}
-        run: echo "staging deploy starting"
-      - name: Resolve staging deploy hook
-        if: ${{ github.ref == 'refs/heads/staging' }}
-        id: staging_hook
         env:
           RENDER_STAGING_DEPLOY_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
         run: |
           set -euo pipefail
-          HOOK="${RENDER_STAGING_DEPLOY_HOOK:-https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0}"
-          echo "value=$HOOK" >> "$GITHUB_OUTPUT"
-      - name: Trigger Render staging deploy
-        if: ${{ github.ref == 'refs/heads/staging' }}
-        run: |
-          set -euo pipefail
-          curl -fsS -X POST "${{ steps.staging_hook.outputs.value }}" >/dev/null
+          if [ -n "${RENDER_STAGING_DEPLOY_HOOK:-}" ]; then
+            curl -fsS -X POST "$RENDER_STAGING_DEPLOY_HOOK" >/dev/null
+            echo "Staging deploy triggered via hook"
+          else
+            echo "No RENDER_STAGING_DEPLOY_HOOK configured; skipping deploy trigger"
+          fi
 
       - name: Wait for staging health
         if: ${{ github.ref == 'refs/heads/staging' }}
