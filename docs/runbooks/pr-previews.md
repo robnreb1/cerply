@@ -31,3 +31,5 @@
 - Reintroduce legacy hosts, raw Render hooks, non-amd64 images, or per-workspace installs.
 
 
+
+> Note: `/api/version` on Vercel previews may return **401** (protection). Validate required runtime headers via the **staging API**: `https://cerply-api-staging-latest.onrender.com/api/version`.

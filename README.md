@@ -308,3 +308,9 @@ interface Score {
 - Extend `scripts/smoke-stg.sh` later to include `GET /api/health`, `GET /api/prompts`, and a lightweight `GET /v1/assignments/today` once live.
 
 > No fancy arrows in headers or examples; keep ASCII for Edge runtime compatibility.
+
+## Preview Deploys (opt-in)
+PR-based previews are label-gated and auto-expire after 48h. They do not block merges and soft-fail on rate limits.
+- Add the  label on a PR to create a preview; remove it to tear down.
+- A nightly sweep removes any orphans older than 48h.
+- See: [PR Previews runbook](docs/runbooks/pr-previews.md)

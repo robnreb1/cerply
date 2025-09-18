@@ -55,3 +55,23 @@ grep -Ei '^(x-image-(tag|revision|created)|x-runtime-channel|x-api):' /tmp/h
 
 ## Owners
 - Infra/DevOps: @robnreb1
+
+### 2025-09-18 — Status: **COMPLETE** — Safe PR Preview Deployments + Rate-Limit Guardrails
+
+**What shipped**
+- Label-gated PR previews with sticky URL comment.
+- Robust URL capture; explicit PR-numbered sticky comment.
+- Soft-fail on Vercel rate limit (neutral).
+- Teardown on unlabel/close + nightly 48h sweep.
+- Legacy “Deploy to Vercel” preview job gated on  and now runs  +  before  (in ); prod job untouched.
+- Web Smoke hardened (timeouts/retries) and honors  input.
+- Ingest aliases forward headers (cookies + custom) to avoid 401s when auth is required.
+- README + runbook updated.
+
+**Verification**
+- Staging API headers (source of truth):
+- (headers not fetched)
+
+**Acceptance ✅** Met for label gating, soft-fail, teardown, nightly cleanup, and docs.
+
+_Recorded on 2025-09-18, main @ 5e7eb0e3903f._
