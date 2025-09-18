@@ -155,6 +155,26 @@ export async function createApp() {
         }
       }
     } catch {}
+    // Inject runtime channel into /api/version response without changing existing fields
+    try {
+      const routePath = String((req as any).routerPath || (req as any).url || '').trim();
+      if (process.env.RUNTIME_CHANNEL && routePath === '/api/version') {
+        reply.header('x-runtime-channel', process.env.RUNTIME_CHANNEL);
+        if (payload && typeof payload === 'object') {
+          return { ...(payload as any), runtime: { channel: process.env.RUNTIME_CHANNEL } };
+        }
+        if (typeof payload === 'string') {
+          const trimmed = payload.trim();
+          if (trimmed.startsWith('{')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              const next = { ...parsed, runtime: { channel: process.env.RUNTIME_CHANNEL } };
+              return JSON.stringify(next);
+            } catch {}
+          }
+        }
+      }
+    } catch {}
     return payload;
   });
   // ────────────────────────────────────────────────────────────────────────
@@ -166,6 +186,8 @@ export async function createApp() {
   });
   // Validate environment
   parseEnv(process.env);
+  // Runtime deploy channel (optional): allows staging/prod to report environment without rebuilds
+  const RUNTIME_CHANNEL = process.env.RUNTIME_CHANNEL || '';
 // ---- debug route collection ----
 type RouteRow = { method: string; url: string };
 const __ROUTES: RouteRow[] = [];
@@ -1738,6 +1760,10 @@ if ((process.env.NODE_ENV !== 'test') && ((process.env.FASTIFY_AUTOSTART ?? 'tru
       } catch (e) {
         // noop
       }
+      // Augment startup log with runtime channel
+      try {
+        app.log.info({ tag: process.env.IMAGE_TAG, rev: process.env.IMAGE_REVISION, created: process.env.IMAGE_CREATED, runtimeChannel: (process.env.RUNTIME_CHANNEL || undefined) }, `Server listening at ${address}`);
+      } catch {}
     })
     .catch(err => { console.error('fastify_boot_error', err); process.exit(1); });
 }
