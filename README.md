@@ -20,6 +20,17 @@ open http://localhost:3000
   gh run watch --exit-status
   ```
 
+### Promotion to prod
+
+- Do not push `:prod` (or `:staging`/`:staging-latest`) from local machines; CI builds amd64-only and promotion enforces it.
+- CI on `main` publishes prod candidates: `prod-candidate` and `sha-<short>`.
+- Promotion asserts the source tag includes `linux/amd64` before retagging to `:prod`.
+- Run promotion manually:
+  ```bash
+  gh workflow run .github/workflows/promote-prod.yml -f tag=prod-candidate
+  gh run watch --exit-status
+  ```
+
 ## Feature Flags
 Env (API): FF_CURATOR_DASHBOARD_V1, FF_ADAPTIVE_ENGINE_V1, FF_TRUST_LABELS_V1
 Env (Web): NEXT_PUBLIC_FF_*
