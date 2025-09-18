@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   guard-residual-service-refs:
-    name: Guard: residual service refs
+    name: "Guard: residual service refs"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
