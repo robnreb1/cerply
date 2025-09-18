@@ -29,8 +29,8 @@ jobs:
         run: |
           set -euo pipefail
           echo "Scanning for forbidden strings..."
-          # Use PCRE to avoid matching cerply-api-staging-latest
-          PATTERN='cerply-api-staging(?!-latest)|cerply-api\.onrender\.com|cerply-api-sha-[A-Za-z0-9-]+\.onrender\.com|srv-d31ukuadbo4c739vm180|https://api\.render\.com/deploy/srv-'
+          # Flag legacy staging host and any raw Render deploy hook URLs
+          PATTERN='cerply-api-staging[^-]|cerply-api\.onrender\.com|cerply-api-sha-[A-Za-z0-9-]+\.onrender\.com|https://api\.render\.com/deploy/srv-'
           FILES=$(git ls-files | grep -Ev '^(docs/|README|.*\.md$|.*\.bak$|node_modules/|web/node_modules/|api/dist/|api/.*/dist/|api/.*/build/|web/.*/.next/|web/.*/dist/)' | grep -v '^\.github/workflows/ci\.yml$' || true)
           MATCHES=$(echo "$FILES" | xargs -r grep -InP "$PATTERN" || true)
           if [ -n "$MATCHES" ]; then

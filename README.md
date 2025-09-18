@@ -40,6 +40,35 @@ open http://localhost:3000
 3. Verify
    - `/api/version` returns `{ image: { tag, revision, created }, runtime: { channel } }` and headers mirror those values.
 
+## Operations
+
+- Staging base: https://cerply-api-staging-latest.onrender.com
+- Prod base: https://api.cerply.com
+
+One-liners:
+
+```bash
+# trigger staging deploy
+curl -fsS -X POST "${RENDER_STAGING_DEPLOY_HOOK}"
+
+# verify staging
+BASE="https://cerply-api-staging-latest.onrender.com"
+curl -sS -D /tmp/h "$BASE/api/version" | jq .
+grep -Ei '^(x-image-(tag|revision|created)|x-runtime-channel|x-api):' /tmp/h
+
+# promote prod (GH Actions)
+gh workflow run ".github/workflows/promote-prod.yml" -f source_tag=staging-latest --ref main
+
+# verify prod
+BASE="https://api.cerply.com"
+curl -sS -D /tmp/h "$BASE/api/version" | jq .
+grep -Ei '^(x-image-(tag|revision|created)|x-runtime-channel|x-api):' /tmp/h
+```
+
+Env vars:
+- `RUNTIME_CHANNEL`: set to `staging` on staging service; `prod` on production.
+- Vercel preview is optional and may retry/skip on free tier.
+
 
 ### Promotion to prod
 
