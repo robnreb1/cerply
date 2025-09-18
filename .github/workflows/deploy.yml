@@ -8,7 +8,9 @@ on:
 jobs:
   deploy-preview:
     name: deploy-preview (pull_request)
-    if: ${{ github.event_name == 'pull_request' && github.head_ref != 'staging' }}
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.head_ref != 'staging' && contains(toJson(github.event.pull_request.labels), '"preview"'))
     continue-on-error: ${{ github.head_ref == 'staging' }}
     concurrency:
       group: vercel-preview-${{ github.head_ref || github.ref }}
@@ -35,6 +37,9 @@ jobs:
         working-directory: ./web
         run: |
           set -euo pipefail
+          # Ensure local prebuild exists before using --prebuilt
+          npx vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          npx vercel build --token="$VERCEL_TOKEN"
           for i in 1 2 3 4 5; do
             RC=0
             npx vercel@latest --yes --token="$VERCEL_TOKEN" --confirm --prebuilt || RC=$?
