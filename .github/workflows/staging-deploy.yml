@@ -23,19 +23,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Resolve staging deploy hook
-        id: resolve_hook
+      - name: Trigger Render staging deploy (if hook present)
         env:
           RENDER_STAGING_DEPLOY_HOOK: ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
         run: |
           set -euo pipefail
-          HOOK="${RENDER_STAGING_DEPLOY_HOOK:-https://api.render.com/deploy/srv-d34sosgdl3ps73868q0g?key=QtUaDQzEhc0}"
-          echo "value=$HOOK" >> "$GITHUB_OUTPUT"
-
-      - name: Trigger Render staging deploy
-        run: |
-          set -euo pipefail
-          curl -fsS -X POST "${{ steps.resolve_hook.outputs.value }}"
+          if [ -n "${RENDER_STAGING_DEPLOY_HOOK:-}" ]; then
+            curl -fsS -X POST "$RENDER_STAGING_DEPLOY_HOOK"
+          else
+            echo "No RENDER_STAGING_DEPLOY_HOOK configured; skipping" 
+          fi
 
       - name: Wait for staging health
         env:

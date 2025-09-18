@@ -20,6 +20,27 @@ open http://localhost:3000
   gh run watch --exit-status
   ```
 
+## Environments
+
+| Environment | Base URL                                   |
+|-------------|---------------------------------------------|
+| Staging     | https://cerply-api-staging-latest.onrender.com |
+| Production  | https://api.cerply.com                      |
+
+## Release flow
+
+1. Push to `staging`
+   - CI builds from root `Dockerfile` (linux/amd64), passes IMAGE_* build-args.
+   - Tags `staging` and `staging-latest`, pushes to GHCR.
+   - Triggers Render staging via secret deploy hook and waits for health.
+   - Asserts non-empty `x-image-*` headers and `/api/version` values.
+2. Promote to prod
+   - Use workflow "Promote API image to prod" (default `source_tag=staging-latest`).
+   - Retags by digest to `:prod`, triggers Render prod deploy, waits for `/api/health`.
+3. Verify
+   - `/api/version` returns `{ image: { tag, revision, created }, runtime: { channel } }` and headers mirror those values.
+
+
 ### Promotion to prod
 
 - Do not push `:prod` (or `:staging`/`:staging-latest`) from local machines; CI builds amd64-only and promotion enforces it.

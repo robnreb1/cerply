@@ -9,7 +9,7 @@ jobs:
   smoke-stg:
     runs-on: ubuntu-latest
     env:
-      BASE: https://cerply-api-staging.onrender.com
+      BASE: https://cerply-api-staging-latest.onrender.com
     steps:
       - name: Curl health
         run: |
