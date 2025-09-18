@@ -1734,12 +1734,7 @@ if ((process.env.NODE_ENV !== 'test') && ((process.env.FASTIFY_AUTOSTART ?? 'tru
       app.log.info({ address }, 'Server listening');
       // --- boot image banner (shows up in Render logs)
       try {
-        const meta = {
-          tag: process.env.IMAGE_TAG || 'unset',
-          revision: process.env.IMAGE_REVISION || 'unset',
-          created: process.env.IMAGE_CREATED || 'unset',
-        };
-        app.log.info({ image: meta }, 'image meta');
+        app.log.info({ tag: process.env.IMAGE_TAG, rev: process.env.IMAGE_REVISION, created: process.env.IMAGE_CREATED }, 'image metadata');
       } catch (e) {
         // noop
       }

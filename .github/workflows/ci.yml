@@ -256,6 +256,13 @@ jobs:
           IMG="ghcr.io/${{ github.repository_owner }}/cerply-api:staging-latest"
           docker pull "$IMG"
           docker run --rm "$IMG" /bin/sh -lc 'env | grep -E "^IMAGE_|^NODE" || true'
+          for k in IMAGE_TAG IMAGE_REVISION IMAGE_CREATED; do
+            v=$(docker run --rm "$IMG" /bin/sh -lc "printenv $k || true")
+            if [ -z "$v" ]; then
+              echo "::error::missing or empty $k in image env" >&2
+              exit 1
+            fi
+          done
 
       - name: Trigger Render staging deploy (on staging only)
         if: ${{ github.ref == 'refs/heads/staging' }}
@@ -294,7 +301,7 @@ jobs:
           done
           echo "Health never reached 200 { ok: true }" >&2; exit 1
 
-      - name: Version + image headers must be set
+      - name: Version + image headers must be non-empty
         if: ${{ github.ref == 'refs/heads/staging' }}
         env:
           BASE: https://cerply-api-staging-latest.onrender.com
@@ -303,8 +310,10 @@ jobs:
           set -euo pipefail
           curl -sS -D /tmp/vh.txt -H "$RENDER_RESUME_HEADER" "$BASE/api/version" | jq .
           echo "--- image headers ---"
-          tr -d '\r' < /tmp/vh.txt | grep -Ei '^x-image-(tag|revision|created):'
-          if grep -qiE '^x-image-(tag|revision|created):\s*unset' /tmp/vh.txt; then
-            echo "❌ IMAGE_* headers are unset; ensure CI used root Dockerfile and passed build-args" >&2
-            exit 1
-          fi
+          cat /tmp/vh.txt
+          for h in x-image-tag x-image-revision x-image-created; do
+            if ! grep -qiE "^$h:\s*[0-9A-Za-z._:-]+" /tmp/vh.txt; then
+              echo "::error::header $h missing or empty" >&2
+              exit 1
+            fi
+          done
