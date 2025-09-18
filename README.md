@@ -9,6 +9,17 @@ docker compose up -d --build ai api web
 open http://localhost:3000
 ```
 
+### Docker images & CI (staging)
+
+- Only CI pushes `ghcr.io/<owner>/cerply-api:staging` and `:staging-latest`.
+- CI builds amd64-only images from the root `Dockerfile` using Buildx.
+- Do not push from local; Apple Silicon yields arm64-only images which Render rejects.
+- To force a rebuild via CI on `staging`:
+  ```bash
+  gh workflow run .github/workflows/ci.yml --ref staging
+  gh run watch --exit-status
+  ```
+
 ## Feature Flags
 Env (API): FF_CURATOR_DASHBOARD_V1, FF_ADAPTIVE_ENGINE_V1, FF_TRUST_LABELS_V1
 Env (Web): NEXT_PUBLIC_FF_*
