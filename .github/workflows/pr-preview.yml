@@ -28,10 +28,6 @@ jobs:
   gate:
     name: Gate (label present?)
     runs-on: ubuntu-latest
-    if: >
-      (github.event_name == 'workflow_dispatch')
-      || (github.event_name == 'pull_request'
-          && contains(toJson(github.event.pull_request.labels), '"preview"'))
     outputs:
       pr_number: ${{ steps.meta.outputs.pr_number }}
     steps:
@@ -46,7 +42,7 @@ jobs:
   deploy:
     name: Build & Deploy Preview
     needs: gate
-    if: ${{ needs.gate.outputs.pr_number != '' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.fork == false) }}
+    if: ${{ needs.gate.outputs.pr_number != '' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), '"preview"') && github.event.pull_request.head.repo.fork == false)) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
