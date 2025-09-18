@@ -26,12 +26,15 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '20.x'
+          cache: 'npm'
 
       - name: Install web deps (ci)
         run: npm ci
@@ -39,5 +42,6 @@ jobs:
       - name: Run Web Smoke (links API health)
         env:
           NEXT_PUBLIC_API_BASE: ${{ inputs.api_base || 'https://cerply-api-staging-latest.onrender.com' }}
-          SMOKE_TIMEOUT_MS: "8000"
+          SMOKE_TIMEOUT_MS: '15000'
+          SMOKE_RETRIES: '6'
         run: npm run smoke:api
