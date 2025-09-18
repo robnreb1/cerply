@@ -1,6 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { readSession } from './auth';
 
+// helper: forward all request headers except hop-by-hop ones
+function forwardReqHeaders(h: Record<string, any>) {
+  const { host, connection, 'content-length': _cl, 'transfer-encoding': _te, ...rest } = (h as any) || {};
+  return rest as any;
+}
+
 export async function registerIngestRoutes(app: FastifyInstance) {
   // Clarify (lightweight chips/prompts stub)
   app.post('/api/ingest/clarify', async (req, reply) => {
@@ -84,11 +90,11 @@ export async function registerIngestRoutes(app: FastifyInstance) {
 
   // Convenience aliases
   app.post('/ingest/preview', async (req: any, reply: any) => {
-    const r = await app.inject({ method: 'POST', url: '/api/ingest/preview', payload: req.body });
+    const r = await app.inject({ method: 'POST', url: '/api/ingest/preview', payload: req.body, headers: forwardReqHeaders(req.headers as any) });
     return reply.code(r.statusCode).headers(r.headers as any).send(r.body);
   });
   app.post('/ingest/generate', async (req: any, reply: any) => {
-    const r = await app.inject({ method: 'POST', url: '/api/ingest/generate', payload: req.body });
+    const r = await app.inject({ method: 'POST', url: '/api/ingest/generate', payload: req.body, headers: forwardReqHeaders(req.headers as any) });
     return reply.code(r.statusCode).headers(r.headers as any).send(r.body);
   });
 }
