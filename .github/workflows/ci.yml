@@ -245,7 +245,7 @@ jobs:
           build-args: |
             IMAGE_TAG=${{ github.ref_name }}
             GIT_SHA=${{ github.sha }}
-            IMAGE_CREATED=${{ steps.meta.outputs.created }}
+            IMAGE_CREATED=${{ steps.created.outputs.now }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
