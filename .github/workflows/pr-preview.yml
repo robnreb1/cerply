@@ -1,0 +1,140 @@
+name: PR Preview (Vercel, label-gated)
+
+on:
+  pull_request:
+    types: [labeled, reopened, synchronize]
+    paths:
+      - 'web/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/pr-preview.yml'
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'PR number (manual run)'
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number || inputs.pr }}-web
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  PREVIEW_API_ORIGIN: ${{ vars.PREVIEW_API_ORIGIN || 'https://cerply-api-staging-latest.onrender.com' }}
+
+jobs:
+  gate:
+    name: Gate (label present?)
+    runs-on: ubuntu-latest
+    if: >
+      (github.event_name == 'workflow_dispatch')
+      || (github.event_name == 'pull_request'
+          && contains(toJson(github.event.pull_request.labels), '"preview"'))
+    outputs:
+      pr_number: ${{ steps.meta.outputs.pr_number }}
+    steps:
+      - id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.pr }}" ]]; then
+            echo "pr_number=${{ inputs.pr }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "pr_number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Build & Deploy Preview
+    needs: gate
+    if: ${{ needs.gate.outputs.pr_number != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: 'package.json'
+          cache: 'npm'
+
+      - name: Cache npm (root only)
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}
+
+      - name: Install deps (root)
+        run: npm ci
+
+      - name: Pull Vercel project (preview)
+        run: |
+          npx vercel --version
+          npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+
+      - name: Build (inject preview API origin)
+        run: |
+          export NEXT_PUBLIC_API_BASE="${PREVIEW_API_ORIGIN}"
+          npx vercel build --token "$VERCEL_TOKEN"
+
+      - name: Deploy preview (soft-fail on rate limit)
+        id: deploy
+        continue-on-error: true
+        env:
+          PR: ${{ needs.gate.outputs.pr_number }}
+        run: |
+          set -o pipefail
+          out=$(npx vercel deploy --prebuilt \
+                --token "$VERCEL_TOKEN" \
+                --scope "$VERCEL_ORG_ID" \
+                --meta pr="$PR" \
+                --yes 2>&1 | tee /tmp/vercel.out) || true
+
+          url=$(grep -Eo 'https://[a-z0-9-]+\.vercel\.app' /tmp/vercel.out | tail -n1 || true)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+          if echo "$out" | grep -Eqi 'rate limit|429|Exceeded usage'; then
+            echo "rate_limited=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$url" ]; then
+            echo "deploy_failed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+      - name: Comment with preview URL
+        if: steps.deploy.outputs.url != ''
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-url
+          recreate: true
+          message: |
+            ✅ **PR Preview ready**
+            URL: ${{ steps.deploy.outputs.url }}
+            _Auto-expires in 48h or when the **preview** label is removed / PR closes._
+
+      - name: Neutral check on rate limit
+        if: steps.deploy.outputs.rate_limited == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            await github.rest.checks.create({
+              owner, repo,
+              name: 'PR Preview',
+              head_sha: context.payload.pull_request?.head?.sha || context.sha,
+              status: 'completed',
+              conclusion: 'neutral',
+              output: {
+                title: 'Preview skipped (Vercel rate limit)',
+                summary: 'Free plan limit hit. Preview not created. Merge is not blocked.'
+              }
+            })
+
