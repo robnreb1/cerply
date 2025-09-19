@@ -1,0 +1,9 @@
+# Epics Dashboard (auto-generated)
+
+_This page refreshes every 6 hours and on manual runs. Epics = issues labeled **Epic**._
+
+- **In Progress** → issues labeled `in-progress` (or similar)
+- **Open** → epics without an in-progress label
+- **Closed** → closed epics
+
+*Next refresh will overwrite this file.*

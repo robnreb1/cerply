@@ -314,3 +314,7 @@ PR-based previews are label-gated and auto-expire after 48h. They do not block m
 - Add the  label on a PR to create a preview; remove it to tear down.
 - A nightly sweep removes any orphans older than 48h.
 - See: [PR Previews runbook](docs/runbooks/pr-previews.md)
+
+## Epics Dashboard
+Live view of epics (Open / In Progress / Closed):  
+- See: [docs/status/epics.md](docs/status/epics.md)
