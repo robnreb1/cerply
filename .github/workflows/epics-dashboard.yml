@@ -80,6 +80,8 @@ jobs:
         id: diff
         run: |
           set -euo pipefail
+          # Ensure untracked file is considered in diff (intent-to-add)
+          git add -N docs/status/epics.md 2>/dev/null || true
           if git diff --quiet -- docs/status/epics.md; then
             echo "changed=false" >> $GITHUB_OUTPUT
           else
