@@ -70,12 +70,7 @@ jobs:
           npx vercel deploy --prebuilt --token "$VERCEL_TOKEN" || { echo "Preview deploy hit a limit; skipping."; exit 0; }
 
   vercel-prod:
-    if: >
-      (github.ref == 'refs/heads/main') &&
-      (
-        (github.event_name == 'push' && (github.event.inputs.deploy_prod != 'true')) ||
-        (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_prod == 'true')
-      )
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_prod == 'true'
     name: Vercel Production (main/manual)
     runs-on: ubuntu-latest
     steps:
