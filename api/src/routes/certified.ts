@@ -1,5 +1,12 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
+// Extend Fastify route config to accept a `public` boolean used by global guards
+declare module 'fastify' {
+  interface FastifyContextConfig {
+    public?: boolean;
+  }
+}
+
 function isEnabled() {
   return String(process.env.CERTIFIED_ENABLED ?? 'false').toLowerCase() === 'true';
 }
