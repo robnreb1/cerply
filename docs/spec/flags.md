@@ -7,6 +7,21 @@
 - ff_marketplace_ledgers_v1
 - ff_benchmarks_optin_v1
  
+Runtime (simple gate)
+- CERTIFIED_ENABLED (default: false) — enables `/api/certified/*` stub routes
+  - When true, `POST /api/certified/plan` returns 501 with JSON:
+    {
+      "status":"stub",
+      "endpoint":"certified.plan",
+      "request_id":"<uuid-v4>",
+      "enabled": true,
+      "message":"Certified pipeline is enabled but not implemented yet."
+    }
+  - CORS preflight `OPTIONS /api/certified/*` returns 204 with headers:
+    - access-control-allow-origin: *
+    - access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
+    - access-control-allow-headers: content-type, authorization
+ 
 Env (observability)
 - OBS_SAMPLE_PCT (0..100) — % of requests sampled as events(type='latency')
 - BUDGET_DAILY_CENTS — enables /api/ledger/alarm 24h budget check

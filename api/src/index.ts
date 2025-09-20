@@ -202,6 +202,20 @@ app.addHook('onRoute', (route) => {
     (route as any).config = { ...(route as any).config, public: true };
   }
 });
+// Explicit CORS preflight for certified endpoints (before cors plugin)
+app.addHook('onRequest', async (req: any, reply: any) => {
+  try {
+    if (String(req?.method).toUpperCase() === 'OPTIONS' && String(req?.url || '').startsWith('/api/certified/')) {
+      reply
+        .header('access-control-allow-origin', '*')
+        .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+        .header('access-control-allow-headers', 'content-type, authorization')
+        .code(204)
+        .send();
+    }
+  } catch {}
+});
+
 const CORS_ORIGINS = String(process.env.CORS_ORIGINS ?? '').trim();
 const defaultOrigins = [
   'http://localhost:3000',
@@ -421,7 +435,9 @@ await registerExportRoutes(app);
 try {
   const { registerCertifiedRoutes } = await import('./routes/certified');
   await registerCertifiedRoutes(app);
-} catch {}
+} catch (err) {
+  try { (app as any).log?.error?.({ err }, 'certified_routes_failed'); } catch {}
+}
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
