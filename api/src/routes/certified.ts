@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import crypto from 'node:crypto';
 
 // Extend Fastify route config to accept a `public` boolean used by global guards
 declare module 'fastify' {
@@ -12,12 +13,50 @@ function isEnabled() {
 }
 
 export function registerCertifiedRoutes(app: FastifyInstance) {
+  // Early hook to ensure CORS preflight works even if path matching varies
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/certified/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, authorization')
+          .code(204)
+          .send();
+        return reply;
+      }
+    } catch {}
+  });
+  // CORS preflight for certified endpoints
+  app.options('/api/certified/*', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
+    reply
+      .header('access-control-allow-origin', '*')
+      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+      .header('access-control-allow-headers', 'content-type, authorization');
+    return reply.code(204).send();
+  });
+
   // Plan
   app.post('/api/certified/plan', { config: { public: true } }, async (_req: FastifyRequest, reply: FastifyReply) => {
     if (!isEnabled()) {
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
     }
-    return reply.code(501).send({ error: { code: 'NOT_IMPLEMENTED', message: 'Stub', details: { step: 'plan' } } });
+    const request_id = crypto.randomUUID();
+    const method = (_req as any).method || 'POST';
+    const path = (_req as any).url || '/api/certified/plan';
+    const ua = String((_req as any).headers?.['user-agent'] ?? '');
+    const ip = String(((_req as any).headers?.['x-forwarded-for'] ?? '').toString().split(',')[0].trim() || (_req as any).ip || '');
+    const ip_hash = crypto.createHash('sha256').update(ip).digest('hex');
+    try { app.log.info({ request_id, method, path, ua, ip_hash }, 'certified_plan_stubbed'); } catch {}
+    return reply.code(501).send({
+      status: 'stub',
+      endpoint: 'certified.plan',
+      request_id,
+      enabled: true,
+      message: 'Certified pipeline is enabled but not implemented yet.'
+    });
   });
 
   // Alternate generator (2nd proposer)
