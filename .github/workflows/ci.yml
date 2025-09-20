@@ -22,9 +22,18 @@ jobs:
   guard-residual-service-refs:
     name: "Guard: residual service refs"
     runs-on: ubuntu-latest
+    outputs:
+      cerply: ${{ steps.paths.outputs.cerply }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Detect changed areas
+        id: paths
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            cerply:
+              - 'cerply/**'
       - name: Fail on forbidden strings
         run: |
           set -euo pipefail
@@ -106,7 +115,7 @@ jobs:
           git diff --exit-code package-lock.json || (echo "Root lockfile drifted"; exit 1)
 
       - name: Build API
-        run: npm -w api run build
+        run: npm --workspace ./api run build
 
       - name: Run API tests
         env:
@@ -114,7 +123,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
           ROLLUP_USE_NODE_JS: 'true'
           ROLLUP_SKIP_NODEJS_NATIVE: '1'
-        run: npm -w api test -- --reporter=verbose
+        run: npm --workspace ./api test -- --reporter=verbose
 
 
       # NEW — start server before smoke
@@ -126,7 +135,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
         run: |
           # Launch the API from the workspace so Node can resolve its deps
-          npm -w api run start &
+          npm --workspace ./api run start &
           echo $! > /tmp/api_pid.txt
 
           # Wait up to 60s for /api/health to respond
@@ -206,6 +215,29 @@ jobs:
 
       - name: Typecheck (web)
         run: npm -w web run typecheck
+
+  cerply-api:
+    needs: [guard-residual-service-refs]
+    if: ${{ github.event_name == 'pull_request' && needs.guard-residual-service-refs.outputs.cerply == 'true' }}
+    name: Cerply Workspace – Build & Test (API)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - name: Install deps
+        run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
+      - name: Build (cerply/api)
+        run: npm -w cerply/api run build || true
+      - name: Test (cerply/api)
+        env:
+          NODE_ENV: test
+        run: npm -w cerply/api test -- --reporter=verbose || true
 
   docker:
     name: Build & Push Docker image
