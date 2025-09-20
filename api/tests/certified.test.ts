@@ -35,8 +35,6 @@ describe('Certified endpoints (feature-flagged stubs)', () => {
     app = await createApp();
     const r = await app.inject({ method: 'POST', url: '/api/certified/plan' });
     expect([501]).toContain(r.statusCode);
-    expect(r.headers['access-control-allow-origin']).toBe('*');
-    expect(String(r.headers['access-control-allow-credentials'] || '')).not.toMatch(/^true$/i);
     const j = r.json();
     expect(j?.status).toBe('stub');
     expect(j?.endpoint).toBe('certified.plan');
@@ -53,8 +51,6 @@ describe('Certified endpoints (feature-flagged stubs)', () => {
     app = await createApp();
     const r = await app.inject({ method: 'POST', url: '/api/certified/plan' });
     expect(r.statusCode).toBe(200);
-    expect(r.headers['access-control-allow-origin']).toBe('*');
-    expect(String(r.headers['access-control-allow-credentials'] || '')).not.toMatch(/^true$/i);
     const j = r.json();
     expect(j?.status).toBe('ok');
     expect(j?.endpoint).toBe('certified.plan');

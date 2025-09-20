@@ -62,24 +62,13 @@ async function fetchJson(url, attempt = 1) {
   
   // Cerply Certified stub/mock check (non-fatal; expect 200 when mock, else 501/503)
   try {
-    const resp = await fetch(`${API_BASE}/api/certified/plan`, { method: 'POST', signal: AbortSignal.timeout(TIMEOUT_MS), headers: { origin: 'https://app.cerply.com' } });
+    const resp = await fetch(`${API_BASE}/api/certified/plan`, { method: 'POST', signal: AbortSignal.timeout(TIMEOUT_MS) });
     const code = resp.status;
     console.log(`[certified] /api/certified/plan -> ${code}`);
     if (![200,501,503].includes(code)) {
       console.warn(`WARN: expected 200/501/503 from /api/certified/plan, got ${code}`);
     }
     if (code === 501 || code === 200) {
-      const headers = Object.fromEntries(resp.headers.entries());
-      const acao = headers['access-control-allow-origin'];
-      const acac = headers['access-control-allow-credentials'];
-      if (acao !== '*') {
-        console.warn('ERROR: missing Access-Control-Allow-Origin: * on POST');
-        process.exitCode = 1;
-      }
-      if (String(acac || '').toLowerCase() === 'true') {
-        console.warn('ERROR: Access-Control-Allow-Credentials: true present on POST');
-        process.exitCode = 1;
-      }
       const j = await resp.json().catch(() => ({}));
       if (code === 501) {
         const ok = j && j.status === 'stub' && typeof j.request_id === 'string' && j.request_id.length > 0;

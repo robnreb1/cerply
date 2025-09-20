@@ -43,25 +43,13 @@ try {
 
 // 4) Cerply Certified stub/mock check (non-fatal; expect 200 when mock, else 501 or 503)
 try {
-  const head = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/certified/plan" -H 'origin: https://app.cerply.com'`);
-  const code = (head.match(/\s(\d{3})\s/) || [,''])[1];
+  const code = sh(`curl -sS -o /dev/null -w "%{http_code}" -X POST "${BASE}/api/certified/plan"`).trim();
   console.log(`[certified] /api/certified/plan -> ${code}`);
   if (!['200','501','503'].includes(code)) {
     console.error(`WARN: expected 200/501/503 from /api/certified/plan, got ${code}`);
   }
   if (code === '501' || code === '200') {
-    const cleaned = head.replace(/\r/g,'');
-    const hasAcao = /(^|\n)access-control-allow-origin:\s*\*/i.test(cleaned);
-    const hasAcacTrue = /(^|\n)access-control-allow-credentials:\s*true/i.test(cleaned);
-    if (!hasAcao) {
-      console.error('ERROR: missing Access-Control-Allow-Origin: * on POST');
-      process.exitCode = 1;
-    }
-    if (hasAcacTrue) {
-      console.error('ERROR: Access-Control-Allow-Credentials: true present on POST');
-      process.exitCode = 1;
-    }
-    const bodyTxt = sh(`curl -sS -X POST "${BASE}/api/certified/plan" -H 'content-type: application/json' -H 'origin: https://app.cerply.com' -d '{}'`);
+    const bodyTxt = sh(`curl -sS -X POST "${BASE}/api/certified/plan" -H 'content-type: application/json' -d '{}'`);
     try {
       const j = JSON.parse(bodyTxt);
       if (code === '501') {
