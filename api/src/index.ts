@@ -233,6 +233,25 @@ try {
   await app.register(helmet, { contentSecurityPolicy: false });
 } catch {}
 
+// Targeted CORS: ensure certified POST responses have ACAO:* and no ACAC
+app.addHook('onSend', async (request:any, reply:any, payload:any) => {
+  try {
+    const method = String(request?.method || '').toUpperCase();
+    const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
+    const isCertified = url.startsWith('/api/certified/');
+    if (method !== 'OPTIONS' && isCertified) {
+      reply.header('Access-Control-Allow-Origin', '*');
+      const hasACAC = typeof reply.hasHeader === 'function' && reply.hasHeader('Access-Control-Allow-Credentials');
+      if (hasACAC && typeof (reply as any).removeHeader === 'function') {
+        (reply as any).removeHeader('Access-Control-Allow-Credentials');
+      } else if (hasACAC) {
+        reply.header('Access-Control-Allow-Credentials', 'false');
+      }
+    }
+  } catch {}
+  return payload;
+});
+
 // Public-route bypass helper for any global guards (auth/CSRF).
 function isPublicURL(url = '') {
   return url.startsWith('/api/certified/');
