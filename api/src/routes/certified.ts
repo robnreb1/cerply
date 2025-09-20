@@ -13,27 +13,35 @@ function isEnabled() {
 
 export function registerCertifiedRoutes(app: FastifyInstance) {
   // Plan
-  app.post('/api/certified/plan', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
-    const code = isEnabled() ? 503 : 501; // 503 when feature enabled but not wired; 501 when disabled
-    return reply.code(code).send({ status: 'stub', ok: false, route: 'plan' });
+  app.post('/api/certified/plan', { config: { public: true } }, async (_req: FastifyRequest, reply: FastifyReply) => {
+    if (!isEnabled()) {
+      return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
+    }
+    return reply.code(501).send({ error: { code: 'NOT_IMPLEMENTED', message: 'Stub', details: { step: 'plan' } } });
   });
 
   // Alternate generator (2nd proposer)
   app.post('/api/certified/alt-generate', { config: { public: true } }, async (_req, reply) => {
-    const code = isEnabled() ? 503 : 501;
-    return reply.code(code).send({ status: 'stub', ok: false, route: 'alt-generate' });
+    if (!isEnabled()) {
+      return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
+    }
+    return reply.code(501).send({ error: { code: 'NOT_IMPLEMENTED', message: 'Stub', details: { step: 'alt-generate' } } });
   });
 
   // Critique / review
   app.post('/api/certified/review', { config: { public: true } }, async (_req, reply) => {
-    const code = isEnabled() ? 503 : 501;
-    return reply.code(code).send({ status: 'stub', ok: false, route: 'review' });
+    if (!isEnabled()) {
+      return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
+    }
+    return reply.code(501).send({ error: { code: 'NOT_IMPLEMENTED', message: 'Stub', details: { step: 'review' } } });
   });
 
   // Finalize / lock
   app.post('/api/certified/finalize', { config: { public: true } }, async (_req, reply) => {
-    const code = isEnabled() ? 503 : 501;
-    return reply.code(code).send({ status: 'stub', ok: false, route: 'finalize' });
+    if (!isEnabled()) {
+      return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
+    }
+    return reply.code(501).send({ error: { code: 'NOT_IMPLEMENTED', message: 'Stub', details: { step: 'finalize' } } });
   });
 }
 
