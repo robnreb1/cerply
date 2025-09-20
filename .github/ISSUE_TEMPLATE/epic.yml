@@ -1,0 +1,35 @@
+name: Epic
+description: Track a large, outcome-focused body of work
+labels: ["Epic"]
+body:
+  - type: input
+    id: brd
+    attributes:
+      label: BRD IDs
+      description: e.g., B2, B4
+      placeholder: "B2, B4"
+    validations:
+      required: true
+  - type: input
+    id: tech
+    attributes:
+      label: Tech sections
+      description: e.g., T3.1, T5
+      placeholder: "T3.1, T5"
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What changes for users/business?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance
+      description: Clear, testable checks
+    validations:
+      required: true
+
