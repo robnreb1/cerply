@@ -60,21 +60,24 @@ async function fetchJson(url, attempt = 1) {
   const picked = Object.fromEntries(REQUIRED.map((h) => [h, headers[h]]));
   console.log('SMOKE OK:', { version: body, headers: picked });
   
-  // Cerply Certified stub check (non-fatal; expect 501 or 503)
+  // Cerply Certified stub/mock check (non-fatal; expect 200 when mock, else 501/503)
   try {
     const resp = await fetch(`${API_BASE}/api/certified/plan`, { method: 'POST', signal: AbortSignal.timeout(TIMEOUT_MS) });
     const code = resp.status;
     console.log(`[certified] /api/certified/plan -> ${code}`);
-    if (![501,503].includes(code)) {
-      console.warn(`WARN: expected 501/503 from /api/certified/plan, got ${code}`);
+    if (![200,501,503].includes(code)) {
+      console.warn(`WARN: expected 200/501/503 from /api/certified/plan, got ${code}`);
     }
-    if (code === 501) {
+    if (code === 501 || code === 200) {
       const j = await resp.json().catch(() => ({}));
-      const ok = j && j.status === 'stub' && typeof j.request_id === 'string' && j.request_id.length > 0;
-      if (!ok) {
-        console.warn('WARN: 501 body missing status:"stub" or non-empty request_id');
-      } else {
-        console.log(`[certified] stub ok request_id=${j.request_id}`);
+      if (code === 501) {
+        const ok = j && j.status === 'stub' && typeof j.request_id === 'string' && j.request_id.length > 0;
+        if (!ok) console.warn('WARN: 501 body missing status:"stub" or non-empty request_id');
+        else console.log(`[certified] stub ok request_id=${j.request_id}`);
+      } else if (code === 200) {
+        const ok = j && j.status === 'ok' && j.endpoint === 'certified.plan' && Array.isArray(j?.plan?.items) && j.plan.items.length > 0;
+        if (!ok) console.warn('WARN: 200 mock body missing status:"ok" or plan.items[0]');
+        else console.log(`[certified] mock ok items=${j.plan.items.length}`);
       }
     }
   } catch (e) {
