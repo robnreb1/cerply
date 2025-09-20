@@ -41,3 +41,29 @@ try {
 }
 
 
+// 4) Cerply Certified stub check (non-fatal; expect 501 or 503)
+try {
+  const code = sh(`curl -sS -o /dev/null -w "%{http_code}" -X POST "${BASE}/api/certified/plan"`).trim();
+  console.log(`[certified] /api/certified/plan -> ${code}`);
+  if (!['501','503'].includes(code)) {
+    console.error(`WARN: expected 501/503 from /api/certified/plan, got ${code}`);
+  }
+  if (code === '501') {
+    const bodyTxt = sh(`curl -sS -X POST "${BASE}/api/certified/plan" -H 'content-type: application/json' -d '{}'`);
+    try {
+      const j = JSON.parse(bodyTxt);
+      const ok = j && j.status === 'stub' && typeof j.request_id === 'string' && j.request_id.length > 0;
+      if (!ok) {
+        console.error('WARN: 501 body missing status:"stub" or non-empty request_id');
+      } else {
+        console.log(`[certified] stub ok request_id=${j.request_id}`);
+      }
+    } catch {
+      console.error('WARN: 501 body not JSON');
+    }
+  }
+} catch {
+  console.log("(certified stub check skipped)");
+}
+
+

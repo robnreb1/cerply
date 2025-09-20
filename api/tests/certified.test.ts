@@ -34,8 +34,20 @@ describe('Certified endpoints (feature-flagged stubs)', () => {
     const r = await app.inject({ method: 'POST', url: '/api/certified/plan' });
     expect([501]).toContain(r.statusCode);
     const j = r.json();
-    expect(j?.error?.code).toBe('NOT_IMPLEMENTED');
-    expect(j?.error?.details?.step).toBe('plan');
+    expect(j?.status).toBe('stub');
+    expect(j?.endpoint).toBe('certified.plan');
+    expect(typeof j?.request_id).toBe('string');
+    expect(j?.request_id.length).toBeGreaterThan(0);
+    expect(j?.enabled).toBe(true);
+    expect(j?.message).toMatch(/enabled but not implemented/i);
+  });
+
+  it('OPTIONS preflight returns 204 with CORS headers', async () => {
+    const r = await app.inject({ method: 'OPTIONS', url: '/api/certified/plan' });
+    expect(r.statusCode).toBe(204);
+    expect(r.headers['access-control-allow-origin']).toBe('*');
+    expect(r.headers['access-control-allow-methods']).toMatch(/POST/);
+    expect(r.headers['access-control-allow-headers']).toMatch(/authorization/i);
   });
 
   it('expert module approve requires admin', async () => {
