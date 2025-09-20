@@ -195,6 +195,13 @@ app.addHook('onRoute', (route) => {
   const method = Array.isArray(route.method) ? route.method.join(',') : String(route.method);
   __ROUTES.push({ method, url: route.url });
 });
+// Mark certified routes as public so global guards skip them
+app.addHook('onRoute', (route) => {
+  if (typeof route.url === 'string' && route.url.startsWith('/api/certified/')) {
+    // @ts-ignore augment fastify route config
+    (route as any).config = { ...(route as any).config, public: true };
+  }
+});
 const CORS_ORIGINS = String(process.env.CORS_ORIGINS ?? '').trim();
 const defaultOrigins = [
   'http://localhost:3000',
@@ -210,6 +217,38 @@ try {
   const helmet = (await import('@fastify/helmet')).default as any;
   await app.register(helmet, { contentSecurityPolicy: false });
 } catch {}
+
+// Public-route bypass helper for any global guards (auth/CSRF).
+function isPublicURL(url = '') {
+  return url.startsWith('/api/certified/');
+}
+
+function isPublic(req: any): boolean {
+  try {
+    const cfg = (req?.routeOptions?.config ?? {}) as Record<string, any>;
+    const url = String(req?.url || '');
+    return cfg.public === true || req?.method === 'OPTIONS' || isPublicURL(url);
+  } catch {
+    return false;
+  }
+}
+
+// Tag public requests so any downstream hooks can skip enforcement safely
+app.addHook('onRequest', async (req: any, reply: any) => {
+  if (isPublic(req)) {
+    (req as any).__isPublicRoute = true;
+    return;
+  }
+  // If you add auth/CSRF checks here in future, please retain the breadcrumb on deny for staging diagnosis
+  // Example (pseudo): if (!authorized) { reply.header('x-guard-path','onRequest:blocked'); return reply.code(403).send({ error: { code:'FORBIDDEN', message:'forbidden' } }); }
+});
+
+// Mirror guard at preHandler if needed in future; ensure public early return
+app.addHook('preHandler', async (req: any, reply: any) => {
+  if (isPublic(req)) return;
+  // If enforcing CSRF/session here, add breadcrumb header on deny similarly:
+  // reply.header('x-guard-path','preHandler:blocked');
+});
 
 // Attach simple DB adapter when Postgres is reachable (used by dev routes)
 try {
@@ -377,6 +416,12 @@ await registerLedgerRoutes(app);
 // await registerAnalyticsPilot(app);
 await registerExportRoutes(app);
 // await registerBudgetAlarm(app);
+
+// Certified pipeline (feature-flagged; returns stubs)
+try {
+  const { registerCertifiedRoutes } = await import('./routes/certified');
+  await registerCertifiedRoutes(app);
+} catch {}
 
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
@@ -1546,7 +1591,7 @@ function isAdmin(req: FastifyRequest): boolean {
 type CertifiedPlan = { id: string; title: string; estMinutes: number; successCriteria?: string[]; prerequisites?: string[] };
 const _certifiedAudit: Array<{ step: string; at: string; payload: any }> = [];
 
-app.post('/api/certified/plan', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/api/_legacy_certified/plan', async (req: FastifyRequest, reply: FastifyReply) => {
   const hasSession = hasSessionFromReq(req as any);
   if (!isAdminAllowed(req.headers as any, hasSession)) {
     return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'admin only' } });
@@ -1565,7 +1610,7 @@ app.post('/api/certified/plan', async (req: FastifyRequest, reply: FastifyReply)
   return reply.send({ ok: true, modules, auditSize: _certifiedAudit.length });
 });
 
-app.post('/api/certified/alt-generate', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/api/_legacy_certified/alt-generate', async (req: FastifyRequest, reply: FastifyReply) => {
   const hasSession = hasSessionFromReq(req as any);
   if (!isAdminAllowed(req.headers as any, hasSession)) {
     return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'admin only' } });
@@ -1586,7 +1631,7 @@ app.post('/api/certified/alt-generate', async (req: FastifyRequest, reply: Fasti
   return reply.send({ ok: true, items });
 });
 
-app.post('/api/certified/review', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/api/_legacy_certified/review', async (req: FastifyRequest, reply: FastifyReply) => {
   const hasSession = hasSessionFromReq(req as any);
   if (!isAdminAllowed(req.headers as any, hasSession)) {
     return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'admin only' } });
@@ -1604,7 +1649,7 @@ app.post('/api/certified/review', async (req: FastifyRequest, reply: FastifyRepl
   return reply.send({ ok: true, critique });
 });
 
-app.post('/api/certified/finalize', async (req: FastifyRequest, reply: FastifyReply) => {
+app.post('/api/_legacy_certified/finalize', async (req: FastifyRequest, reply: FastifyReply) => {
   const hasSession = hasSessionFromReq(req as any);
   if (!isAdminAllowed(req.headers as any, hasSession)) {
     return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'admin only' } });
