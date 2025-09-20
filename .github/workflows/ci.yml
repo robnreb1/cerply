@@ -115,7 +115,7 @@ jobs:
           git diff --exit-code package-lock.json || (echo "Root lockfile drifted"; exit 1)
 
       - name: Build API
-        run: npm -w api run build
+        run: npm --workspace ./api run build
 
       - name: Run API tests
         env:
@@ -123,7 +123,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
           ROLLUP_USE_NODE_JS: 'true'
           ROLLUP_SKIP_NODEJS_NATIVE: '1'
-        run: npm -w api test -- --reporter=verbose
+        run: npm --workspace ./api test -- --reporter=verbose
 
 
       # NEW — start server before smoke
@@ -135,7 +135,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
         run: |
           # Launch the API from the workspace so Node can resolve its deps
-          npm -w api run start &
+          npm --workspace ./api run start &
           echo $! > /tmp/api_pid.txt
 
           # Wait up to 60s for /api/health to respond
