@@ -26,10 +26,12 @@ describe('Certified endpoints (feature-flagged stubs)', () => {
     expect(j?.error?.code).toBe('CERTIFIED_DISABLED');
   });
 
-  it('returns 501 stub when enabled', async () => {
+  it('returns 501 stub when enabled (default mode stub)', async () => {
     // Recreate app with flag enabled
     await app.close();
     vi.stubEnv('CERTIFIED_ENABLED', 'true');
+    // Ensure stub mode
+    vi.stubEnv('CERTIFIED_MODE', 'stub');
     app = await createApp();
     const r = await app.inject({ method: 'POST', url: '/api/certified/plan' });
     expect([501]).toContain(r.statusCode);
@@ -40,6 +42,26 @@ describe('Certified endpoints (feature-flagged stubs)', () => {
     expect(j?.request_id.length).toBeGreaterThan(0);
     expect(j?.enabled).toBe(true);
     expect(j?.message).toMatch(/enabled but not implemented/i);
+  });
+
+  it('returns 200 mock when enabled and CERTIFIED_MODE=mock', async () => {
+    await app.close();
+    vi.stubEnv('CERTIFIED_ENABLED', 'true');
+    vi.stubEnv('CERTIFIED_MODE', 'mock');
+    app = await createApp();
+    const r = await app.inject({ method: 'POST', url: '/api/certified/plan' });
+    expect(r.statusCode).toBe(200);
+    const j = r.json();
+    expect(j?.status).toBe('ok');
+    expect(j?.endpoint).toBe('certified.plan');
+    expect(j?.mode).toBe('mock');
+    expect(j?.enabled).toBe(true);
+    expect(typeof j?.request_id).toBe('string');
+    expect(j?.provenance).toMatchObject({ planner: 'mock', checker: 'mock' });
+    expect(Array.isArray(j?.provenance?.proposers)).toBe(true);
+    expect(j?.plan?.title).toBe('Mock Plan');
+    expect(Array.isArray(j?.plan?.items)).toBe(true);
+    expect(j?.plan?.items?.[0]?.id).toBe('m1');
   });
 
   it('OPTIONS preflight returns 204 with CORS headers', async () => {

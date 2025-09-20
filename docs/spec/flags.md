@@ -22,6 +22,20 @@ Runtime (simple gate)
     - access-control-allow-methods: GET,HEAD,PUT,PATCH,POST,DELETE
     - access-control-allow-headers: content-type, authorization
  
+Runtime (mode)
+- CERTIFIED_MODE (values: `stub` | `mock`, default: `stub`)
+  - `stub`: preserves 501 behavior above.
+  - `mock`: `POST /api/certified/plan` returns 200 with JSON:
+    {
+      "status":"ok",
+      "request_id":"<uuid>",
+      "endpoint":"certified.plan",
+      "mode":"mock",
+      "enabled": true,
+      "provenance": { "planner":"mock", "proposers":["mockA","mockB"], "checker":"mock" },
+      "plan": { "title":"Mock Plan", "items":[ { "id":"m1", "type":"card", "front":"...", "back":"..." } ] }
+    }
+
 Env (observability)
 - OBS_SAMPLE_PCT (0..100) — % of requests sampled as events(type='latency')
 - BUDGET_DAILY_CENTS — enables /api/ledger/alarm 24h budget check
