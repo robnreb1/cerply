@@ -49,7 +49,22 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
     const ua = String((_req as any).headers?.['user-agent'] ?? '');
     const ip = String(((_req as any).headers?.['x-forwarded-for'] ?? '').toString().split(',')[0].trim() || (_req as any).ip || '');
     const ip_hash = crypto.createHash('sha256').update(ip).digest('hex');
-    try { app.log.info({ request_id, method, path, ua, ip_hash }, 'certified_plan_stubbed'); } catch {}
+
+    const MODE = String(process.env.CERTIFIED_MODE ?? 'stub').toLowerCase();
+    if (MODE === 'mock') {
+      try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_mock'); } catch {}
+      return reply.code(200).send({
+        status: 'ok',
+        request_id,
+        endpoint: 'certified.plan',
+        mode: 'mock',
+        enabled: true,
+        provenance: { planner: 'mock', proposers: ['mockA','mockB'], checker: 'mock' },
+        plan: { title: 'Mock Plan', items: [{ id: 'm1', type: 'card', front: '...', back: '...' }] }
+      });
+    }
+
+    try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_stubbed'); } catch {}
     return reply.code(501).send({
       status: 'stub',
       endpoint: 'certified.plan',

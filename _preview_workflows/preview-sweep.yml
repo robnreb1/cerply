@@ -1,0 +1,43 @@
+name: Preview Sweep (48h auto-expiry)
+
+on:
+  schedule:
+    - cron: '30 1 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: List preview deployments
+        run: |
+          curl -fsSL -H "Authorization: Bearer $VERCEL_TOKEN" \
+            "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&limit=100" \
+            > /tmp/deploys.json
+          jq '[.deployments[] | select(.meta.pr != null)]' /tmp/deploys.json > /tmp/preview.json
+
+      - name: Delete stale or orphan previews
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          now_ms=$(date +%s000)
+          while read -r uid pr created; do
+            age_ms=$((now_ms - created))
+            too_old=$(( age_ms > 172800000 ? 1 : 0 )) # 48h
+            state=$(gh api repos/${{ github.repository }}/pulls/$pr --jq .state 2>/dev/null || echo "missing")
+            has_label=$(gh api repos/${{ github.repository }}/issues/$pr/labels --jq '.[]?.name' 2>/dev/null | grep -xc 'preview' || true)
+
+            if [[ "$state" != "open" || "$has_label" -eq 0 || "$too_old" -eq 1 ]]; then
+              echo "Deleting $uid (PR #$pr, state=$state, has_label=$has_label, age_ms=$age_ms)"
+              curl -fsS -X DELETE -H "Authorization: Bearer $VERCEL_TOKEN" \
+                "https://api.vercel.com/v13/deployments/$uid" || true
+            fi
+          done < <(jq -r '.[] | [.uid, .meta.pr, .created] | @tsv' /tmp/preview.json)
