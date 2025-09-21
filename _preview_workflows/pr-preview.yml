@@ -53,18 +53,20 @@ jobs:
     needs: gate
     if: ${{ needs.gate.outputs.pr_number != '' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.fork == false) }}
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
+    env:
+      VERCEL_PROJECT_DIR: web
+      PREVIEW_API_ORIGIN: ${{ vars.PREVIEW_API_ORIGIN || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Sanity check (web/package.json exists)
+      - name: Sanity check paths
         run: |
-          test -f package.json || { echo "web/package.json missing"; exit 1; }
+          ls -la
+          test -f web/package.json
+          jq -r '.rootDirectory // "unset"' web/.vercel/project.json || true
 
       - uses: actions/setup-node@v4
         with:
@@ -80,19 +82,26 @@ jobs:
 
       - name: Install deps (web)
         run: npm ci
+        working-directory: ./web
 
       - name: Pull Vercel project (preview)
         run: |
           npx vercel --version
-          npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
-          echo "NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true" >> .vercel/.env.preview.local
-          if [ -n "${PREVIEW_API_ORIGIN:-}" ]; then
-            echo "NEXT_PUBLIC_API_BASE=${PREVIEW_API_ORIGIN}" >> .vercel/.env.preview.local
-          fi
+          npx vercel pull \
+            --cwd "$VERCEL_PROJECT_DIR" \
+            --yes \
+            --environment=preview \
+            --token "$VERCEL_TOKEN"
 
-      - name: Build (prebuilt)
+      - name: Inject preview API origin
+        if: env.PREVIEW_API_ORIGIN != ''
         run: |
-          npx vercel build --token "$VERCEL_TOKEN"
+          mkdir -p "$VERCEL_PROJECT_DIR/.vercel"
+          printf "NEXT_PUBLIC_PREVIEW_API_ORIGIN=%s\n" "$PREVIEW_API_ORIGIN" > "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local"
+          test -f "$VERCEL_PROJECT_DIR/package.json"
+
+      - name: Build (preview)
+        run: npx vercel build --cwd "$VERCEL_PROJECT_DIR" --token "$VERCEL_TOKEN"
 
       - name: Deploy preview (soft-fail on rate limit)
         id: deploy
@@ -102,6 +111,7 @@ jobs:
         run: |
           set -o pipefail
           out=$(npx vercel deploy --prebuilt \
+                --cwd "$VERCEL_PROJECT_DIR" \
                 --token "$VERCEL_TOKEN" \
                 --scope "$VERCEL_ORG_ID" \
                 --meta pr="$PR" \
