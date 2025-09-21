@@ -70,6 +70,7 @@ jobs:
         with:
           node-version-file: 'web/package.json'
           cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
 
       - name: Cache npm (web)
         uses: actions/cache@v4
@@ -84,10 +85,13 @@ jobs:
         run: |
           npx vercel --version
           npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+          echo "NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true" >> .vercel/.env.preview.local
+          if [ -n "${PREVIEW_API_ORIGIN:-}" ]; then
+            echo "NEXT_PUBLIC_API_BASE=${PREVIEW_API_ORIGIN}" >> .vercel/.env.preview.local
+          fi
 
-      - name: Build (inject preview API origin)
+      - name: Build (prebuilt)
         run: |
-          export NEXT_PUBLIC_API_BASE="${PREVIEW_API_ORIGIN}"
           npx vercel build --token "$VERCEL_TOKEN"
 
       - name: Deploy preview (soft-fail on rate limit)
