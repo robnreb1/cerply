@@ -247,6 +247,8 @@ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
       } else if (hasACAC) {
         reply.header('Access-Control-Allow-Credentials', 'false');
       }
+      const debug = (process.env.CERTIFIED_DEBUG_CORS === '1') || (process.env.RUNTIME_CHANNEL === 'staging');
+      if (debug) reply.header('x-cors-certified-hook', '1');
     }
   } catch {}
   return payload;
