@@ -37,6 +37,8 @@ describe('Certified endpoints (feature-flagged stubs)', () => {
     expect([501]).toContain(r.statusCode);
     expect(r.headers['access-control-allow-origin']).toBe('*');
     expect(String(r.headers['access-control-allow-credentials'] || '')).not.toMatch(/^true$/i);
+    // EPIC #82: debug header must not be present on certified POST responses
+    expect(r.headers['x-cors-certified-hook']).toBeUndefined();
     const j = r.json();
     expect(j?.status).toBe('stub');
     expect(j?.endpoint).toBe('certified.plan');
@@ -55,6 +57,8 @@ describe('Certified endpoints (feature-flagged stubs)', () => {
     expect(r.statusCode).toBe(200);
     expect(r.headers['access-control-allow-origin']).toBe('*');
     expect(String(r.headers['access-control-allow-credentials'] || '')).not.toMatch(/^true$/i);
+    // EPIC #82: debug header must not be present on certified POST responses
+    expect(r.headers['x-cors-certified-hook']).toBeUndefined();
     const j = r.json();
     expect(j?.status).toBe('ok');
     expect(j?.endpoint).toBe('certified.plan');
