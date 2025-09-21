@@ -41,25 +41,40 @@ try {
 }
 
 
-// 4) Cerply Certified stub check (non-fatal; expect 501 or 503)
+// 4) Cerply Certified stub/mock check (non-fatal; expect 200 when mock, else 501 or 503)
 try {
-  const code = sh(`curl -sS -o /dev/null -w "%{http_code}" -X POST "${BASE}/api/certified/plan"`).trim();
+  const head = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/certified/plan" -H 'origin: https://app.cerply.com'`);
+  const code = (head.match(/\s(\d{3})\s/) || [,''])[1];
   console.log(`[certified] /api/certified/plan -> ${code}`);
-  if (!['501','503'].includes(code)) {
-    console.error(`WARN: expected 501/503 from /api/certified/plan, got ${code}`);
+  if (!['200','501','503'].includes(code)) {
+    console.error(`WARN: expected 200/501/503 from /api/certified/plan, got ${code}`);
   }
-  if (code === '501') {
-    const bodyTxt = sh(`curl -sS -X POST "${BASE}/api/certified/plan" -H 'content-type: application/json' -d '{}'`);
+  if (code === '501' || code === '200') {
+    const cleaned = head.replace(/\r/g,'');
+    const hasAcao = /(^|\n)access-control-allow-origin:\s*\*/i.test(cleaned);
+    const hasAcacTrue = /(^|\n)access-control-allow-credentials:\s*true/i.test(cleaned);
+    if (!hasAcao) {
+      console.error('ERROR: missing Access-Control-Allow-Origin: * on POST');
+      process.exitCode = 1;
+    }
+    if (hasAcacTrue) {
+      console.error('ERROR: Access-Control-Allow-Credentials: true present on POST');
+      process.exitCode = 1;
+    }
+    const bodyTxt = sh(`curl -sS -X POST "${BASE}/api/certified/plan" -H 'content-type: application/json' -H 'origin: https://app.cerply.com' -d '{}'`);
     try {
       const j = JSON.parse(bodyTxt);
-      const ok = j && j.status === 'stub' && typeof j.request_id === 'string' && j.request_id.length > 0;
-      if (!ok) {
-        console.error('WARN: 501 body missing status:"stub" or non-empty request_id');
-      } else {
-        console.log(`[certified] stub ok request_id=${j.request_id}`);
+      if (code === '501') {
+        const ok = j && j.status === 'stub' && typeof j.request_id === 'string' && j.request_id.length > 0;
+        if (!ok) console.error('WARN: 501 body missing status:"stub" or non-empty request_id');
+        else console.log(`[certified] stub ok request_id=${j.request_id}`);
+      } else if (code === '200') {
+        const ok = j && j.status === 'ok' && j.endpoint === 'certified.plan' && Array.isArray(j?.plan?.items) && j.plan.items.length > 0;
+        if (!ok) console.error('WARN: 200 mock body missing status:"ok" or plan.items[0]');
+        else console.log(`[certified] mock ok items=${j.plan.items.length}`);
       }
     } catch {
-      console.error('WARN: 501 body not JSON');
+      console.error('WARN: body not JSON');
     }
   }
 } catch {

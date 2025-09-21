@@ -5,13 +5,23 @@
 
 - Certified: pipeline scaffold — flagged stubs ✅
   - Given CERTIFIED_ENABLED=false, POST `/api/certified/plan` → 503 `{ error: { code: 'CERTIFIED_DISABLED', ... } }`
-  - Given CERTIFIED_ENABLED=true, same route → 501 stub JSON:
+  - Given CERTIFIED_ENABLED=true and CERTIFIED_MODE=stub (default), same route → 501 stub JSON:
     {
       "status":"stub",
       "endpoint":"certified.plan",
       "request_id":"<uuid-v4>",
       "enabled": true,
       "message":"Certified pipeline is enabled but not implemented yet."
+    }
+  - Given CERTIFIED_ENABLED=true and CERTIFIED_MODE=mock, same route → 200 mock JSON:
+    {
+      "status":"ok",
+      "request_id":"<uuid>",
+      "endpoint":"certified.plan",
+      "mode":"mock",
+      "enabled": true,
+      "provenance": { "planner":"mock", "proposers":["mockA","mockB"], "checker":"mock" },
+      "plan": { "title":"Mock Plan", "items":[ { "id":"m1", "type":"card", "front":"...", "back":"..." } ] }
     }
   - Preview page: `web/app/(preview)/certified/page.tsx` — shows stub response when `NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true`.
   - Drizzle migrations apply cleanly; server boots

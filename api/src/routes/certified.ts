@@ -41,6 +41,8 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
   // Plan
   app.post('/api/certified/plan', { config: { public: true } }, async (_req: FastifyRequest, reply: FastifyReply) => {
     if (!isEnabled()) {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
     }
     const request_id = crypto.randomUUID();
@@ -49,7 +51,26 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
     const ua = String((_req as any).headers?.['user-agent'] ?? '');
     const ip = String(((_req as any).headers?.['x-forwarded-for'] ?? '').toString().split(',')[0].trim() || (_req as any).ip || '');
     const ip_hash = crypto.createHash('sha256').update(ip).digest('hex');
-    try { app.log.info({ request_id, method, path, ua, ip_hash }, 'certified_plan_stubbed'); } catch {}
+
+    const MODE = String(process.env.CERTIFIED_MODE ?? 'stub').toLowerCase();
+    if (MODE === 'mock') {
+      try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_mock'); } catch {}
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      return reply.code(200).send({
+        status: 'ok',
+        request_id,
+        endpoint: 'certified.plan',
+        mode: 'mock',
+        enabled: true,
+        provenance: { planner: 'mock', proposers: ['mockA','mockB'], checker: 'mock' },
+        plan: { title: 'Mock Plan', items: [{ id: 'm1', type: 'card', front: '...', back: '...' }] }
+      });
+    }
+
+    try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_stubbed'); } catch {}
+    reply.header('access-control-allow-origin', '*');
+    reply.removeHeader('access-control-allow-credentials');
     return reply.code(501).send({
       status: 'stub',
       endpoint: 'certified.plan',
@@ -62,24 +83,36 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
   // Alternate generator (2nd proposer)
   app.post('/api/certified/alt-generate', { config: { public: true } }, async (_req, reply) => {
     if (!isEnabled()) {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
     }
+    reply.header('access-control-allow-origin', '*');
+    reply.removeHeader('access-control-allow-credentials');
     return reply.code(501).send({ error: { code: 'NOT_IMPLEMENTED', message: 'Stub', details: { step: 'alt-generate' } } });
   });
 
   // Critique / review
   app.post('/api/certified/review', { config: { public: true } }, async (_req, reply) => {
     if (!isEnabled()) {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
     }
+    reply.header('access-control-allow-origin', '*');
+    reply.removeHeader('access-control-allow-credentials');
     return reply.code(501).send({ error: { code: 'NOT_IMPLEMENTED', message: 'Stub', details: { step: 'review' } } });
   });
 
   // Finalize / lock
   app.post('/api/certified/finalize', { config: { public: true } }, async (_req, reply) => {
     if (!isEnabled()) {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
     }
+    reply.header('access-control-allow-origin', '*');
+    reply.removeHeader('access-control-allow-credentials');
     return reply.code(501).send({ error: { code: 'NOT_IMPLEMENTED', message: 'Stub', details: { step: 'finalize' } } });
   });
 }
