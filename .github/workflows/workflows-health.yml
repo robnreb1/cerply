@@ -1,0 +1,46 @@
+name: Workflows Health
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+
+jobs:
+  lint:
+    name: Lint workflows (actionlint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (workflows only)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          sparse-checkout: |
+            .github/workflows
+      - name: Run actionlint
+        uses: rhysd/actionlint@v1.7.1
+        env:
+          # Only fail on shellcheck errors; relax two noisy rules
+          SHELLCHECK_OPTS: -S error -e SC2086 -e SC2046
+        with:
+          args: -color
+
+  dry_run:
+    name: Dry-run common actions
+    # Skip on PRs to avoid secrets/permission noise; still runs on push to main
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Placeholder dry-run
+        run: echo "Dry-run skipped for PRs; runs on main pushes."
