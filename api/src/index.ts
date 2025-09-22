@@ -1630,7 +1630,7 @@ function isAdmin(req: FastifyRequest): boolean {
   return hasSession && (hdr === '1' || hdr === 'true');
 }
 
-:type CertifiedPlan = { id: string; title: string; estMinutes: number; successCriteria?: string[]; prerequisites?: string[] };
+type CertifiedPlan = { id: string; title: string; estMinutes: number; successCriteria?: string[]; prerequisites?: string[] };
 const _certifiedAudit: Array<{ step: string; at: string; payload: any }> = [];
 
 // NOTE: Legacy _legacy_certified endpoints removed during conflict resolution; keeping public stub endpoints only
