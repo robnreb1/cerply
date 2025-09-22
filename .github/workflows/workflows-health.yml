@@ -1,0 +1,95 @@
+name: Workflows Health
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - chore/workflows-health
+    paths:
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up cache for actionlint
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/actionlint
+          key: ${{ runner.os }}-actionlint-${{ hashFiles('.github/workflows/**') }}
+          restore-keys: |
+            ${{ runner.os }}-actionlint-
+
+      - name: Download actionlint (with retry)
+        shell: bash
+        env:
+          ACTIONLINT_VERSION: v1.7.1
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.cache/actionlint"
+          BIN="$HOME/.cache/actionlint/actionlint"
+          if [ ! -x "$BIN" ]; then
+            for i in 1 2 3; do
+              curl -fsSL "https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION#v}_linux_amd64.tar.gz" -o /tmp/actionlint.tgz && break || sleep 2
+            done
+            tar -C "$HOME/.cache/actionlint" -xzf /tmp/actionlint.tgz actionlint
+            chmod +x "$BIN"
+          fi
+          echo "$HOME/.cache/actionlint" >> $GITHUB_PATH
+
+      - name: Validate workflow syntax
+        run: actionlint -color
+
+  dry-run:
+    name: Dry-run common actions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install minimal tools (retry)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            npm ci --ignore-scripts && break || {
+              echo "npm ci failed, retry $i" >&2
+              rm -rf node_modules package-lock.json ~/.npm/_cacache || true
+              git restore --source=HEAD --worktree --staged -- package-lock.json || true
+              sleep 3
+            }
+          done
+
+      - name: No-op build
+        run: |
+          echo "Dry run complete"
