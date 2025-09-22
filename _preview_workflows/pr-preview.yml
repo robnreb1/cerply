@@ -97,7 +97,8 @@ jobs:
         if: env.PREVIEW_API_ORIGIN != ''
         run: |
           mkdir -p "$VERCEL_PROJECT_DIR/.vercel"
-          printf "NEXT_PUBLIC_PREVIEW_API_ORIGIN=%s\n" "$PREVIEW_API_ORIGIN" > "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local"
+          printf "NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true\n" >> "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local"
+          printf "NEXT_PUBLIC_API_BASE=%s\n" "$PREVIEW_API_ORIGIN" >> "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local"
           test -f "$VERCEL_PROJECT_DIR/package.json"
 
       - name: Build (preview)

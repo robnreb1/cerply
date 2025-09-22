@@ -213,12 +213,19 @@ jobs:
           npm config set fetch-retries 5
           npm config set fetch-retry-factor 2
           npm config set fetch-retry-maxtimeout 120000
-          set -e
+          ok=0
           for i in 1 2 3; do
-            npm ci --workspaces --include-workspace-root --no-audit --no-fund && break
+            if npm ci --workspaces --include-workspace-root --no-audit --no-fund; then
+              ok=1
+              break
+            fi
             echo "npm ci failed (attempt $i), retrying…"
             sleep $((i*5))
           done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::npm ci failed after 3 attempts" >&2
+            exit 1
+          fi
 
       - name: Typecheck (api)
         run: npm -w api run typecheck
