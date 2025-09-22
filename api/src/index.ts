@@ -240,15 +240,14 @@ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
     const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
     const isCertified = url.startsWith('/api/certified/');
     if (method !== 'OPTIONS' && isCertified) {
-      reply.header('Access-Control-Allow-Origin', '*');
-      const hasACAC = typeof reply.hasHeader === 'function' && reply.hasHeader('Access-Control-Allow-Credentials');
-      if (hasACAC && typeof (reply as any).removeHeader === 'function') {
-        (reply as any).removeHeader('Access-Control-Allow-Credentials');
-      } else if (hasACAC) {
-        reply.header('Access-Control-Allow-Credentials', 'false');
-      }
-      const debug = (process.env.CERTIFIED_DEBUG_CORS === '1') || (process.env.RUNTIME_CHANNEL === 'staging');
-      if (debug) reply.header('x-cors-certified-hook', '1');
+      // Always allow any origin for certified endpoints (responses only)
+      reply.header('access-control-allow-origin', '*');
+      // Remove ACAC if any upstream sets it
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
+      // Hard-strip any leftover debug header defensively
+      try { (reply as any).removeHeader?.('x-cors-certified-hook'); } catch {}
+      try { (reply as any).raw?.removeHeader?.('x-cors-certified-hook'); } catch {}
     }
   } catch {}
   return payload;
