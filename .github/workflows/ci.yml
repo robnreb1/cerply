@@ -200,13 +200,25 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
 
-      - name: Install deps
+      - name: Install deps (monorepo with retry)
         env:
           NODE_ENV: development
           NPM_CONFIG_PRODUCTION: 'false'
-        run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
+        run: |
+          npm config set registry https://registry.npmjs.org/
+          npm config set fetch-retries 5
+          npm config set fetch-retry-factor 2
+          npm config set fetch-retry-maxtimeout 120000
+          set -e
+          for i in 1 2 3; do
+            npm ci --workspaces --include-workspace-root --no-audit --no-fund && break
+            echo "npm ci failed (attempt $i), retrying…"
+            sleep $((i*5))
+          done
 
       - name: Typecheck (api)
         run: npm -w api run typecheck
