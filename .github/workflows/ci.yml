@@ -204,34 +204,32 @@ jobs:
             package-lock.json
             web/package-lock.json
 
-      - name: Install deps (monorepo with retry)
+      - name: Cache npm (multi-lock)
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json', 'api/package-lock.json', 'web/package-lock.json') }}
+
+      - name: Install deps (with retry)
         env:
           NODE_ENV: development
           NPM_CONFIG_PRODUCTION: 'false'
         run: |
-          npm config set registry https://registry.npmjs.org/
-          npm config set fetch-retries 5
-          npm config set fetch-retry-factor 2
-          npm config set fetch-retry-maxtimeout 120000
-          ok=0
-          for i in 1 2 3; do
-            if npm ci --workspaces --include-workspace-root --no-audit --no-fund; then
-              ok=1
-              break
-            fi
-            echo "npm ci failed (attempt $i), retrying…"
-            sleep $((i*5))
+          set -euo pipefail
+          i=0
+          until [ $i -ge 4 ]; do
+            npm ci --workspaces --include-workspace-root --no-audit --no-fund && break
+            i=$((i+1))
+            echo "npm ci failed; retry #$i in 10s…"
+            sleep 10
           done
-          if [ "$ok" -ne 1 ]; then
-            echo "::error::npm ci failed after 3 attempts" >&2
-            exit 1
-          fi
+          [ $i -lt 4 ] || { echo "npm ci failed after retries"; exit 1; }
 
       - name: Typecheck (api)
-        run: npm -w api run typecheck
+        run: npm run -w api typecheck
 
       - name: Typecheck (web)
-        run: npm -w web run typecheck
+        run: npm run -w web typecheck
 
   cerply-api:
     needs: [guard-residual-service-refs]
