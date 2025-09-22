@@ -86,18 +86,15 @@ jobs:
       - name: Vercel version
         run: npx vercel --version
 
-      - name: Vercel build
-        run: npx vercel build --cwd "$VERCEL_PROJECT_DIR" --token "$VERCEL_TOKEN"
-
-      - name: Vercel deploy (prebuilt)
+      - name: Vercel deploy (remote build)
         id: deploy
         run: |
           set -o pipefail
-          out=$(npx vercel deploy --prebuilt \
+          out=$(npx vercel deploy \
                 --cwd "$VERCEL_PROJECT_DIR" \
                 --token "$VERCEL_TOKEN" \
                 --scope "$VERCEL_ORG_ID" \
-                --yes 2>&1 | tee /tmp/vercel.out) || true
+                --yes --confirm 2>&1 | tee /tmp/vercel.out) || true
           url=$(grep -Eo 'https://[a-z0-9-]+\.vercel\.app' /tmp/vercel.out | tail -n1 || true)
           echo "url=$url" >> "$GITHUB_OUTPUT"
           test -n "$url" && echo "Preview URL: $url" || echo "No URL captured; see logs"
