@@ -63,8 +63,18 @@ jobs:
           echo "--- injected .env.preview.local ---"
           cat "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local" || true
 
+      - name: Verify git state (web)
+        run: |
+          echo "PWD=$(pwd)"
+          git -C "$VERCEL_PROJECT_DIR" rev-parse --is-inside-work-tree || { echo "not a git work tree"; exit 1; }
+          git -C "$VERCEL_PROJECT_DIR" rev-parse --show-toplevel || true
+          git -C "$VERCEL_PROJECT_DIR" status --porcelain -b || true
+
       - name: Vercel pull
-        run: npx vercel pull --yes --environment=preview --cwd "$VERCEL_PROJECT_DIR"
+        run: |
+          set -x
+          npx vercel --version
+          npx vercel pull --yes --environment=preview --cwd "$VERCEL_PROJECT_DIR"
 
       - name: Vercel build
         run: npx vercel build --cwd "$VERCEL_PROJECT_DIR"
