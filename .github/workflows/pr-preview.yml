@@ -63,6 +63,18 @@ jobs:
           echo "--- injected .env.preview.local ---"
           cat "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local" || true
 
+      - name: Write Vercel project.json
+        run: |
+          mkdir -p "$VERCEL_PROJECT_DIR/.vercel"
+          cat > "$VERCEL_PROJECT_DIR/.vercel/project.json" <<EOF
+          {
+            "orgId": "${VERCEL_ORG_ID}",
+            "projectId": "${VERCEL_PROJECT_ID}"
+          }
+          EOF
+          echo "--- wrote .vercel/project.json ---"
+          cat "$VERCEL_PROJECT_DIR/.vercel/project.json" || true
+
       - name: Verify git state (web)
         run: |
           echo "PWD=$(pwd)"
@@ -80,8 +92,27 @@ jobs:
         run: npx vercel build --cwd "$VERCEL_PROJECT_DIR"
 
       - name: Vercel deploy (prebuilt)
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: npx vercel deploy --prebuilt --cwd "$VERCEL_PROJECT_DIR"
+        id: deploy
+        run: |
+          set -o pipefail
+          out=$(npx vercel deploy --prebuilt \
+                --cwd "$VERCEL_PROJECT_DIR" \
+                --token "$VERCEL_TOKEN" \
+                --scope "$VERCEL_ORG_ID" \
+                --yes 2>&1 | tee /tmp/vercel.out) || true
+          url=$(grep -Eo 'https://[a-z0-9-]+\.vercel\.app' /tmp/vercel.out | tail -n1 || true)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          test -n "$url" && echo "Preview URL: $url" || echo "No URL captured; see logs"
+
+      - name: Comment with preview URL
+        if: steps.deploy.outputs.url != ''
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: preview-url
+          recreate: true
+          message: |
+            ✅ PR Preview ready
+            URL: ${{ steps.deploy.outputs.url }}
+            Injected:
+            - NEXT_PUBLIC_API_BASE=${{ env.PREVIEW_API_ORIGIN }}
+            - NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true
