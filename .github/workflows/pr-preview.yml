@@ -1,3 +1,68 @@
+name: PR Preview
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+
+jobs:
+  preview:
+    if: contains(github.event.pull_request.labels.*.name, 'preview')
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_PROJECT_DIR: web
+      PREVIEW_API_ORIGIN: https://cerply-api-staging-latest.onrender.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sanity checks
+        run: |
+          test -f "$VERCEL_PROJECT_DIR/package.json" || { echo "missing $VERCEL_PROJECT_DIR/package.json"; exit 1; }
+          test -f "$VERCEL_PROJECT_DIR/package-lock.json" || echo "warn: no lockfile (cache will be a miss)"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: ${{ env.VERCEL_PROJECT_DIR }}/package-lock.json
+
+      - name: Install deps
+        working-directory: ${{ env.VERCEL_PROJECT_DIR }}
+        run: |
+          npx --yes npm@10.8.2 --version >/dev/null 2>&1 || true
+          # simple retry
+          for i in 1 2 3; do
+            npm ci && break || {
+              echo "npm ci attempt $i failed; retrying in 10s…"
+              sleep 10
+            }
+          done
+
+      - name: Inject preview env
+        run: |
+          mkdir -p "$VERCEL_PROJECT_DIR/.vercel"
+          {
+            echo "NEXT_PUBLIC_API_BASE=${PREVIEW_API_ORIGIN}"
+            echo "NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true"
+          } > "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local"
+
+      - name: Vercel pull
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel pull --yes --environment=preview --cwd "$VERCEL_PROJECT_DIR"
+
+      - name: Vercel build
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel build --cwd "$VERCEL_PROJECT_DIR"
+
+      - name: Vercel deploy (prebuilt)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: npx vercel deploy --prebuilt --cwd "$VERCEL_PROJECT_DIR"
+
 name: PR Preview (Vercel, label-gated)
 
 on:
