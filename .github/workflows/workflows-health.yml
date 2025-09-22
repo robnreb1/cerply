@@ -27,9 +27,11 @@ jobs:
             .github/workflows
       - name: Run actionlint
         uses: rhysd/actionlint@v1.7.1
+        env:
+          # Only fail on shellcheck errors; relax two noisy rules
+          SHELLCHECK_OPTS: -S error -e SC2086 -e SC2046
         with:
-          # Relax a couple of noisy shellcheck rules commonly tripped by matrix/bash
-          shellcheck_flags: -e SC2086 -e SC2046
+          args: -color
 
   dry_run:
     name: Dry-run common actions
