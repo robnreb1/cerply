@@ -36,6 +36,13 @@ import { decideNextAction, extractAppendModuleTitle } from './orchestrator';
 import { modulesLoad, modulesStore, analyticsRecord } from './tools';
 import { adaptModulesForProfile } from './profileAdapt';
 import { isAdminAllowed, hasSessionFromReq, COOKIE_NAME } from './admin';
+import type { FastifyContextConfig } from 'fastify';
+
+declare module 'fastify' {
+  interface FastifyContextConfig {
+    public?: boolean;
+  }
+}
 import { parseEnv } from './env';
 import { registerChatRoutes } from './routes/chat';
 import { registerIngestRoutes } from './routes/ingest';
@@ -1611,7 +1618,7 @@ app.post('/api/analytics/record', async (req: FastifyRequest, reply: FastifyRepl
 });
 
 // ---------------------
-// Admin-only Cerply Certified workflow stubs (FS §5.3, §9.2)
+// Cerply Certified public stubs (bypass admin; 503/501 semantics)
 // ---------------------
 function isAdmin(req: FastifyRequest): boolean {
   const allowDev = (process.env.ALLOW_DEV_ADMIN ?? '').toString().toLowerCase();
@@ -1623,92 +1630,32 @@ function isAdmin(req: FastifyRequest): boolean {
   return hasSession && (hdr === '1' || hdr === 'true');
 }
 
-type CertifiedPlan = { id: string; title: string; estMinutes: number; successCriteria?: string[]; prerequisites?: string[] };
+:type CertifiedPlan = { id: string; title: string; estMinutes: number; successCriteria?: string[]; prerequisites?: string[] };
 const _certifiedAudit: Array<{ step: string; at: string; payload: any }> = [];
 
-app.post('/api/_legacy_certified/plan', async (req: FastifyRequest, reply: FastifyReply) => {
-  const hasSession = hasSessionFromReq(req as any);
-  if (!isAdminAllowed(req.headers as any, hasSession)) {
-    return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'admin only' } });
-  }
-  const body = ((req as any).body ?? {}) as { topic?: string };
-  const topic = (body?.topic || 'Learning Topic').toString();
-  const modules: CertifiedPlan[] = [
-    { id: 'mod-01', title: `${topic}: Foundations`, estMinutes: 10, successCriteria: ['Explain key concepts'], prerequisites: [] },
-    { id: 'mod-02', title: `${topic}: Core Concepts`, estMinutes: 12, successCriteria: ['Apply basics to examples'] },
-  ];
-  _certifiedAudit.push({ step: 'plan', at: new Date().toISOString(), payload: { topic, modules, model: 'gpt-5' } });
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'certified-plan');
-  reply.header('x-planner', 'llm');
-  reply.header('x-model', 'gpt-5');
-  return reply.send({ ok: true, modules, auditSize: _certifiedAudit.length });
+// NOTE: Legacy _legacy_certified endpoints removed during conflict resolution; keeping public stub endpoints only
+app.post('/api/certified/plan', { config: { public: true } as FastifyContextConfig }, async (_req: FastifyRequest, reply: FastifyReply) => {
+  const enabled = String(process.env.CERTIFIED_ENABLED ?? 'false').toLowerCase() === 'true';
+  const code = enabled ? 501 : 503;
+  return reply.code(code).send({ status: 'stub', ok: false, route: 'plan' });
 });
 
-app.post('/api/_legacy_certified/alt-generate', async (req: FastifyRequest, reply: FastifyReply) => {
-  const hasSession = hasSessionFromReq(req as any);
-  if (!isAdminAllowed(req.headers as any, hasSession)) {
-    return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'admin only' } });
-  }
-  const body = ((req as any).body ?? {}) as { modules?: CertifiedPlan[] };
-  const mods = Array.isArray(body?.modules) && body.modules.length ? body.modules : [{ id: 'mod-01', title: 'Foundations', estMinutes: 10 }];
-  const items = mods.map((m, i) => ({
-    moduleId: m.id,
-    title: `${m.title} (Alt)`,
-    explanation: `Alternative perspective for ${m.title}.`,
-    questions: { mcq: mkItem(`Key point about ${m.title}?`, i), free: { prompt: `Explain ${m.title} differently.` } },
-    metadata: { citations: ['[stub] Source A', '[stub] Source B'] }
-  }));
-  _certifiedAudit.push({ step: 'alt_generate', at: new Date().toISOString(), payload: { count: items.length, model: 'gemini-ultra' } });
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'certified-alt');
-  reply.header('x-model', 'gemini-ultra');
-  return reply.send({ ok: true, items });
+app.post('/api/certified/alt-generate', { config: { public: true } as FastifyContextConfig }, async (_req: FastifyRequest, reply: FastifyReply) => {
+  const enabled = String(process.env.CERTIFIED_ENABLED ?? 'false').toLowerCase() === 'true';
+  const code = enabled ? 501 : 503;
+  return reply.code(code).send({ status: 'stub', ok: false, route: 'alt-generate' });
 });
 
-app.post('/api/_legacy_certified/review', async (req: FastifyRequest, reply: FastifyReply) => {
-  const hasSession = hasSessionFromReq(req as any);
-  if (!isAdminAllowed(req.headers as any, hasSession)) {
-    return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'admin only' } });
-  }
-  const body = ((req as any).body ?? {}) as { primary?: any[]; alternative?: any[] };
-  const critique = {
-    summary: 'Alt version improves clarity; merge key examples; tighten MCQ distractors.',
-    changes: [ 'Adopt alternative explanations for Module 1', 'Replace weak distractors in Module 2' ],
-    trust: { pitfalls: ['ambiguous distractor'], explainers: ['add concrete example X'], citations: ['[stub] Ref 1'] }
-  };
-  _certifiedAudit.push({ step: 'review', at: new Date().toISOString(), payload: { critique, model: 'claude-opus' } });
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'certified-review');
-  reply.header('x-model', 'claude-opus');
-  return reply.send({ ok: true, critique });
+app.post('/api/certified/review', { config: { public: true } as FastifyContextConfig }, async (_req: FastifyRequest, reply: FastifyReply) => {
+  const enabled = String(process.env.CERTIFIED_ENABLED ?? 'false').toLowerCase() === 'true';
+  const code = enabled ? 501 : 503;
+  return reply.code(code).send({ status: 'stub', ok: false, route: 'review' });
 });
 
-app.post('/api/_legacy_certified/finalize', async (req: FastifyRequest, reply: FastifyReply) => {
-  const hasSession = hasSessionFromReq(req as any);
-  if (!isAdminAllowed(req.headers as any, hasSession)) {
-    return reply.code(403).send({ error: { code: 'FORBIDDEN', message: 'admin only' } });
-  }
-
-  const body = ((req as any).body ?? {}) as { modules?: any[]; items?: any[]; notes?: string };
-  const packId = `cert-${Date.now().toString(36)}`;
-
-  _certifiedAudit.push({
-    step: 'finalize',
-    at: new Date().toISOString(),
-    payload: {
-      packId,
-      count: {
-        modules: Array.isArray(body.modules) ? body.modules.length : 0,
-        items: Array.isArray(body.items) ? body.items.length : 0
-      },
-      notes: body?.notes ?? null
-    }
-  });
-
-  reply.header('cache-control', 'no-store');
-  reply.header('x-api', 'certified-finalize');
-  return reply.send({ ok: true, packId, auditSize: _certifiedAudit.length });
+app.post('/api/certified/finalize', { config: { public: true } as FastifyContextConfig }, async (_req: FastifyRequest, reply: FastifyReply) => {
+  const enabled = String(process.env.CERTIFIED_ENABLED ?? 'false').toLowerCase() === 'true';
+  const code = enabled ? 501 : 503;
+  return reply.code(code).send({ status: 'stub', ok: false, route: 'finalize' });
 });
 
 // Expert: approve module (admin-only)

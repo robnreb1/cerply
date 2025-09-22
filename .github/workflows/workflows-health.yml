@@ -26,12 +26,13 @@ jobs:
           sparse-checkout: |
             .github/workflows
       - name: Run actionlint
-        uses: rhysd/actionlint@v1.7.1
+        uses: docker://rhysd/actionlint:1.7.1
         env:
           # Only fail on shellcheck errors; relax two noisy rules
           SHELLCHECK_OPTS: -S error -e SC2086 -e SC2046
         with:
           args: -color
+         
 
   dry_run:
     name: Dry-run common actions
