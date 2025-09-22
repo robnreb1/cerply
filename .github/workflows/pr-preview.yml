@@ -10,6 +10,9 @@ jobs:
     env:
       VERCEL_PROJECT_DIR: web
       PREVIEW_API_ORIGIN: https://cerply-api-staging-latest.onrender.com
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,15 +48,13 @@ jobs:
             echo "NEXT_PUBLIC_API_BASE=${PREVIEW_API_ORIGIN}"
             echo "NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true"
           } > "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local"
+          echo "--- injected .env.preview.local ---"
+          cat "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local" || true
 
       - name: Vercel pull
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npx vercel pull --yes --environment=preview --cwd "$VERCEL_PROJECT_DIR"
 
       - name: Vercel build
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npx vercel build --cwd "$VERCEL_PROJECT_DIR"
 
       - name: Vercel deploy (prebuilt)
