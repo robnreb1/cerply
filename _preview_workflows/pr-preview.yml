@@ -55,18 +55,18 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERCEL_PROJECT_DIR: web
-      PREVIEW_API_ORIGIN: ${{ vars.PREVIEW_API_ORIGIN || '' }}
+      PREVIEW_API_ORIGIN: ${{ secrets.PREVIEW_API_ORIGIN }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Sanity check paths
+      - name: Sanity: project layout
         run: |
-          ls -la
-          test -f web/package.json
-          jq -r '.rootDirectory // "unset"' web/.vercel/project.json || true
+          pwd
+          test -f web/package.json || { echo "missing web/package.json"; exit 1; }
+          ls -la web
 
       - uses: actions/setup-node@v4
         with:
