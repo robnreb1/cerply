@@ -1,167 +1,112 @@
-name: PR Preview (Vercel, label-gated)
-
+name: PR Preview
 on:
   pull_request:
-    types: [labeled, reopened, synchronize]
-  workflow_dispatch:
-    inputs:
-      pr:
-        description: 'PR number (manual run)'
-        required: false
-
-permissions:
-  contents: read
-  pull-requests: write
-  checks: write
-
-concurrency:
-  group: pr-preview-${{ github.event.pull_request.number || inputs.pr }}-web
-  cancel-in-progress: true
-
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-  PREVIEW_API_ORIGIN: ${{ vars.PREVIEW_API_ORIGIN || 'https://cerply-api-staging-latest.onrender.com' }}
+    types: [opened, synchronize, reopened, labeled]
 
 jobs:
-  gate:
-    name: Gate (label present?)
+  preview:
+    if: contains(github.event.pull_request.labels.*.name, 'preview')
     runs-on: ubuntu-latest
-    outputs:
-      pr_number: ${{ steps.meta.outputs.pr_number }}
+    env:
+      VERCEL_PROJECT_DIR: web
+      PREVIEW_API_ORIGIN: https://cerply-api-staging-latest.onrender.com
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+      VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
+      VERCEL_GIT_REPO_SLUG: ${{ github.event.repository.name }}
+      VERCEL_GIT_REPO_OWNER: ${{ github.repository_owner }}
     steps:
-      - id: meta
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Git safe.directory for workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Git safe.directory for web subdir
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE/$VERCEL_PROJECT_DIR"
+
+      - name: Sanity checks
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.pr }}" ]]; then
-            echo "pr_number=${{ inputs.pr }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "pr_number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-          fi
+          test -f "$VERCEL_PROJECT_DIR/package.json" || { echo "missing $VERCEL_PROJECT_DIR/package.json"; exit 1; }
+          test -f "$VERCEL_PROJECT_DIR/package-lock.json" || echo "warn: no lockfile (cache will be a miss)"
 
-  deploy:
-    name: Build & Deploy Preview
-    needs: gate
-    if: ${{ needs.gate.outputs.pr_number != '' && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels), '"preview"') && github.event.pull_request.head.repo.fork == false)) }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          fetch-depth: 1
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: ${{ env.VERCEL_PROJECT_DIR }}/package-lock.json
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20.x'
-          cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
-
-      - name: Cache npm (root only)
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: npm-${{ hashFiles('package-lock.json') }}
-
-      - name: Install deps (root)
-        working-directory: .
-        run: npm ci
-
-      - name: Pull Vercel project (preview)
-
-        working-directory: web
-
+      - name: Install deps
+        working-directory: ${{ env.VERCEL_PROJECT_DIR }}
         run: |
-          npx vercel --version
-          npx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+          npx --yes npm@10.8.2 --version >/dev/null 2>&1 || true
+          # simple retry
+          for i in 1 2 3; do
+            npm ci && break || {
+              echo "npm ci attempt $i failed; retrying in 10s…"
+              sleep 10
+            }
+          done
 
-      - name: Build (inject preview API origin)
+      - name: Inject preview env
+        run: |
+          mkdir -p "$VERCEL_PROJECT_DIR/.vercel"
+          {
+            echo "NEXT_PUBLIC_API_BASE=${PREVIEW_API_ORIGIN}"
+            echo "NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true"
+          } > "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local"
+          echo "--- injected .env.preview.local ---"
+          cat "$VERCEL_PROJECT_DIR/.vercel/.env.preview.local" || true
 
-        working-directory: web
+      - name: Write Vercel project.json
+        run: |
+          mkdir -p "$VERCEL_PROJECT_DIR/.vercel"
+          cat > "$VERCEL_PROJECT_DIR/.vercel/project.json" <<EOF
+          {
+            "orgId": "${VERCEL_ORG_ID}",
+            "projectId": "${VERCEL_PROJECT_ID}"
+          }
+          EOF
+          echo "--- wrote .vercel/project.json ---"
+          cat "$VERCEL_PROJECT_DIR/.vercel/project.json" || true
 
-        env:
-          NEXT_PUBLIC_API_BASE: ${{ env.PREVIEW_API_ORIGIN }}
-        run: npx vercel build --token "$VERCEL_TOKEN"
+      - name: Verify git state (web)
+        run: |
+          echo "PWD=$(pwd)"
+          git -C "$VERCEL_PROJECT_DIR" rev-parse --is-inside-work-tree || { echo "not a git work tree"; exit 1; }
+          git -C "$VERCEL_PROJECT_DIR" rev-parse --show-toplevel || true
+          git -C "$VERCEL_PROJECT_DIR" status --porcelain -b || true
 
-      - name: Deploy preview (structured JSON + API fallback)
+      # Skip vercel pull to avoid internal git usage; we already wrote project.json and env
+      - name: Vercel version
+        run: npx vercel --version
+
+      - name: Vercel deploy (remote build)
         id: deploy
-
-        working-directory: web
-
-        continue-on-error: true
-        env:
-          PR: ${{ needs.gate.outputs.pr_number }}
         run: |
           set -o pipefail
-
-          # 1) Try JSON output from Vercel CLI
-          npx vercel deploy --prebuilt \
-            --token "$VERCEL_TOKEN" \
-            --scope "$VERCEL_ORG_ID" \
-            --meta pr="$PR" \
-            --yes \
-            --json > /tmp/vercel.json 2>&1 || true
-
-          # Extract URL candidates from JSON
-          url=$(jq -r '(.url // .inspectUrl // (.aliases[0] // "")) // ""' /tmp/vercel.json 2>/dev/null || echo "")
-          # Normalize to https scheme if missing
-          if [ -n "$url" ] && ! echo "$url" | grep -Eq '^https?://'; then
-            url="https://$url"
-          fi
-
-          # 2) Detect rate limit in either JSON or stderr
-          if grep -Eqi 'rate limit|429|Exceeded usage' /tmp/vercel.json; then
-            echo "rate_limited=true" >> "$GITHUB_OUTPUT"
-          fi
-
-          # 3) If URL still empty, fall back to Vercel API by meta.pr
-          if [ -z "$url" ]; then
-            resp=$(curl -fsSL -H "Authorization: Bearer $VERCEL_TOKEN" \
-              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&meta-pr=$PR&limit=1" || true)
-            api_url=$(printf '%s' "$resp" | jq -r '.deployments[0].url // ""' 2>/dev/null || echo "")
-            api_alias=$(printf '%s' "$resp" | jq -r '.deployments[0].alias[0] // ""' 2>/dev/null || echo "")
-            if [ -n "$api_alias" ]; then
-              url="https://$api_alias"
-            elif [ -n "$api_url" ]; then
-              url="https://$api_url"
-            fi
-          fi
-
-          # 4) Export outputs for subsequent steps
-          if [ -n "$url" ]; then
-            echo "url=$url" >> "$GITHUB_OUTPUT"
-            echo "Resolved preview URL: $url"
-          else
-            echo "deploy_failed=true" >> "$GITHUB_OUTPUT"
-            echo "Could not resolve preview URL; see logs and /tmp/vercel.json"
-          fi
+          out=$(npx vercel deploy \
+                --token "$VERCEL_TOKEN" \
+                --scope "$VERCEL_ORG_ID" \
+                --yes --confirm 2>&1 | tee /tmp/vercel.out) || true
+          url=$(grep -Eo 'https://[a-z0-9-]+\.vercel\.app' /tmp/vercel.out | tail -n1 || true)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          test -n "$url" && echo "Preview URL: $url" || echo "No URL captured; see logs"
 
       - name: Comment with preview URL
         if: steps.deploy.outputs.url != ''
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          number: ${{ needs.gate.outputs.pr_number }}
           header: preview-url
           recreate: true
           message: |
-            ✅ **PR Preview ready**
+            ✅ PR Preview ready
             URL: ${{ steps.deploy.outputs.url }}
-            _Auto-expires in 48h or when the **preview** label is removed / PR closes._
-
-      - name: Neutral check on rate limit
-        if: steps.deploy.outputs.rate_limited == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const {owner, repo} = context.repo;
-            await github.rest.checks.create({
-              owner, repo,
-              name: 'PR Preview',
-              head_sha: context.payload.pull_request?.head?.sha || context.sha,
-              status: 'completed',
-              conclusion: 'neutral',
-              output: {
-                title: 'Preview skipped (Vercel rate limit)',
-                summary: 'Free plan limit hit. Preview not created. Merge is not blocked.'
-              }
-            })
-
+            Injected:
+            - NEXT_PUBLIC_API_BASE=${{ env.PREVIEW_API_ORIGIN }}
+            - NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true
