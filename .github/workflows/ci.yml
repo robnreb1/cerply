@@ -23,7 +23,7 @@ jobs:
     name: "Guard: residual service refs"
     runs-on: ubuntu-latest
     outputs:
-      cerply: ${{ steps.paths.outputs.cerply }}
+      cerply: ${{ steps.paths.outputs.cerply || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -200,19 +200,36 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
 
-      - name: Install deps
+      - name: Cache npm (multi-lock)
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json', 'api/package-lock.json', 'web/package-lock.json') }}
+
+      - name: Install deps (with retry)
         env:
           NODE_ENV: development
           NPM_CONFIG_PRODUCTION: 'false'
-        run: npm ci --workspaces --include-workspace-root --no-audit --no-fund
+        run: |
+          set -euo pipefail
+          i=0
+          until [ $i -ge 4 ]; do
+            npm ci --workspaces --include-workspace-root --no-audit --no-fund && break
+            i=$((i+1))
+            echo "npm ci failed; retry #$i in 10s…"
+            sleep 10
+          done
+          [ $i -lt 4 ] || { echo "npm ci failed after retries"; exit 1; }
 
       - name: Typecheck (api)
-        run: npm -w api run typecheck
+        run: npm run -w api typecheck
 
       - name: Typecheck (web)
-        run: npm -w web run typecheck
+        run: npm run -w web typecheck
 
   cerply-api:
     needs: [guard-residual-service-refs]
