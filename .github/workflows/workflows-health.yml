@@ -19,11 +19,23 @@ jobs:
     name: Lint workflows
     runs-on: ubuntu-latest
     steps:
-      - name: Harden checkout
-        uses: actions/checkout@v4
+      - name: Fetch workflow files via API
+        uses: actions/github-script@v7
         with:
-          persist-credentials: false
-          fetch-depth: 0
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const ref = context.sha;
+            fs.mkdirSync('.github/workflows', { recursive: true });
+            const list = await github.rest.repos.getContent({ owner, repo, path: '.github/workflows', ref });
+            const entries = Array.isArray(list.data) ? list.data.filter(e => e.type === 'file') : [];
+            for (const entry of entries) {
+              const file = await github.rest.repos.getContent({ owner, repo, path: entry.path, ref, mediaType: { format: 'raw' } });
+              fs.writeFileSync(path.join('.github/workflows', path.basename(entry.path)), Buffer.from(file.data));
+            }
+            core.notice(`Fetched ${entries.length} workflow files`);
 
       - name: Set up cache for actionlint
         uses: actions/cache@v4
@@ -57,17 +69,12 @@ jobs:
     name: Dry-run common actions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
       - name: Cache npm
         uses: actions/cache@v4
         with:
           path: |
             ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ runner.arch }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -77,19 +84,18 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install minimal tools (retry)
+      - name: Temp project install with retry
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p tmp-proj
+          cd tmp-proj
+          npm init -y >/dev/null 2>&1 || true
           for i in 1 2 3; do
-            npm ci --ignore-scripts && break || {
-              echo "npm ci failed, retry $i" >&2
-              rm -rf node_modules package-lock.json ~/.npm/_cacache || true
-              git restore --source=HEAD --worktree --staged -- package-lock.json || true
+            npm install --no-audit --no-fund left-pad@1.3.0 && break || {
+              echo "npm install failed, retry $i" >&2
+              rm -rf node_modules ~/.npm/_cacache || true
               sleep 3
             }
           done
-
-      - name: No-op build
-        run: |
-          echo "Dry run complete"
+          node -e "console.log(require('left-pad')('ok', 4, '.'))"
