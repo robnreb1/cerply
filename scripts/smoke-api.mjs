@@ -34,7 +34,7 @@ console.log(head.split(/\r?\n/).filter(l => /^x-api:/i.test(l)).join("\n") || "(
 try {
   const vh = sh(`curl -sS -D /tmp/vh.txt "${BASE}/api/version"`);
   console.log(vh);
-  const hdrs = sh(`cat /tmp/vh.txt | tr -d '\\r' | grep -Ei '^x-image-(tag|revision|created):' || true`);
+  const hdrs = sh(`cat /tmp/vh.txt | tr -d '\r' | grep -Ei '^x-image-(tag|revision|created):' || true`);
   console.log(hdrs || "(no image headers)");
 } catch {
   console.log("(/api/version not present yet)");
@@ -44,7 +44,7 @@ try {
 // 4) Cerply Certified stub/mock check (non-fatal; expect 200 when mock, else 501 or 503)
 try {
   const head = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/certified/plan" -H 'origin: https://app.cerply.com'`);
-  const code = (head.match(/\s(\d{3})\s/) || [,''])[1];
+  const code = (head.match(/\s(\d{3})\s/) || [,""])[1];
   console.log(`[certified] /api/certified/plan -> ${code}`);
   if (!['200','501','503'].includes(code)) {
     console.error(`WARN: expected 200/501/503 from /api/certified/plan, got ${code}`);
@@ -69,8 +69,8 @@ try {
         if (!ok) console.error('WARN: 501 body missing status:"stub" or non-empty request_id');
         else console.log(`[certified] stub ok request_id=${j.request_id}`);
       } else if (code === '200') {
-        const ok = j && j.status === 'ok' && j.endpoint === 'certified.plan' && Array.isArray(j?.plan?.items) && j.plan.items.length > 0;
-        if (!ok) console.error('WARN: 200 mock body missing status:"ok" or plan.items[0]');
+        const ok = j && j.status === 'ok' && j.endpoint === 'certified.plan' && Array.isArray(j?.plan?.items) && j.plan.items.length > 0 && j?.provenance && typeof j.provenance.planner === 'string' && Array.isArray(j.provenance.proposers) && typeof j.provenance.checker === 'string';
+        if (!ok) console.error('WARN: 200 mock body missing status:"ok" or plan/provenance shape');
         else console.log(`[certified] mock ok items=${j.plan.items.length}`);
       }
     } catch {

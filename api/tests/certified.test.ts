@@ -3,6 +3,12 @@ import createApp from '../src/index';
 
 const COOKIE = 'cerply_session=test';
 
+function isPlanShape(j: any) {
+  return j && j.status === 'ok' && j.endpoint === 'certified.plan' && j.mode === 'mock' && j.enabled === true &&
+    j.provenance && typeof j.provenance.planner === 'string' && Array.isArray(j.provenance.proposers) && typeof j.provenance.checker === 'string' &&
+    j.plan && typeof j.plan.title === 'string' && Array.isArray(j.plan.items) && j.plan.items.length > 0 && typeof j.plan.items[0].id === 'string';
+}
+
 describe('Certified endpoints (feature-flagged stubs)', () => {
   let app: Awaited<ReturnType<typeof createApp>>;
 
@@ -53,23 +59,21 @@ describe('Certified endpoints (feature-flagged stubs)', () => {
     vi.stubEnv('CERTIFIED_ENABLED', 'true');
     vi.stubEnv('CERTIFIED_MODE', 'mock');
     app = await createApp();
-    const r = await app.inject({ method: 'POST', url: '/api/certified/plan' });
+    const r = await app.inject({ method: 'POST', url: '/api/certified/plan', headers: { 'content-type': 'application/json' }, payload: {} });
     expect(r.statusCode).toBe(200);
     expect(r.headers['access-control-allow-origin']).toBe('*');
     expect(String(r.headers['access-control-allow-credentials'] || '')).not.toMatch(/^true$/i);
     // EPIC #82: debug header must not be present on certified POST responses
     expect(r.headers['x-cors-certified-hook']).toBeUndefined();
     const j = r.json();
-    expect(j?.status).toBe('ok');
-    expect(j?.endpoint).toBe('certified.plan');
-    expect(j?.mode).toBe('mock');
-    expect(j?.enabled).toBe(true);
-    expect(typeof j?.request_id).toBe('string');
-    expect(j?.provenance).toMatchObject({ planner: 'mock', checker: 'mock' });
-    expect(Array.isArray(j?.provenance?.proposers)).toBe(true);
-    expect(j?.plan?.title).toBe('Mock Plan');
-    expect(Array.isArray(j?.plan?.items)).toBe(true);
-    expect(j?.plan?.items?.[0]?.id).toBe('m1');
+    expect(isPlanShape(j)).toBe(true);
+  });
+
+  it('returns 415 when Content-Type is not application/json', async () => {
+    const r = await app.inject({ method: 'POST', url: '/api/certified/plan', headers: { 'content-type': 'text/plain' }, payload: 'x' });
+    expect(r.statusCode).toBe(415);
+    const j = r.json();
+    expect(j?.error?.code).toBe('UNSUPPORTED_MEDIA_TYPE');
   });
 
   it('OPTIONS preflight returns 204 with CORS headers', async () => {

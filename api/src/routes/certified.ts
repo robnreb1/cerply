@@ -38,13 +38,33 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
-  // Plan
+  /**
+   * POST /api/certified/plan
+   * FSD/BRD contract: see docs/spec/use-cases.md (Certified: pipeline scaffold)
+   * - When CERTIFIED_ENABLED=false → 503 { error: { code: 'CERTIFIED_DISABLED', ... } }
+   * - When CERTIFIED_ENABLED=true and CERTIFIED_MODE=stub (default) → 501 stub JSON
+   * - When CERTIFIED_ENABLED=true and CERTIFIED_MODE=mock → 200 mock JSON matching spec shape
+   * Request validation (minimal): Content-Type must be application/json if present; accept empty JSON {}
+   */
   app.post('/api/certified/plan', { config: { public: true } }, async (_req: FastifyRequest, reply: FastifyReply) => {
     if (!isEnabled()) {
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
     }
+
+    // Minimal content-type validation: allow when missing; require application/json if provided
+    try {
+      const ct = String(((_req as any).headers?.['content-type'] ?? '')).toLowerCase();
+      if (ct && !ct.includes('application/json')) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply
+          .code(415)
+          .send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Content-Type must be application/json' } });
+      }
+    } catch {}
+
     const request_id = crypto.randomUUID();
     const method = (_req as any).method || 'POST';
     const path = (_req as any).url || '/api/certified/plan';

@@ -1,6 +1,23 @@
 // Next.js config (CJS)
 const path = require('path');
 
+// Load Vercel preview env file when building a preview deployment.
+// This keeps local dev builds untouched while enabling preview-specific vars.
+try {
+  const isPreview = process.env.VERCEL_ENV === 'preview' || process.env.NEXT_PUBLIC_ENV === 'preview';
+  if (isPreview) {
+    // Load variables from web/.vercel/.env.preview.local
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('dotenv').config({ path: path.join(__dirname, '.vercel', '.env.preview.local') });
+    // Optional: surface that preview env was loaded during build
+    // eslint-disable-next-line no-console
+    console.log('[next.config] Loaded .vercel/.env.preview.local for preview build');
+  }
+} catch (err) {
+  // eslint-disable-next-line no-console
+  console.warn('[next.config] Preview env load skipped:', err && (err.message || err));
+}
+
 const getApiBase = () => {
   const raw = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
   return raw.replace(/\/+$/, '');
