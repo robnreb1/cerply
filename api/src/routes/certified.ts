@@ -39,7 +39,27 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
   });
 
   // Plan
+  /**
+   * Certified Plan schema (mock) — from docs/spec/flags.md Runtime (mode)
+   *
+   * {
+   *   "status":"ok",
+   *   "request_id":"<uuid>",
+   *   "endpoint":"certified.plan",
+   *   "mode":"mock",
+   *   "enabled": true,
+   *   "provenance": { "planner":"mock", "proposers":["mockA","mockB"], "checker":"mock" },
+   *   "plan": { "title":"Mock Plan", "items":[ { "id":"m1", "type":"card", "front":"...", "back":"..." } ] }
+   * }
+   */
   app.post('/api/certified/plan', { config: { public: true } }, async (_req: FastifyRequest, reply: FastifyReply) => {
+    // Enforce content-type for POSTs (DoD: return 415 on wrong/missing Content-Type)
+    const ct = String(((_req as any).headers?.['content-type'] ?? '')).toLowerCase();
+    if (!ct.includes('application/json')) {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Expected content-type: application/json' } });
+    }
     if (!isEnabled()) {
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');

@@ -86,7 +86,7 @@ async function fetchJson(url, attempt = 1) {
         if (!ok) console.warn('WARN: 501 body missing status:"stub" or non-empty request_id');
         else console.log(`[certified] stub ok request_id=${j.request_id}`);
       } else if (code === 200) {
-        const ok = j && j.status === 'ok' && j.endpoint === 'certified.plan' && Array.isArray(j?.plan?.items) && j.plan.items.length > 0;
+        const ok = j && j.status === 'ok' && j.endpoint === 'certified.plan' && Array.isArray(j?.plan?.items) && j.plan.items.length > 0 && j?.provenance?.planner === 'mock';
         if (!ok) console.warn('WARN: 200 mock body missing status:"ok" or plan.items[0]');
         else console.log(`[certified] mock ok items=${j.plan.items.length}`);
       }
