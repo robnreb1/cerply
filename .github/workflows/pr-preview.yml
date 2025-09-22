@@ -84,12 +84,16 @@ jobs:
 
       # Skip vercel pull to avoid internal git usage; we already wrote project.json and env
       - name: Vercel version
+
         working-directory: ${{ env.VERCEL_PROJECT_DIR }}
+
         run: npx vercel --version
 
       - name: Vercel deploy (remote build)
         id: deploy
+
         working-directory: ${{ env.VERCEL_PROJECT_DIR }}
+
         run: |
           set -o pipefail
           out=$(npx vercel deploy \
