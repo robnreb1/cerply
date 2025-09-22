@@ -13,6 +13,10 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_GIT_COMMIT_SHA: ${{ github.sha }}
+      VERCEL_GIT_COMMIT_REF: ${{ github.ref_name }}
+      VERCEL_GIT_REPO_SLUG: ${{ github.event.repository.name }}
+      VERCEL_GIT_REPO_OWNER: ${{ github.repository_owner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,6 +25,9 @@ jobs:
 
       - name: Git safe.directory for workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Git safe.directory for web subdir
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE/$VERCEL_PROJECT_DIR"
 
       - name: Sanity checks
         run: |
