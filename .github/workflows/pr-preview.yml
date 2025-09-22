@@ -82,14 +82,12 @@ jobs:
           git -C "$VERCEL_PROJECT_DIR" rev-parse --show-toplevel || true
           git -C "$VERCEL_PROJECT_DIR" status --porcelain -b || true
 
-      - name: Vercel pull
-        run: |
-          set -x
-          npx vercel --version
-          npx vercel pull --yes --environment=preview --cwd "$VERCEL_PROJECT_DIR"
+      # Skip vercel pull to avoid internal git usage; we already wrote project.json and env
+      - name: Vercel version
+        run: npx vercel --version
 
       - name: Vercel build
-        run: npx vercel build --cwd "$VERCEL_PROJECT_DIR"
+        run: npx vercel build --cwd "$VERCEL_PROJECT_DIR" --token "$VERCEL_TOKEN"
 
       - name: Vercel deploy (prebuilt)
         id: deploy
