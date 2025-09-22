@@ -23,7 +23,7 @@ jobs:
     name: "Guard: residual service refs"
     runs-on: ubuntu-latest
     outputs:
-      cerply: ${{ steps.paths.outputs['cerply'] || 'false' }}
+      cerply: ${{ steps.paths.outputs.cerply || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

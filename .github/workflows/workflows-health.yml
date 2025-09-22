@@ -26,7 +26,7 @@ jobs:
           sparse-checkout: |
             .github/workflows
       - name: Run actionlint
-        uses: rhysd/actionlint@v1.7.1
+        uses: rhysd/actionlint@62dc61a45fc95efe8c800af7a557ab0b9165d63b # v1.7.1
         env:
           # Only fail on shellcheck errors; relax two noisy rules
           SHELLCHECK_OPTS: -S error -e SC2086 -e SC2046
