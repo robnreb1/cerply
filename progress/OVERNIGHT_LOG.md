@@ -18,3 +18,5 @@
 - 2025-09-23 19:59:28 web: adapters added; runner resume wired; unit tests passing
 - 2025-09-23 20:08:57 web: E2E stable (plan + resume); preview flag set for tests
 - 2025-09-23 20:11:02 PR #133 opened: retention v0 web integration (preview)
+- 2025-09-23 20:40:41 start feat/adaptive-engine-v1-preview; scaffold engine + flags
+- 2025-09-23 20:53:34 adaptive: evaluator + CI job + docs added; PR #134 opened (preview)

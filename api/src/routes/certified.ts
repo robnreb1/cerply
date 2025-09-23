@@ -4,6 +4,7 @@ import { PlanRequestZ, PlanResponseZ } from '../schemas/certified.plan';
 import { PlannerInputZ, PlannerEngine } from '../planner/interfaces';
 import { MockPlanner } from '../planner/engines/mock';
 import { OpenAIPlanner } from '../planner/engines/openai';
+import { AdaptiveV1Planner } from '../planner/engines/adaptive-v1';
 
 // Extend Fastify route config to accept a `public` boolean used by global guards
 declare module 'fastify' {
@@ -101,6 +102,8 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
       let planner: PlannerEngine = MockPlanner; // default and CI-safe
       if (engine === 'openai' && (process.env.OPENAI_API_KEY || '').length > 0) {
         planner = OpenAIPlanner;
+      } else if (engine === 'adaptive' && String(process.env.FF_ADAPTIVE_ENGINE_V1 || 'false').toLowerCase() === 'true') {
+        planner = AdaptiveV1Planner;
       }
       const out = await planner.generate(input);
 
@@ -113,7 +116,7 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
         endpoint: 'certified.plan',
         mode: 'plan',
         enabled: true,
-        provenance: out.provenance,
+        provenance: { ...out.provenance, engine: planner.name },
         plan: out.plan
       } as const;
       // Runtime response validation (guardrail)

@@ -414,6 +414,11 @@ Web integration (preview): `/certified/study` calls schedule on start/reset, pos
 - Each endpoint returns 200 on valid input; JSON matches the corresponding schema.
 - Token usage and model name are logged per request; daily aggregates exposed to ops.
 
+### 21.2 Adaptive Planner Engine v1 (Preview)
+
+- Engine selection: If `FF_ADAPTIVE_ENGINE_V1=true` and `PLANNER_ENGINE=adaptive`, PLAN uses `adaptive-v1` (deterministic; no schema change). Response `provenance.engine: "adaptive-v1"`.
+- Evaluator: `npm -w api run -s planner:eval:adaptive` writes metrics to `api/tests/fixtures/planner-eval.adaptive.json`.
+
 ## 22) Backlog (Next 10)
 
 1. LLM router + runner stubs (`api/src/llm/*`).

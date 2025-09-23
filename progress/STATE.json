@@ -1,12 +1,13 @@
 {
-  "phase": "retention-v0-web",
-  "branch": "feat/retention-v0-web",
+  "phase": "adaptive-engine-v1",
+  "branch": "feat/adaptive-engine-v1-preview",
   "ok": true,
   "checklist": {
-    "adapters": true,
-    "runner_wired": true,
-    "unit_tests": true,
-    "e2e": true,
+    "engine": true,
+    "wire": true,
+    "tests": true,
+    "openapi": true,
+    "evaluator": true,
     "docs": true
   }
 }

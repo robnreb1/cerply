@@ -19,6 +19,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  adaptive-eval:
+    name: Adaptive Eval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+      - name: Silence dubious ownership
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'api/package-lock.json'
+      - name: Install deps (api)
+        run: npm ci
+        working-directory: ./api
+      - name: Run evaluator (adaptive)
+        env:
+          CERTIFIED_ENABLED: 'true'
+          CERTIFIED_MODE: 'plan'
+          PLANNER_ENGINE: 'adaptive'
+          FF_ADAPTIVE_ENGINE_V1: 'true'
+        run: npm -w api run -s planner:eval:adaptive
+      - name: Upload metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: adaptive-eval-metrics
+          path: api/tests/fixtures/planner-eval.adaptive.json
   guard-residual-service-refs:
     name: "Guard: residual service refs"
     runs-on: ubuntu-latest
@@ -289,10 +320,11 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
           # Try to neutralize any submodule metadata to prevent checkout post-cleanup failures
-          git submodule deinit -f --all || true
-          git config --local --remove-section submodule.cerply || true
-          # Truncate .gitmodules if present so `git submodule foreach` no-ops
-          [ -f .gitmodules ] && : > .gitmodules || true
+          if [ -f .gitmodules ]; then
+            git submodule deinit -f --all || true
+            git config --local --remove-section submodule.cerply || true
+            : > .gitmodules || true
+          fi
 
   cerply-api:
     needs: [guard-residual-service-refs]
