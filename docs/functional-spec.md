@@ -419,6 +419,11 @@ Web integration (preview): `/certified/study` calls schedule on start/reset, pos
 - Engine selection: If `FF_ADAPTIVE_ENGINE_V1=true` and `PLANNER_ENGINE=adaptive`, PLAN uses `adaptive-v1` (deterministic; no schema change). Response `provenance.engine: "adaptive-v1"`.
 - Evaluator: `npm -w api run -s planner:eval:adaptive` writes metrics to `api/tests/fixtures/planner-eval.adaptive.json`.
 
+### 21.3 OpenAI Planner Adapter v0 (Preview)
+
+- Engine selection: If `FF_OPENAI_ADAPTER_V0=true` and `PLANNER_ENGINE=openai`, PLAN uses `openai-v0` (preview; deterministic fallback when no key). Response `provenance.engine: "openai-v0"`.
+- Evaluator: `npm -w api run -s planner:eval:openai` writes metrics to `api/tests/fixtures/planner-eval.openai.json`.
+- CI: Offline eval always runs; optional keyed smoke when secret exists.
 ## 22) Backlog (Next 10)
 
 1. LLM router + runner stubs (`api/src/llm/*`).

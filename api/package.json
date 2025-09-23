@@ -23,7 +23,8 @@
     "openapi:build": "tsx scripts/openapi-build.ts",
     "openapi:check": "npm run openapi:build && test -f openapi/build/openapi.json",
     "planner:eval": "tsx scripts/planner-eval.ts",
-    "planner:eval:adaptive": "tsx scripts/planner-eval.adaptive.ts"
+  "planner:eval:adaptive": "tsx scripts/planner-eval.adaptive.ts",
+  "planner:eval:openai": "tsx scripts/planner-eval.openai.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^9.4.0",

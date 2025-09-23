@@ -50,11 +50,60 @@ jobs:
         with:
           name: adaptive-eval-metrics
           path: api/tests/fixtures/planner-eval.adaptive.json
+  openai-eval-offline:
+    name: OpenAI Eval (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'api/package-lock.json'
+      - name: Install deps (api)
+        working-directory: api
+        run: npm ci
+      - name: Run evaluator (no-key path)
+        working-directory: api
+        run: npm run -s planner:eval:openai
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: planner-eval-openai.json
+          path: api/tests/fixtures/planner-eval.openai.json
+
+  openai-smoke-keyed:
+    name: OpenAI Smoke (keyed)
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'api/package-lock.json'
+      - name: Install deps (api)
+        working-directory: api
+        run: npm ci
+      - name: Run keyed evaluator (small sample)
+        if: ${{ env.OPENAI_API_KEY != '' }}
+        working-directory: api
+        run: npm run -s planner:eval:openai
+      - name: Upload artifact
+        if: ${{ env.OPENAI_API_KEY != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: planner-eval-openai-keyed.json
+          path: api/tests/fixtures/planner-eval.openai.json
   guard-residual-service-refs:
     name: "Guard: residual service refs"
     runs-on: ubuntu-latest
     outputs:
-      cerply: ${{ steps.paths.outputs['cerply'] || 'false' }}
+      cerply: ${{ steps.paths.outputs.cerply || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
