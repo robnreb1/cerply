@@ -1,6 +1,6 @@
 {
-  "phase": "study-runner",
-  "step": 8,
+  "phase": "retention-v0",
+  "branch": "feat/retention-v0-preview",
   "ok": true,
-  "note": "docs updated"
+  "note": "API done (preview): schedule/progress endpoints, SM-2-lite, docs; ready to wire web next"
 }

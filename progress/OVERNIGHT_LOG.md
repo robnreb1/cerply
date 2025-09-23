@@ -12,3 +12,5 @@
 - 2025-09-23 10:46:14 step5 unit tests + vitest config
 - 2025-09-23 10:46:14 steps6-7 e2e + ci wired
 - 2025-09-23 10:46:14 step8 docs updated
+- 2025-09-23 17:12:56 start feat/retention-v0-preview; scaffold retention schemas/routes/tests
+- 2025-09-23 17:23:50 retention v0: schemas+engine+routes+tests+docs added; all api tests green
