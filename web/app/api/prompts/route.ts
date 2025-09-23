@@ -24,6 +24,7 @@ export async function GET(request: Request) {
           'content-type': resp.headers.get('content-type') ?? 'application/json; charset=utf-8',
           'cache-control': 'no-store',
           'x-upstream': url,
+          'x-edge': 'prompts-proxy',
         },
       });
     }
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',
       'x-upstream': url,
+      'x-edge': 'prompts-fallback',
     },
   });
 }
