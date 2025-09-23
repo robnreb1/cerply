@@ -1,8 +1,23 @@
 name: CI
+name: CI
 
 on:
-  pull_request:
   push:
+    branches: [main, master, staging]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy_prod:
+        description: "Deploy Vercel Production"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   adaptive-eval:
@@ -36,27 +51,6 @@ jobs:
         with:
           name: adaptive-eval-metrics
           path: api/tests/fixtures/planner-eval.adaptive.json
-name: CI
-
-on:
-  push:
-    branches: [main, master, staging]
-  pull_request:
-  workflow_dispatch:
-    inputs:
-      deploy_prod:
-        description: "Deploy Vercel Production"
-        required: false
-        default: "false"
-
-permissions:
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
   guard-residual-service-refs:
     name: "Guard: residual service refs"
     runs-on: ubuntu-latest
