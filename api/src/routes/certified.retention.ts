@@ -12,15 +12,6 @@ function enabled() {
 const SNAPSHOTS = new Map<string, z.infer<typeof ProgressSnapshotZ>>();
 
 export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
-  // Preflight explicit (OPTIONS 204)
-  app.options('/api/certified/*', { config: { public: true } }, async (_req, reply) => {
-    reply
-      .header('access-control-allow-origin', '*')
-      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-      .header('access-control-allow-headers', 'content-type, authorization');
-    return reply.code(204).send();
-  });
-
   // POST /api/certified/schedule
   app.post('/api/certified/schedule', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
     const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
