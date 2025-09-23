@@ -1,10 +1,24 @@
 import assert from 'node:assert';
-import { pickPreviewTitle } from './certifiedPlan.js';
+import { renderTitle, pickCards } from './certifiedPlan.mjs';
 
-const ok = pickPreviewTitle({ status: 'ok', plan: { title: 'Mock Plan', items: [{ id: 'm1', type: 'card' }] } });
-assert.strictEqual(ok, 'Mock Plan');
-const stub = pickPreviewTitle({ status: 'stub' });
-assert.strictEqual(stub, 'Certified (stub mode)');
-const def = pickPreviewTitle({ status: 'unknown' });
-assert.strictEqual(def, 'Certified');
-console.log('presenter ok');
+const sample = {
+  status: 'ok',
+  endpoint: 'certified.plan',
+  mode: 'plan',
+  enabled: true,
+  request_id: 'u',
+  provenance: { planner: 'rule', proposers: ['ruleA','ruleB'], checker: 'rule' },
+  plan: {
+    title: 'Plan: Hashes',
+    items: [
+      { id: 'card-intro', type: 'card', front: 'Overview', back: '...' },
+      { id: 'x', type: 'free' }
+    ]
+  }
+};
+
+assert.strictEqual(renderTitle(sample), 'Plan: Hashes');
+const cards = pickCards(sample);
+assert.ok(Array.isArray(cards) && cards.length >= 1);
+assert.strictEqual(cards[0].type, 'card');
+console.log('presenter plan ok');
