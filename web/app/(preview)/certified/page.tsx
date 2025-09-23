@@ -15,13 +15,14 @@ export default function CertifiedPreviewPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<number | null>(null);
   const [json, setJson] = useState<any>(null);
+  const [topic, setTopic] = useState<string>('');
 
   async function callPlan() {
     setLoading(true);
     setStatus(null);
     setJson(null);
     try {
-      const res = await fetch(`${apiBase()}/api/certified/plan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
+      const res = await fetch(`${apiBase()}/api/certified/plan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic }) });
       setStatus(res.status);
       const data = await res.json().catch(() => ({}));
       setJson(data);
@@ -36,15 +37,26 @@ export default function CertifiedPreviewPage() {
   return (
     <div style={{ padding: 16, display: 'grid', gap: 12 }}>
       <h1 style={{ fontSize: 18, fontWeight: 600 }}>Certified Preview</h1>
-      <button onClick={callPlan} disabled={loading} style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 8 }}>
-        {loading ? 'Calling…' : 'POST /api/certified/plan'}
-      </button>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          placeholder="Enter a topic (e.g., Hashes)"
+          aria-label="Topic"
+          style={{ flex: 1, padding: '8px 10px', border: '1px solid #ccc', borderRadius: 8 }}
+        />
+        <button onClick={callPlan} disabled={loading || !topic.trim()} style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 8 }}>
+          {loading ? 'Calling…' : 'POST /api/certified/plan'}
+        </button>
+      </div>
       {status !== null && (
         <div>
           <div style={{ marginBottom: 8 }}>Status: <strong>{status}</strong></div>
-          {(status === 501 || status === 503) && (
+          {(status === 415 || status === 400 || status === 501 || status === 503) && (
             <div style={{ marginBottom: 8, padding: 8, background: '#fff3cd', border: '1px solid #ffe2a1', borderRadius: 8 }}>
-              {status === 501 ? 'Certified is enabled but not implemented yet.' : 'Cerply Certified is disabled.'}
+              {status === 415 ? 'Unsupported media type: send JSON (application/json).' :
+               status === 400 ? 'Bad request: include a non-empty topic.' :
+               status === 501 ? 'Certified is enabled but not implemented yet.' : 'Cerply Certified is disabled.'}
             </div>
           )}
           {json && (
