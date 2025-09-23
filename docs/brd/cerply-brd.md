@@ -1,5 +1,5 @@
 # Cerply — Business Requirements (BRD)
-Version: v1.2
+Version: v1.3
 Status: AUTHORITATIVE — single source of truth for business requirements
 Owner: Product (Robert Ford)
 Changelog: see History section at bottom
@@ -53,4 +53,5 @@ KPIs: waitlist->demo, demo->pilot, content->inbound, pilot NPS, conversion to pa
 ---
 
 ## History
+- v1.3 (2025-09-23): Certified PLAN v0 delivered (deterministic planner + preview UIs), OpenAPI generation/preview, CI E2E on PRs, and doc updates; sets groundwork for Certified multi-agent pipeline.
 - v1.2 (2025-09-19): Consolidated BRD; added certification flavors; adaptive/group learning; pricing; platforms; GTM as appendix.

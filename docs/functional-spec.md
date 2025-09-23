@@ -28,6 +28,7 @@
     - CI: `.github/workflows/stg-smoke.yml` uses `${{ secrets.VERCEL_BYPASS_TOKEN_STG }}` to set the cookie and run the script
 
 ## 11) Change log
+- **2025-09-23**: Certified PLAN v0 delivered (flags, strict JSON, CORS invariants, deterministic planner + golden fixture, OpenAPI gen & preview docs). Web preview `/certified` and Study Runner v0 `/certified/study` (preview-only) shipped with unit + E2E tests. CI stabilized: Playwright job starts Next.js locally, uses staging API base, adds OpenAPI drift guard; resolved git 128 checkout warnings.
 - **2025-08-31**: Chat-first refinements — rails positioned below and full-bleed; compact composer with right-aligned Upload/Send; reduced opener→input gap; prompts proxy/fallback headers reflected in acceptance; rate-limit/diagnostics noted.
 - **2025-08-22**: Staging "M1" edge canaries for `/ping`, `/api/health`, `/api/prompts`; added `scripts/smoke-stg.sh`; documented bypass-cookie flow; acceptance updated to allow M1 vs M2.
 - **2025-08-19**: Expanded acceptance criteria to include `/prompts` and coverage smoke; spec reconciled.
@@ -65,6 +66,32 @@
 - `GET /api/health` and `/api/prompts` return 200 JSON **through the proxy** (not handled by app routes).
 - `/prompts` page fetches via proxy.
 - Remove canary code and update smoke to assert proxy path.
+
+## 13.1) Certified PLAN v0 (Preview)
+
+Flags
+- `CERTIFIED_ENABLED`, `CERTIFIED_MODE` in API (`stub|mock|plan`)
+- `PLANNER_ENGINE` (`mock|openai`), `OPENAI_API_KEY` (optional)
+- `NEXT_PUBLIC_PREVIEW_CERTIFIED_UI` (web), `PREVIEW_DOCS` (API docs UI)
+
+Endpoint
+- `POST /api/certified/plan` (JSON only; 415 if content-type wrong)
+- Request: `{ topic: string; level?: string; goals?: string[] }`
+- Response: deterministic plan with `provenance` and `plan.items[]`
+- CORS: `Access-Control-Allow-Origin: *`, no `ACAC`, no debug headers; OPTIONS 204
+
+OpenAPI & Docs
+- Zod schemas → `openapi.json` via script; preview docs route `/api/docs` behind `PREVIEW_DOCS`
+- Drift guard CI job builds and diffs committed `api/openapi/build/openapi.json`
+
+Testing
+- API tests for 415/400/200 (shape+determinism)/501/503/OPTIONS
+- Golden fixture parity (`certified.plan.success.json`)
+- Playwright E2E on PRs for PLAN preview page; mocks API in spec
+
+Web Preview
+- `/certified` gated page posts JSON to `/api/certified/plan`; displays title/items and status banners (400/415/501/503)
+- Study Runner v0 at `/certified/study` (preview): form → deck, a11y, progress, hotkeys, persistence; unit tests + E2E
 
 ## 14) Enterprise‑Ready Minimalist UI (ER‑MUI)
 
