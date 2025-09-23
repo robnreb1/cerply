@@ -12,13 +12,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Find preview URL from PR comments
+      - name: Find preview URL from PR comments (sticky)
         id: find
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          url=$(gh pr view ${{ github.event.pull_request.number }} --json comments -q '.comments[]?.body' | grep -Eo 'https://[a-z0-9-]+\.vercel\.app' | tail -n1 || true)
+          url=$(gh pr view ${{ github.event.pull_request.number }} --json comments -q '.comments[]?|select(.body|test("^✅ PR Preview ready"))|.body' | grep -Eo 'https://[a-z0-9-]+\.vercel\.app' | head -n1 || true)
           echo "url=${url}" >> "$GITHUB_OUTPUT"
           test -n "$url" && echo "Preview URL: $url" || echo "No preview URL found; skipping E2E"
 
@@ -38,7 +38,7 @@ jobs:
         working-directory: web
         run: npx playwright install --with-deps
 
-      - name: Run E2E
+      - name: Run E2E (PLAN preview)
         if: steps.find.outputs.url != ''
         working-directory: web
         env:
