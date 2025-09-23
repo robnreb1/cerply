@@ -1,6 +1,7 @@
 {
-  "phase": "planner-pipeline",
-  "step": 9,
-  "ok": true,
-  "note": "ci jobs updated (e2e/env, openapi drift, planner:eval)"
+  "phase": "retention-v0",
+  "branch": "feat/retention-v0-preview",
+  "epic": "Certified Retention v0",
+  "goal": "Add SM-2-lite scheduling + progress sync (preview-gated)",
+  "ok": true
 }
