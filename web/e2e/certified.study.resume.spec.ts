@@ -25,7 +25,7 @@ test('Certified Study Runner resume from server snapshot', async ({ page }) => {
 
   await page.goto('/certified/study');
   await expect(page.getByRole('heading', { name: 'Certified Study Runner' })).toBeVisible();
-
+  await page.waitForSelector('input[aria-label="Topic"]', { timeout: 10000 });
   await page.fill('input[aria-label="Topic"]', 'Hashes');
   await page.click('button[aria-label="Submit"]');
 

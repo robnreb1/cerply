@@ -16,7 +16,7 @@
     "smoke:api": "node ./scripts/smoke-api.mjs",
     "test": "vitest --run",
     "test:watch": "vitest",
-    "test:e2e": "node ./lib/presenter/certifiedPlan.test.mjs && playwright test e2e/certified.plan.spec.ts e2e/certified.study.resume.spec.ts --config=playwright.config.ts"
+    "test:e2e": "node ./lib/presenter/certifiedPlan.test.mjs && cross-env NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true npm run -s build && cross-env NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true playwright test e2e/certified.plan.spec.ts e2e/certified.study.resume.spec.ts --config=playwright.config.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
