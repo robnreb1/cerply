@@ -424,7 +424,6 @@ Web integration (preview): `/certified/study` calls schedule on start/reset, pos
 - Engine selection: If `FF_OPENAI_ADAPTER_V0=true` and `PLANNER_ENGINE=openai`, PLAN uses `openai-v0` (preview; deterministic fallback when no key). Response `provenance.engine: "openai-v0"`.
 - Evaluator: `npm -w api run -s planner:eval:openai` writes metrics to `api/tests/fixtures/planner-eval.openai.json`.
 - CI: Offline eval always runs; optional keyed smoke when secret exists.
-
 ## 22) Backlog (Next 10)
 
 1. LLM router + runner stubs (`api/src/llm/*`).

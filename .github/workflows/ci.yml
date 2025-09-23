@@ -50,7 +50,6 @@ jobs:
         with:
           name: adaptive-eval-metrics
           path: api/tests/fixtures/planner-eval.adaptive.json
-
   openai-eval-offline:
     name: OpenAI Eval (offline)
     runs-on: ubuntu-latest
