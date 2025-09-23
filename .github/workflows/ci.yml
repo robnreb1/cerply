@@ -77,7 +77,6 @@ jobs:
   openai-smoke-keyed:
     name: OpenAI Smoke (keyed)
     runs-on: ubuntu-latest
-    if: ${{ secrets.OPENAI_API_KEY != '' }}
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
@@ -92,9 +91,11 @@ jobs:
         working-directory: api
         run: npm ci
       - name: Run keyed evaluator (small sample)
+        if: ${{ env.OPENAI_API_KEY != '' }}
         working-directory: api
         run: npm run -s planner:eval:openai
       - name: Upload artifact
+        if: ${{ env.OPENAI_API_KEY != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: planner-eval-openai-keyed.json
@@ -103,7 +104,7 @@ jobs:
     name: "Guard: residual service refs"
     runs-on: ubuntu-latest
     outputs:
-      cerply: ${{ steps.paths.outputs.cerply }}
+      cerply: ${{ steps.paths.outputs.cerply || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
