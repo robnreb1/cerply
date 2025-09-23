@@ -8,3 +8,4 @@
 - 2025-09-23 09:57:32 step8 playwright expanded
 - 2025-09-23 09:57:32 step9 ci updates
 - 2025-09-23 17:12:56 start feat/retention-v0-preview; scaffold retention schemas/routes/tests
+- 2025-09-23 17:23:50 retention v0: schemas+engine+routes+tests+docs added; all api tests green

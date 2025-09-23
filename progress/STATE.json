@@ -1,7 +1,6 @@
 {
   "phase": "retention-v0",
   "branch": "feat/retention-v0-preview",
-  "epic": "Certified Retention v0",
-  "goal": "Add SM-2-lite scheduling + progress sync (preview-gated)",
-  "ok": true
+  "ok": true,
+  "note": "API done (preview): schedule/progress endpoints, SM-2-lite, docs; ready to wire web next"
 }
