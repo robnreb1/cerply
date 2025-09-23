@@ -1,3 +1,20 @@
+### Study Runner (preview)
+
+Enable preview UI:
+
+```bash
+NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true NEXT_PUBLIC_API_BASE=http://localhost:3000 npm -w web dev
+```
+
+Route: `/certified/study` — enter topic (required), optional level and goals; submit to load deck.
+
+Keyboard shortcuts:
+- Space: flip
+- ArrowRight/ArrowLeft: next/prev
+- R: reset session
+
+Persistence: localStorage key `cert:plan:{hash(topic,level,goals)}`
+
 # Cerply v4.1 — Curator + Adaptive + Trust Labels + Analytics
 
 ## Run

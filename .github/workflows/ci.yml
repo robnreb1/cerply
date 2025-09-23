@@ -261,6 +261,9 @@ jobs:
         run: npm run build
       - name: Start Next.js (background)
         working-directory: web
+        env:
+          NEXT_PUBLIC_PREVIEW_CERTIFIED_UI: 'true'
+          NEXT_PUBLIC_API_BASE: 'https://cerply-api-staging-latest.onrender.com'
         run: |
           npm run start &
           echo $! > /tmp/web_pid.txt
@@ -269,11 +272,11 @@ jobs:
             sleep 1
           done
       - name: Run Playwright E2E
-        working-directory: web
         env:
           NEXT_PUBLIC_PREVIEW_CERTIFIED_UI: 'true'
           NEXT_PUBLIC_API_BASE: 'https://cerply-api-staging-latest.onrender.com'
           BASE_URL: 'http://127.0.0.1:3000'
+        working-directory: web
         run: npm run test:e2e -- --reporter=list
       - name: Stop Next.js
         if: always()
@@ -285,8 +288,11 @@ jobs:
         if: always()
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
+          # Try to neutralize any submodule metadata to prevent checkout post-cleanup failures
           git submodule deinit -f --all || true
-          rm -f .gitmodules || true
+          git config --local --remove-section submodule.cerply || true
+          # Truncate .gitmodules if present so `git submodule foreach` no-ops
+          [ -f .gitmodules ] && : > .gitmodules || true
 
   cerply-api:
     needs: [guard-residual-service-refs]
