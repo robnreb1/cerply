@@ -6,6 +6,7 @@ import { toDeck } from '../../../../lib/study/presenter';
 import { hashInput } from '../../../../lib/study/hash';
 import { attachHotkeys } from '../../../../lib/study/hotkeys';
 import * as session from '../../../../lib/study/session';
+import { schedule as retentionSchedule, getProgress as retentionGet, postProgress as retentionPost, type ScheduleRequest, type ProgressEvent } from '../../../../lib/study/retentionClient';
 
 type FormInput = { topic: string; level?: 'beginner'|'intermediate'|'advanced'|''; goals?: string };
 
@@ -40,7 +41,24 @@ export default function StudyRunnerPage() {
       setFlipped(!!s.flipped);
       if (Array.isArray(s.order) && s.order.length === deck.cards.length) setOrder(s.order);
     } else {
-      setIdx(0); setFlipped(false); setOrder(Array.from({ length: deck.cards.length }, (_, i) => i));
+      // Try resume from server snapshot if available
+      (async () => {
+        try {
+          const r = await retentionGet(hash);
+          const snap = r.status === 200 ? r.json : null;
+          if (snap && Array.isArray(snap.items) && snap.items.length === deck.cards.length) {
+            const idToIdx = new Map(deck.cards.map((c, i) => [c.id, i] as any));
+            const ord = snap.items
+              .slice()
+              .sort((a:any,b:any)=> new Date(a.dueISO).getTime() - new Date(b.dueISO).getTime())
+              .map((p:any)=> idToIdx.get(p.card_id) ?? 0);
+            setOrder(ord); setIdx(0); setFlipped(false);
+            session.save(hash, { idx: 0, flipped: false, order: ord, snapshot: snap });
+            return;
+          }
+        } catch {}
+        setIdx(0); setFlipped(false); setOrder(Array.from({ length: deck.cards.length }, (_, i) => i));
+      })();
     }
   }, [hash, deck.cards.length]);
 
@@ -67,6 +85,22 @@ export default function StudyRunnerPage() {
       const goalsArr = (inp.goals || '').split(',').map((s) => s.trim()).filter(Boolean);
       const r = await postCertifiedPlan(apiBase(), { topic: inp.topic, level: (inp.level || undefined) as any, goals: goalsArr.length ? goalsArr : undefined });
       setResp(r.json as any);
+      // After planning, request schedule ordering from retention (preview)
+      try {
+        const plan = (r.json as any);
+        const items = plan?.plan?.items?.map((it: any) => ({ id: it.id, front: it.front, back: it.back })) || [];
+        const now = new Date().toISOString();
+        const req: ScheduleRequest = { session_id: hash, plan_id: plan?.plan?.title || 'plan', items, algo: 'sm2-lite', now };
+        const s = await retentionSchedule(req);
+        if (s.status === 200 && Array.isArray(s.json?.order) && s.json.order.length === items.length) {
+          // map card ids to local indices
+          const idToIdx = new Map(items.map((c: any, i: number) => [c.id, i]));
+          const ord = s.json.order.map((cid: string) => idToIdx.get(cid) ?? 0);
+          setOrder(ord); setIdx(0); setFlipped(false);
+          session.save(hash, { idx: 0, flipped: false, order: ord, snapshot: s.json });
+          await retentionPost({ session_id: hash, card_id: items[0]?.id || 'na', action: 'flip', at: now } as ProgressEvent);
+        }
+      } catch {}
       if (r.status === 415) setError('Unsupported media type: send JSON (application/json).');
       else if (r.status === 400) setError('Bad request: include a non-empty topic.');
       else if (r.status === 501) setError('Certified is enabled but not implemented yet.');
