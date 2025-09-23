@@ -25,5 +25,11 @@ jobs:
       - name: Ensure openapi.json present
         working-directory: api
         run: test -f openapi/build/openapi.json
+      - name: Diff committed vs generated (drift guard)
+        run: |
+          git diff --exit-code -- api/openapi/build/openapi.json || {
+            echo 'OpenAPI drift detected. Rebuild and commit api/openapi/build/openapi.json';
+            exit 1;
+          }
 
 

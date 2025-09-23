@@ -1,0 +1,17 @@
+{
+  "status": "ok",
+  "endpoint": "certified.plan",
+  "mode": "plan",
+  "enabled": true,
+  "provenance": { "planner": "rule", "proposers": ["ruleA", "ruleB"], "checker": "rule" },
+  "plan": {
+    "title": "Plan: Hashes",
+    "items": [
+      { "id": "card-intro", "type": "card", "front": "Overview: Hashes", "back": "Hashes — key ideas in brief." },
+      { "id": "card-core-1", "type": "card", "front": "Hashes: Core Concept 1", "back": "What it is and why it matters." },
+      { "id": "card-core-2", "type": "card", "front": "Hashes: Core Concept 2", "back": "How to apply it in practice." },
+      { "id": "card-check", "type": "card", "front": "Check understanding: Hashes", "back": "Recall the essentials and one example." },
+      { "id": "card-review", "type": "card", "front": "Review: Hashes", "back": "Summarise in 3 bullet points." }
+    ]
+  }
+}

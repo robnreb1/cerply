@@ -1,6 +1,6 @@
 {
   "phase": "certified-plan-harden",
-  "step": 0,
+  "step": 6,
   "ok": true,
-  "note": "start"
+  "note": "canary++"
 }

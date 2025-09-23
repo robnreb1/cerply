@@ -77,9 +77,12 @@ jobs:
             /^access-control-allow-origin:[[:space:]]*\*/ {acao=1}
             /^access-control-allow-credentials:[[:space:]]*true/ {bad=1}
             /^x-cors-certified-hook:/ {bad=1}
+            /^x-ratelimit-limit:/ {limit=1}
+            /^x-ratelimit-remaining:/ {remain=1}
             END{
               if(!acao){print "Missing ACAO:*"; exit 1}
               if(bad){print "Bad header present"; exit 1}
+              if(!(limit&&remain)){print "Warn: missing rate-limit headers"}
             }'
 
 

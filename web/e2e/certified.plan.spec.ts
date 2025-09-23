@@ -33,6 +33,13 @@ test('PLAN preview renders cards and CORS invariants hold', async ({ page, reque
     const j = await res.json();
     expect(j?.endpoint).toBe('certified.plan');
     expect(Array.isArray(j?.plan?.items)).toBeTruthy();
+    // Determinism assertions for PLAN mode
+    if (j?.mode === 'plan') {
+      expect(j.plan?.title).toBe('Plan: Hashes');
+      expect(j.plan?.items?.length).toBe(5);
+      expect(j.plan?.items?.[0]?.id).toBe('card-intro');
+      expect(typeof j.request_id).toBe('string');
+    }
   }
 });
 
