@@ -69,9 +69,17 @@ try {
         if (!ok) console.error('WARN: 501 body missing status:"stub" or non-empty request_id');
         else console.log(`[certified] stub ok request_id=${j.request_id}`);
       } else if (code === '200') {
-        const ok = j && j.status === 'ok' && j.endpoint === 'certified.plan' && Array.isArray(j?.plan?.items) && j.plan.items.length > 0 && j.provenance && j.provenance.planner === 'mock';
-        if (!ok) console.error('WARN: 200 mock body missing status:"ok" or plan.items[0]');
-        else console.log(`[certified] mock ok items=${j.plan.items.length}`);
+        const isPlan = j?.mode === 'plan'
+          && j?.provenance?.planner === 'rule'
+          && Array.isArray(j?.plan?.items) && j.plan.items.length > 0;
+        const isMock = j?.mode === 'mock'
+          && j?.provenance?.planner === 'mock'
+          && Array.isArray(j?.plan?.items) && j.plan.items.length > 0;
+        if (!(isPlan || isMock)) {
+          console.error('WARN: 200 body missing expected planner/mode or items');
+        } else {
+          console.log(`[certified] ${j.mode} ok items=${j.plan.items.length}`);
+        }
       }
     } catch {
       console.error('WARN: body not JSON');

@@ -3,7 +3,7 @@ import createApp from '../src/index';
 
 const COOKIE = 'cerply_session=test';
 
-describe('Certified endpoints (feature-flagged stubs + mock)', () => {
+describe('Certified endpoints (feature-flagged stubs + mock + plan)', () => {
   let app: Awaited<ReturnType<typeof createApp>>;
 
   beforeAll(async () => {
@@ -61,6 +61,39 @@ describe('Certified endpoints (feature-flagged stubs + mock)', () => {
     expect(j.plan?.title).toBe('Mock Plan');
     expect(Array.isArray(j.plan?.items)).toBe(true);
     expect(j.plan.items.length).toBeGreaterThan(0);
+  });
+
+  it('returns 400 on invalid payload in plan mode', async () => {
+    await app.close();
+    vi.stubEnv('CERTIFIED_ENABLED', 'true');
+    vi.stubEnv('CERTIFIED_MODE', 'plan');
+    app = await createApp();
+    const r = await app.inject({ method: 'POST', url: '/api/certified/plan', headers: { 'content-type': 'application/json' }, payload: {} });
+    expect(r.statusCode).toBe(400);
+    const j = r.json() as any;
+    expect(j?.error?.code).toBe('BAD_REQUEST');
+  });
+
+  it('returns 200 plan shape when enabled and CERTIFIED_MODE=plan', async () => {
+    await app.close();
+    vi.stubEnv('CERTIFIED_ENABLED', 'true');
+    vi.stubEnv('CERTIFIED_MODE', 'plan');
+    app = await createApp();
+    const r = await app.inject({ method: 'POST', url: '/api/certified/plan', headers: { 'content-type': 'application/json' }, payload: { topic: 'Hashes' } });
+    expect(r.statusCode).toBe(200);
+    const j = r.json() as any;
+    expect(j.status).toBe('ok');
+    expect(j.endpoint).toBe('certified.plan');
+    expect(j.mode).toBe('plan');
+    expect(j.enabled).toBe(true);
+    expect(typeof j.request_id).toBe('string');
+    expect(j.provenance?.planner).toBe('rule');
+    expect(Array.isArray(j.provenance?.proposers)).toBe(true);
+    expect(j.provenance?.checker).toBe('rule');
+    expect(typeof j.plan?.title).toBe('string');
+    expect(Array.isArray(j.plan?.items)).toBe(true);
+    expect(j.plan.items.length).toBeGreaterThan(0);
+    expect(j.plan.items[0]).toMatchObject({ id: expect.any(String), type: 'card' });
   });
 
   it('OPTIONS preflight returns 204 with ACAO:*', async () => {

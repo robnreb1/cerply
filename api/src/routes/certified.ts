@@ -29,6 +29,19 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
       }
     } catch {}
   });
+  // Enforce CORS invariants on all certified responses (non-OPTIONS)
+  app.addHook('onSend', async (req: any, reply: any, payload: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (url.startsWith('/api/certified/') && method !== 'OPTIONS') {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        reply.removeHeader('x-cors-certified-hook');
+      }
+    } catch {}
+    return payload;
+  });
   // CORS preflight for certified endpoints
   app.options('/api/certified/*', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
     reply
@@ -73,6 +86,38 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
     const ip_hash = crypto.createHash('sha256').update(ip).digest('hex');
 
     const MODE = String(process.env.CERTIFIED_MODE ?? 'stub').toLowerCase();
+    if (MODE === 'plan') {
+      // Validate body shape strictly
+      const body = (((_req as any).body ?? {}) as any) || {};
+      const topic = typeof body?.topic === 'string' ? body.topic.trim() : '';
+      if (!topic) {
+        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing required field: topic (non-empty string)' } });
+      }
+
+      // Deterministic planner (rule-based, no external calls)
+      const planTitle = `Plan: ${topic}`;
+      const items = [
+        { id: 'card-intro', type: 'card', front: `Overview: ${topic}`, back: `${topic} — key ideas in brief.` },
+        { id: 'card-core-1', type: 'card', front: `${topic}: Core Concept 1`, back: 'What it is and why it matters.' },
+        { id: 'card-core-2', type: 'card', front: `${topic}: Core Concept 2`, back: 'How to apply it in practice.' },
+        { id: 'card-check', type: 'card', front: `Check understanding: ${topic}`, back: 'Recall the essentials and one example.' },
+        { id: 'card-review', type: 'card', front: `Review: ${topic}`, back: 'Summarise in 3 bullet points.' }
+      ];
+
+      try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_planmode'); } catch {}
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      return reply.code(200).send({
+        status: 'ok',
+        request_id,
+        endpoint: 'certified.plan',
+        mode: 'plan',
+        enabled: true,
+        provenance: { planner: 'rule', proposers: ['ruleA','ruleB'], checker: 'rule' },
+        plan: { title: planTitle, items }
+      });
+    }
+
     if (MODE === 'mock') {
       try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_mock'); } catch {}
       reply.header('access-control-allow-origin', '*');
