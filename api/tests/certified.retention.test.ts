@@ -48,6 +48,15 @@ describe('Certified Retention v0 (preview)', () => {
     const c1 = snap.items.find((x: any) => x.card_id === 'c1');
     expect(c1?.reps).toBeGreaterThanOrEqual(1);
   });
+
+  it('rejects grade event without grade value', async () => {
+    // action=grade but grade omitted
+    const evt = { session_id: 's2', card_id: 'x1', action: 'grade', at: '2025-01-01T00:00:00.000Z' } as any;
+    const r = await app.inject({ method: 'POST', url: '/api/certified/progress', headers: { 'content-type': 'application/json' }, payload: evt });
+    expect(r.statusCode).toBe(400);
+    const j = r.json() as any;
+    expect(j?.error?.code).toBe('BAD_REQUEST');
+  });
 });
 
 

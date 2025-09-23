@@ -97,7 +97,10 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
       // No state change except ensure due not in the past
       next = { ...entry, dueISO: new Date(entry.dueISO).getTime() <= new Date(nowISO).getTime() ? nowISO : entry.dueISO };
     } else if (action === 'grade') {
-      const updated = sm2Update({ reps: entry.reps, ef: entry.ef, intervalDays: entry.intervalDays, lastGrade: entry.lastGrade }, Number(grade ?? 0));
+      if (typeof grade !== 'number' || !Number.isFinite(grade)) {
+        return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'grade required (0..5) for action=grade' } });
+      }
+      const updated = sm2Update({ reps: entry.reps, ef: entry.ef, intervalDays: entry.intervalDays, lastGrade: entry.lastGrade }, Number(grade));
       next = { card_id, reps: updated.reps, ef: updated.ef, intervalDays: updated.intervalDays, lastGrade: updated.lastGrade, dueISO: nextDue(nowISO, updated.intervalDays) };
     }
 
