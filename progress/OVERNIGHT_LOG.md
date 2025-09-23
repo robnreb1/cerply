@@ -12,3 +12,4 @@
 - 2025-09-23 10:46:14 step5 unit tests + vitest config
 - 2025-09-23 10:46:14 steps6-7 e2e + ci wired
 - 2025-09-23 10:46:14 step8 docs updated
+- 2025-09-23 18:56:50 start feat/retention-v0-web; wire Study Runner to retention APIs
