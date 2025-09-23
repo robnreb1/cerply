@@ -46,6 +46,11 @@ jobs:
           NEXT_PUBLIC_API_BASE: https://cerply-api-staging-latest.onrender.com
           PLANNER_ENGINE: mock
           CERTIFIED_MODE: plan
-        run: npm run test:e2e
+        run: |
+          set -euo pipefail
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "--- scripts from web/package.json ---"
+          node -e "console.log(JSON.stringify(require('./package.json').scripts, null, 2))"
+          npm run test:e2e -- --reporter=list
 
 
