@@ -18,6 +18,9 @@
     "verify": "running",
     "committed": true,
     "pr": "#135",
-    "docs": true
+    "docs": true,
+    "ci": true,
+    "cors_canary": "pending",
+    "ciFixes": true
   }
 }

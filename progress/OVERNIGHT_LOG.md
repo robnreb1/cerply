@@ -26,3 +26,5 @@
 2025-09-23T20:35:49Z - commit openai adapter v0 + eval + ci + docs
 2025-09-23T20:36:11Z - open PR created #135
 2025-09-23T20:36:56Z - docs updated: OPENAI_ADAPTER_V0 + flags
+2025-09-23T20:37:44Z - add CI workflow for openai eval
+2025-09-23T20:41:11Z - fix CI workflow diagnostics (keys, inputs, secrets guard)
