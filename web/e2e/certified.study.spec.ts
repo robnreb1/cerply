@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
-import fixture from '../tests/fixtures/plan.success.json';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 test('Study Runner renders and navigates with mocked API', async ({ page }) => {
+  const fixturePath = join(__dirname, '..', 'tests', 'fixtures', 'plan.success.json');
+  const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'));
   await page.route('**/api/certified/plan', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixture) });
   });
