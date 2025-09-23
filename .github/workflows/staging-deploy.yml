@@ -66,4 +66,20 @@ jobs:
           grep -Ei '^x-image-(tag|revision|created):' /tmp/v.txt || true
           echo "::endgroup::"
 
+      - name: CORS canary (certified plan)
+        env:
+          STAGING_URL: https://cerply-api-staging-latest.onrender.com
+        run: |
+          set -euo pipefail
+          H="$(curl -sS -D- -o /dev/null -X POST "${STAGING_URL}/api/certified/plan" \
+            -H 'origin: https://app.cerply.com' -H 'content-type: application/json' --data '{}' | tr -d '\r')"
+          echo "$H" | awk 'BEGIN{IGNORECASE=1}
+            /^access-control-allow-origin:[[:space:]]*\*/ {acao=1}
+            /^access-control-allow-credentials:[[:space:]]*true/ {bad=1}
+            /^x-cors-certified-hook:/ {bad=1}
+            END{
+              if(!acao){print "Missing ACAO:*"; exit 1}
+              if(bad){print "Bad header present"; exit 1}
+            }'
+
 

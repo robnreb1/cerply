@@ -1630,33 +1630,8 @@ function isAdmin(req: FastifyRequest): boolean {
   return hasSession && (hdr === '1' || hdr === 'true');
 }
 
-:type CertifiedPlan = { id: string; title: string; estMinutes: number; successCriteria?: string[]; prerequisites?: string[] };
+type CertifiedPlan = { id: string; title: string; estMinutes: number; successCriteria?: string[]; prerequisites?: string[] };
 const _certifiedAudit: Array<{ step: string; at: string; payload: any }> = [];
-
-// NOTE: Legacy _legacy_certified endpoints removed during conflict resolution; keeping public stub endpoints only
-app.post('/api/certified/plan', { config: { public: true } as FastifyContextConfig }, async (_req: FastifyRequest, reply: FastifyReply) => {
-  const enabled = String(process.env.CERTIFIED_ENABLED ?? 'false').toLowerCase() === 'true';
-  const code = enabled ? 501 : 503;
-  return reply.code(code).send({ status: 'stub', ok: false, route: 'plan' });
-});
-
-app.post('/api/certified/alt-generate', { config: { public: true } as FastifyContextConfig }, async (_req: FastifyRequest, reply: FastifyReply) => {
-  const enabled = String(process.env.CERTIFIED_ENABLED ?? 'false').toLowerCase() === 'true';
-  const code = enabled ? 501 : 503;
-  return reply.code(code).send({ status: 'stub', ok: false, route: 'alt-generate' });
-});
-
-app.post('/api/certified/review', { config: { public: true } as FastifyContextConfig }, async (_req: FastifyRequest, reply: FastifyReply) => {
-  const enabled = String(process.env.CERTIFIED_ENABLED ?? 'false').toLowerCase() === 'true';
-  const code = enabled ? 501 : 503;
-  return reply.code(code).send({ status: 'stub', ok: false, route: 'review' });
-});
-
-app.post('/api/certified/finalize', { config: { public: true } as FastifyContextConfig }, async (_req: FastifyRequest, reply: FastifyReply) => {
-  const enabled = String(process.env.CERTIFIED_ENABLED ?? 'false').toLowerCase() === 'true';
-  const code = enabled ? 501 : 503;
-  return reply.code(code).send({ status: 'stub', ok: false, route: 'finalize' });
-});
 
 // Expert: approve module (admin-only)
 app.patch('/api/expert/modules/:id/approve', async (req: FastifyRequest, reply: FastifyReply) => {
