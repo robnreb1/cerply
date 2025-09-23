@@ -23,6 +23,8 @@ describe('Certified PLAN mode matches golden fixture', () => {
     // Normalize dynamic
     expect(typeof j.request_id).toBe('string');
     delete j.request_id;
+    // ignore provenance.engine addition
+    if (j?.provenance) delete (j.provenance as any).engine;
     expect(j).toEqual(fixture);
   });
 });

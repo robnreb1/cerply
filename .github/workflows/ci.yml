@@ -1,6 +1,44 @@
 name: CI
 
 on:
+  pull_request:
+  push:
+
+jobs:
+  adaptive-eval:
+    name: Adaptive Eval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+      - name: Silence dubious ownership
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: 'api/package.json'
+          cache: 'npm'
+          cache-dependency-path: 'api/package-lock.json'
+      - name: Install deps (api)
+        run: npm ci
+        working-directory: ./api
+      - name: Run evaluator (adaptive)
+        env:
+          CERTIFIED_ENABLED: 'true'
+          CERTIFIED_MODE: 'plan'
+          PLANNER_ENGINE: 'adaptive'
+          FF_ADAPTIVE_ENGINE_V1: 'true'
+        run: npm -w api run -s planner:eval:adaptive
+      - name: Upload metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: adaptive-eval-metrics
+          path: api/tests/fixtures/planner-eval.adaptive.json
+name: CI
+
+on:
   push:
     branches: [main, master, staging]
   pull_request:

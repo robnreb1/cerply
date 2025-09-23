@@ -22,7 +22,8 @@
     "db:seed": "tsx scripts/seed.ts",
     "openapi:build": "tsx scripts/openapi-build.ts",
     "openapi:check": "npm run openapi:build && test -f openapi/build/openapi.json",
-    "planner:eval": "tsx scripts/planner-eval.ts"
+    "planner:eval": "tsx scripts/planner-eval.ts",
+    "planner:eval:adaptive": "tsx scripts/planner-eval.adaptive.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^9.4.0",

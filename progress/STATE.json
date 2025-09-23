@@ -1,6 +1,16 @@
 {
-  "phase": "retention-v0",
-  "branch": "feat/retention-v0-preview",
+  "phase": "adaptive-engine-v1",
+  "branch": "feat/adaptive-engine-v1-preview",
   "ok": true,
-  "note": "API done (preview): schedule/progress endpoints, SM-2-lite, docs; ready to wire web next"
+  "flags": {
+    "FF_ADAPTIVE_ENGINE_V1": false
+  },
+  "checklist": {
+    "engine": false,
+    "wire": false,
+    "tests": false,
+    "openapi": true,
+    "evaluator": false,
+    "docs": false
+  }
 }
