@@ -18,7 +18,8 @@ test('PLAN preview renders cards and CORS invariants hold', async ({ page, reque
   }
 
   // CORS invariants via direct fetch
-  const res = await request.post(`${process.env.NEXT_PUBLIC_API_BASE || 'https://cerply-api-staging-latest.onrender.com'}/api/certified/plan`, {
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'https://cerply-api-staging-latest.onrender.com';
+  const res = await request.post(`${apiBase}/api/certified/plan`, {
     headers: { 'origin': 'https://app.cerply.com', 'content-type': 'application/json' },
     data: { topic: 'Hashes' },
   });
@@ -39,6 +40,25 @@ test('PLAN preview renders cards and CORS invariants hold', async ({ page, reque
       expect(j.plan?.items?.length).toBe(5);
       expect(j.plan?.items?.[0]?.id).toBe('card-intro');
       expect(typeof j.request_id).toBe('string');
+    }
+  }
+
+  // Negative: 415 on missing content-type
+  const noCt = await request.post(`${apiBase}/api/certified/plan`, {
+    headers: { 'origin': 'https://app.cerply.com' },
+    data: { topic: 'Hashes' },
+  });
+  expect(noCt.status()).toBe(415);
+
+  // Negative: 400 invalid payload only when plan mode is active
+  if (res.status() === 200) {
+    const j = await res.json();
+    if (j?.mode === 'plan') {
+      const bad = await request.post(`${apiBase}/api/certified/plan`, {
+        headers: { 'origin': 'https://app.cerply.com', 'content-type': 'application/json' },
+        data: { topic: 123 },
+      });
+      expect(bad.status()).toBe(400);
     }
   }
 });

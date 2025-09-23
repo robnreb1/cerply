@@ -1,6 +1,6 @@
 {
   "phase": "certified-plan-harden",
-  "step": 6,
+  "step": 5,
   "ok": true,
-  "note": "canary++"
+  "note": "rate-limit headers noted in canary"
 }
