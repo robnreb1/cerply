@@ -269,11 +269,11 @@ jobs:
             sleep 1
           done
       - name: Run Playwright E2E
-        working-directory: web
         env:
           NEXT_PUBLIC_PREVIEW_CERTIFIED_UI: 'true'
           NEXT_PUBLIC_API_BASE: 'https://cerply-api-staging-latest.onrender.com'
           BASE_URL: 'http://127.0.0.1:3000'
+        working-directory: web
         run: npm run test:e2e -- --reporter=list
       - name: Stop Next.js
         if: always()
