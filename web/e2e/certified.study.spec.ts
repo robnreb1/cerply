@@ -9,7 +9,7 @@ test('Study Runner renders and navigates with mocked API', async ({ page }) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixture) });
   });
 
-  await page.goto('/(preview)/certified/study');
+  await page.goto('/certified/study');
   await expect(page.getByRole('heading', { name: 'Certified Study Runner' })).toBeVisible();
 
   // Empty topic should block submit
