@@ -28,3 +28,5 @@
 2025-09-23T20:36:56Z - docs updated: OPENAI_ADAPTER_V0 + flags
 2025-09-23T20:37:44Z - add CI workflow for openai eval
 2025-09-23T20:41:11Z - fix CI workflow diagnostics (keys, inputs, secrets guard)
+2025-09-23T20:44:19Z - fix secrets context + outputs in ci.yml
+2025-09-23T20:45:35Z - ci.yml: move keyed job guard to steps; outputs default

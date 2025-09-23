@@ -21,6 +21,7 @@
     "docs": true,
     "ci": true,
     "cors_canary": "pending",
-    "ciFixes": true
+    "ciFixes": true,
+    "ciLint": "resolved"
   }
 }
