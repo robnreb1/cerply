@@ -24,6 +24,7 @@
       "plan": { "title":"Mock Plan", "items":[ { "id":"m1", "type":"card", "front":"...", "back":"..." } ] }
     }
   - Preview page: `web/app/(preview)/certified/page.tsx` — shows stub response when `NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true`.
+ - Study Runner: `web/app/(preview)/certified/study/page.tsx` — form (topic, level, goals) → fetch PLAN → deck runner with flip/next/prev/reset, local persistence keyed by input hash; deterministic per identical inputs.
   - Drizzle migrations apply cleanly; server boots
 
 Add new cases here as bullets with steps + acceptance criteria.

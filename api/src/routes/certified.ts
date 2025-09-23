@@ -1,8 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import crypto from 'node:crypto';
 import { PlanRequestZ, PlanResponseZ } from '../schemas/certified.plan';
-import { PlannerInputZ } from '../planner/interfaces';
+import { PlannerInputZ, PlannerEngine } from '../planner/interfaces';
 import { MockPlanner } from '../planner/engines/mock';
+import { OpenAIPlanner } from '../planner/engines/openai';
 
 // Extend Fastify route config to accept a `public` boolean used by global guards
 declare module 'fastify' {
@@ -97,7 +98,10 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
       }
       const input = parsed.data;
       const engine = (process.env.PLANNER_ENGINE || 'mock').toLowerCase();
-      const planner = MockPlanner; // default and CI-safe
+      let planner: PlannerEngine = MockPlanner; // default and CI-safe
+      if (engine === 'openai' && (process.env.OPENAI_API_KEY || '').length > 0) {
+        planner = OpenAIPlanner;
+      }
       const out = await planner.generate(input);
 
       try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_planmode'); } catch {}
