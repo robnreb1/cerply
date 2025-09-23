@@ -3,10 +3,10 @@
   "branch": "feat/retention-v0-web",
   "ok": true,
   "checklist": {
-    "adapters": false,
-    "runner_wired": false,
-    "unit_tests": false,
-    "e2e": false,
+    "adapters": true,
+    "runner_wired": true,
+    "unit_tests": true,
+    "e2e": true,
     "docs": false
   }
 }
