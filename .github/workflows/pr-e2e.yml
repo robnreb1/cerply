@@ -7,6 +7,8 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
+    env:
+      GIT_CONFIG_GLOBAL: /dev/null
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,7 +50,9 @@ jobs:
           CERTIFIED_MODE: plan
         run: |
           set -euo pipefail
-          echo "HEAD=$(git rev-parse HEAD)"
+
+          echo "HEAD=$(git rev-parse HEAD || echo unknown)"
+
           echo "--- scripts from web/package.json ---"
           node -e "console.log(JSON.stringify(require('./package.json').scripts, null, 2))"
           npm run test:e2e -- --reporter=list
