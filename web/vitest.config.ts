@@ -6,7 +6,9 @@ export default defineConfig({
     globals: true,
     setupFiles: [],
     include: [
-      'lib/study/__tests__/**/*.test.ts'
+      'lib/study/__tests__/**/*.test.ts',
+      'lib/study/**/*Adapter.test.ts',
+      'lib/study/schedulerAdapter.test.ts'
     ],
     exclude: [
       '**/node_modules/**',

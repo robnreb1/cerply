@@ -2,26 +2,24 @@
 
 Flags (env):
 - CERTIFIED_ENABLED=true
-- RETENTION_ENABLED=true (preview-only)
+- CERTIFIED_MODE=plan
+- RETENTION_ENABLED=true
+- NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true
 
-Endpoints (preview; no auth/PII):
+Endpoints (preview-only):
 - POST /api/certified/schedule
 - POST /api/certified/progress
-- GET  /api/certified/progress?sid=...
+- GET  /api/certified/progress?sid=
 
 CORS invariants:
-- OPTIONS returns 204 with ACAO:* and allowed methods/headers
-- Responses under /api/certified/* include ACAO:* and never ACAC:true
-
-Store:
-- In-memory Map keyed by session_id; process-lifetime only; resets on restart.
-
-SM-2-lite (quick):
-- State: reps, ef (1.3..3.0), intervalDays, lastGrade
-- Update: if grade < 3 → reset reps/interval, EF decreases slightly; else EF = EF + (0.1 - (5-q)*(0.08 + (5-q)*0.02)); intervals: 1, 6, then round(prev * EF).
-
-Determinism:
-- For fixed inputs and timestamps, ordering is deterministic (due ascending, id tiebreak).
+- OPTIONS → 204 with ACAO:* and allowed methods/headers
+- Responses for /api/certified/* include ACAO:*; no ACAC:true; no debug headers
 
 Web integration (preview):
-- Study Runner should call schedule on start/reset, post progress on grade/flip, and offer resume if server snapshot exists.
+- Study Runner (/certified/study) calls schedule on start/reset and posts progress on flip/grade.
+- On refresh, if local empty, runner fetches snapshot and offers resume (applies order by due).
+- Settings drawer shows algo (sm2-lite) and allows daily target (local only).
+
+Notes:
+- Store is in-memory (preview): resets on process restart.
+- Schedule deterministic for fixed inputs/time.

@@ -9,6 +9,7 @@ test('PLAN preview renders with mocked API', async ({ page }) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(fixture) });
   });
   await page.goto('/certified');
+  await page.waitForSelector('input[aria-label="Topic"]', { timeout: 10000 });
   await page.fill('input[aria-label="Topic"]', 'Hashes');
   await page.click('button:has-text("POST /api/certified/plan")');
   await expect(page.getByText('Status:')).toBeVisible();

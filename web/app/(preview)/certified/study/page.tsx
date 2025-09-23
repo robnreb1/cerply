@@ -6,6 +6,7 @@ import { toDeck } from '../../../../lib/study/presenter';
 import { hashInput } from '../../../../lib/study/hash';
 import { attachHotkeys } from '../../../../lib/study/hotkeys';
 import * as session from '../../../../lib/study/session';
+import { schedule as retentionSchedule, getProgress as retentionGet, postProgress as retentionPost, type ScheduleRequest, type ProgressEvent } from '../../../../lib/study/retentionClient';
 
 type FormInput = { topic: string; level?: 'beginner'|'intermediate'|'advanced'|''; goals?: string };
 
@@ -27,6 +28,10 @@ export default function StudyRunnerPage() {
   const [idx, setIdx] = useState(0);
   const [order, setOrder] = useState<number[]>([]);
   const flipBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [dailyTarget, setDailyTarget] = useState<number>(() => {
+    try { const v = localStorage.getItem('study:dailyTarget'); return v ? Math.max(1, Math.min(200, Number(v))) : 20; } catch { return 20; }
+  });
 
   const hash = useMemo(() => hashInput({ topic: inp.topic, level: inp.level || undefined, goals: (inp.goals || '').split(',').map(s=>s.trim()).filter(Boolean) }), [inp.topic, inp.level, inp.goals]);
   const deck = useMemo(() => resp ? toDeck(resp) : { title: '', cards: [] }, [resp]);
@@ -40,7 +45,24 @@ export default function StudyRunnerPage() {
       setFlipped(!!s.flipped);
       if (Array.isArray(s.order) && s.order.length === deck.cards.length) setOrder(s.order);
     } else {
-      setIdx(0); setFlipped(false); setOrder(Array.from({ length: deck.cards.length }, (_, i) => i));
+      // Try resume from server snapshot if available
+      (async () => {
+        try {
+          const r = await retentionGet(hash);
+          const snap = r.status === 200 ? r.json : null;
+          if (snap && Array.isArray(snap.items) && snap.items.length === deck.cards.length) {
+            const idToIdx = new Map(deck.cards.map((c, i) => [c.id, i] as any));
+            const ord = snap.items
+              .slice()
+              .sort((a:any,b:any)=> new Date(a.dueISO).getTime() - new Date(b.dueISO).getTime())
+              .map((p:any)=> idToIdx.get(p.card_id) ?? 0);
+            setOrder(ord); setIdx(0); setFlipped(false);
+            session.save(hash, { idx: 0, flipped: false, order: ord, snapshot: snap });
+            return;
+          }
+        } catch {}
+        setIdx(0); setFlipped(false); setOrder(Array.from({ length: deck.cards.length }, (_, i) => i));
+      })();
     }
   }, [hash, deck.cards.length]);
 
@@ -49,6 +71,9 @@ export default function StudyRunnerPage() {
     if (deck.cards.length === 0) return;
     session.save(hash, { idx, flipped, order });
   }, [hash, deck.cards.length, idx, flipped, order]);
+
+  // Persist settings
+  useEffect(() => { try { localStorage.setItem('study:dailyTarget', String(dailyTarget)); } catch {} }, [dailyTarget]);
 
   // Hotkeys
   useEffect(() => {
@@ -67,6 +92,22 @@ export default function StudyRunnerPage() {
       const goalsArr = (inp.goals || '').split(',').map((s) => s.trim()).filter(Boolean);
       const r = await postCertifiedPlan(apiBase(), { topic: inp.topic, level: (inp.level || undefined) as any, goals: goalsArr.length ? goalsArr : undefined });
       setResp(r.json as any);
+      // After planning, request schedule ordering from retention (preview)
+      try {
+        const plan = (r.json as any);
+        const items = plan?.plan?.items?.map((it: any) => ({ id: it.id, front: it.front, back: it.back })) || [];
+        const now = new Date().toISOString();
+        const req: ScheduleRequest = { session_id: hash, plan_id: plan?.plan?.title || 'plan', items, algo: 'sm2-lite', now };
+        const s = await retentionSchedule(req);
+        if (s.status === 200 && Array.isArray(s.json?.order) && s.json.order.length === items.length) {
+          // map card ids to local indices
+          const idToIdx = new Map(items.map((c: any, i: number) => [c.id, i]));
+          const ord = s.json.order.map((cid: string) => idToIdx.get(cid) ?? 0);
+          setOrder(ord); setIdx(0); setFlipped(false);
+          session.save(hash, { idx: 0, flipped: false, order: ord, snapshot: s.json });
+          await retentionPost({ session_id: hash, card_id: items[0]?.id || 'na', action: 'flip', at: now } as ProgressEvent);
+        }
+      } catch {}
       if (r.status === 415) setError('Unsupported media type: send JSON (application/json).');
       else if (r.status === 400) setError('Bad request: include a non-empty topic.');
       else if (r.status === 501) setError('Certified is enabled but not implemented yet.');
@@ -105,7 +146,7 @@ export default function StudyRunnerPage() {
     <div style={{ padding: 16, display: 'grid', gap: 16 }}>
       <h1 style={{ fontSize: 18, fontWeight: 600 }}>Certified Study Runner</h1>
       {/* Form */}
-      <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 180px 1fr auto' }}>
+      <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 180px 1fr auto auto' }}>
         <input aria-label="Topic" value={inp.topic} onChange={(e)=>setInp(v=>({...v, topic:e.target.value}))} placeholder="Topic (required)" style={{ padding:'8px 10px', border:'1px solid #ccc', borderRadius:8 }} />
         <select aria-label="Level" value={inp.level} onChange={(e)=>setInp(v=>({...v, level:e.target.value as any}))} style={{ padding:'8px 10px', border:'1px solid #ccc', borderRadius:8 }}>
           <option value="">Level (optional)</option>
@@ -115,12 +156,22 @@ export default function StudyRunnerPage() {
         </select>
         <input aria-label="Goals" value={inp.goals} onChange={(e)=>setInp(v=>({...v, goals:e.target.value}))} placeholder="Goals (comma-separated)" style={{ padding:'8px 10px', border:'1px solid #ccc', borderRadius:8 }} />
         <button aria-label="Submit" onClick={onSubmit} disabled={loading || !inp.topic.trim()} style={{ padding:'8px 12px', border:'1px solid #ccc', borderRadius:8 }}>{loading?'Submitting…':'Start'}</button>
+        <button aria-label="Settings" onClick={()=>setShowSettings(x=>!x)} style={{ padding:'8px 12px', border:'1px solid #ccc', borderRadius:8 }}>Settings</button>
       </div>
       {error && <div role="alert" style={{ padding: 8, background: '#fff3cd', border:'1px solid #ffe2a1', borderRadius:8 }}>{error}</div>}
 
       {/* Runner */}
       {deck.cards.length > 0 && (
         <div style={{ display:'grid', gap:12 }}>
+          {showSettings && (
+            <div aria-label="Settings" style={{ display:'flex', gap:12, alignItems:'center', border:'1px solid #ddd', borderRadius:8, padding:8 }}>
+              <div>Algo: <code>sm2-lite</code></div>
+              <label style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span>Daily target</span>
+                <input type="number" min={1} max={200} value={dailyTarget} onChange={(e)=>setDailyTarget(Math.max(1, Math.min(200, Number(e.target.value||'0'))))} style={{ width:80, padding:'6px 8px', border:'1px solid #ccc', borderRadius:6 }} />
+              </label>
+            </div>
+          )}
           <div aria-label="Progress" style={{ display:'flex', alignItems:'center', gap:8 }}>
             <div style={{ flex:1, height:8, background:'#eee', borderRadius:8 }}>
               <div style={{ width:`${progressPct}%`, height:8, background:'#4ade80', borderRadius:8 }} />

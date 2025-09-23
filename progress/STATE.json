@@ -1,6 +1,12 @@
 {
-  "phase": "retention-v0",
-  "branch": "feat/retention-v0-preview",
+  "phase": "retention-v0-web",
+  "branch": "feat/retention-v0-web",
   "ok": true,
-  "note": "API done (preview): schedule/progress endpoints, SM-2-lite, docs; ready to wire web next"
+  "checklist": {
+    "adapters": true,
+    "runner_wired": true,
+    "unit_tests": true,
+    "e2e": true,
+    "docs": true
+  }
 }
