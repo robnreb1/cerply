@@ -1,6 +1,13 @@
 {
-  "phase": "planner-pipeline",
-  "step": 9,
-  "ok": true,
-  "note": "ci jobs updated (e2e/env, openapi drift, planner:eval)"
+  "phase": "session",
+  "branch": "chore/session-2025-09-23",
+  "epic": "ci-staging-prod-hardening",
+  "goal": "Ensure M1 web canaries present: /api/health and /ping",
+  "deliverables": [
+    "web routes for /api/health and /ping",
+    "progress logs",
+    "small commits"
+  ],
+  "bounds": "Preserve CORS; no prod secrets; preview-gated UI only",
+  "ok": true
 }
