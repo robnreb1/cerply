@@ -1,6 +1,6 @@
 {
   "phase": "study-runner",
-  "step": 0,
+  "step": 4,
   "ok": true,
-  "note": "start"
+  "note": "scaffold+form+runner+persistence"
 }
