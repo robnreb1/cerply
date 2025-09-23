@@ -32,7 +32,7 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
       - uses: actions/setup-node@v4
         with:
-          node-version-file: 'api/package.json'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: 'api/package-lock.json'
       - name: Install deps (api)
@@ -320,10 +320,11 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE" || true
           # Try to neutralize any submodule metadata to prevent checkout post-cleanup failures
-          git submodule deinit -f --all || true
-          git config --local --remove-section submodule.cerply || true
-          # Truncate .gitmodules if present so `git submodule foreach` no-ops
-          [ -f .gitmodules ] && : > .gitmodules || true
+          if [ -f .gitmodules ]; then
+            git submodule deinit -f --all || true
+            git config --local --remove-section submodule.cerply || true
+            : > .gitmodules || true
+          fi
 
   cerply-api:
     needs: [guard-residual-service-refs]
