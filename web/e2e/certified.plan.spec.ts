@@ -2,8 +2,15 @@ import { test, expect } from '@playwright/test';
 
 test('PLAN preview renders cards and CORS invariants hold', async ({ page, request }) => {
   const base = process.env.BASE_URL!;
-  // In Next.js, grouping segment (preview) is not part of the URL
-  await page.goto(`${base}/certified`);
+  // Try common paths in case routing differs on preview
+  const candidates = ['/certified', '/certified/', '/(preview)/certified'];
+  let ready = false;
+  for (const p of candidates) {
+    await page.goto(`${base}${p}`);
+    const visible = await page.locator('input[aria-label="Topic"]').first().isVisible().catch(() => false);
+    if (visible) { ready = true; break; }
+  }
+  expect(ready).toBeTruthy();
   await page.fill('input[aria-label="Topic"]', 'Hashes');
   await page.click('button:has-text("POST /api/certified/plan")');
   await expect(page.getByText('Status:')).toBeVisible();
