@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import crypto from 'node:crypto';
+import { PlanRequestZ, PlanResponseZ } from '../schemas/certified.plan';
 
 // Extend Fastify route config to accept a `public` boolean used by global guards
 declare module 'fastify' {
@@ -88,11 +89,11 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
     const MODE = String(process.env.CERTIFIED_MODE ?? 'stub').toLowerCase();
     if (MODE === 'plan') {
       // Validate body shape strictly
-      const body = (((_req as any).body ?? {}) as any) || {};
-      const topic = typeof body?.topic === 'string' ? body.topic.trim() : '';
-      if (!topic) {
+      const parsed = PlanRequestZ.safeParse(((_req as any).body ?? {}) as any);
+      if (!parsed.success) {
         return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing required field: topic (non-empty string)' } });
       }
+      const { topic } = parsed.data;
 
       // Deterministic planner (rule-based, no external calls)
       const planTitle = `Plan: ${topic}`;
@@ -107,7 +108,7 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
       try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_planmode'); } catch {}
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
-      return reply.code(200).send({
+      const payload = {
         status: 'ok',
         request_id,
         endpoint: 'certified.plan',
@@ -115,7 +116,10 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
         enabled: true,
         provenance: { planner: 'rule', proposers: ['ruleA','ruleB'], checker: 'rule' },
         plan: { title: planTitle, items }
-      });
+      } as const;
+      // Runtime response validation (guardrail)
+      try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
+      return reply.code(200).send(payload);
     }
 
     if (MODE === 'mock') {

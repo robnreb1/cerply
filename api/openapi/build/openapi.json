@@ -1,0 +1,181 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Cerply Certified API",
+    "version": "v0-plan",
+    "description": "Certified Plan endpoint (PLAN/MOCK)"
+  },
+  "paths": {
+    "/api/certified/plan": {
+      "post": {
+        "summary": "Certified plan",
+        "description": "Returns a deterministic plan when CERTIFIED_MODE=plan; returns mock when CERTIFIED_MODE=mock; otherwise 501/503.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plan response (plan or mock mode)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid payload"
+          },
+          "415": {
+            "description": "Unsupported media type (expect application/json)"
+          },
+          "501": {
+            "description": "Stub (enabled but not implemented)"
+          },
+          "503": {
+            "description": "Certified disabled"
+          }
+        }
+      },
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "No Content; includes CORS headers"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PlanRequest": {
+        "type": "object",
+        "required": [
+          "topic"
+        ],
+        "properties": {
+          "topic": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      },
+      "PlanItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "front",
+          "back"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "card"
+            ]
+          },
+          "front": {
+            "type": "string"
+          },
+          "back": {
+            "type": "string"
+          }
+        }
+      },
+      "PlanResponse": {
+        "type": "object",
+        "required": [
+          "status",
+          "request_id",
+          "endpoint",
+          "mode",
+          "enabled",
+          "provenance",
+          "plan"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string",
+            "enum": [
+              "certified.plan"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "plan",
+              "mock"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "provenance": {
+            "type": "object",
+            "required": [
+              "planner",
+              "proposers",
+              "checker"
+            ],
+            "properties": {
+              "planner": {
+                "type": "string"
+              },
+              "proposers": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "checker": {
+                "type": "string"
+              }
+            }
+          },
+          "plan": {
+            "type": "object",
+            "required": [
+              "title",
+              "items"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/components/schemas/PlanItem"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

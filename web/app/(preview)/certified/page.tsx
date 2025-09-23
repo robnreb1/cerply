@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { apiBase } from '../../../lib/apiBase';
+import { postCertifiedPlan } from '../../../lib/api/generated';
 
 export default function CertifiedPreviewPage() {
   if (process.env.NEXT_PUBLIC_PREVIEW_CERTIFIED_UI !== 'true') {
@@ -22,10 +23,9 @@ export default function CertifiedPreviewPage() {
     setStatus(null);
     setJson(null);
     try {
-      const res = await fetch(`${apiBase()}/api/certified/plan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ topic }) });
-      setStatus(res.status);
-      const data = await res.json().catch(() => ({}));
-      setJson(data);
+      const r = await postCertifiedPlan(apiBase(), { topic });
+      setStatus(r.status);
+      setJson(r.json);
     } catch (e) {
       setStatus(-1);
       setJson({ error: String((e as any)?.message || e) });
