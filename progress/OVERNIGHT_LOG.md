@@ -30,3 +30,10 @@
 2025-09-23T20:41:11Z - fix CI workflow diagnostics (keys, inputs, secrets guard)
 2025-09-23T20:44:19Z - fix secrets context + outputs in ci.yml
 2025-09-23T20:45:35Z - ci.yml: move keyed job guard to steps; outputs default
+2025-09-23T21:01:55Z - verify CI for PR #135
+2025-09-23T21:02:38Z - staging deploy verify + header capture
+2025-09-23T21:03:56Z - posted staging headers to PR #135
+2025-09-23T21:04:10Z - check keyed smoke status
+2025-09-23T21:04:23Z - keyed smoke note
+2025-09-23T21:04:36Z - attempt enable squash auto-merge
+2025-09-23T21:12:52Z - kickoff analytics pilot v0 (preview)
