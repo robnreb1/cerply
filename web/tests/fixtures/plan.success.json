@@ -1,0 +1,14 @@
+{
+  "status": "ok",
+  "endpoint": "certified.plan",
+  "mode": "plan",
+  "enabled": true,
+  "provenance": { "planner": "rule", "proposers": ["ruleA", "ruleB"], "checker": "rule" },
+  "plan": {
+    "title": "Plan: Hashes",
+    "items": [
+      { "id": "card-intro-1a4b", "type": "card", "front": "Overview: Hashes", "back": "Hashes — key ideas in brief." },
+      { "id": "card-core-1-1a4b", "type": "card", "front": "Hashes: Core Concept 1", "back": "What it is and why it matters." }
+    ]
+  }
+}
