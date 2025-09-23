@@ -465,6 +465,12 @@ try {
   await registerCertifiedRoutes(app);
 } catch {}
 
+// API Docs (preview only)
+try {
+  const { registerDocsRoutes } = await import('./routes/docs');
+  await registerDocsRoutes(app);
+} catch {}
+
 // ---------------------
 // Learner profile (MVP) — store lightweight preferences
 // ---------------------

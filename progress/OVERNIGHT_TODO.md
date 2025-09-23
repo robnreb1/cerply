@@ -1,0 +1,6 @@
+- [ ] Zod schemas
+- [ ] OpenAPI build + /api/docs (PREVIEW_DOCS)
+- [ ] Tests (schema + docs on/off)
+- [ ] Web client + refactor
+- [ ] Playwright E2E
+- [ ] CI: pr-e2e + openapi drift
