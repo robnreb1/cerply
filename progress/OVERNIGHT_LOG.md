@@ -37,3 +37,4 @@
 2025-09-23T21:04:23Z - keyed smoke note
 2025-09-23T21:04:36Z - attempt enable squash auto-merge
 2025-09-23T21:12:52Z - kickoff analytics pilot v0 (preview)
+2025-09-23T21:16:05Z - analytics api scaffolding + tests + ci smoke added

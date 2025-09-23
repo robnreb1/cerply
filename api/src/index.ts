@@ -51,6 +51,7 @@ import { registerLearnRoutes } from './routes/learn';
 import { registerDevRoutes } from './routes/dev';
 import { registerDbHealth } from './routes/dbHealth';
 import { registerAnalyticsRoutes } from './routes/analytics';
+import { registerAnalyticsPreviewRoutes } from './routes/analytics.preview';
 import { registerRoutesDump }     from './routes/routesDump';
 import { registerLedgerRoutes }   from './routes/ledger';
 import { registerExportRoutes }   from './routes/exports';
@@ -453,6 +454,7 @@ if (_enableDevRoutes) {
 await registerDbHealth(app);
 
 await registerAnalyticsRoutes(app);
+await registerAnalyticsPreviewRoutes(app);
 await registerRoutesDump(app);
 await registerLedgerRoutes(app);
 // await registerAnalyticsPilot(app);

@@ -6,6 +6,8 @@
 - ff_certified_sla_status_v1
 - ff_marketplace_ledgers_v1
 - ff_benchmarks_optin_v1
+ - PREVIEW_ANALYTICS (default: off) — enables `/api/analytics/*` preview endpoints.
+ - ANALYTICS_INGEST_SECRET (optional) — when set, `POST /api/analytics/ingest` requires `Authorization: Bearer <secret>`.
  - FF_OPENAI_ADAPTER_V0 (default: off) — enables preview OpenAI planner adapter v0 when `PLANNER_ENGINE=openai`.
  
 Runtime (simple gate)
