@@ -401,6 +401,14 @@ export default function Home() {
 - `POST /api/generate` (gpt-5 → mini): Accepts confirmed plan; returns **schema-valid** modules/items JSON.
 - `POST /api/score` (nano): Accepts answers; returns rubric scores with difficulty & misconceptions (schema-valid).
 - `GET  /api/daily/next` (selector): Returns prioritized queue based on recency/struggle/spaced repetition.
+### 21.1 Retention v0 (Preview)
+
+- `POST /api/certified/schedule` (sm2-lite): Accepts `{ session_id, plan_id, items[], prior?, algo?, now? }` and returns `{ order[], due, meta }`.
+- `POST /api/certified/progress` (events): Accepts `{ session_id, card_id, action, grade?, at }` and upserts preview snapshot.
+- `GET  /api/certified/progress?sid=`: Returns `{ session_id, items[] }` snapshot for resume.
+
+Web integration (preview): `/certified/study` calls schedule on start/reset, posts progress on flip/grade, and resumes from server snapshot when local is empty. Settings drawer exposes algo label and a local daily-target value.
+
 
 ### Acceptance
 - Each endpoint returns 200 on valid input; JSON matches the corresponding schema.
