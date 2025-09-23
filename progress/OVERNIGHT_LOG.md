@@ -20,3 +20,7 @@
 - 2025-09-23 20:11:02 PR #133 opened: retention v0 web integration (preview)
 - 2025-09-23 20:40:41 start feat/adaptive-engine-v1-preview; scaffold engine + flags
 - 2025-09-23 20:53:34 adaptive: evaluator + CI job + docs added; PR #134 opened (preview)
+2025-09-23T20:26:56Z - kickoff openai adapter v0
+2025-09-23T20:32:07Z - implement openai-v0 adapter + route selection
+2025-09-23T20:35:28Z - run api tests and typecheck
+2025-09-23T20:35:49Z - commit openai adapter v0 + eval + ci + docs

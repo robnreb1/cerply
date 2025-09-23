@@ -9,5 +9,13 @@
     "openapi": true,
     "evaluator": true,
     "docs": true
+  },
+  "openai_adapter_v0": {
+    "kickoffAt": "2025-09-23T20:26:56.710Z",
+    "branch": "feat/openai-adapter-v0",
+    "engineFile": true,
+    "routeWiring": "pending",
+    "verify": "running",
+    "committed": true
   }
 }

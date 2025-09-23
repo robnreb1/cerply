@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { PlanRequestZ, PlanResponseZ } from '../schemas/certified.plan';
 import { PlannerInputZ, PlannerEngine } from '../planner/interfaces';
 import { MockPlanner } from '../planner/engines/mock';
-import { OpenAIPlanner } from '../planner/engines/openai';
+import { OpenAIV0Planner } from '../planner/engines/openai-v0';
 import { AdaptiveV1Planner } from '../planner/engines/adaptive-v1';
 
 // Extend Fastify route config to accept a `public` boolean used by global guards
@@ -100,8 +100,12 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
       const input = parsed.data;
       const engine = (process.env.PLANNER_ENGINE || 'mock').toLowerCase();
       let planner: PlannerEngine = MockPlanner; // default and CI-safe
-      if (engine === 'openai' && (process.env.OPENAI_API_KEY || '').length > 0) {
-        planner = OpenAIPlanner;
+      if (
+        engine === 'openai' &&
+        String(process.env.FF_OPENAI_ADAPTER_V0 || 'false').toLowerCase() === 'true'
+      ) {
+        // Key is optional: adapter will fallback deterministically when missing
+        planner = OpenAIV0Planner;
       } else if (engine === 'adaptive' && String(process.env.FF_ADAPTIVE_ENGINE_V1 || 'false').toLowerCase() === 'true') {
         planner = AdaptiveV1Planner;
       }
