@@ -8,7 +8,9 @@ export function registerDocsRoutes(app: FastifyInstance) {
 
   app.get('/api/openapi.json', async (_req: FastifyRequest, reply: FastifyReply) => {
     try {
-      const p = join(__dirname, '..', 'openapi', 'build', 'openapi.json');
+      // __dirname is api/src/routes (dev) or api/dist/routes (build)
+      // openapi lives under api/openapi/build/openapi.json → two levels up from /routes
+      const p = join(__dirname, '..', '..', 'openapi', 'build', 'openapi.json');
       const txt = readFileSync(p, 'utf8');
       reply.header('content-type', 'application/json; charset=utf-8');
       return reply.send(txt);
