@@ -1,0 +1,3 @@
+- 2025-09-22 — Created branch chore/ci-preview-fix-and-cors-canary-ep82.
+- Removed legacy .github/workflows/deploy.yml (deploy-preview). Kept normalized pr-preview.yml.
+- Added CORS canary step to .github/workflows/staging-deploy.yml (fails on missing ACAO:* or any ACAC:true or x-cors-certified-hook).
