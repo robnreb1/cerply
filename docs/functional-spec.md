@@ -406,6 +406,13 @@ export default function Home() {
 - Each endpoint returns 200 on valid input; JSON matches the corresponding schema.
 - Token usage and model name are logged per request; daily aggregates exposed to ops.
 
+### Certified Plan (PLAN mode)
+- Flags: `CERTIFIED_ENABLED=true`, `CERTIFIED_MODE=plan`
+- Request: `POST /api/certified/plan` with `Content-Type: application/json`, body `{ topic: string }`
+- Response: deterministic plan, schema per `api/src/schemas/certified.plan.ts` (status ok, endpoint certified.plan, mode plan, provenance rule/ruleA|ruleB/rule, plan { title, items[card…] })
+- CORS invariants: OPTIONS → 204 + `Access-Control-Allow-Origin: *`; Non-OPTIONS → `ACAO:*` and no `ACAC:true`, no debug headers
+- Errors: 415 on missing/incorrect content-type; 400 on invalid body
+
 ## 22) Backlog (Next 10)
 
 1. LLM router + runner stubs (`api/src/llm/*`).

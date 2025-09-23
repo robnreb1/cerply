@@ -36,6 +36,21 @@ Runtime (mode)
       "plan": { "title":"Mock Plan", "items":[ { "id":"m1", "type":"card", "front":"...", "back":"..." } ] }
     }
 
+  - `plan`: deterministic planner (no external AI). Requires `Content-Type: application/json` and a request body `{ topic: string }`. Returns 200 with JSON:
+    {
+      "status":"ok",
+      "request_id":"<uuid>",
+      "endpoint":"certified.plan",
+      "mode":"plan",
+      "enabled": true,
+      "provenance": { "planner":"rule", "proposers":["ruleA","ruleB"], "checker":"rule" },
+      "plan": { "title":"Plan: <topic>", "items":[ { "id":"card-intro", "type":"card", "front":"Overview: <topic>", "back":"…" }, … ] }
+    }
+
+  - Validation errors:
+    - Missing/wrong `Content-Type` → 415 `{ error: { code: 'UNSUPPORTED_MEDIA_TYPE', ... } }`
+    - Invalid body (e.g., missing/empty `topic`) → 400 `{ error: { code: 'BAD_REQUEST', ... } }`
+
 Env (observability)
 - OBS_SAMPLE_PCT (0..100) — % of requests sampled as events(type='latency')
 - BUDGET_DAILY_CENTS — enables /api/ledger/alarm 24h budget check

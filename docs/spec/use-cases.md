@@ -23,6 +23,19 @@
       "provenance": { "planner":"mock", "proposers":["mockA","mockB"], "checker":"mock" },
       "plan": { "title":"Mock Plan", "items":[ { "id":"m1", "type":"card", "front":"...", "back":"..." } ] }
     }
+  - Given CERTIFIED_ENABLED=true and CERTIFIED_MODE=plan, same route → 200 deterministic plan JSON (no external AI):
+    {
+      "status":"ok",
+      "request_id":"<uuid>",
+      "endpoint":"certified.plan",
+      "mode":"plan",
+      "enabled": true,
+      "provenance": { "planner":"rule", "proposers":["ruleA","ruleB"], "checker":"rule" },
+      "plan": { "title":"Plan: <topic>", "items":[ { "id":"card-intro", "type":"card", "front":"Overview: <topic>", "back":"…" }, … ] }
+    }
+  - Errors:
+    - Missing/incorrect `Content-Type` → 415
+    - Invalid body (e.g., `{ topic: 123 }`) → 400
   - Preview page: `web/app/(preview)/certified/page.tsx` — shows stub response when `NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true`.
   - Drizzle migrations apply cleanly; server boots
 
