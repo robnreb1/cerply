@@ -2,15 +2,12 @@
   "phase": "adaptive-engine-v1",
   "branch": "feat/adaptive-engine-v1-preview",
   "ok": true,
-  "flags": {
-    "FF_ADAPTIVE_ENGINE_V1": false
-  },
   "checklist": {
-    "engine": false,
-    "wire": false,
-    "tests": false,
+    "engine": true,
+    "wire": true,
+    "tests": true,
     "openapi": true,
-    "evaluator": false,
-    "docs": false
+    "evaluator": true,
+    "docs": true
   }
 }
