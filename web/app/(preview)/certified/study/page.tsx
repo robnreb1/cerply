@@ -28,6 +28,10 @@ export default function StudyRunnerPage() {
   const [idx, setIdx] = useState(0);
   const [order, setOrder] = useState<number[]>([]);
   const flipBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [dailyTarget, setDailyTarget] = useState<number>(() => {
+    try { const v = localStorage.getItem('study:dailyTarget'); return v ? Math.max(1, Math.min(200, Number(v))) : 20; } catch { return 20; }
+  });
 
   const hash = useMemo(() => hashInput({ topic: inp.topic, level: inp.level || undefined, goals: (inp.goals || '').split(',').map(s=>s.trim()).filter(Boolean) }), [inp.topic, inp.level, inp.goals]);
   const deck = useMemo(() => resp ? toDeck(resp) : { title: '', cards: [] }, [resp]);
@@ -67,6 +71,9 @@ export default function StudyRunnerPage() {
     if (deck.cards.length === 0) return;
     session.save(hash, { idx, flipped, order });
   }, [hash, deck.cards.length, idx, flipped, order]);
+
+  // Persist settings
+  useEffect(() => { try { localStorage.setItem('study:dailyTarget', String(dailyTarget)); } catch {} }, [dailyTarget]);
 
   // Hotkeys
   useEffect(() => {
@@ -139,7 +146,7 @@ export default function StudyRunnerPage() {
     <div style={{ padding: 16, display: 'grid', gap: 16 }}>
       <h1 style={{ fontSize: 18, fontWeight: 600 }}>Certified Study Runner</h1>
       {/* Form */}
-      <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 180px 1fr auto' }}>
+      <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 180px 1fr auto auto' }}>
         <input aria-label="Topic" value={inp.topic} onChange={(e)=>setInp(v=>({...v, topic:e.target.value}))} placeholder="Topic (required)" style={{ padding:'8px 10px', border:'1px solid #ccc', borderRadius:8 }} />
         <select aria-label="Level" value={inp.level} onChange={(e)=>setInp(v=>({...v, level:e.target.value as any}))} style={{ padding:'8px 10px', border:'1px solid #ccc', borderRadius:8 }}>
           <option value="">Level (optional)</option>
@@ -149,12 +156,22 @@ export default function StudyRunnerPage() {
         </select>
         <input aria-label="Goals" value={inp.goals} onChange={(e)=>setInp(v=>({...v, goals:e.target.value}))} placeholder="Goals (comma-separated)" style={{ padding:'8px 10px', border:'1px solid #ccc', borderRadius:8 }} />
         <button aria-label="Submit" onClick={onSubmit} disabled={loading || !inp.topic.trim()} style={{ padding:'8px 12px', border:'1px solid #ccc', borderRadius:8 }}>{loading?'Submitting…':'Start'}</button>
+        <button aria-label="Settings" onClick={()=>setShowSettings(x=>!x)} style={{ padding:'8px 12px', border:'1px solid #ccc', borderRadius:8 }}>Settings</button>
       </div>
       {error && <div role="alert" style={{ padding: 8, background: '#fff3cd', border:'1px solid #ffe2a1', borderRadius:8 }}>{error}</div>}
 
       {/* Runner */}
       {deck.cards.length > 0 && (
         <div style={{ display:'grid', gap:12 }}>
+          {showSettings && (
+            <div aria-label="Settings" style={{ display:'flex', gap:12, alignItems:'center', border:'1px solid #ddd', borderRadius:8, padding:8 }}>
+              <div>Algo: <code>sm2-lite</code></div>
+              <label style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span>Daily target</span>
+                <input type="number" min={1} max={200} value={dailyTarget} onChange={(e)=>setDailyTarget(Math.max(1, Math.min(200, Number(e.target.value||'0'))))} style={{ width:80, padding:'6px 8px', border:'1px solid #ccc', borderRadius:6 }} />
+              </label>
+            </div>
+          )}
           <div aria-label="Progress" style={{ display:'flex', alignItems:'center', gap:8 }}>
             <div style={{ flex:1, height:8, background:'#eee', borderRadius:8 }}>
               <div style={{ width:`${progressPct}%`, height:8, background:'#4ade80', borderRadius:8 }} />
