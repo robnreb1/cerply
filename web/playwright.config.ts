@@ -6,10 +6,11 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'npm run start -- -p 3100',
+    command: 'cross-env NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true npm run start -- -p 3100',
     timeout: 120_000,
     port: 3100,
     reuseExistingServer: true,
+    env: { NEXT_PUBLIC_PREVIEW_CERTIFIED_UI: 'true' },
   },
 });
 
