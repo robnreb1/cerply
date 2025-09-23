@@ -21,7 +21,7 @@ export default function CertifiedPreviewPage() {
     setStatus(null);
     setJson(null);
     try {
-      const res = await fetch(`${apiBase()}/api/certified/plan`, { method: 'POST' });
+      const res = await fetch(`${apiBase()}/api/certified/plan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({}) });
       setStatus(res.status);
       const data = await res.json().catch(() => ({}));
       setJson(data);
@@ -42,6 +42,11 @@ export default function CertifiedPreviewPage() {
       {status !== null && (
         <div>
           <div style={{ marginBottom: 8 }}>Status: <strong>{status}</strong></div>
+          {(status === 501 || status === 503) && (
+            <div style={{ marginBottom: 8, padding: 8, background: '#fff3cd', border: '1px solid #ffe2a1', borderRadius: 8 }}>
+              {status === 501 ? 'Certified is enabled but not implemented yet.' : 'Cerply Certified is disabled.'}
+            </div>
+          )}
           {json && (
             <pre style={{ background: '#0b0b0b', color: '#d5f5e3', padding: 12, borderRadius: 8, overflowX: 'auto' }}>
 {JSON.stringify(json, null, 2)}

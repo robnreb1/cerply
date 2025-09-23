@@ -3,7 +3,7 @@ import createApp from '../src/index';
 
 const COOKIE = 'cerply_session=test';
 
-describe('Certified endpoints (feature-flagged stubs)', () => {
+describe('Certified endpoints (feature-flagged stubs + mock)', () => {
   let app: Awaited<ReturnType<typeof createApp>>;
 
   beforeAll(async () => {
@@ -20,17 +20,57 @@ describe('Certified endpoints (feature-flagged stubs)', () => {
   });
 
   it('returns 503 when disabled', async () => {
-    const r = await app.inject({ method: 'POST', url: '/api/certified/plan' });
+    const r = await app.inject({ method: 'POST', url: '/api/certified/plan', headers: { 'content-type': 'application/json' }, payload: {} });
     expect([503]).toContain(r.statusCode);
   });
 
-  it('returns 501 stub when enabled', async () => {
+  it('returns 501 stub when enabled (default stub mode)', async () => {
     // Recreate app with flag enabled
     await app.close();
     vi.stubEnv('CERTIFIED_ENABLED', 'true');
     app = await createApp();
-    const r = await app.inject({ method: 'POST', url: '/api/certified/plan' });
+    const r = await app.inject({ method: 'POST', url: '/api/certified/plan', headers: { 'content-type': 'application/json' }, payload: {} });
     expect([501]).toContain(r.statusCode);
+  });
+
+  it('returns 415 when missing/wrong content-type', async () => {
+    await app.close();
+    vi.stubEnv('CERTIFIED_ENABLED', 'true');
+    vi.stubEnv('CERTIFIED_MODE', 'mock');
+    app = await createApp();
+    const r = await app.inject({ method: 'POST', url: '/api/certified/plan' });
+    expect(r.statusCode).toBe(415);
+  });
+
+  it('returns 200 mock shape when enabled and CERTIFIED_MODE=mock', async () => {
+    await app.close();
+    vi.stubEnv('CERTIFIED_ENABLED', 'true');
+    vi.stubEnv('CERTIFIED_MODE', 'mock');
+    app = await createApp();
+    const r = await app.inject({ method: 'POST', url: '/api/certified/plan', headers: { 'content-type': 'application/json' }, payload: {} });
+    expect(r.statusCode).toBe(200);
+    const j = r.json() as any;
+    expect(j.status).toBe('ok');
+    expect(j.endpoint).toBe('certified.plan');
+    expect(j.mode).toBe('mock');
+    expect(j.enabled).toBe(true);
+    expect(typeof j.request_id).toBe('string');
+    expect(j.provenance?.planner).toBe('mock');
+    expect(Array.isArray(j.provenance?.proposers)).toBe(true);
+    expect(j.provenance?.checker).toBe('mock');
+    expect(j.plan?.title).toBe('Mock Plan');
+    expect(Array.isArray(j.plan?.items)).toBe(true);
+    expect(j.plan.items.length).toBeGreaterThan(0);
+  });
+
+  it('OPTIONS preflight returns 204 with ACAO:*', async () => {
+    await app.close();
+    vi.stubEnv('CERTIFIED_ENABLED', 'true');
+    app = await createApp();
+    const r = await app.inject({ method: 'OPTIONS', url: '/api/certified/plan' });
+    expect(r.statusCode).toBe(204);
+    const acao = r.headers['access-control-allow-origin'];
+    expect(acao).toBe('*');
   });
 
   it('expert module approve requires admin', async () => {

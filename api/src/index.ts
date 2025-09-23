@@ -1619,6 +1619,7 @@ app.post('/api/analytics/record', async (req: FastifyRequest, reply: FastifyRepl
 
 // ---------------------
 // Cerply Certified public stubs (bypass admin; 503/501 semantics)
+// Registered in routes/certified.ts (avoid duplicate routes here)
 // ---------------------
 function isAdmin(req: FastifyRequest): boolean {
   const allowDev = (process.env.ALLOW_DEV_ADMIN ?? '').toString().toLowerCase();

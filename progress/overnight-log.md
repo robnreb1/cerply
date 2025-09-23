@@ -1,0 +1,4 @@
+- 2025-09-22 22:30 — Kickoff: created branch feat/certified-v0 and progress files.
+- 2025-09-22 22:55 — Implemented API mock per docs/spec/flags.md (Runtime mode). Added Content-Type 415. Ensured ACAO:* and no ACAC on POST; OPTIONS 204. Files: api/src/routes/certified.ts, removed legacy stubs from api/src/index.ts. Tests updated: api/tests/certified.test.ts. Smoke scripts updated: scripts/smoke-api.mjs, web/scripts/smoke-api.mjs.
+- 2025-09-22 23:15 — Web preview adjusted: web/app/(preview)/certified/page.tsx now POSTs JSON and shows 501/503 banner. Added tiny presenter + test: web/lib/presenter/certifiedPlan.js, web/lib/presenter/certifiedPlan.test.mjs (passes).
+- 2025-09-22 23:20 — CI preview workflow verified: .github/workflows/pr-preview.yml injects NEXT_PUBLIC_API_BASE and NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true.

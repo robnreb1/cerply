@@ -1,0 +1,12 @@
+- [x] Create branch and progress files
+- [x] Locate Certified Plan schema (docs/spec/flags.md → Runtime (mode))
+- [x] Implement /api/certified/plan mock (flag-gated) with 415 on wrong Content-Type
+- [x] Ensure CORS invariants (ACAO: *; no ACAC) and OPTIONS 204
+- [x] Update tests (200 mock shape, 415, 501/503 retained) — all green
+- [x] Update smoke scripts to assert provenance keys on 200
+- [x] Web preview gated UI; handles 501/503; renders 200
+- [x] Tiny presenter + test (passes)
+- [x] CI preview workflow verified; env injected
+- [ ] Open PR with checklist, links, and curl header commands
+- [ ] Trigger CI; verify green checks (typecheck, preview)
+- [ ] Staging header verification; post capture blocks to PR comment
