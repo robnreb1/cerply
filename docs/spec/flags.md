@@ -6,6 +6,7 @@
 - ff_certified_sla_status_v1
 - ff_marketplace_ledgers_v1
 - ff_benchmarks_optin_v1
+ - FF_OPENAI_ADAPTER_V0 (default: off) — enables preview OpenAI planner adapter v0 when `PLANNER_ENGINE=openai`.
  
 Runtime (simple gate)
 - CERTIFIED_ENABLED (default: false) — enables `/api/certified/*` stub routes
@@ -35,6 +36,11 @@ Runtime (mode)
       "provenance": { "planner":"mock", "proposers":["mockA","mockB"], "checker":"mock" },
       "plan": { "title":"Mock Plan", "items":[ { "id":"m1", "type":"card", "front":"...", "back":"..." } ] }
     }
+
+Planner engines (selection)
+- PLANNER_ENGINE (values: `mock` | `openai` | `adaptive`, default: `mock`)
+  - `openai`: requires `FF_OPENAI_ADAPTER_V0=true` to activate preview adapter; with no `OPENAI_API_KEY`, deterministic fallback is used.
+  - `adaptive`: requires `FF_ADAPTIVE_ENGINE_V1=true`.
 
 Env (observability)
 - OBS_SAMPLE_PCT (0..100) — % of requests sampled as events(type='latency')

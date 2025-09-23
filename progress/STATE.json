@@ -16,6 +16,8 @@
     "engineFile": true,
     "routeWiring": "pending",
     "verify": "running",
-    "committed": true
+    "committed": true,
+    "pr": "#135",
+    "docs": true
   }
 }

@@ -24,3 +24,5 @@
 2025-09-23T20:32:07Z - implement openai-v0 adapter + route selection
 2025-09-23T20:35:28Z - run api tests and typecheck
 2025-09-23T20:35:49Z - commit openai adapter v0 + eval + ci + docs
+2025-09-23T20:36:11Z - open PR created #135
+2025-09-23T20:36:56Z - docs updated: OPENAI_ADAPTER_V0 + flags
