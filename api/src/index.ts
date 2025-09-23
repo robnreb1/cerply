@@ -465,6 +465,16 @@ try {
   await registerCertifiedRoutes(app);
 } catch {}
 
+// Certified Retention v0 (preview)
+try {
+  const { registerCertifiedRetentionRoutes } = await import('./routes/certifiedRetention');
+  await registerCertifiedRetentionRoutes(app);
+} catch {}
+try {
+  const { registerCertifiedRetentionRoutes } = await import('./routes/certified.retention');
+  await registerCertifiedRetentionRoutes(app);
+} catch {}
+
 // API Docs (preview only)
 try {
   const { registerDocsRoutes } = await import('./routes/docs');

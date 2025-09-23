@@ -7,6 +7,6 @@
     "runner_wired": true,
     "unit_tests": true,
     "e2e": true,
-    "docs": false
+    "docs": true
   }
 }
