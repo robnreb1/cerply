@@ -14,7 +14,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "smoke:vercel": "bash ./scripts/vercel-smoke.sh",
     "smoke:api": "node ./scripts/smoke-api.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "node ./lib/presenter/certifiedPlan.test.mjs && playwright test e2e/certified.plan.spec.ts --config=playwright.config.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
