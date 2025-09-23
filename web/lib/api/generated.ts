@@ -1,4 +1,4 @@
-export type PlanRequest = { topic: string };
+export type PlanRequest = { topic: string; level?: 'beginner'|'intermediate'|'advanced'; goals?: string[] };
 export type PlanItem = { id: string; type: 'card'; front: string; back: string };
 export type PlanResponse = {
   status: 'ok';

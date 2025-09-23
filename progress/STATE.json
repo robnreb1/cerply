@@ -1,6 +1,6 @@
 {
-  "phase": "certified-plan-harden",
-  "step": 6,
+  "phase": "planner-pipeline",
+  "step": 9,
   "ok": true,
-  "note": "canary++"
+  "note": "ci jobs updated (e2e/env, openapi drift, planner:eval)"
 }

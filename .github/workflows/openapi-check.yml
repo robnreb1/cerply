@@ -31,5 +31,21 @@ jobs:
             echo 'OpenAPI drift detected. Rebuild and commit api/openapi/build/openapi.json';
             exit 1;
           }
+  planner_eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install API deps
+        working-directory: api
+        run: npm ci || npm i
+      - name: Run offline evaluator (mock)
+        working-directory: api
+        env:
+          PLANNER_ENGINE: mock
+          CERTIFIED_MODE: plan
+        run: npm run planner:eval
 
 

@@ -44,6 +44,8 @@ jobs:
         env:
           BASE_URL: ${{ steps.find.outputs.url }}
           NEXT_PUBLIC_API_BASE: https://cerply-api-staging-latest.onrender.com
+          PLANNER_ENGINE: mock
+          CERTIFIED_MODE: plan
         run: npm run test:e2e
 
 
