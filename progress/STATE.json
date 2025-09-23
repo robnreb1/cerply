@@ -1,6 +1,6 @@
 {
   "phase": "planner-pipeline",
-  "step": 0,
+  "step": 9,
   "ok": true,
-  "note": "start"
+  "note": "ci jobs updated (e2e/env, openapi drift, planner:eval)"
 }

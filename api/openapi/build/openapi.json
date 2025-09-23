@@ -67,7 +67,9 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 200
-          }
+          },
+          "level": { "type": "string", "enum": ["beginner","intermediate","advanced"] },
+          "goals": { "type": "array", "items": { "type": "string" } }
         }
       },
       "PlanItem": {

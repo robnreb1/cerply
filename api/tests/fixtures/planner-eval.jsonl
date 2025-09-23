@@ -1,0 +1,10 @@
+{"topic":"Hashes","expect":{"titleStartsWith":"Plan: Hashes","minItems":5,"firstIdStartsWith":"card-intro-"}}
+{"topic":"Graphs","expect":{"titleStartsWith":"Plan: Graphs","minItems":5,"firstIdStartsWith":"card-intro-"}}
+{"topic":"Sorting","expect":{"titleStartsWith":"Plan: Sorting","minItems":5,"firstIdStartsWith":"card-intro-"}}
+{"topic":"Databases","expect":{"titleStartsWith":"Plan: Databases","minItems":5,"firstIdStartsWith":"card-intro-"}}
+{"topic":"HTTP","expect":{"titleStartsWith":"Plan: HTTP","minItems":5,"firstIdStartsWith":"card-intro-"}}
+{"topic":"TLS","expect":{"titleStartsWith":"Plan: TLS","minItems":5,"firstIdStartsWith":"card-intro-"}}
+{"topic":"Kubernetes","expect":{"titleStartsWith":"Plan: Kubernetes","minItems":5,"firstIdStartsWith":"card-intro-"}}
+{"topic":"Docker","expect":{"titleStartsWith":"Plan: Docker","minItems":5,"firstIdStartsWith":"card-intro-"}}
+{"topic":"Queues","expect":{"titleStartsWith":"Plan: Queues","minItems":5,"firstIdStartsWith":"card-intro-"}}
+{"topic":"Caching","expect":{"titleStartsWith":"Plan: Caching","minItems":5,"firstIdStartsWith":"card-intro-"}}

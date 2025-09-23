@@ -17,13 +17,16 @@ export default function CertifiedPreviewPage() {
   const [status, setStatus] = useState<number | null>(null);
   const [json, setJson] = useState<any>(null);
   const [topic, setTopic] = useState<string>('');
+  const [level, setLevel] = useState<string>('');
+  const [goals, setGoals] = useState<string>('');
 
   async function callPlan() {
     setLoading(true);
     setStatus(null);
     setJson(null);
     try {
-      const r = await postCertifiedPlan(apiBase(), { topic });
+      const goalsArr = goals.split(',').map((s) => s.trim()).filter(Boolean);
+      const r = await postCertifiedPlan(apiBase(), { topic, level: level || undefined, goals: goalsArr.length ? goalsArr : undefined } as any);
       setStatus(r.status);
       setJson(r.json);
     } catch (e) {
@@ -37,12 +40,25 @@ export default function CertifiedPreviewPage() {
   return (
     <div style={{ padding: 16, display: 'grid', gap: 12 }}>
       <h1 style={{ fontSize: 18, fontWeight: 600 }}>Certified Preview</h1>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'grid', gap: 8, alignItems: 'center', gridTemplateColumns: '1fr 180px 1fr auto' }}>
         <input
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           placeholder="Enter a topic (e.g., Hashes)"
           aria-label="Topic"
+          style={{ flex: 1, padding: '8px 10px', border: '1px solid #ccc', borderRadius: 8 }}
+        />
+        <select value={level} onChange={(e) => setLevel(e.target.value)} aria-label="Level" style={{ padding: '8px 10px', border: '1px solid #ccc', borderRadius: 8 }}>
+          <option value="">Level (optional)</option>
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+        <input
+          value={goals}
+          onChange={(e) => setGoals(e.target.value)}
+          placeholder="Goals (comma-separated)"
+          aria-label="Goals"
           style={{ flex: 1, padding: '8px 10px', border: '1px solid #ccc', borderRadius: 8 }}
         />
         <button onClick={callPlan} disabled={loading || !topic.trim()} style={{ padding: '8px 12px', border: '1px solid #ccc', borderRadius: 8 }}>

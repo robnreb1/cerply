@@ -21,7 +21,8 @@
     "db:push": "drizzle-kit push --config=drizzle.config.ts",
     "db:seed": "tsx scripts/seed.ts",
     "openapi:build": "tsx scripts/openapi-build.ts",
-    "openapi:check": "npm run openapi:build && test -f openapi/build/openapi.json"
+    "openapi:check": "npm run openapi:build && test -f openapi/build/openapi.json",
+    "planner:eval": "tsx scripts/planner-eval.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^9.4.0",

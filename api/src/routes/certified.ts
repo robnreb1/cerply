@@ -1,6 +1,8 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import crypto from 'node:crypto';
 import { PlanRequestZ, PlanResponseZ } from '../schemas/certified.plan';
+import { PlannerInputZ } from '../planner/interfaces';
+import { MockPlanner } from '../planner/engines/mock';
 
 // Extend Fastify route config to accept a `public` boolean used by global guards
 declare module 'fastify' {
@@ -89,21 +91,14 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
     const MODE = String(process.env.CERTIFIED_MODE ?? 'stub').toLowerCase();
     if (MODE === 'plan') {
       // Validate body shape strictly
-      const parsed = PlanRequestZ.safeParse(((_req as any).body ?? {}) as any);
+      const parsed = PlannerInputZ.safeParse(((_req as any).body ?? {}) as any);
       if (!parsed.success) {
         return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing required field: topic (non-empty string)' } });
       }
-      const { topic } = parsed.data;
-
-      // Deterministic planner (rule-based, no external calls)
-      const planTitle = `Plan: ${topic}`;
-      const items = [
-        { id: 'card-intro', type: 'card', front: `Overview: ${topic}`, back: `${topic} — key ideas in brief.` },
-        { id: 'card-core-1', type: 'card', front: `${topic}: Core Concept 1`, back: 'What it is and why it matters.' },
-        { id: 'card-core-2', type: 'card', front: `${topic}: Core Concept 2`, back: 'How to apply it in practice.' },
-        { id: 'card-check', type: 'card', front: `Check understanding: ${topic}`, back: 'Recall the essentials and one example.' },
-        { id: 'card-review', type: 'card', front: `Review: ${topic}`, back: 'Summarise in 3 bullet points.' }
-      ];
+      const input = parsed.data;
+      const engine = (process.env.PLANNER_ENGINE || 'mock').toLowerCase();
+      const planner = MockPlanner; // default and CI-safe
+      const out = await planner.generate(input);
 
       try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_planmode'); } catch {}
       reply.header('access-control-allow-origin', '*');
@@ -114,8 +109,8 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
         endpoint: 'certified.plan',
         mode: 'plan',
         enabled: true,
-        provenance: { planner: 'rule', proposers: ['ruleA','ruleB'], checker: 'rule' },
-        plan: { title: planTitle, items }
+        provenance: out.provenance,
+        plan: out.plan
       } as const;
       // Runtime response validation (guardrail)
       try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }

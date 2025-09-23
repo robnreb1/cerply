@@ -11,7 +11,12 @@ test('PLAN preview renders cards and CORS invariants hold', async ({ page, reque
     if (visible) { ready = true; break; }
   }
   if (ready) {
+    // Client-side negative: button disabled when topic is empty
+    await expect(page.getByRole('button', { name: 'POST /api/certified/plan' })).toBeDisabled();
+
     await page.fill('input[aria-label="Topic"]', 'Hashes');
+    await page.selectOption('select[aria-label="Level"]', { value: 'beginner' }).catch(() => {});
+    await page.fill('input[aria-label="Goals"]', 'overview, fundamentals');
     await page.click('button:has-text("POST /api/certified/plan")');
     await expect(page.getByText('Status:')).toBeVisible();
     await expect(page.locator('pre')).toBeVisible();
