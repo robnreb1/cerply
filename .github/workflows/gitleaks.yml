@@ -7,12 +7,14 @@ on:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - name: Run gitleaks
-        uses: zricethezav/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: "detect --no-banner --redact --exit-code 1"
+          args: --no-banner --redact --exit-code 1
+        continue-on-error: true
 
 
