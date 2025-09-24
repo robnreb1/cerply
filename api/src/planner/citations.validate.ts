@@ -52,8 +52,10 @@ export async function validateCitations(
         row.status = r.status;
         row.contentType = r.headers.get('content-type') || undefined;
         row.reachable = r.ok;
-        if (r.ok && r.body && r.body.getReader) {
-          const reader = (r.body as any).getReader();
+        const body: any = (r as any).body;
+        const hasReader = body && typeof body.getReader === 'function';
+        if (r.ok && hasReader) {
+          const reader = body.getReader();
           const chunk = await reader.read();
           const data: Uint8Array = chunk?.value instanceof Uint8Array ? chunk.value : new Uint8Array();
           const h = crypto.createHash('sha256').update(data).digest('hex');
