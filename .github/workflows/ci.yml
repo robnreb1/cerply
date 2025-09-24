@@ -526,10 +526,7 @@ jobs:
           set -euo pipefail
           base=${{ github.event.pull_request.base.sha }}
           head=${{ github.event.pull_request.head.sha }}
-          files=$(git diff --name-only "$base" "$head" | grep -E '\.(ts|tsx)$' || true)
-          if [ -z "$files" ]; then echo "No TS/TSX changes; skipping coverage gating"; exit 0; fi
-          echo "Changed files:" && echo "$files"
-          npx coverage-badger --lcov-file coverage/merged.info --threshold 85 --files "$files"
+          node scripts/check-coverage-changed.mjs "$base" "$head"
 
   cerply-api:
     needs: [guard-residual-service-refs]
