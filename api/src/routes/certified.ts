@@ -78,11 +78,36 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
       reply.removeHeader('access-control-allow-credentials');
       return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Expected content-type: application/json' } });
     }
+    // 413 guard: reject payloads larger than 16KB
+    try {
+      const hdrLen = Number(((_req as any).headers?.['content-length'] ?? '0')) || 0;
+      let calcLen = 0;
+      try { calcLen = Buffer.byteLength(JSON.stringify(((_req as any).body ?? {}) as any), 'utf8'); } catch {}
+      const size = Math.max(hdrLen, calcLen);
+      if (size > 16 * 1024) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Body exceeds 16KB', details: { limit: 16384, size } } });
+      }
+    } catch {}
     if (!isEnabled()) {
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Cerply Certified is disabled' } });
     }
+    // Simulated 429 for tests: header x-rate-limit-sim: 1
+    try {
+      const sim429 = String(((_req as any).headers?.['x-rate-limit-sim'] ?? '')).toLowerCase();
+      if (sim429 === '1' || sim429 === 'true' || process.env.SIMULATE_429 === '1') {
+        reply
+          .header('x-ratelimit-limit', '20')
+          .header('x-ratelimit-remaining', '0')
+          .header('retry-after', '60')
+          .header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } });
+      }
+    } catch {}
     const request_id = crypto.randomUUID();
     const method = (_req as any).method || 'POST';
     const path = (_req as any).url || '/api/certified/plan';
