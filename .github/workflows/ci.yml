@@ -254,7 +254,7 @@ jobs:
         run: |
           if [ -f /tmp/api_pid.txt ]; then kill $(cat /tmp/api_pid.txt) || true; fi
 
-  analytics-smoke:
+  analytics-smoke-dup:
     name: Analytics Smoke (preview ingest/aggregate)
     runs-on: ubuntu-latest
     steps:
