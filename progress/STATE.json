@@ -1,6 +1,6 @@
 {
-  "step": "route-wiring",
+  "step": "evaluator",
   "status": "updated",
   "branch": "feat/certified-multiproposer-checker-lock-p0",
-  "lastUpdated": "2025-09-24T19:44:33Z"
+  "lastUpdated": "2025-09-24T19:49:12Z"
 }
