@@ -39,3 +39,4 @@
 2025-09-23T21:12:52Z - kickoff analytics pilot v0 (preview)
 2025-09-23T21:16:05Z - analytics api scaffolding + tests + ci smoke added
 2025-09-24T04:40:09Z - docs: analytics pilot v0 usage/flags updated
+2025-09-24T04:44:01Z - resolve PR #137 conflicts (flags, logs, state)
