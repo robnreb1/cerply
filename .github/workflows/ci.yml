@@ -217,6 +217,8 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Install deps
         run: npm ci --workspaces --include-workspace-root
+      - name: Build API
+        run: npm --workspace ./api run build
       - name: Start API preview (background)
         env:
           PREVIEW_ANALYTICS: 'true'
