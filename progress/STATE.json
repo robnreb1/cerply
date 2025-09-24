@@ -1,27 +1,4 @@
 {
-  "phase": "adaptive-engine-v1",
-  "branch": "feat/adaptive-engine-v1-preview",
-  "ok": true,
-  "checklist": {
-    "engine": true,
-    "wire": true,
-    "tests": true,
-    "openapi": true,
-    "evaluator": true,
-    "docs": true
-  },
-  "openai_adapter_v0": {
-    "kickoffAt": "2025-09-23T20:26:56.710Z",
-    "branch": "feat/openai-adapter-v0",
-    "engineFile": true,
-    "routeWiring": "pending",
-    "verify": "running",
-    "committed": true,
-    "pr": "#135",
-    "docs": true,
-    "ci": true,
-    "cors_canary": "pending",
-    "ciFixes": true,
-    "ciLint": "resolved"
-  }
+  "step": "analytics-ci-smoke",
+  "status": "updated"
 }

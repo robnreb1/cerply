@@ -51,6 +51,7 @@ import { registerLearnRoutes } from './routes/learn';
 import { registerDevRoutes } from './routes/dev';
 import { registerDbHealth } from './routes/dbHealth';
 import { registerAnalyticsRoutes } from './routes/analytics';
+import { registerAnalyticsPreviewRoutes } from './routes/analytics.preview';
 import { registerRoutesDump }     from './routes/routesDump';
 import { registerLedgerRoutes }   from './routes/ledger';
 import { registerExportRoutes }   from './routes/exports';
@@ -141,6 +142,21 @@ export async function createApp() {
       const method = String(req?.method || '').toUpperCase();
       const url = String(req?.url || '');
       if (method === 'OPTIONS' && url.startsWith('/api/certified/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, authorization')
+          .code(204)
+          .send();
+      }
+    } catch {}
+  });
+  // Explicit CORS preflight for Analytics preview endpoints
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/analytics/')) {
         reply
           .header('access-control-allow-origin', '*')
           .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
@@ -453,6 +469,7 @@ if (_enableDevRoutes) {
 await registerDbHealth(app);
 
 await registerAnalyticsRoutes(app);
+await registerAnalyticsPreviewRoutes(app);
 await registerRoutesDump(app);
 await registerLedgerRoutes(app);
 // await registerAnalyticsPilot(app);

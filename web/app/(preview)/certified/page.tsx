@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { apiBase } from '../../../lib/apiBase';
 import { postCertifiedPlan } from '../../../lib/api/generated';
+import { enabled as analyticsEnabled, anonSessionId, pageId, postEvents, type AnalyticsEvent } from '../../../lib/analytics/client';
 
 export default function CertifiedPreviewPage() {
   if (process.env.NEXT_PUBLIC_PREVIEW_CERTIFIED_UI !== 'true') {
@@ -26,6 +27,10 @@ export default function CertifiedPreviewPage() {
     setJson(null);
     try {
       const goalsArr = goals.split(',').map((s) => s.trim()).filter(Boolean);
+      if (analyticsEnabled()) {
+        const e: AnalyticsEvent = { event: 'plan_request', ts: new Date().toISOString(), anon_session_id: anonSessionId(), page_id: pageId(), context: { topic, level: level || undefined, goals: goalsArr.length ? goalsArr : undefined } };
+        postEvents(apiBase(), [e]).catch(()=>{});
+      }
       const r = await postCertifiedPlan(apiBase(), { topic, level: level || undefined, goals: goalsArr.length ? goalsArr : undefined } as any);
       setStatus(r.status);
       setJson(r.json);
