@@ -1,0 +1,44 @@
+{
+  "plan": {
+    "title": "Adaptive Plan: Trees",
+    "items": [
+      {
+        "id": "adv1-1dab-1",
+        "type": "card",
+        "front": "Trees: Foundations",
+        "back": "Key points for foundations."
+      },
+      {
+        "id": "adv1-1dab-2",
+        "type": "card",
+        "front": "Trees: Applications",
+        "back": "Key points for applications."
+      },
+      {
+        "id": "adv1-1dab-3",
+        "type": "card",
+        "front": "Trees: Pitfalls",
+        "back": "Key points for pitfalls."
+      },
+      {
+        "id": "adv1-1dab-4",
+        "type": "card",
+        "front": "Trees: Core Concepts",
+        "back": "Key points for core concepts."
+      },
+      {
+        "id": "adv1-1dab-5",
+        "type": "card",
+        "front": "Trees: Review & Practice",
+        "back": "Key points for review & practice."
+      }
+    ]
+  },
+  "provenance": {
+    "planner": "rule",
+    "proposers": [
+      "adaptive-v1"
+    ],
+    "checker": "rule"
+  }
+}

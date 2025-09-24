@@ -1,0 +1,44 @@
+{
+  "plan": {
+    "title": "Adaptive Plan: Hashes",
+    "items": [
+      {
+        "id": "adv1-177e-1",
+        "type": "card",
+        "front": "Hashes: Foundations",
+        "back": "Key points for foundations."
+      },
+      {
+        "id": "adv1-177e-2",
+        "type": "card",
+        "front": "Hashes: Core Concepts",
+        "back": "Key points for core concepts."
+      },
+      {
+        "id": "adv1-177e-3",
+        "type": "card",
+        "front": "Hashes: Applications",
+        "back": "Key points for applications."
+      },
+      {
+        "id": "adv1-177e-4",
+        "type": "card",
+        "front": "Hashes: Pitfalls",
+        "back": "Key points for pitfalls."
+      },
+      {
+        "id": "adv1-177e-5",
+        "type": "card",
+        "front": "Hashes: Review & Practice",
+        "back": "Key points for review & practice."
+      }
+    ]
+  },
+  "provenance": {
+    "planner": "rule",
+    "proposers": [
+      "adaptive-v1"
+    ],
+    "checker": "rule"
+  }
+}
