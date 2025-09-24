@@ -529,7 +529,7 @@ jobs:
           files=$(git diff --name-only "$base" "$head" | grep -E '\.(ts|tsx)$' || true)
           if [ -z "$files" ]; then echo "No TS/TSX changes; skipping coverage gating"; exit 0; fi
           echo "Changed files:" && echo "$files"
-          npx coverage-badger --lcov coverage/merged.info --threshold 85 --files "$files"
+          npx coverage-badger --lcov-file coverage/merged.info --threshold 85 --files "$files"
 
   cerply-api:
     needs: [guard-residual-service-refs]
