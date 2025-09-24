@@ -49,4 +49,5 @@
 2025-09-24T19:49:12Z - tests added: checker, lock, multiphase route; all green (78)
 2025-09-24T19:54:42Z - evaluator metrics emitted; security baselines plugin added; tests green (81)
 2025-09-24T19:58:40Z - CI workflows added (evaluator, canary, scans); docs updated
+2025-09-24T21:12:05Z - PR updated per review (flags-respecting fallback); gitleaks fixed; Epic #82 marked done; Epic #55 remains open (advanced → P1)
 
