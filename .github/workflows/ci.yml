@@ -1,3 +1,77 @@
+name: Cerply CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  evaluator-multiphase:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps (api)
+        run: npm ci -w api
+      - name: Run multiphase evaluator
+        env:
+          FASTIFY_AUTOSTART: 'false'
+          CERTIFIED_ENABLED: 'true'
+          CERTIFIED_MODE: 'plan'
+          FF_ADAPTIVE_ENGINE_V1: 'true'
+          FF_OPENAI_ADAPTER_V0: 'true'
+          FF_CERTIFIED_PROPOSERS: 'true'
+          FF_CERTIFIED_CHECKER: 'true'
+          CERTIFIED_PROPOSERS: 'adaptive,openai'
+        run: npm -w api run -s planner:eval:multi
+      - name: Upload evaluator artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: planner-eval-multiphase
+          path: api/tests/fixtures/planner-eval.multiphase.json
+
+  certified-negatives:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps (api)
+        run: npm ci -w api
+      - name: Run 413/429 tests
+        run: npm -w api exec -s vitest run tests/certified.security.test.ts tests/certified.negatives.test.ts
+
+  security-canary:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Curl staging OPTIONS and POST
+        env:
+          STAGING: https://cerply-api-staging-latest.onrender.com
+        run: |
+          set -e
+          echo 'OPTIONS /api/certified/plan'
+          curl -sS -i -X OPTIONS "$STAGING/api/certified/plan" \
+            -H 'Origin: https://app.cerply.com' \
+            -H 'Access-Control-Request-Method: POST' | tr -d '\r' | sed -n '1,20p'
+          echo 'POST /api/certified/plan'
+          curl -sS -D- -o /dev/null -X POST "$STAGING/api/certified/plan" \
+            -H 'origin: https://app.cerply.com' -H 'content-type: application/json' \
+            --data '{"topic":"Hashing","level":"beginner","goals":["basics"]}' \
+          | tr -d '\r' | egrep -i '^(http/|access-control-allow-origin|access-control-allow-credentials|x-certified-lock-id|x-provenance-engines|x-content-type-options|referrer-policy|cross-origin-opener-policy|cross-origin-resource-policy|x-ratelimit-)'
+
+  actions-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Audit action pinning
+        run: node scripts/audit-actions.mjs
+
 name: CI
 
 on:

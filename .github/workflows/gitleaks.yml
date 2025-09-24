@@ -1,0 +1,18 @@
+name: Gitleaks (advisory)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run gitleaks
+        uses: zricethezav/gitleaks-action@v2
+        with:
+          args: "detect --no-banner --redact --exit-code 1"
+
+
