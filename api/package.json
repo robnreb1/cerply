@@ -45,6 +45,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^1.6.1",
     "@types/node": "^20.19.15",
     "@types/pg": "^8.10.2",
     "@types/supertest": "^6.0.3",
