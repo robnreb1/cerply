@@ -1,4 +1,4 @@
 {
-  "step": "analytics-ci-smoke",
+  "step": "staging-canary",
   "status": "updated"
 }

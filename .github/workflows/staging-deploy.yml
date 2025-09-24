@@ -85,4 +85,20 @@ jobs:
               if(!(limit&&remain)){print "Warn: missing rate-limit headers"}
             }'
 
+      - name: Analytics canary (optional)
+        env:
+          STAGING_URL: https://cerply-api-staging-latest.onrender.com
+          PREVIEW_ANALYTICS: ${{ secrets.PREVIEW_ANALYTICS || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ "${PREVIEW_ANALYTICS}" != "true" ]; then
+            echo "Analytics preview disabled; skipping"; exit 0
+          fi
+          now=$(date -u +%FT%TZ)
+          curl -sS -X OPTIONS "$STAGING_URL/api/analytics/ingest" -H 'Origin: https://app.cerply.com' -H 'Access-Control-Request-Method: POST' -D /tmp/opt.h -o /dev/null
+          grep -qiE '^access-control-allow-origin: \*' /tmp/opt.h
+          curl -sS -X POST "$STAGING_URL/api/analytics/ingest" -H 'content-type: application/json' --data "{\"events\":[{\"event\":\"plan_request\",\"ts\":\"$now\",\"anon_session_id\":\"stg\"}]}" -D /tmp/ing.h -o /dev/null
+          grep -qiE '^access-control-allow-origin: \*' /tmp/ing.h
+          curl -sS "$STAGING_URL/api/analytics/aggregate" | jq -e '.totals.by_event.plan_request >= 0' >/dev/null 
+
 
