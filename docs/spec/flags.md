@@ -46,6 +46,17 @@ Planner engines (selection)
   - `openai`: requires `FF_OPENAI_ADAPTER_V0=true` to activate preview adapter; with no `OPENAI_API_KEY`, deterministic fallback is used.
   - `adaptive`: requires `FF_ADAPTIVE_ENGINE_V1=true`.
 
+Certified multiphase (preview flags; default off)
+- FF_CERTIFIED_PROPOSERS — enables multiple proposer engines
+- FF_CERTIFIED_CHECKER — enables checker-v0 merge/select stage
+- FF_CERTIFIED_LOCK — enables lock metadata and header `x-certified-lock-id`
+- CERTIFIED_PROPOSERS — comma list of engines: `adaptive,openai`
+
+Security baselines (preview vars)
+- RATE_LIMIT_CERTIFIED (format `limit:windowSec`, default `60:60`)
+- MAX_REQUEST_BYTES (default `65536`)
+- SECURITY_HEADERS_PREVIEW (`true|false`) — adds conservative security headers to certified responses
+
 Env (observability)
 - OBS_SAMPLE_PCT (0..100) — % of requests sampled as events(type='latency')
 - BUDGET_DAILY_CENTS — enables /api/ledger/alarm 24h budget check
