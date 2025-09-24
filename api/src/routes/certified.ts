@@ -144,8 +144,22 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
           if (n === 'adaptive' && String(process.env.FF_ADAPTIVE_ENGINE_V1 || 'false').toLowerCase() === 'true') { engines.push(AdaptiveProposer); seen.add(n); }
           if (n === 'openai' && String(process.env.FF_OPENAI_ADAPTER_V0 || 'false').toLowerCase() === 'true') { engines.push(OpenAIProposer); seen.add(n); }
         }
-        // Always fall back to at least one engine if none configured
-        if (engines.length === 0) engines.push(AdaptiveProposer);
+        if (engines.length === 0) {
+          // No configured proposer passed its own feature flag → respect flags by falling back to single-engine path
+          const engine = (process.env.PLANNER_ENGINE || 'mock').toLowerCase();
+          let planner: PlannerEngine = MockPlanner; // default and CI-safe
+          if (engine === 'openai' && String(process.env.FF_OPENAI_ADAPTER_V0 || 'false').toLowerCase() === 'true') {
+            planner = OpenAIV0Planner;
+          } else if (engine === 'adaptive' && String(process.env.FF_ADAPTIVE_ENGINE_V1 || 'false').toLowerCase() === 'true') {
+            planner = AdaptiveV1Planner;
+          }
+          const out = await planner.generate(input);
+          const payload = { status: 'ok', request_id, endpoint: 'certified.plan', mode: 'plan', enabled: true, provenance: { ...out.provenance, engine: planner.name }, plan: out.plan } as const;
+          try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(200).send(payload);
+        }
 
         // Run proposers sequentially (deterministic)
         const drafts = [] as Awaited<ReturnType<ProposerEngineMP['propose']>>[];
