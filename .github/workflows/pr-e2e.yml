@@ -53,4 +53,16 @@ jobs:
           node -e "console.log(JSON.stringify(require('./package.json').scripts, null, 2))"
           npm run test:e2e -- --reporter=list
 
+      - name: Run E2E (STUDY preview)
+        if: steps.find.outputs.url != ''
+        working-directory: web
+        env:
+          BASE_URL: ${{ steps.find.outputs.url }}
+          NEXT_PUBLIC_API_BASE: https://cerply-api-staging-latest.onrender.com
+          PLANNER_ENGINE: mock
+          CERTIFIED_MODE: plan
+        run: |
+          set -euo pipefail
+          npx playwright test e2e/certified.study.preview.spec.ts --config=playwright.config.ts --reporter=list
+
 
