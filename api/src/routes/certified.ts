@@ -5,6 +5,10 @@ import { PlannerInputZ, PlannerEngine } from '../planner/interfaces';
 import { MockPlanner } from '../planner/engines/mock';
 import { OpenAIV0Planner } from '../planner/engines/openai-v0';
 import { AdaptiveV1Planner } from '../planner/engines/adaptive-v1';
+import { AdaptiveProposer, OpenAIProposer } from '../planner/engines/proposers';
+import { CheckerV0 } from '../planner/engines/checker-v0';
+import { computeLock } from '../planner/lock';
+import type { ProposerEngine as ProposerEngineMP } from '../planner/interfaces.multiphase';
 
 // Extend Fastify route config to accept a `public` boolean used by global guards
 declare module 'fastify' {
@@ -123,33 +127,89 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Missing required field: topic (non-empty string)' } });
       }
       const input = parsed.data;
+      const ffProposers = String(process.env.FF_CERTIFIED_PROPOSERS || 'false').toLowerCase() === 'true';
+      const ffChecker = String(process.env.FF_CERTIFIED_CHECKER || 'false').toLowerCase() === 'true';
+      const ffLock = String(process.env.FF_CERTIFIED_LOCK || 'false').toLowerCase() === 'true';
+
+      let provenanceEnginesHeader = '';
+
+      if (ffProposers && ffChecker) {
+        // Build proposers from env list
+        const rawList = String(process.env.CERTIFIED_PROPOSERS || '').toLowerCase();
+        const names = rawList.split(',').map(s => s.trim()).filter(Boolean);
+        const engines: ProposerEngineMP[] = [];
+        const seen = new Set<string>();
+        for (const n of names) {
+          if (seen.has(n)) continue;
+          if (n === 'adaptive' && String(process.env.FF_ADAPTIVE_ENGINE_V1 || 'false').toLowerCase() === 'true') { engines.push(AdaptiveProposer); seen.add(n); }
+          if (n === 'openai' && String(process.env.FF_OPENAI_ADAPTER_V0 || 'false').toLowerCase() === 'true') { engines.push(OpenAIProposer); seen.add(n); }
+        }
+        if (engines.length === 0) {
+          // No configured proposer passed its own feature flag → respect flags by falling back to single-engine path
+          const engine = (process.env.PLANNER_ENGINE || 'mock').toLowerCase();
+          let planner: PlannerEngine = MockPlanner; // default and CI-safe
+          if (engine === 'openai' && String(process.env.FF_OPENAI_ADAPTER_V0 || 'false').toLowerCase() === 'true') {
+            planner = OpenAIV0Planner;
+          } else if (engine === 'adaptive' && String(process.env.FF_ADAPTIVE_ENGINE_V1 || 'false').toLowerCase() === 'true') {
+            planner = AdaptiveV1Planner;
+          }
+          const out = await planner.generate(input);
+          const payload = { status: 'ok', request_id, endpoint: 'certified.plan', mode: 'plan', enabled: true, provenance: { ...out.provenance, engine: planner.name }, plan: out.plan } as const;
+          try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(200).send(payload);
+        }
+
+        // Run proposers sequentially (deterministic)
+        const drafts = [] as Awaited<ReturnType<ProposerEngineMP['propose']>>[];
+        for (const e of engines) {
+          try {
+            const r = await e.propose(input);
+            if (r.planDraft.items.length > 0) drafts.push(r);
+          } catch {}
+        }
+
+        // Check and select final plan
+        const decision = await CheckerV0.check(input, drafts);
+        let payload: any = {
+          status: 'ok',
+          request_id,
+          endpoint: 'certified.plan',
+          mode: 'plan',
+          enabled: true,
+          provenance: { planner: 'multi', proposers: engines.map(e => e.name), checker: CheckerV0.name, engine: 'multi' },
+          plan: { title: decision.finalPlan.title, items: decision.finalPlan.items },
+          citations: decision.usedCitations,
+        };
+        if (ffLock) {
+          const lock = computeLock(payload.plan);
+          payload.lock = lock;
+          reply.header('x-certified-lock-id', lock.hash.slice(0, 16));
+        }
+        // Preview-only provenance engines header
+        provenanceEnginesHeader = engines.map(e => e.name).join(',');
+
+        try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        if (provenanceEnginesHeader) reply.header('x-provenance-engines', provenanceEnginesHeader);
+        return reply.code(200).send(payload);
+      }
+
+      // Single-engine legacy path (backward-compatible)
       const engine = (process.env.PLANNER_ENGINE || 'mock').toLowerCase();
       let planner: PlannerEngine = MockPlanner; // default and CI-safe
-      if (
-        engine === 'openai' &&
-        String(process.env.FF_OPENAI_ADAPTER_V0 || 'false').toLowerCase() === 'true'
-      ) {
-        // Key is optional: adapter will fallback deterministically when missing
+      if (engine === 'openai' && String(process.env.FF_OPENAI_ADAPTER_V0 || 'false').toLowerCase() === 'true') {
         planner = OpenAIV0Planner;
       } else if (engine === 'adaptive' && String(process.env.FF_ADAPTIVE_ENGINE_V1 || 'false').toLowerCase() === 'true') {
         planner = AdaptiveV1Planner;
       }
       const out = await planner.generate(input);
-
-      try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_planmode'); } catch {}
+      const payload = { status: 'ok', request_id, endpoint: 'certified.plan', mode: 'plan', enabled: true, provenance: { ...out.provenance, engine: planner.name }, plan: out.plan } as const;
+      try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
-      const payload = {
-        status: 'ok',
-        request_id,
-        endpoint: 'certified.plan',
-        mode: 'plan',
-        enabled: true,
-        provenance: { ...out.provenance, engine: planner.name },
-        plan: out.plan
-      } as const;
-      // Runtime response validation (guardrail)
-      try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
       return reply.code(200).send(payload);
     }
 

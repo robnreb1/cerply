@@ -224,6 +224,11 @@ export async function createApp() {
   });
   // Validate environment
   parseEnv(process.env);
+  // Preview-certified security plugin (limits, rate limiting, headers)
+  try {
+    const sec = (await import('./plugins/security.certified')).default as any;
+    await app.register(sec);
+  } catch {}
   // Runtime deploy channel (optional): allows staging/prod to report environment without rebuilds
   const RUNTIME_CHANNEL = process.env.RUNTIME_CHANNEL || '';
 // ---- debug route collection ----
