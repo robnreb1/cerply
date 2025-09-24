@@ -44,3 +44,4 @@
 2025-09-24T05:00:25Z - force-refresh pr137 (no-op) + investigate Nightly Smoke fail
 2025-09-24T05:17:25Z - add analytics canary to staging-deploy
 2025-09-24T05:17:25Z - add analytics canary to staging-deploy (merge)
+2025-09-24T19:37:55Z - kickoff P0 slice: multi-proposer → checker → lock
