@@ -1,8 +1,22 @@
-name: Cerply CI
+name: CI
 
 on:
+  push:
+    branches: [main, master, staging]
   pull_request:
   workflow_dispatch:
+    inputs:
+      deploy_prod:
+        description: "Deploy Vercel Production"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   evaluator-multiphase:
@@ -71,28 +85,6 @@ jobs:
           node-version: '20'
       - name: Audit action pinning
         run: node scripts/audit-actions.mjs
-
-name: CI
-
-on:
-  push:
-    branches: [main, master, staging]
-  pull_request:
-  workflow_dispatch:
-    inputs:
-      deploy_prod:
-        description: "Deploy Vercel Production"
-        required: false
-        default: "false"
-
-permissions:
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
   adaptive-eval:
     name: Adaptive Eval
     runs-on: ubuntu-latest
