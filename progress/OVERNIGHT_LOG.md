@@ -45,3 +45,4 @@
 2025-09-24T05:17:25Z - add analytics canary to staging-deploy
 2025-09-24T05:17:25Z - add analytics canary to staging-deploy (merge)
 2025-09-24T19:37:55Z - kickoff P0 slice: multi-proposer → checker → lock
+2025-09-24T19:44:33Z - multiphase core: schemas+proposers+checker+lock wired (flags gated)
