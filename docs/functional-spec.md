@@ -17,6 +17,14 @@
 - Preview & Prod on Vercel resolve via custom domain; /debug/env shows correct vars; /api/health and /api/prompts return non-404 via **proxy (M2)** or **edge canary (M1)**.
 
 ## 10) Non-functional / Dev UX
+-
+### Planning SSOT
+
+- **Source of truth:** GitHub issues labeled **Epic**.
+- **Dashboard:** `docs/status/epics.md` (auto-generated every 6 hours; also runnable via Actions → “Epics Dashboard” → Run workflow).
+- **Prioritization:** add labels **P0–P3** (or **priority:critical/high/medium/low**). The dashboard sorts by priority then recent updates.
+- **Status:** optional `status:*` labels (e.g., `status:in-progress`). Otherwise, status derives from issue open/closed.
+
 - API background control:
   - Start: scripts/api-start.sh (uses PORT, default 3001)
   - Stop:  scripts/api-stop.sh

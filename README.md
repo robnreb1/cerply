@@ -335,3 +335,7 @@ PR-based previews are label-gated and auto-expire after 48h. They do not block m
 ## Epics Dashboard
 Live view of epics (Open / In Progress / Closed):  
 - See: [docs/status/epics.md](docs/status/epics.md)
+
+### Planning
+
+See planning dashboard: docs/status/epics.md (auto-generated via GitHub Actions).
