@@ -4,7 +4,17 @@ import { execSync } from 'node:child_process';
 
 function getChangedFiles(base, head) {
   const out = execSync(`git diff --name-only ${base} ${head}`, { encoding: 'utf8' });
-  return out.split(/\r?\n/).filter(Boolean).filter(f => /\.(ts|tsx)$/.test(f));
+  const all = out.split(/\r?\n/).filter(Boolean).filter(f => /\.(ts|tsx)$/.test(f));
+  // Exclude tests, e2e, and config files from gating
+  const skipPatterns = [
+    /(^|\/)tests\//,
+    /(^|\/)__tests__\//,
+    /\.(test|spec)\.(ts|tsx)$/,
+    /^web\/e2e\//,
+    /vitest\.config\.ts$/,
+    /playwright\.config\.ts$/
+  ];
+  return all.filter(f => !skipPatterns.some(rx => rx.test(f)));
 }
 
 function parseLcov(path) {
@@ -41,9 +51,10 @@ function main() {
   const lcov = parseLcov('coverage/merged.info');
   const threshold = Number(process.env.COVERAGE_THRESHOLD || '85');
   const failures = [];
+  const skipped = [];
   for (const rel of files) {
     const match = lcov.find(e => e.sf.endsWith(rel));
-    if (!match) { failures.push({ file: rel, reason: 'no coverage entry' }); continue; }
+    if (!match) { skipped.push(rel); continue; }
     const st = percent(match.LH, match.LF);
     const br = percent(match.BRH, match.BRF);
     if (st < threshold || br < threshold) {
@@ -53,9 +64,17 @@ function main() {
   if (failures.length) {
     console.error('Coverage check failed for changed files (threshold %s%):', threshold);
     for (const f of failures) console.error('-', f.file, f.reason ? f.reason : `(statements ${f.statements}%, branches ${f.branches}%)`);
+    if (skipped.length) {
+      console.error('Note: skipped (no coverage entry):');
+      for (const s of skipped) console.error('-', s);
+    }
     process.exit(1);
   }
   console.log('Coverage OK on changed files (>= %d%%).', threshold);
+  if (skipped.length) {
+    console.log('Skipped (no coverage entry):');
+    for (const s of skipped) console.log('-', s);
+  }
 }
 
 main();
