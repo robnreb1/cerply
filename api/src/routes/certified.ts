@@ -182,6 +182,10 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
           plan: { title: decision.finalPlan.title, items: decision.finalPlan.items },
           citations: decision.usedCitations,
         };
+        // Preview-only: attach citations_report when multiphase is active
+        try {
+          payload.citations_report = Array.isArray(drafts) ? drafts.map((d) => ({ engine: d.engine, count: Array.isArray(d.citations) ? d.citations.length : 0 })) : [];
+        } catch {}
         if (ffLock) {
           const lock = computeLock(payload.plan);
           payload.lock = lock;
@@ -191,6 +195,11 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
         provenanceEnginesHeader = engines.map(e => e.name).join(',');
 
         try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
+        // Audit trail (preview): PII-free JSON log line
+        try {
+          const lockHash = payload?.lock?.hash ? String(payload.lock.hash).slice(0, 16) : undefined;
+          app.log.info({ request_id, engines: engines.map(e => e.name), decision: decision.decisionNotes, lock: lockHash, citations_len: Array.isArray(payload?.citations) ? payload.citations.length : 0 }, 'certified_multiphase_audit');
+        } catch {}
         reply.header('access-control-allow-origin', '*');
         reply.removeHeader('access-control-allow-credentials');
         if (provenanceEnginesHeader) reply.header('x-provenance-engines', provenanceEnginesHeader);

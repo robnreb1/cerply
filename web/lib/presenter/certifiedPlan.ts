@@ -6,6 +6,8 @@ export type CertifiedPlanResponse = {
   enabled?: boolean;
   request_id?: string;
   provenance?: { planner?: string; proposers?: string[]; checker?: string };
+  citations?: Array<{ id: string; url: string; title?: string }>;
+  lock?: { algo: 'blake3'|'sha256'; hash: string; canonical_bytes: number };
   plan?: { title?: string; items?: CertifiedPlanItem[] };
 };
 

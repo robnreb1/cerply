@@ -1,3 +1,13 @@
+import { describe, it, expect } from 'vitest';
+import { pickPreviewTitle, type CertifiedPlanResponse } from './certifiedPlan';
+
+describe('presenter: certifiedPlan', () => {
+  it('picks title from ok response', () => {
+    const r: CertifiedPlanResponse = { status: 'ok', plan: { title: 'Plan: X', items: [] } } as any;
+    expect(pickPreviewTitle(r)).toBe('Plan: X');
+  });
+});
+
 import assert from 'node:assert';
 import { pickPreviewTitle, humanizePlanError } from './certifiedPlan';
 

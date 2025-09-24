@@ -1,4 +1,5 @@
 import type { CheckerEngine, ProposerResult, CheckerDecision } from '../interfaces.multiphase';
+import { validateCitations } from '../citations.validate';
 import type { PlannerInput } from '../interfaces';
 
 function overlap(a: string, b: string): number {
@@ -29,25 +30,30 @@ export const CheckerV0: CheckerEngine = {
       };
     }
 
-    // Score proposals: citations count (weighted), semantic overlap between drafts' titles and item fronts, and rationale length
+    // Validate citations (preview rigor)
+    const results = await Promise.all(safe.map(p => validateCitations(p.citations || [], { timeoutMs: 800, maxBytes: 1024 }).catch(() => ({ total: 0, reachable: 0, checks: [] }))));
+
+    // Score proposals: reachable citations (weighted), semantic overlap, and rationale length
     const baseTitle = `Plan: ${input.topic}`.toLowerCase();
-    const scores = safe.map((p) => {
-      const c = Array.isArray(p.citations) ? p.citations.length : 0;
+    const scores = safe.map((p, i) => {
+      const rep = results[i];
+      const c = rep?.reachable ?? 0;
       const titleScore = overlap(baseTitle, p.planDraft.title);
       const itemsText = p.planDraft.items.map((it) => it.front).join(' \n ');
       const itemScore = overlap(input.topic, itemsText);
       const rationaleScore = Math.min(5, Math.floor((p.rationale || '').length / 80));
       const total = c * 2 + titleScore + itemScore + rationaleScore;
-      return { p, total };
+      return { p, total, rep };
     });
 
     scores.sort((a, b) => b.total - a.total);
     const best = scores[0]!.p;
     const citationsUsed = best.citations;
+    const bestReport = scores[0]!.rep;
 
     return {
       finalPlan: best.planDraft,
-      decisionNotes: `selected:${best.engine};scores:${scores.map(s => `${s.p.engine}:${s.total}`).join(',')}`,
+      decisionNotes: `selected:${best.engine};scores:${scores.map(s => `${s.p.engine}:${s.total}`).join(',')};reachable:${bestReport?.reachable ?? 0}/${bestReport?.total ?? 0}`,
       usedCitations: citationsUsed
     };
   }

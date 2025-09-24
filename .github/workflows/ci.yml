@@ -76,6 +76,26 @@ jobs:
             --data '{"topic":"Hashing","level":"beginner","goals":["basics"]}' \
           | tr -d '\r' | egrep -i '^(http/|access-control-allow-origin|access-control-allow-credentials|x-certified-lock-id|x-provenance-engines|x-content-type-options|referrer-policy|cross-origin-opener-policy|cross-origin-resource-policy|x-ratelimit-)'
 
+  citations-rigor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps (api)
+        run: npm ci -w api
+      - name: Run checker preference test (stubbed fetch)
+        run: |
+          node -e "
+          const { validateCitations } = require('./api/dist/planner/citations.validate.js');
+          (async ()=>{
+            const ok = await validateCitations([{id:'1',url:'https://ok.local'}],{fetchFn: async()=>({ok:true,status:200,headers:{get:()=> 'text/html'},body:{getReader:()=>({read:async()=>({value:Buffer.from('abc')})})}})});
+            const bad = await validateCitations([{id:'2',url:'https://bad.local'}],{fetchFn: async()=>({ok:false,status:404,headers:{get:()=> null}})});
+            if(!(ok.reachable===1 && bad.reachable===0)) { process.exit(1); }
+          })();
+          "
+
   actions-audit:
     runs-on: ubuntu-latest
     steps:
