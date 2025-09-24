@@ -6,6 +6,23 @@ export async function registerAnalyticsPreviewRoutes(app: FastifyInstance) {
   if (String(process.env.PREVIEW_ANALYTICS || 'false').toLowerCase() !== 'true') return;
   const store = createAnalyticsStore();
 
+  // Early hook to ensure CORS preflight works for analytics
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/analytics/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, authorization')
+          .code(204)
+          .send();
+        return reply;
+      }
+    } catch {}
+  });
+
   // CORS preflight
   app.options('/api/analytics/*', { config: { public: true } }, async (_req, reply) => {
     reply

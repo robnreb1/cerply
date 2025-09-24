@@ -1,5 +1,6 @@
 // web/lib/study/retentionClient.ts
 import { apiRoute } from '../apiBase';
+import { enabled as analyticsEnabled, anonSessionId, pageId, postEvents } from '../analytics/client';
 
 export type Card = { id: string; front: string; back: string };
 export type Progress = { card_id: string; reps: number; ef: number; intervalDays: number; lastGrade?: number; dueISO: string };
@@ -37,5 +38,11 @@ export async function getProgress(sessionId: string) {
 
 export async function postProgress(evt: ProgressEvent) {
   const url = apiRoute('certified/progress');
-  return fetchJson(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(evt) });
+  const res = await fetchJson(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(evt) });
+  if (analyticsEnabled()) {
+    const ev = evt.action === 'flip' ? 'study_flip' : evt.action === 'reset' ? 'study_reset' : 'study_next';
+    const e = [{ event: ev as any, ts: new Date().toISOString(), anon_session_id: anonSessionId(), page_id: pageId(), props: { card_id: evt.card_id, grade: evt.grade } }];
+    postEvents('', e).catch(()=>{});
+  }
+  return res;
 }

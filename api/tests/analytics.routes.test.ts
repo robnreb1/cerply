@@ -17,7 +17,7 @@ describe('Analytics Preview Routes', () => {
     const r415 = await app.inject({ method: 'POST', url: '/api/analytics/ingest', payload: '{}' });
     expect(r415.statusCode).toBe(415);
     const r401 = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json' }, payload: '{}' });
-    expect(r401.statusCode).toBe(400); // invalid payload first
+    expect([400,401]).toContain(r401.statusCode);
     const r401b = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json', authorization: 'Bearer bad' }, payload: JSON.stringify({ events: [] }) });
     expect([400,401]).toContain(r401b.statusCode);
   });

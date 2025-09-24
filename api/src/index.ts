@@ -151,6 +151,21 @@ export async function createApp() {
       }
     } catch {}
   });
+  // Explicit CORS preflight for Analytics preview endpoints
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/analytics/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, authorization')
+          .code(204)
+          .send();
+      }
+    } catch {}
+  });
   
   // ── Observability: per-request duration headers + optional DB sampling ──
   const OBS_PCT = Number(process.env.OBS_SAMPLE_PCT || '0'); // 0..100

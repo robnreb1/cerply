@@ -38,3 +38,4 @@
 2025-09-23T21:04:36Z - attempt enable squash auto-merge
 2025-09-23T21:12:52Z - kickoff analytics pilot v0 (preview)
 2025-09-23T21:16:05Z - analytics api scaffolding + tests + ci smoke added
+2025-09-24T04:40:09Z - docs: analytics pilot v0 usage/flags updated
