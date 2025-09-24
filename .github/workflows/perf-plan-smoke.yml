@@ -1,0 +1,47 @@
+name: Perf Smoke (Certified Plan)
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 2 * * *'  # daily UTC
+
+jobs:
+  perf-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+      - name: Run k6
+        env:
+          BASE: https://cerply-api-staging-latest.onrender.com
+        run: |
+          cat > plan-smoke.js <<'JS'
+          import http from 'k6/http';
+          import { sleep } from 'k6';
+          export const options = {
+            scenarios: {
+              burst: {
+                executor: 'constant-arrival-rate',
+                rate: 50,
+                timeUnit: '1s',
+                duration: '30s',
+                preAllocatedVUs: 10,
+                maxVUs: 50,
+              }
+            }
+          };
+          export default function () {
+            const url = `${__ENV.BASE}/api/certified/plan`;
+            const res = http.post(url, JSON.stringify({ topic: 'Hashes' }), { headers: { 'content-type': 'application/json' } });
+            sleep(0.2);
+          }
+          JS
+          k6 run plan-smoke.js | tee k6.out
+      - name: Upload k6 output
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-plan-smoke
+          path: k6.out
+

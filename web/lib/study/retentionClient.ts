@@ -39,10 +39,15 @@ export async function getProgress(sessionId: string) {
 export async function postProgress(evt: ProgressEvent) {
   const url = apiRoute('certified/progress');
   const res = await fetchJson(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(evt) });
-  if (analyticsEnabled()) {
-    const ev = evt.action === 'flip' ? 'study_flip' : evt.action === 'reset' ? 'study_reset' : 'study_next';
-    const e = [{ event: ev as any, ts: new Date().toISOString(), anon_session_id: anonSessionId(), page_id: pageId(), props: { card_id: evt.card_id, grade: evt.grade } }];
-    postEvents('', e).catch(()=>{});
-  }
+  try {
+    if (analyticsEnabled()) {
+      const ev = evt.action === 'flip' ? 'study_flip' : evt.action === 'reset' ? 'study_reset' : 'study_next';
+      let anon = 'na';
+      let pid = 'na';
+      try { anon = anonSessionId(); pid = pageId(); } catch {}
+      const e = [{ event: ev as any, ts: new Date().toISOString(), anon_session_id: anon, page_id: pid, props: { card_id: evt.card_id, grade: evt.grade } }];
+      postEvents('', e).catch(()=>{});
+    }
+  } catch {}
   return res;
 }

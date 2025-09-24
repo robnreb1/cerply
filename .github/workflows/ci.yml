@@ -201,9 +201,60 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
           ROLLUP_USE_NODE_JS: 'true'
           ROLLUP_SKIP_NODEJS_NATIVE: '1'
-        run: npm --workspace ./api test -- --reporter=verbose
+        run: npm --workspace ./api test -- --reporter=verbose --coverage --coverage.reporter=text-summary --coverage.reporter=lcov
+
+      - name: Upload API coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api
+          path: api/coverage/lcov.info
 
   analytics-smoke:
+    name: Analytics Smoke (preview ingest/aggregate)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - name: Install deps
+        run: npm ci --workspaces --include-workspace-root
+      - name: Build API
+        run: npm --workspace ./api run build
+      - name: Start API preview (background)
+        env:
+          PREVIEW_ANALYTICS: 'true'
+          FASTIFY_AUTOSTART: 'true'
+          PORT: 8080
+        run: |
+          npm --workspace ./api run start &
+          echo $! > /tmp/api_pid.txt
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8080/api/health >/dev/null; then break; fi
+            sleep 1
+          done
+      - name: Ingest sample events
+        run: |
+          now=$(date -u +%FT%TZ)
+          curl -sS -X POST http://localhost:8080/api/analytics/ingest \
+            -H 'content-type: application/json' \
+            --data "{\"events\":[{\"event\":\"plan_request\",\"ts\":\"$now\",\"anon_session_id\":\"ci\",\"context\":{\"topic\":\"TLS\",\"engine\":\"mock\"}}]}" \
+            -D /tmp/ingest.hdrs -o /dev/null
+          grep -qiE '^access-control-allow-origin: \*' /tmp/ingest.hdrs
+      - name: Aggregate
+        run: |
+          curl -sS http://localhost:8080/api/analytics/aggregate | jq -e '.totals.by_event.plan_request >= 1' >/dev/null
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f /tmp/api_pid.txt ]; then kill $(cat /tmp/api_pid.txt) || true; fi
+
+  analytics-smoke-dup:
     name: Analytics Smoke (preview ingest/aggregate)
     runs-on: ubuntu-latest
     steps:
@@ -418,6 +469,64 @@ jobs:
             git config --local --remove-section submodule.cerply || true
             : > .gitmodules || true
           fi
+
+  web-unit:
+    if: github.event_name == 'pull_request'
+    name: Web Unit (coverage)
+    runs-on: ubuntu-latest
+    needs: [pr-typecheck]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install deps (web)
+        working-directory: web
+        run: npm ci
+      - name: Run web unit tests with coverage
+        working-directory: web
+        run: npm test -- --reporter=verbose --coverage --coverage.reporter=text-summary --coverage.reporter=lcov
+      - name: Upload Web coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-web
+          path: web/coverage/lcov.info
+
+  coverage:
+    if: github.event_name == 'pull_request'
+    name: Coverage Gates (85% on changed files)
+    runs-on: ubuntu-latest
+    needs: [api, web-unit]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: coverage_artifacts
+      - name: Merge coverage
+        run: |
+          npm i -g lcov-result-merger coverage-badger
+          mkdir -p coverage
+          cp coverage_artifacts/coverage-api/lcov.info coverage/api.info || true
+          cp coverage_artifacts/coverage-web/lcov.info coverage/web.info || true
+          npx lcov-result-merger 'coverage/*.info' 'coverage/merged.info'
+          test -s coverage/merged.info
+      - name: Check thresholds on changed files
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          base=${{ github.event.pull_request.base.sha }}
+          head=${{ github.event.pull_request.head.sha }}
+          node scripts/check-coverage-changed.mjs "$base" "$head"
 
   cerply-api:
     needs: [guard-residual-service-refs]

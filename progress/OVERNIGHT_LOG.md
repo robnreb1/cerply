@@ -41,4 +41,6 @@
 2025-09-24T04:40:09Z - docs: analytics pilot v0 usage/flags updated
 2025-09-24T04:44:01Z - resolve PR #137 conflicts (flags, logs, state)
 2025-09-24T04:52:03Z - ci: build api before analytics smoke start
-
+2025-09-24T05:00:25Z - force-refresh pr137 (no-op) + investigate Nightly Smoke fail
+2025-09-24T05:17:25Z - add analytics canary to staging-deploy
+2025-09-24T05:17:25Z - add analytics canary to staging-deploy (merge)

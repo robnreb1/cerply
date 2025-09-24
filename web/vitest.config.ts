@@ -14,7 +14,11 @@ export default defineConfig({
       '**/node_modules/**',
       'e2e/**',
       'lib/presenter/certifiedPlan.test.*'
-    ]
+    ],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'lcov', 'json', 'json-summary']
+    }
   },
 });
 
