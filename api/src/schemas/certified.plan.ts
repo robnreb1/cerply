@@ -33,7 +33,7 @@ export const PlanResponseZ = z.object({
   // Optional lock metadata when certified lock is enabled
   lock: z
     .object({
-      algo: z.literal('blake3'),
+      algo: z.union([z.literal('blake3'), z.literal('sha256')]),
       hash: z.string(),
       canonical_bytes: z.number().int().nonnegative(),
     })
