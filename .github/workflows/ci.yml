@@ -86,20 +86,22 @@ jobs:
         with:
           node-version: '20'
       - name: Install deps (api)
-        run: npm ci -w api
+        run: npm ci
+        working-directory: api
       - name: Build api (dist for validator)
-        run: npm -w api run build
+        run: npm run build
+        working-directory: api
       - name: Run checker preference test (stubbed fetch)
         run: |
           node -e "
-          const path = require('path');
-          const { validateCitations } = require(path.resolve('api/dist/planner/citations.validate.js'));
+          const { validateCitations } = require('./dist/planner/citations.validate.js');
           (async ()=>{
             const ok = await validateCitations([{id:'1',url:'https://ok.local'}],{fetchFn: async()=>({ok:true,status:200,headers:{get:()=> 'text/html'},body:{getReader:()=>({read:async()=>({value:Buffer.from('abc')})})}})});
             const bad = await validateCitations([{id:'2',url:'https://bad.local'}],{fetchFn: async()=>({ok:false,status:404,headers:{get:()=> null}})});
             if(!(ok.reachable===1 && bad.reachable===0)) { process.exit(1); }
           })();
           "
+        working-directory: api
   actions-audit:
     runs-on: ubuntu-latest
     steps:
