@@ -92,7 +92,7 @@ jobs:
       - name: Run checker preference test (stubbed fetch)
         run: |
           node -e "
-          const { validateCitations } = require('./api/dist/planner/citations.validate.js');
+          const { validateCitations } = require('./api/dist/src/planner/citations.validate.js');
           (async ()=>{
             const ok = await validateCitations([{id:'1',url:'https://ok.local'}],{fetchFn: async()=>({ok:true,status:200,headers:{get:()=> 'text/html'},body:{getReader:()=>({read:async()=>({value:Buffer.from('abc')})})}})});
             const bad = await validateCitations([{id:'2',url:'https://bad.local'}],{fetchFn: async()=>({ok:false,status:404,headers:{get:()=> null}})});
