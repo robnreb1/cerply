@@ -88,6 +88,23 @@ export default function CertifiedPreviewPage() {
           {json?.request_id && (
             <div style={{ marginTop: 8 }}>request_id: <code style={{ background: '#fff3cd', padding: '2px 6px', borderRadius: 6 }}>{json.request_id}</code></div>
           )}
+          {/* Provenance preview */}
+          {json?.provenance && (
+            <details style={{ marginTop: 8 }}>
+              <summary>Provenance</summary>
+              <div style={{ padding: 8, border: '1px solid #eee', borderRadius: 8, marginTop: 6 }}>
+                <div>Planner: <code>{json.provenance.planner}</code></div>
+                <div>Proposers: <code>{Array.isArray(json.provenance.proposers) ? json.provenance.proposers.join(', ') : ''}</code></div>
+                <div>Checker: <code>{json.provenance.checker}</code></div>
+                {Array.isArray(json?.citations) && (
+                  <div>citations: <code>{json.citations.length}</code></div>
+                )}
+                {json?.lock?.hash && (
+                  <div>lock id: <code>{String(json.lock.hash).slice(0, 16)}</code></div>
+                )}
+              </div>
+            </details>
+          )}
         </div>
       )}
     </div>

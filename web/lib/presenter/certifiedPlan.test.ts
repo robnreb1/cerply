@@ -1,5 +1,6 @@
+import { describe, it, expect } from 'vitest';
 import assert from 'node:assert';
-import { pickPreviewTitle, humanizePlanError } from './certifiedPlan';
+import { pickPreviewTitle, humanizePlanError, type CertifiedPlanResponse } from './certifiedPlan';
 
 (function testPresenter() {
   const ok = pickPreviewTitle({ status: 'ok', plan: { title: 'Mock Plan', items: [{ id: 'm1', type: 'card' }] } });
