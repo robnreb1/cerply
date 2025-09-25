@@ -186,6 +186,7 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
         try {
           payload.citations_report = Array.isArray(drafts) ? drafts.map((d) => ({ engine: d.engine, count: Array.isArray(d.citations) ? d.citations.length : 0 })) : [];
         } catch {}
+
         if (ffLock) {
           const lock = computeLock(payload.plan);
           payload.lock = lock;
@@ -200,6 +201,7 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
           const lockHash = payload?.lock?.hash ? String(payload.lock.hash).slice(0, 16) : undefined;
           app.log.info({ request_id, engines: engines.map(e => e.name), decision: decision.decisionNotes, lock: lockHash, citations_len: Array.isArray(payload?.citations) ? payload.citations.length : 0 }, 'certified_multiphase_audit');
         } catch {}
+
         reply.header('access-control-allow-origin', '*');
         reply.removeHeader('access-control-allow-credentials');
         if (provenanceEnginesHeader) reply.header('x-provenance-engines', provenanceEnginesHeader);

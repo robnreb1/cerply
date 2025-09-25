@@ -38,12 +38,14 @@ export const CheckerV0: CheckerEngine = {
     const scores = safe.map((p, i) => {
       const rep = results[i];
       const c = rep?.reachable ?? 0;
+
       const titleScore = overlap(baseTitle, p.planDraft.title);
       const itemsText = p.planDraft.items.map((it) => it.front).join(' \n ');
       const itemScore = overlap(input.topic, itemsText);
       const rationaleScore = Math.min(5, Math.floor((p.rationale || '').length / 80));
       const total = c * 2 + titleScore + itemScore + rationaleScore;
       return { p, total, rep };
+
     });
 
     scores.sort((a, b) => b.total - a.total);
@@ -54,6 +56,7 @@ export const CheckerV0: CheckerEngine = {
     return {
       finalPlan: best.planDraft,
       decisionNotes: `selected:${best.engine};scores:${scores.map(s => `${s.p.engine}:${s.total}`).join(',')};reachable:${bestReport?.reachable ?? 0}/${bestReport?.total ?? 0}`,
+
       usedCitations: citationsUsed
     };
   }
