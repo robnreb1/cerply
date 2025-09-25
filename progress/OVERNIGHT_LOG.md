@@ -58,3 +58,4 @@
 
 2025-09-25T05:35:54Z - CORS verification PR #145 opened; verdict=green
 2025-09-25T05:48:02Z - EPIC #55 P1 baselines: plugin (size caps, rate limit, headers), tests, docs, canary added
+2025-09-25T05:48:36Z - EPIC #55: opened PR #146 (security baselines P1)

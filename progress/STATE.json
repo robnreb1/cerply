@@ -3,8 +3,8 @@
   "action": "security-baselines-p1",
   "route": "/api/certified/plan",
   "verdict": "green",
-  "timestamp": "2025-09-25T05:48:02Z",
-  "pr": 145,
-  "status": "in-progress",
+  "timestamp": "2025-09-25T05:48:36Z",
+  "pr": 146,
+  "status": "open-pr",
   "branch": "feat/security-baselines-p1"
 }
