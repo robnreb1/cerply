@@ -8,7 +8,8 @@ describe('Certified security baselines (limits, rate limiting, headers)', () => 
     vi.stubEnv('CERTIFIED_MODE', 'plan');
     vi.stubEnv('SECURITY_HEADERS_PREVIEW', 'true');
     vi.stubEnv('MAX_REQUEST_BYTES', '4096');
-    vi.stubEnv('RATE_LIMIT_CERTIFIED', '2:60');
+    vi.stubEnv('RATE_LIMIT_CERTIFIED_BURST', '2');
+    vi.stubEnv('RATE_LIMIT_CERTIFIED_REFILL_PER_SEC', '1');
     app = await createApp();
   });
   afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
