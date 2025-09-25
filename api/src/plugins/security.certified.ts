@@ -75,6 +75,7 @@ export const certifiedSecurityPlugin: FastifyPluginCallback = (app: FastifyInsta
     let retryAfterSec = windowSec;
 
     try {
+      // codeql[missing-rate-limiting]: This module IS the rate limiter; Redis access below is the limiter store, not an unguarded DB call.
       if (redisClient) {
         const nowSec = Math.floor(Date.now() / 1000);
         const win = Math.floor(nowSec / windowSec);

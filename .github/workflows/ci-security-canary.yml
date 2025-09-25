@@ -21,11 +21,7 @@ jobs:
           test "$code" = "204"
       - name: POST 413 oversized
         run: |
-          big=$(python3 - << 'PY'
-import json
-print(json.dumps({"topic":"x"*40000}))
-PY
-          )
+          big=$(node -e "console.log(JSON.stringify({topic:'x'.repeat(40000)}))")
           curl -sS -D post413.h -o /dev/null -X POST "$BASE/api/certified/plan" \
             -H 'origin: https://app.cerply.com' -H 'content-type: application/json' --data "$big"
           tr -d '\r' < post413.h | tee post413.h.txt >/dev/null
