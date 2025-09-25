@@ -87,6 +87,8 @@ jobs:
           node-version: '20'
       - name: Install deps (api)
         run: npm ci -w api
+      - name: Build api (dist for validator)
+        run: npm -w api run build
       - name: Run checker preference test (stubbed fetch)
         run: |
           node -e "
