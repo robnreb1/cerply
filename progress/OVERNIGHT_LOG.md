@@ -57,3 +57,4 @@
 2025-09-25T05:32:45Z - start CORS verification (staging) for /api/certified/plan; will attach header blocks to PR
 
 2025-09-25T05:35:54Z - CORS verification PR #145 opened; verdict=green
+2025-09-25T05:48:02Z - EPIC #55 P1 baselines: plugin (size caps, rate limit, headers), tests, docs, canary added
