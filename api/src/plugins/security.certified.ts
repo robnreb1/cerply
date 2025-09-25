@@ -79,9 +79,12 @@ export const certifiedSecurityPlugin: FastifyPluginCallback = (app: FastifyInsta
         const nowSec = Math.floor(Date.now() / 1000);
         const win = Math.floor(nowSec / windowSec);
         const rKey = `rl:${key}:${win}`;
-        const p = redisClient.multi().incr(rKey).expire(rKey, windowSec).exec();
-        const res = await p;
-        const count = Number((res && res[0] && res[0][1]) || 1);
+        // Ensure the window key exists with TTL only when created
+        // Use SET NX EX to create the key with initial count 0 and expiry, then INCR
+        try {
+          await redisClient.set(rKey, 0, 'EX', windowSec, 'NX');
+        } catch {}
+        const count = Number(await redisClient.incr(rKey));
         remaining = Math.max(0, limit - count);
         if (count > limit) {
           reply
