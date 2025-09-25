@@ -2,6 +2,7 @@
   "epic": 82,
   "action": "staging-cors-verified",
   "route": "/api/certified/plan",
-  "verdict": "pending",
-  "timestamp": "2025-09-25T05:32:45Z"
+  "verdict": "green",
+  "timestamp": "2025-09-25T05:36:37Z",
+  "pr": 145
 }
