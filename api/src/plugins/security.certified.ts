@@ -62,6 +62,7 @@ export const certifiedSecurityPlugin: FastifyPluginCallback = (app: FastifyInsta
   });
 
   // Token bucket (fixed-window approximation). Applied to certified POST routes only.
+  // codeql[js/missing-rate-limiting]: This hook implements the rate limiter; Redis access below is the limiter store, not an unguarded DB call.
   app.addHook('onRequest', async (req: any, reply: any) => {
     const method = String(req?.method || '').toUpperCase();
     const url = String(req?.url || '');
