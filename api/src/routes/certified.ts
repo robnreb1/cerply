@@ -170,6 +170,23 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
           } catch {}
         }
 
+        // If all proposers failed or returned empty drafts, fall back to the single-engine path
+        if (drafts.length === 0) {
+          const engine = (process.env.PLANNER_ENGINE || 'mock').toLowerCase();
+          let planner: PlannerEngine = MockPlanner; // default and CI-safe
+          if (engine === 'openai' && String(process.env.FF_OPENAI_ADAPTER_V0 || 'false').toLowerCase() === 'true') {
+            planner = OpenAIV0Planner;
+          } else if (engine === 'adaptive' && String(process.env.FF_ADAPTIVE_ENGINE_V1 || 'false').toLowerCase() === 'true') {
+            planner = AdaptiveV1Planner;
+          }
+          const out = await planner.generate(input);
+          const payload = { status: 'ok', request_id, endpoint: 'certified.plan', mode: 'plan', enabled: true, provenance: { ...out.provenance, engine: planner.name }, plan: out.plan } as const;
+          try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(200).send(payload);
+        }
+
         // Check and select final plan
         const decision = await CheckerV0.check(input, drafts);
         let payload: any = {
