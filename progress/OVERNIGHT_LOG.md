@@ -53,3 +53,7 @@
 
 2025-09-24T20:51:45Z - P1 start: citations rigor + audit trail + web preview
 
+
+2025-09-25T05:32:45Z - start CORS verification (staging) for /api/certified/plan; will attach header blocks to PR
+
+2025-09-25T05:35:54Z - CORS verification PR #145 opened; verdict=green

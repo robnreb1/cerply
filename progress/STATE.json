@@ -1,6 +1,8 @@
 {
-  "step": "open-pr",
-  "status": "updated",
-  "branch": "feat/certified-multiproposer-checker-lock-p0",
-  "lastUpdated": "2025-09-24T19:58:40Z"
+  "epic": 82,
+  "action": "staging-cors-verified",
+  "route": "/api/certified/plan",
+  "verdict": "green",
+  "timestamp": "2025-09-25T05:36:37Z",
+  "pr": 145
 }
