@@ -1,19 +1,48 @@
 import type { FastifyInstance, FastifyPluginCallback } from 'fastify';
 
-type Bucket = { count: number; resetAt: number };
-const buckets = new Map<string, Bucket>();
+type Bucket = { tokens: number; resetAt: number };
+const memoryBuckets = new Map<string, Bucket>();
 
-function parseRate(s: string): { limit: number; windowSec: number } {
+function parseLegacyRate(s: string): { limit: number; windowSec: number } {
   const [a, b] = (s || '').split(':');
   const limit = Math.max(1, parseInt(a || '60', 10));
   const windowSec = Math.max(1, parseInt(b || '60', 10));
   return { limit, windowSec };
 }
 
+function resolveRate(): { limit: number; windowSec: number } {
+  const burst = parseInt(process.env.RATE_LIMIT_CERTIFIED_BURST || '', 10);
+  const refillPerSec = parseInt(process.env.RATE_LIMIT_CERTIFIED_REFILL_PER_SEC || '', 10);
+  if (Number.isFinite(burst) && burst > 0 && Number.isFinite(refillPerSec) && refillPerSec > 0) {
+    const windowSec = Math.max(1, Math.ceil(burst / refillPerSec));
+    return { limit: burst, windowSec };
+  }
+  return parseLegacyRate(process.env.RATE_LIMIT_CERTIFIED || '60:60');
+}
+
+async function useRedis() {
+  const url = String(process.env.REDIS_URL || '').trim();
+  if (!url) return null as any;
+  try {
+    // Lazy import so dev/test without redis still works
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Redis = require('ioredis');
+    const client = new Redis(url);
+    // basic ping to validate asynchronously; ignore failures (fallback will occur)
+    client.on('error', () => {});
+    return client;
+  } catch {
+    return null as any;
+  }
+}
+
 export const certifiedSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance, _opts, done) => {
-  const maxBytes = Math.max(1024, parseInt(process.env.MAX_REQUEST_BYTES || '65536', 10));
-  const { limit, windowSec } = parseRate(process.env.RATE_LIMIT_CERTIFIED || '60:60');
-  const previewHeaders = String(process.env.SECURITY_HEADERS_PREVIEW || 'false').toLowerCase() === 'true';
+  const maxBytes = Math.max(1024, parseInt(process.env.MAX_REQUEST_BYTES || '32768', 10));
+  const { limit, windowSec } = resolveRate();
+  const headersEnabled = String(process.env.SECURITY_HEADERS_PREVIEW || 'true').toLowerCase() === 'true';
+
+  let redisClient: any = null;
+  useRedis().then((c) => { redisClient = c; }).catch(() => { redisClient = null; });
 
   // Request size limit (for JSON bodies) specific to certified routes
   app.addHook('preValidation', async (req: any, reply: any) => {
@@ -27,40 +56,70 @@ export const certifiedSecurityPlugin: FastifyPluginCallback = (app: FastifyInsta
       if (size > maxBytes) {
         reply.header('access-control-allow-origin', '*');
         reply.removeHeader('access-control-allow-credentials');
-        return reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: `Body exceeds ${maxBytes} bytes`, details: { limit: maxBytes, size } } });
+        return reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: `Body exceeds ${maxBytes} bytes`, details: { max_bytes: maxBytes, size } } });
       }
     } catch {}
   });
 
-  // Simple IP+route+origin token bucket (preview only)
+  // Token bucket (fixed-window approximation). Applied to certified POST routes only.
   app.addHook('onRequest', async (req: any, reply: any) => {
+    const method = String(req?.method || '').toUpperCase();
     const url = String(req?.url || '');
-    if (!url.startsWith('/api/certified/')) return;
+    if (method !== 'POST' || !url.startsWith('/api/certified/')) return;
+
     const origin = String((req.headers?.origin || '').toString());
     const ip = String((req.headers?.['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim());
-    const key = `${ip}:${url}:${origin}`;
+    const key = `cert:${ip}:${url}:${origin}`;
+
+    let remaining = limit;
+    let retryAfterSec = windowSec;
+
+    try {
+      if (redisClient) {
+        const nowSec = Math.floor(Date.now() / 1000);
+        const win = Math.floor(nowSec / windowSec);
+        const rKey = `rl:${key}:${win}`;
+        const p = redisClient.multi().incr(rKey).expire(rKey, windowSec).exec();
+        const res = await p;
+        const count = Number((res && res[0] && res[0][1]) || 1);
+        remaining = Math.max(0, limit - count);
+        if (count > limit) {
+          reply
+            .header('x-ratelimit-limit', String(limit))
+            .header('x-ratelimit-remaining', String(0))
+            .header('retry-after', String(retryAfterSec))
+            .header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests', details: { retry_after_ms: retryAfterSec * 1000, limit } } });
+        }
+        return;
+      }
+    } catch {}
+
+    // Fallback to in-memory
     const now = Date.now();
-    const b = buckets.get(key);
+    const b = memoryBuckets.get(key);
     if (!b || now >= b.resetAt) {
-      buckets.set(key, { count: 1, resetAt: now + windowSec * 1000 });
+      memoryBuckets.set(key, { tokens: 1, resetAt: now + windowSec * 1000 });
       return;
     }
-    b.count += 1;
-    if (b.count > limit) {
-      const remaining = 0;
+    b.tokens += 1;
+    remaining = Math.max(0, limit - b.tokens);
+    if (b.tokens > limit) {
       reply
         .header('x-ratelimit-limit', String(limit))
-        .header('x-ratelimit-remaining', String(remaining))
+        .header('x-ratelimit-remaining', String(0))
         .header('retry-after', String(windowSec))
         .header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
-      return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests' } });
+      return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests', details: { retry_after_ms: windowSec * 1000, limit } } });
     }
   });
 
-  // Conservative security headers for certified responses (preview toggle)
+  // Consolidated security headers for certified responses
   app.addHook('onSend', async (req: any, reply: any, payload: any) => {
-    if (previewHeaders && String(req?.url || '').startsWith('/api/certified/') && String(req?.method || '').toUpperCase() !== 'OPTIONS') {
+    const isCertified = String(req?.url || '').startsWith('/api/certified/');
+    if (headersEnabled && isCertified && String(req?.method || '').toUpperCase() !== 'OPTIONS') {
       reply.header('X-Content-Type-Options', 'nosniff');
       reply.header('Referrer-Policy', 'no-referrer');
       reply.header('Cross-Origin-Resource-Policy', 'same-origin');
