@@ -7,12 +7,14 @@ export type OrchestratorBackend = 'memory' | 'redis';
 export type JobRecord = {
   id: string;
   packet: TaskPacket;
-  status: 'queued'|'running'|'finished'|'failed'|'cancelled';
+  status: 'queued'|'running'|'succeeded'|'failed'|'canceled';
   createdAt: number;
   startedAt?: number;
   finishedAt?: number;
   error?: string;
   stepsRun: number;
+  canceled?: boolean;
+  logs: { t: string; level: 'info'|'warn'|'error'; msg: string; data?: any }[];
 };
 
 export type EventSink = (ev: OrchestratorEvent) => void;
@@ -38,7 +40,7 @@ export class InMemoryEngine {
 
   create(packet: TaskPacket): { job_id: string } {
     const id = crypto.randomUUID();
-    const rec: JobRecord = { id, packet, status: 'queued', createdAt: Date.now(), stepsRun: 0 };
+    const rec: JobRecord = { id, packet, status: 'queued', createdAt: Date.now(), stepsRun: 0, logs: [] };
     this.jobs.set(id, rec);
     this.queue.push(id);
     this.kick();
@@ -49,22 +51,30 @@ export class InMemoryEngine {
 
   private async runJob(job: JobRecord) {
     const limits = job.packet.limits;
-    const wallCutoff = job.createdAt + limits.maxWallMs;
+    const wallCutoff = job.createdAt + Number(limits.maxWallMs ?? 10_000);
     job.status = 'running';
     job.startedAt = Date.now();
     this.emit({ job_id: job.id, t: new Date().toISOString(), type: 'start' });
+    job.logs.push({ t: new Date().toISOString(), level: 'info', msg: 'job.start' });
 
     const steps = job.packet.steps.length > 0 ? job.packet.steps : [{ type: 'dev.log', payload: { goal: job.packet.goal } } as any];
     let attempt = 0;
     for (let i = 0; i < steps.length; i++) {
+      if (job.canceled) {
+        job.status = 'canceled';
+        job.logs.push({ t: new Date().toISOString(), level: 'warn', msg: 'job.canceled' });
+        break;
+      }
       if (Date.now() > wallCutoff) {
         job.status = 'failed';
         job.error = 'wall_clock_exceeded';
+        job.logs.push({ t: new Date().toISOString(), level: 'error', msg: 'wall_clock_exceeded' });
         break;
       }
       if (job.stepsRun >= limits.maxSteps) {
         job.status = 'failed';
         job.error = 'step_budget_exceeded';
+        job.logs.push({ t: new Date().toISOString(), level: 'error', msg: 'step_budget_exceeded' });
         break;
       }
       const step = steps[i];
@@ -75,6 +85,7 @@ export class InMemoryEngine {
         await delay(10 + Math.floor(Math.random() * 20));
         job.stepsRun++;
         this.emit({ job_id: job.id, t: new Date().toISOString(), type: 'step.ok', data: { i } });
+        job.logs.push({ t: new Date().toISOString(), level: 'info', msg: 'step.ok', data: { i } });
       } catch (e: any) {
         // retry with backoff (max 2 retries)
         const maxRetries = 2;
@@ -89,15 +100,15 @@ export class InMemoryEngine {
         job.status = 'failed';
         job.error = String(e?.message || e || 'step_failed');
         this.emit({ job_id: job.id, t: new Date().toISOString(), type: 'step.error', data: { i, error: job.error } });
+        job.logs.push({ t: new Date().toISOString(), level: 'error', msg: 'step.error', data: { i, error: job.error } });
         break;
       }
     }
 
-    if (job.status === 'running') {
-      job.status = 'finished';
-    }
+    if (job.status === 'running') job.status = 'succeeded';
     job.finishedAt = Date.now();
     this.emit({ job_id: job.id, t: new Date().toISOString(), type: 'end', data: { status: job.status } });
+    job.logs.push({ t: new Date().toISOString(), level: 'info', msg: 'job.end', data: { status: job.status } });
   }
 
   private async workerLoop() {

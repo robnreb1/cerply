@@ -4,7 +4,8 @@ import { z } from 'zod';
 
 export const OrchestratorLimitsZ = z.object({
   maxSteps: z.number().int().positive().max(100),
-  maxWallMs: z.number().int().positive().max(10 * 60 * 1000),
+  maxWallMs: z.number().int().positive().max(10 * 60 * 1000).optional(),
+  maxTokens: z.number().int().positive().optional(),
 });
 
 export const TaskStepZ = z.object({
@@ -28,7 +29,7 @@ export const JobIdZ = z.string().min(6);
 
 export const JobStatusZ = z.object({
   job_id: JobIdZ,
-  status: z.enum(['queued','running','finished','failed','cancelled']),
+  status: z.enum(['queued','running','succeeded','failed','canceled']),
   started_at: z.string().optional(),
   finished_at: z.string().optional(),
   error: z.string().optional(),
@@ -46,4 +47,17 @@ export const OrchestratorEventZ = z.object({
 
 export type OrchestratorEvent = z.infer<typeof OrchestratorEventZ>;
 
-
+// Accept snake_case limits in input by normalizing to camelCase prior to validation
+export function normalizeTaskPacketInput<T extends Record<string, any>>(value: T): T {
+  if (!value || typeof value !== 'object') return value;
+  const v = { ...(value as any) } as any;
+  const src = (v.limits ?? v.limit ?? {}) as Record<string, any>;
+  const limits: any = {};
+  if (src.maxSteps != null) limits.maxSteps = Number(src.maxSteps);
+  if (src.max_wall_ms != null) limits.maxWallMs = Number(src.max_wall_ms);
+  if (src.maxWallMs != null) limits.maxWallMs = Number(src.maxWallMs);
+  if (src.max_tokens != null) limits.maxTokens = Number(src.max_tokens);
+  if (src.maxTokens != null) limits.maxTokens = Number(src.maxTokens);
+  if (Object.keys(limits).length > 0) v.limits = limits;
+  return v as T;
+}
