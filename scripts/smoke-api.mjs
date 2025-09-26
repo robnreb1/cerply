@@ -41,7 +41,7 @@ try {
 }
 
 
-// 6) Orchestrator CORS invariants (canary, non-fatal)
+// 6) Orchestrator CORS invariants + lifecycle probe (non-fatal)
 try {
   const opt = sh(`curl -sS -D - -o /dev/null -X OPTIONS "${BASE}/api/orchestrator/jobs" -H 'Origin: https://app.cerply.com' -H 'Access-Control-Request-Method: POST' | tr -d '\r'`);
   const post = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/orchestrator/jobs" -H 'origin: https://app.cerply.com' -H 'content-type: application/json' --data '{"goal":"hello","steps":[],"limits":{"maxSteps":2,"maxWallMs":1000}}' | tr -d '\r'`);
@@ -50,6 +50,20 @@ try {
   if (!hasAcao) console.error('[orchestrator] ERROR: missing ACAO:*');
   if (hasAcacTrue) console.error('[orchestrator] ERROR: ACAC:true present on POST');
   console.log('[orchestrator] CORS check done');
+
+  // lifecycle: create and poll status
+  const body = sh(`curl -sS -H 'origin: https://app.cerply.com' -H 'content-type: application/json' -X POST "${BASE}/api/orchestrator/jobs" --data '{"goal":"hello","steps":[],"limits":{"maxSteps":2,"maxWallMs":1000}}'`);
+  const j = JSON.parse(body);
+  if (typeof j?.job_id === 'string') {
+    const id = j.job_id;
+    const started = Date.now();
+    let status = 'queued';
+    while (Date.now() - started < 5000 && !['succeeded','failed','canceled'].includes(status)) {
+      const sTxt = sh(`curl -sS "${BASE}/api/orchestrator/jobs/${id}"`);
+      try { status = JSON.parse(sTxt)?.status || status; } catch {}
+    }
+    console.log(`[orchestrator] lifecycle terminal=${status}`);
+  }
 } catch {
   console.log('(orchestrator canary skipped)');
 }
