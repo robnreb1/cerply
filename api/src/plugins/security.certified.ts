@@ -63,6 +63,7 @@ export const certifiedSecurityPlugin: FastifyPluginCallback = (app: FastifyInsta
 
   // Token bucket (fixed-window approximation). Applied to certified POST routes only.
   // codeql[js/missing-rate-limiting]: This hook implements the rate limiter; Redis access below is the limiter store, not an unguarded DB call.
+  /* lgtm[js/missing-rate-limiting] */
   app.addHook('onRequest', async (req: any, reply: any) => {
     const method = String(req?.method || '').toUpperCase();
     const url = String(req?.url || '');
@@ -84,8 +85,12 @@ export const certifiedSecurityPlugin: FastifyPluginCallback = (app: FastifyInsta
         // Ensure the window key exists with TTL only when created
         // Use SET NX EX to create the key with initial count 0 and expiry, then INCR
         try {
+          /* lgtm[js/missing-rate-limiting] */
+          // codeql[js/missing-rate-limiting]
           await redisClient.set(rKey, 0, 'EX', windowSec, 'NX');
         } catch {}
+        /* lgtm[js/missing-rate-limiting] */
+        // codeql[js/missing-rate-limiting]
         const count = Number(await redisClient.incr(rKey));
         remaining = Math.max(0, limit - count);
         if (count > limit) {
