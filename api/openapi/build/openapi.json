@@ -276,55 +276,19 @@
                 "type": "string"
               }
             }
-          }
-        }
-      },
-            "required": [
-              "algo",
-              "hash"
-            ],
-            "properties": {
-              "algo": {
-                "type": "string",
-                "enum": [
-                  "blake3",
-                  "sha256"
-                ]
-              },
-              "hash": {
-                "type": "string"
-              }
->>>>>>> origin/main
-            }
           },
           "meta": {
             "type": "object",
-<<<<<<< HEAD
-            "properties": { "request_id": { "type": "string" } }
-=======
             "properties": {
               "request_id": {
                 "type": "string"
               }
             }
->>>>>>> origin/main
           }
         }
       },
       "VerifyResponse": {
         "type": "object",
-<<<<<<< HEAD
-        "required": ["ok", "computed"],
-        "properties": {
-          "ok": { "type": "boolean" },
-          "computed": {
-            "type": "object",
-            "required": ["algo"],
-            "properties": {
-              "algo": { "type": "string" },
-              "hash": { "type": ["string", "null"] },
-              "size_bytes": { "type": "integer" }
-=======
         "required": [
           "ok",
           "computed"
@@ -351,18 +315,10 @@
               "size_bytes": {
                 "type": "integer"
               }
->>>>>>> origin/main
             }
           },
           "provided": {
             "type": "object",
-<<<<<<< HEAD
-            "properties": { "algo": { "type": "string" }, "hash": { "type": "string" } }
-          },
-          "mismatch": {
-            "type": "object",
-            "properties": { "reason": { "type": "string" }, "detail": { "type": "string" } }
-=======
             "properties": {
               "algo": {
                 "type": "string"
@@ -382,7 +338,6 @@
                 "type": "string"
               }
             }
->>>>>>> origin/main
           }
         }
       }
