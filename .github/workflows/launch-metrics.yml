@@ -1,0 +1,42 @@
+name: Launch Metrics
+on:
+  schedule: [{ cron: '15 8 * * *' }]
+  workflow_dispatch: {}
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    steps:
+      - name: Checkout (shallow)
+        uses: actions/checkout@v4
+        with: { fetch-depth: 1 }
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y jq gh
+      - name: Build snapshot
+        env:
+          REPO: robnreb1/cerply
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/${REPO}/main/scripts/launch-metrics.sh -o /tmp/launch-metrics.sh || true
+          if [ -s /tmp/launch-metrics.sh ]; then
+            chmod +x /tmp/launch-metrics.sh
+            /tmp/launch-metrics.sh > /tmp/SNAPSHOT.md
+          else
+            # Fallback if raw not available (first run on branch)
+            bash scripts/launch-metrics.sh > /tmp/SNAPSHOT.md
+          fi
+          head -n 200 /tmp/SNAPSHOT.md
+      - name: Comment on Epic #59
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const epicNumber = 59;
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/SNAPSHOT.md','utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: epicNumber,
+              body
+            });
