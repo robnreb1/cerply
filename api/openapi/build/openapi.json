@@ -79,13 +79,21 @@
               }
             }
           },
-          "400": { "description": "Invalid payload" },
-          "415": { "description": "Unsupported media type (expect application/json)" }
+          "400": {
+            "description": "Invalid payload"
+          },
+          "415": {
+            "description": "Unsupported media type (expect application/json)"
+          }
         }
       },
       "options": {
         "summary": "CORS preflight",
-        "responses": { "204": { "description": "No Content; includes CORS headers" } }
+        "responses": {
+          "204": {
+            "description": "No Content; includes CORS headers"
+          }
+        }
       }
     }
   },
@@ -226,51 +234,110 @@
       },
       "VerifyRequest": {
         "type": "object",
-        "required": ["plan", "lock"],
+        "required": [
+          "plan",
+          "lock"
+        ],
         "properties": {
           "plan": {
             "type": "object",
-            "required": ["title", "items"],
+            "required": [
+              "title",
+              "items"
+            ],
             "properties": {
-              "title": { "type": "string" },
-              "items": { "type": "array", "items": { "$ref": "#/components/schemas/PlanItem" }, "minItems": 1 }
+              "title": {
+                "type": "string"
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PlanItem"
+                },
+                "minItems": 1
+              }
             }
           },
           "lock": {
             "type": "object",
-            "required": ["algo", "hash"],
+            "required": [
+              "algo",
+              "hash"
+            ],
             "properties": {
-              "algo": { "type": "string", "enum": ["blake3", "sha256"] },
-              "hash": { "type": "string" }
+              "algo": {
+                "type": "string",
+                "enum": [
+                  "blake3",
+                  "sha256"
+                ]
+              },
+              "hash": {
+                "type": "string"
+              }
             }
           },
           "meta": {
             "type": "object",
-            "properties": { "request_id": { "type": "string" } }
+            "properties": {
+              "request_id": {
+                "type": "string"
+              }
+            }
           }
         }
       },
       "VerifyResponse": {
         "type": "object",
-        "required": ["ok", "computed"],
+        "required": [
+          "ok",
+          "computed"
+        ],
         "properties": {
-          "ok": { "type": "boolean" },
+          "ok": {
+            "type": "boolean"
+          },
           "computed": {
             "type": "object",
-            "required": ["algo"],
+            "required": [
+              "algo"
+            ],
             "properties": {
-              "algo": { "type": "string" },
-              "hash": { "type": ["string", "null"] },
-              "size_bytes": { "type": "integer" }
+              "algo": {
+                "type": "string"
+              },
+              "hash": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "size_bytes": {
+                "type": "integer"
+              }
             }
           },
           "provided": {
             "type": "object",
-            "properties": { "algo": { "type": "string" }, "hash": { "type": "string" } }
+            "properties": {
+              "algo": {
+                "type": "string"
+              },
+              "hash": {
+                "type": "string"
+              }
+            }
           },
           "mismatch": {
             "type": "object",
-            "properties": { "reason": { "type": "string" }, "detail": { "type": "string" } }
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              }
+            }
           }
         }
       }
