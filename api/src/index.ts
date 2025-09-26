@@ -183,6 +183,15 @@ export async function createApp() {
       }
     } catch {}
   });
+  // Ensure ACAO:* early for orchestrator responses
+  app.addHook('preHandler', async (req: any, reply: any) => {
+    try {
+      const url = String(req?.url || '');
+      if (!url.startsWith('/api/orchestrator/')) return;
+      reply.header('access-control-allow-origin', '*');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+    } catch {}
+  });
   
   // ── Observability: per-request duration headers + optional DB sampling ──
   const OBS_PCT = Number(process.env.OBS_SAMPLE_PCT || '0'); // 0..100
@@ -295,6 +304,10 @@ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
     const method = String(request?.method || '').toUpperCase();
     const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
     const isCertified = url.startsWith('/api/certified/');
+      // Skip if hijacked/headers already sent (e.g., SSE)
+      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) {
+        return payload;
+      }
     if (method !== 'OPTIONS' && isCertified) {
       // Always allow any origin for certified endpoints (responses only)
       reply.header('access-control-allow-origin', '*');
@@ -308,22 +321,7 @@ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
   } catch {}
   return payload;
 });
-  // Targeted CORS: ensure orchestrator responses have ACAO:* and no ACAC
-  app.addHook('onSend', async (request:any, reply:any, payload:any) => {
-    try {
-      const method = String(request?.method || '').toUpperCase();
-      const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
-      const isOrch = url.startsWith('/api/orchestrator/');
-      if (method !== 'OPTIONS' && isOrch) {
-        reply.header('access-control-allow-origin', '*');
-        try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-        try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
-        try { (reply as any).removeHeader?.('x-cors-certified-hook'); } catch {}
-        try { (reply as any).raw?.removeHeader?.('x-cors-certified-hook'); } catch {}
-      }
-    } catch {}
-    return payload;
-  });
+  // (Orchestrator) no onSend hook needed; headers are set in preHandler to avoid mutation-after-send issues
 
 // Public-route bypass helper for any global guards (auth/CSRF).
 function isPublicURL(url = '') {
