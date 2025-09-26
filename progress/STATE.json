@@ -1,1 +1,1 @@
-{"epic":82,"action":"certified-verify-finalized","status":"done","pr":148,"timestamp":"2025-09-26T10:17:27Z"}
+{"epic":82,"action":"verify-post-merge","status":"done","pr":151,"verdict":"✅ CORS invariants OK (ACAO:*, no ACAC, no debug)","openapi":"clean","timestamp":"2025-09-26T10:49:31Z"}
