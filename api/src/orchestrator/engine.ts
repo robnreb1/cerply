@@ -49,7 +49,7 @@ export class InMemoryEngine {
 
   private async runJob(job: JobRecord) {
     const limits = job.packet.limits;
-    const wallCutoff = job.createdAt + limits.maxWallMs;
+    const wallCutoff = job.createdAt + Number(limits.maxWallMs ?? 10_000);
     job.status = 'running';
     job.startedAt = Date.now();
     this.emit({ job_id: job.id, t: new Date().toISOString(), type: 'start' });
