@@ -157,7 +157,7 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
           const out = await planner.generate(input);
           const payload = { status: 'ok', request_id, endpoint: 'certified.plan', mode: 'plan', enabled: true, provenance: { ...out.provenance, engine: planner.name }, plan: out.plan } as const;
           try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
-          try { emitAudit({ ts: new Date().toISOString(), request_id, action: 'plan', engines: [planner.name], lock_algo: payload?.lock?.algo, lock_hash_prefix: payload?.lock?.hash ? String(payload.lock.hash).slice(0, 16) : undefined, citations_count: 0 }); } catch {}
+          try { emitAudit({ ts: new Date().toISOString(), request_id, action: 'plan', engines: [planner.name], citations_count: 0 }); } catch {}
           reply.header('access-control-allow-origin', '*');
           reply.removeHeader('access-control-allow-credentials');
           return reply.code(200).send(payload);
