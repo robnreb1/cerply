@@ -4,7 +4,8 @@ import { z } from 'zod';
 
 export const OrchestratorLimitsZ = z.object({
   maxSteps: z.number().int().positive().max(100),
-  maxWallMs: z.number().int().positive().max(10 * 60 * 1000),
+  maxWallMs: z.number().int().positive().max(10 * 60 * 1000).optional(),
+  maxTokens: z.number().int().positive().optional(),
 });
 
 export const TaskStepZ = z.object({
@@ -46,4 +47,22 @@ export const OrchestratorEventZ = z.object({
 
 export type OrchestratorEvent = z.infer<typeof OrchestratorEventZ>;
 
+// --- helpers: normalize incoming payloads (snake_case → camelCase) ---
+export function normalizeTaskPacketInput(input: any): any {
+  if (!input || typeof input !== 'object') return input;
+  const src = input as Record<string, any>;
+  const rawLimits = (src.limits ?? src.limit ?? {}) as Record<string, any>;
+  const normalizedLimits = {
+    maxSteps: rawLimits.maxSteps ?? rawLimits.max_steps ?? rawLimits["max-steps"],
+    maxWallMs: rawLimits.maxWallMs ?? rawLimits.max_wall_ms ?? rawLimits["max-wall-ms"],
+    maxTokens: rawLimits.maxTokens ?? rawLimits.max_tokens ?? rawLimits["max-tokens"],
+  };
+  const limits: any = {};
+  if (normalizedLimits.maxSteps != null) limits.maxSteps = Number(normalizedLimits.maxSteps);
+  if (normalizedLimits.maxWallMs != null) limits.maxWallMs = Number(normalizedLimits.maxWallMs);
+  if (normalizedLimits.maxTokens != null) limits.maxTokens = Number(normalizedLimits.maxTokens);
+  const out: any = { ...src };
+  if (Object.keys(limits).length > 0) out.limits = limits;
+  return out;
+}
 

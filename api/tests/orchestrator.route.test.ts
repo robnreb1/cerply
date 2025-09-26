@@ -50,6 +50,17 @@ describe('Orchestrator routes (preview)', () => {
     }
     expect(['finished','failed']).toContain(status);
   });
+  it('accepts snake_case limits and normalizes', async () => {
+    const payload = { goal: 'demo', steps: [], limits: { max_steps: 2, max_wall_ms: 500 } } as any;
+    const r = await app.inject({ method: 'POST', url: '/api/orchestrator/jobs', headers: { 'content-type': 'application/json' }, payload });
+    expect(r.statusCode).toBe(200);
+    const j = r.json() as any; expect(j.job_id).toBeTruthy();
+  });
+
+  it('400 on missing limits', async () => {
+    const r = await app.inject({ method: 'POST', url: '/api/orchestrator/jobs', headers: { 'content-type': 'application/json' }, payload: { goal: 'x' } });
+    expect(r.statusCode).toBe(400);
+  });
 });
 
 
