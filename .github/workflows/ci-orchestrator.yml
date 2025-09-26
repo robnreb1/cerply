@@ -45,7 +45,3 @@ jobs:
         env:
           API_BASE: https://cerply-api-staging-latest.onrender.com
         run: node scripts/smoke-api.mjs
-
-
-
-# ci: retrigger orchestrator workflow
