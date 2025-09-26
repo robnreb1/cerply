@@ -1,9 +1,6 @@
 {
-  "epic": 47,
-  "action": "orchestrator-v0-closeout",
-  "status": "done",
-  "verdict": "\u274c missing ACAO:*",
-  "snake_job": "fail",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
+  "epic": 59,
+  "action": "orchestrator-v0-lifecycle",
+  "status": "in-progress",
+  "timestamp": "2025-09-26T19:59:55Z"
 }
