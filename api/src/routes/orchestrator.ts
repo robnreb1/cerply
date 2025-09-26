@@ -69,10 +69,20 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
     const ok = JobIdZ.safeParse(id);
     if (!ok.success) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'missing or invalid job id' } });
 
-    reply.header('Content-Type', 'text/event-stream');
-    reply.header('Cache-Control', 'no-cache');
-    reply.header('Connection', 'keep-alive');
-    reply.header('access-control-allow-origin', '*');
+    // Hijack the response so Fastify doesn't auto-complete the request
+    // and we can keep the connection open for streaming.
+    try { reply.hijack(); } catch {}
+
+    // Set SSE headers directly on the raw response
+    try {
+      reply.raw.setHeader('Content-Type', 'text/event-stream');
+      reply.raw.setHeader('Cache-Control', 'no-cache');
+      reply.raw.setHeader('Connection', 'keep-alive');
+      reply.raw.setHeader('access-control-allow-origin', '*');
+      // Disable proxy buffering if present
+      reply.raw.setHeader('X-Accel-Buffering', 'no');
+      (reply.raw as any).flushHeaders?.();
+    } catch {}
 
     const un = (engine as any).on(id, (ev: any) => {
       const out = OrchestratorEventZ.safeParse(ev);
@@ -90,7 +100,11 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
     try { reply.raw.write(`event: ready\n`); reply.raw.write(`data: {"job_id":"${id}","mode":"${ORCH_MODE}"}\n\n`); } catch {}
 
     // Close handler
-    req.raw.on('close', () => { clearInterval(heartbeat); try { un(); } catch {}; });
+    req.raw.on('close', () => {
+      clearInterval(heartbeat);
+      try { un(); } catch {}
+      try { reply.raw.end(); } catch {}
+    });
   });
 }
 
