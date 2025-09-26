@@ -8,6 +8,7 @@ import { AdaptiveV1Planner } from '../planner/engines/adaptive-v1';
 import { AdaptiveProposer, OpenAIProposer } from '../planner/engines/proposers';
 import { CheckerV0 } from '../planner/engines/checker-v0';
 import { computeLock } from '../planner/lock';
+import { emitAudit } from './certified.audit';
 import type { ProposerEngine as ProposerEngineMP } from '../planner/interfaces.multiphase';
 
 // Extend Fastify route config to accept a `public` boolean used by global guards
@@ -156,6 +157,7 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
           const out = await planner.generate(input);
           const payload = { status: 'ok', request_id, endpoint: 'certified.plan', mode: 'plan', enabled: true, provenance: { ...out.provenance, engine: planner.name }, plan: out.plan } as const;
           try { PlanResponseZ.parse(payload); } catch { return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schema validation failed' } }); }
+          try { emitAudit({ ts: new Date().toISOString(), request_id, action: 'plan', engines: [planner.name], citations_count: 0 }); } catch {}
           reply.header('access-control-allow-origin', '*');
           reply.removeHeader('access-control-allow-credentials');
           return reply.code(200).send(payload);
@@ -217,6 +219,7 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
         try {
           const lockHash = payload?.lock?.hash ? String(payload.lock.hash).slice(0, 16) : undefined;
           app.log.info({ request_id, engines: engines.map(e => e.name), decision: decision.decisionNotes, lock: lockHash, citations_len: Array.isArray(payload?.citations) ? payload.citations.length : 0 }, 'certified_multiphase_audit');
+          emitAudit({ ts: new Date().toISOString(), request_id, action: 'plan', engines: engines.map(e => e.name), lock_algo: payload?.lock?.algo, lock_hash_prefix: lockHash, citations_count: Array.isArray(payload?.citations) ? payload.citations.length : 0 });
         } catch {}
 
         reply.header('access-control-allow-origin', '*');
@@ -245,7 +248,7 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
       try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_mock'); } catch {}
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
-      return reply.code(200).send({
+      const resp = {
         status: 'ok',
         request_id,
         endpoint: 'certified.plan',
@@ -253,7 +256,9 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
         enabled: true,
         provenance: { planner: 'mock', proposers: ['mockA','mockB'], checker: 'mock' },
         plan: { title: 'Mock Plan', items: [{ id: 'm1', type: 'card', front: '...', back: '...' }] }
-      });
+      } as const;
+      try { emitAudit({ ts: new Date().toISOString(), request_id, action: 'plan', engines: ['mock'] }); } catch {}
+      return reply.code(200).send(resp);
     }
 
     try { app.log.info({ request_id, method, path, ua, ip_hash, mode: MODE }, 'certified_plan_stubbed'); } catch {}
