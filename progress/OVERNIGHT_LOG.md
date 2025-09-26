@@ -1,3 +1,4 @@
+[-] Orchestrator v0 CI & docs wired — E2E (mock) + CORS canary in smoke script.
 - 2025-09-23 08:00:14 start openapi+e2e branch
 - 2025-09-23 09:19:40 start harden branch
 - 2025-09-23 09:22:15 step1 drift guard
@@ -61,3 +62,5 @@
 2025-09-25T05:48:36Z - EPIC #55: opened PR #146 (security baselines P1)
 [2025-09-26T10:16:29Z] Epic #82 — Verified canary green; /api/certified/verify shipped; docs updated.
 [2025-09-26T10:49:31Z] Post-merge verify for PR #151 — ✅ CORS invariants OK (ACAO:*, no ACAC, no debug); OpenAPI drift=clean; canary=n/a
+[2025-09-26T11:19:11Z] Orchestrator v0 PR #153 — ❌ missing ACAO:*
+
