@@ -66,3 +66,4 @@
 [2025-09-26T11:34:23Z] epic47 orchestrator-cors-enable — PR #154 opened
 [2025-09-26T11:35:43Z] epic47 orchestrator-cors-enable — staging verdict: ❌ missing ACAO:*
 
+[2025-09-26T15:26:59Z] Orchestrator v0 — staging CORS: ✅ CORS OK (ACAO:*, no ACAC, no debug)
