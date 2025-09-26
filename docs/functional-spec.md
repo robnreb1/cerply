@@ -84,13 +84,17 @@
 ### Orchestrator v0 (Preview)
 
 - API (preview-gated):
+
   - `POST /api/orchestrator/jobs` accepts a Task Packet `{ goal, scope?, planRef?, steps[], limits{ maxSteps, maxWallMs?, maxTokens? }, flags? }` and returns `{ job_id }`.
+
   - `GET /api/orchestrator/jobs/:id` returns job status and roll-up.
   - `GET /api/orchestrator/events?job=:id` streams Server-Sent Events.
 - Engine: in-memory queue with loop-guard (step budget + wall clock cutoff) and jittered backoff on retries.
 - Security baselines: payload size limit, per-route rate limit, conservative headers on non-OPTIONS.
 - OpenAPI includes orchestrator paths; smoke script asserts CORS invariants (ACAO:*; no ACAC:true).
+
 - Limits normalization: inputs may use snake_case keys (`max_steps`, `max_wall_ms`, `max_tokens`) which are normalized to camelCase before validation/execution. When `maxWallMs` is omitted, a conservative default of 10s is applied.
+
 
 ## 14) Enterprise‑Ready Minimalist UI (ER‑MUI)
 
