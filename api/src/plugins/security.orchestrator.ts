@@ -1,0 +1,70 @@
+import type { FastifyInstance, FastifyPluginCallback } from 'fastify';
+import rateLimit from '@fastify/rate-limit';
+
+export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance, _opts, done) => {
+  const maxBytes = Math.max(1024, parseInt(process.env.ORCH_MAX_REQUEST_BYTES || '32768', 10));
+
+  // Per-route rate limit via onRoute hook after plugin registration
+  app.register(rateLimit as any, { global: false } as any);
+
+  // OPTIONS preflight: ensure 204 and ACAO:*
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    const method = String(req?.method || '').toUpperCase();
+    const url = String(req?.url || '');
+    if (method === 'OPTIONS' && url.startsWith('/api/orchestrator/')) {
+      reply
+        .header('access-control-allow-origin', '*')
+        .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+        .header('access-control-allow-headers', 'content-type, authorization')
+        .code(204)
+        .send();
+    }
+  });
+
+  // Payload limit for orchestrator POSTs
+  app.addHook('preValidation', async (req: any, reply: any) => {
+    const url = String(req?.url || '');
+    const isOrchPost = url.startsWith('/api/orchestrator/') && String(req?.method || '').toUpperCase() === 'POST';
+    if (!isOrchPost) return;
+    try {
+      const hdrLen = Number((req.headers?.['content-length'] ?? '0')) || 0;
+      let calcLen = 0;
+      try { calcLen = Buffer.byteLength(JSON.stringify((req as any).body ?? {}), 'utf8'); } catch {}
+      const size = Math.max(hdrLen, calcLen);
+      if (size > maxBytes) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: `Body exceeds ${maxBytes} bytes`, details: { max_bytes: maxBytes, size } } });
+      }
+    } catch {}
+  });
+
+  // Security headers for non-OPTIONS
+  app.addHook('onSend', async (req: any, reply: any, payload: any) => {
+    const isOrch = String(req?.url || '').startsWith('/api/orchestrator/');
+    if (isOrch && String(req?.method || '').toUpperCase() !== 'OPTIONS') {
+      reply.header('X-Content-Type-Options', 'nosniff');
+      reply.header('Referrer-Policy', 'no-referrer');
+      // CORS invariants
+      reply.header('access-control-allow-origin', '*');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+    }
+    return payload;
+  });
+
+  // Rate limit config on routes
+  app.addHook('onRoute', (route) => {
+    const method = Array.isArray(route.method) ? route.method : [route.method];
+    const mset = method.map((m: any) => String(m || '').toUpperCase());
+    const isPost = mset.includes('POST');
+    if (typeof route.url === 'string' && route.url.startsWith('/api/orchestrator/') && isPost) {
+      (route as any).config = { ...(route as any).config, rateLimit: { max: 20, timeWindow: '1 minute' } };
+    }
+  });
+
+  done();
+};
+
+export default orchestratorSecurityPlugin;
+
+

@@ -41,6 +41,19 @@ try {
 }
 
 
+// 6) Orchestrator CORS invariants (canary, non-fatal)
+try {
+  const opt = sh(`curl -sS -D - -o /dev/null -X OPTIONS "${BASE}/api/orchestrator/jobs" -H 'Origin: https://app.cerply.com' -H 'Access-Control-Request-Method: POST' | tr -d '\r'`);
+  const post = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/orchestrator/jobs" -H 'origin: https://app.cerply.com' -H 'content-type: application/json' --data '{"goal":"hello","steps":[],"limits":{"maxSteps":2,"maxWallMs":1000}}' | tr -d '\r'`);
+  const hasAcao = /(^|\n)access-control-allow-origin:\s*\*/i.test(opt) && /(^|\n)access-control-allow-origin:\s*\*/i.test(post);
+  const hasAcacTrue = /(^|\n)access-control-allow-credentials:\s*true/i.test(post);
+  if (!hasAcao) console.error('[orchestrator] ERROR: missing ACAO:*');
+  if (hasAcacTrue) console.error('[orchestrator] ERROR: ACAC:true present on POST');
+  console.log('[orchestrator] CORS check done');
+} catch {
+  console.log('(orchestrator canary skipped)');
+}
+
 // 4) Cerply Certified stub/mock check (non-fatal; expect 200 when mock, else 501 or 503)
 try {
   const head = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/certified/plan" -H 'origin: https://app.cerply.com'`);

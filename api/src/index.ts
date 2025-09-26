@@ -226,7 +226,11 @@ export async function createApp() {
   });
   // Validate environment
   parseEnv(process.env);
-  // Preview-certified security plugin (limits, rate limiting, headers)
+  // Security plugins (CORS invariants for multiple prefixes + certified-specific limits)
+  try {
+    const cors = (await import('./plugins/security.cors')).default as any;
+    await app.register(cors, { prefixes: ['/api/certified', '/api/orchestrator'] });
+  } catch {}
   try {
     const sec = (await import('./plugins/security.certified')).default as any;
     await app.register(sec);
@@ -510,6 +514,15 @@ try {
 try {
   const { registerDocsRoutes } = await import('./routes/docs');
   await registerDocsRoutes(app);
+} catch {}
+
+// Orchestrator (preview-gated)
+try {
+  const enabled = String(process.env.ORCH_ENABLED || 'false').toLowerCase() === 'true';
+  if (enabled) {
+    const { registerOrchestratorRoutes } = await import('./routes/orchestrator');
+    await registerOrchestratorRoutes(app);
+  }
 } catch {}
 
 // ---------------------
