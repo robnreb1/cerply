@@ -29,9 +29,12 @@ REMAIN=$(jq 'map(select(.state!="CLOSED")) | length' <<<"$JSON")
 
 # 14-day average throughput
 AVG=$(gh issue list -R "$REPO" --label 'scope:launch' --state closed --limit 1000 --json closedAt \
-  | jq -r '.[].closedAt' | awk -F'T' '{print $1}' | sort \
-  | tail -r | tail -n "$DAYS" \
-  | awk '{c[$1]++} END{for (d in c){sum+=c[d]; n++} if(n==0)print 0; else print sum/n}')
+  | jq -r '.[].closedAt' \
+  | awk -F'T' '{print $1}' \
+  | sort \
+  | uniq -c \
+  | tail -n "$DAYS" \
+  | awk '{sum+=$1; n++} END{if(n==0)print 0; else print sum/n}')
 
 # ETA days (simple)
 if awk "BEGIN{exit !($AVG==0)}"; then
