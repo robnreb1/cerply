@@ -88,3 +88,63 @@ paths:
       summary: Evidence coverage
       parameters: [ { in: query, name: scopeId, schema: { type: string } } ]
       responses: { '200': { description: OK } }
+  /api/orchestrator/jobs:
+    post:
+      summary: Submit Task Packet (preview)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goal, limits]
+              properties:
+                goal: { type: string }
+                scope: { type: string }
+                planRef: { type: string }
+                steps:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      type: { type: string }
+                      payload: { }
+                limits:
+                  type: object
+                  required: [maxSteps, maxWallMs]
+                  properties:
+                    maxSteps: { type: integer }
+                    maxWallMs: { type: integer }
+                flags: { type: object }
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job_id]
+                properties:
+                  job_id: { type: string }
+  /api/orchestrator/jobs/{id}:
+    get:
+      summary: Get job status (preview)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '404': { description: Not found }
+  /api/orchestrator/events:
+    get:
+      summary: Stream job events (SSE, preview)
+      parameters:
+        - in: query
+          name: job
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }

@@ -17,6 +17,7 @@ export default function CertifiedPreviewPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<number | null>(null);
   const [json, setJson] = useState<any>(null);
+  const [verifyResult, setVerifyResult] = useState<any>(null);
   const [topic, setTopic] = useState<string>('');
   const [level, setLevel] = useState<string>('');
   const [goals, setGoals] = useState<string>('');
@@ -34,11 +35,28 @@ export default function CertifiedPreviewPage() {
       const r = await postCertifiedPlan(apiBase(), { topic, level: level || undefined, goals: goalsArr.length ? goalsArr : undefined } as any);
       setStatus(r.status);
       setJson(r.json);
+      setVerifyResult(null);
     } catch (e) {
       setStatus(-1);
       setJson({ error: String((e as any)?.message || e) });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function callVerify() {
+    if (!json?.plan || !json?.lock) return;
+    setVerifyResult({ loading: true });
+    try {
+      const res = await fetch(`${apiBase()}/api/certified/verify`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ plan: json.plan, lock: json.lock, meta: { request_id: json.request_id } }),
+      });
+      const body = await res.json().catch(() => ({}));
+      setVerifyResult({ status: res.status, body });
+    } catch (e) {
+      setVerifyResult({ error: String((e as any)?.message || e) });
     }
   }
 
@@ -101,6 +119,15 @@ export default function CertifiedPreviewPage() {
                 )}
                 {json?.lock?.hash && (
                   <div>lock id: <code>{String(json.lock.hash).slice(0, 16)}</code></div>
+                )}
+                {json?.lock?.hash && (
+                  <div style={{ marginTop: 8 }}>
+                    <button onClick={callVerify} style={{ padding: '6px 10px', border: '1px solid #ccc', borderRadius: 8 }}>Verify</button>
+                    {verifyResult?.loading && <span style={{ marginLeft: 8 }}>Verifying…</span>}
+                    {verifyResult?.status && (
+                      <span style={{ marginLeft: 8 }}>Status: <code>{verifyResult.status}</code> → {verifyResult?.body?.ok ? 'ok:true' : 'ok:false'}</span>
+                    )}
+                  </div>
                 )}
               </div>
             </details>

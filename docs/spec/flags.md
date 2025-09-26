@@ -29,6 +29,9 @@ Runtime (simple gate)
  
 Runtime (mode)
 - CERTIFIED_MODE (values: `stub` | `mock`, default: `stub`)
+Preview flags — Verify & Audit (v1)
+- `FF_CERTIFIED_AUDIT_PREVIEW` (default: false) — enables `GET /api/certified/_audit_preview`.
+- `MAX_AUDIT_BUFFER` (default: 1000) — in-memory ring buffer size for preview audits.
   - `stub`: preserves 501 behavior above.
   - `mock`: `POST /api/certified/plan` returns 200 with JSON:
     {

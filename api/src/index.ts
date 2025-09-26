@@ -168,6 +168,30 @@ export async function createApp() {
       }
     } catch {}
   });
+  // Explicit CORS preflight for Orchestrator endpoints
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/orchestrator/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, authorization')
+          .code(204)
+          .send();
+      }
+    } catch {}
+  });
+  // Ensure ACAO:* early for orchestrator responses
+  app.addHook('preHandler', async (req: any, reply: any) => {
+    try {
+      const url = String(req?.url || '');
+      if (!url.startsWith('/api/orchestrator/')) return;
+      reply.header('access-control-allow-origin', '*');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+    } catch {}
+  });
   
   // ── Observability: per-request duration headers + optional DB sampling ──
   const OBS_PCT = Number(process.env.OBS_SAMPLE_PCT || '0'); // 0..100
@@ -226,7 +250,11 @@ export async function createApp() {
   });
   // Validate environment
   parseEnv(process.env);
-  // Preview-certified security plugin (limits, rate limiting, headers)
+  // Security plugins (CORS invariants for multiple prefixes + certified-specific limits)
+  try {
+    const cors = (await import('./plugins/security.cors')).default as any;
+    await app.register(cors, { prefixes: ['/api/certified', '/api/orchestrator'] });
+  } catch {}
   try {
     const sec = (await import('./plugins/security.certified')).default as any;
     await app.register(sec);
@@ -276,6 +304,10 @@ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
     const method = String(request?.method || '').toUpperCase();
     const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
     const isCertified = url.startsWith('/api/certified/');
+      // Skip if hijacked/headers already sent (e.g., SSE)
+      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) {
+        return payload;
+      }
     if (method !== 'OPTIONS' && isCertified) {
       // Always allow any origin for certified endpoints (responses only)
       reply.header('access-control-allow-origin', '*');
@@ -289,6 +321,7 @@ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
   } catch {}
   return payload;
 });
+  // (Orchestrator) no onSend hook needed; headers are set in preHandler to avoid mutation-after-send issues
 
 // Public-route bypass helper for any global guards (auth/CSRF).
 function isPublicURL(url = '') {
@@ -510,6 +543,15 @@ try {
 try {
   const { registerDocsRoutes } = await import('./routes/docs');
   await registerDocsRoutes(app);
+} catch {}
+
+// Orchestrator (preview-gated)
+try {
+  const enabled = String(process.env.ORCH_ENABLED || 'false').toLowerCase() === 'true';
+  if (enabled) {
+    const { registerOrchestratorRoutes } = await import('./routes/orchestrator');
+    await registerOrchestratorRoutes(app);
+  }
 } catch {}
 
 // ---------------------
@@ -1023,7 +1065,8 @@ app.get('/__whoami', async (_req, reply) => {
     cwd: process.cwd(),
     node: process.version,
     startedAt: new Date().toISOString(),
-    note: 'Fastify API process'
+    note: 'Fastify API process',
+    xOrchestratorEnabled: String(process.env.ORCH_ENABLED || '').toLowerCase()
   });
 });
 
