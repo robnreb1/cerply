@@ -5,4 +5,5 @@
   "verdict": "\u274c missing ACAO:*",
   "snake_job": "fail",
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
 }
