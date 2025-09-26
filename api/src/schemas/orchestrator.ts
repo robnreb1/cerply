@@ -47,17 +47,21 @@ export const OrchestratorEventZ = z.object({
 
 export type OrchestratorEvent = z.infer<typeof OrchestratorEventZ>;
 
-// Accept snake_case limits in input by normalizing to camelCase prior to validation
-export function normalizeTaskPacketInput<T extends Record<string, any>>(value: T): T {
-  if (!value || typeof value !== 'object') return value;
-  const v = { ...(value as any) } as any;
-  const src = (v.limits ?? v.limit ?? {}) as Record<string, any>;
+// --- helpers: normalize incoming payloads (snake_case → camelCase) ---
+export function normalizeTaskPacketInput(input: any): any {
+  if (!input || typeof input !== 'object') return input;
+  const src = input as Record<string, any>;
+  const rawLimits = (src.limits ?? src.limit ?? {}) as Record<string, any>;
+  const normalizedLimits = {
+    maxSteps: rawLimits.maxSteps ?? rawLimits.max_steps ?? rawLimits["max-steps"],
+    maxWallMs: rawLimits.maxWallMs ?? rawLimits.max_wall_ms ?? rawLimits["max-wall-ms"],
+    maxTokens: rawLimits.maxTokens ?? rawLimits.max_tokens ?? rawLimits["max-tokens"],
+  };
   const limits: any = {};
-  if (src.maxSteps != null) limits.maxSteps = Number(src.maxSteps);
-  if (src.max_wall_ms != null) limits.maxWallMs = Number(src.max_wall_ms);
-  if (src.maxWallMs != null) limits.maxWallMs = Number(src.maxWallMs);
-  if (src.max_tokens != null) limits.maxTokens = Number(src.max_tokens);
-  if (src.maxTokens != null) limits.maxTokens = Number(src.maxTokens);
-  if (Object.keys(limits).length > 0) v.limits = limits;
-  return v as T;
+  if (normalizedLimits.maxSteps != null) limits.maxSteps = Number(normalizedLimits.maxSteps);
+  if (normalizedLimits.maxWallMs != null) limits.maxWallMs = Number(normalizedLimits.maxWallMs);
+  if (normalizedLimits.maxTokens != null) limits.maxTokens = Number(normalizedLimits.maxTokens);
+  const out: any = { ...src };
+  if (Object.keys(limits).length > 0) out.limits = limits;
+  return out;
 }

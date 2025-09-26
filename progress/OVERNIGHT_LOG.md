@@ -66,3 +66,9 @@
 [2025-09-26T11:34:23Z] epic47 orchestrator-cors-enable — PR #154 opened
 [2025-09-26T11:35:43Z] epic47 orchestrator-cors-enable — staging verdict: ❌ missing ACAO:*
 
+[2025-09-26T15:26:59Z] Orchestrator v0 — staging CORS: ✅ CORS OK (ACAO:*, no ACAC, no debug)
+[2025-09-26T16:06:12Z] Orchestrator limits normalization PR opened: https://github.com/robnreb1/cerply/cerply/pull/157
+
+[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Orchestrator v0 — staging: ❌ missing ACAO:*; snake_case job_id: fail
+=======
+
