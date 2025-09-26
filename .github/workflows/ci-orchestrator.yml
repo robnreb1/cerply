@@ -19,17 +19,18 @@ jobs:
 
   web-e2e:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_PREVIEW_ORCH_UI: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - run: npm ci
-      - run: npm -w web run build
+      - name: Build web with preview flag
+        run: npm -w web run build
       - name: Install Playwright Browsers
         run: npx -w web playwright install --with-deps chromium
       - name: Run Orchestrator E2E
-        env:
-          NEXT_PUBLIC_PREVIEW_ORCH_UI: 'true'
         run: npx -w web playwright test e2e/orchestrator.spec.ts --config=web/playwright.config.ts
 
   stg-canary:
