@@ -1,8 +1,10 @@
 {
-  "epic": 82,
-  "action": "staging-cors-verified",
+  "epic": 55,
+  "action": "security-baselines-p1",
   "route": "/api/certified/plan",
   "verdict": "green",
-  "timestamp": "2025-09-25T05:36:37Z",
-  "pr": 145
+  "timestamp": "2025-09-25T05:48:36Z",
+  "pr": 146,
+  "status": "open-pr",
+  "branch": "feat/security-baselines-p1"
 }

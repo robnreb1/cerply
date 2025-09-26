@@ -89,4 +89,24 @@ try {
   console.log("(certified stub check skipped)");
 }
 
+// 5) Security quick checks (non-fatal): 413 and 429 signals
+try {
+  const tooBig = 'x'.repeat(40000);
+  const h413 = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/certified/plan" -H 'content-type: application/json' -H 'origin: https://app.cerply.com' --data '{"topic":"${tooBig}"}' | tr -d '\r'`);
+  const code413 = (h413.match(/\s(\d{3})\s/) || [,''])[1];
+  if (code413 !== '413' && code413 !== '200' && code413 !== '501' && code413 !== '503') {
+    console.error(`WARN: unexpected status from 413 probe: ${code413}`);
+  }
+} catch {}
+try {
+  // burst a couple of requests to try and observe 429 in tight windows; tolerate misses
+  const h1 = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/certified/plan" -H 'content-type: application/json' -H 'origin: https://app.cerply.com' --data '{"topic":"A"}' | tr -d '\r'`);
+  const h2 = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/certified/plan" -H 'content-type: application/json' -H 'origin: https://app.cerply.com' --data '{"topic":"B"}' | tr -d '\r'`);
+  const h3 = sh(`curl -sS -D - -o /dev/null -X POST "${BASE}/api/certified/plan" -H 'content-type: application/json' -H 'origin: https://app.cerply.com' --data '{"topic":"C"}' | tr -d '\r'`);
+  const got429 = /\s429\s/.test(h1) || /\s429\s/.test(h2) || /\s429\s/.test(h3);
+  if (got429) {
+    console.log('[security] observed 429 from certified plan');
+  }
+} catch {}
+
 

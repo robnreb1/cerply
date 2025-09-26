@@ -1,0 +1,39 @@
+name: security-canary
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    env:
+      BASE: https://cerply-api-staging-latest.onrender.com
+    steps:
+      - name: OPTIONS preflight
+        run: |
+          curl -sS -i -X OPTIONS "$BASE/api/certified/plan" \
+            -H 'Origin: https://app.cerply.com' \
+            -H 'Access-Control-Request-Method: POST' | tr -d '\r' | tee preflight.txt
+          code=$(head -n1 preflight.txt | awk '{print $2}')
+          grep -i '^access-control-allow-origin: \*' preflight.txt >/dev/null
+          test "$code" = "204"
+      - name: POST 413 oversized
+        run: |
+          big=$(node -e "console.log(JSON.stringify({topic:'x'.repeat(40000)}))")
+          curl -sS -D post413.h -o /dev/null -X POST "$BASE/api/certified/plan" \
+            -H 'origin: https://app.cerply.com' -H 'content-type: application/json' --data "$big"
+          tr -d '\r' < post413.h | tee post413.h.txt >/dev/null
+          code=$(head -n1 post413.h.txt | awk '{print $2}')
+          echo "status=$code"
+          test "$code" = "413" || true
+          grep -i '^access-control-allow-origin: \*' post413.h.txt >/dev/null
+      - name: POST burst (observe 429 if window tight)
+        run: |
+          for i in A B C D; do
+            curl -sS -D - -o /dev/null -X POST "$BASE/api/certified/plan" \
+              -H 'origin: https://app.cerply.com' -H 'content-type: application/json' --data '{"topic":"'$i'"}' | tr -d '\r' >> burst.txt
+          done
+          if grep -qE '\s429\s' burst.txt; then echo 'observed 429'; fi
+

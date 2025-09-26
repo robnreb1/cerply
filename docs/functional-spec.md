@@ -69,6 +69,11 @@
 
 **Expected headers:** Responses may include `x-edge: proxy` (optional) and reflect backend cache-control.
 
+### Security baselines (P1) — Certified endpoints
+- Request size caps: `MAX_REQUEST_BYTES` (default 32KB). Exceeding returns 413 JSON `{ error: { code: 'PAYLOAD_TOO_LARGE', details: { max_bytes } } }`.
+- Rate limits: token-bucket on certified POSTs. `RATE_LIMIT_CERTIFIED_BURST` (default 20), `RATE_LIMIT_CERTIFIED_REFILL_PER_SEC` (default 5). Uses `REDIS_URL` when provided; falls back to in-memory. Returns 429 JSON `{ error: { code: 'RATE_LIMITED', details: { retry_after_ms, limit } } }` with `x-ratelimit-*` and `retry-after`.
+- Security headers added to certified responses (non-OPTIONS): `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`. CORS invariants retained: `ACAO:*`, no `ACAC:true`.
+
 **Acceptance updates (M2):**
 - `GET /api/health` and `/api/prompts` return 200 JSON **through the proxy** (not handled by app routes).
 - `/prompts` page fetches via proxy.

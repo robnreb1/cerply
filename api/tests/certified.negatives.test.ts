@@ -7,6 +7,8 @@ describe('Certified PLAN negatives (413, 429) with CORS headers', () => {
   beforeAll(async () => {
     vi.stubEnv('CERTIFIED_ENABLED', 'true');
     vi.stubEnv('CERTIFIED_MODE', 'plan');
+    vi.stubEnv('RATE_LIMIT_CERTIFIED_BURST', '2');
+    vi.stubEnv('RATE_LIMIT_CERTIFIED_REFILL_PER_SEC', '1');
     app = await createApp();
   });
 
