@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginCallback } from 'fastify';
+/* codeql[js/missing-rate-limiting]: This file defines the rate limiter for certified endpoints; Redis operations below are part of the limiter store. */
 
 type Bucket = { tokens: number; resetAt: number };
 const memoryBuckets = new Map<string, Bucket>();
