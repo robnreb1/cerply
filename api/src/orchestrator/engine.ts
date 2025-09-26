@@ -105,7 +105,14 @@ export class InMemoryEngine {
       }
     }
 
-    if (job.status === 'running') job.status = 'succeeded';
+    if (job.status === 'running') {
+      // Re-check for late cancellation that may have arrived between the
+      // last loop iteration and post-loop status transition.
+      job.status = job.canceled ? 'canceled' : 'succeeded';
+      if (job.canceled) {
+        job.logs.push({ t: new Date().toISOString(), level: 'warn', msg: 'job.canceled.late' });
+      }
+    }
     job.finishedAt = Date.now();
     this.emit({ job_id: job.id, t: new Date().toISOString(), type: 'end', data: { status: job.status } });
     job.logs.push({ t: new Date().toISOString(), level: 'info', msg: 'job.end', data: { status: job.status } });

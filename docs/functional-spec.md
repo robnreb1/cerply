@@ -84,14 +84,15 @@
 ### Orchestrator v0 (Preview)
 
 - API (preview-gated):
-
-  - `POST /api/orchestrator/jobs` accepts a Task Packet `{ goal, scope?, planRef?, steps[], limits{ maxSteps, maxWallMs?, maxTokens? }, flags? }` and returns `{ job_id }`.
-
-  - `GET /api/orchestrator/jobs/:id` returns job status and roll-up.
+  - `POST /api/orchestrator/jobs` accepts Task Packet `{ goal, scope?, planRef?, steps[], limits{ maxSteps, maxWallMs?, maxTokens? }, flags? }` and returns `{ job_id }`.
+    - Input normalization: accepts snake_case limits (`max_steps`, `max_wall_ms`, `max_tokens`); normalized to camelCase before validation.
+  - `GET /api/orchestrator/jobs/:id` returns `{ job_id, status, started_at?, finished_at?, error?, stepsRun }` with status in `queued|running|succeeded|failed|canceled`.
+  - `GET /api/orchestrator/jobs/:id/logs` (preview) returns recent structured logs `{ t, level, msg, data? }` (bounded ring buffer; `?n=`).
+  - `POST /api/orchestrator/jobs/:id/cancel` idempotently transitions a running job to `canceled`.
   - `GET /api/orchestrator/events?job=:id` streams Server-Sent Events.
-- Engine: in-memory queue with loop-guard (step budget + wall clock cutoff) and jittered backoff on retries.
-- Security baselines: payload size limit, per-route rate limit, conservative headers on non-OPTIONS.
-- OpenAPI includes orchestrator paths; smoke script asserts CORS invariants (ACAO:*; no ACAC:true).
+- Engine: in-memory queue; loop-guard (step budget + wall clock cutoff); default `maxWallMs=10s` when omitted; jittered backoff on retries; late-cancel respected before success assignment.
+- Security baselines: payload size limit (default 32KB), per-route rate limit, conservative headers on non-OPTIONS; CORS invariants (ACAO:*; no ACAC:true); OPTIONS 204.
+- OpenAPI includes orchestrator paths; smoke canary asserts CORS and performs POST→poll GET lifecycle.
 
 - Limits normalization: inputs may use snake_case keys (`max_steps`, `max_wall_ms`, `max_tokens`) which are normalized to camelCase before validation/execution. When `maxWallMs` is omitted, a conservative default of 10s is applied.
 
