@@ -26,17 +26,14 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
   app.post('/api/orchestrator/jobs', async (req: FastifyRequest, reply: FastifyReply) => {
     const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
     if (!ct.includes('application/json')) {
-      reply.header('access-control-allow-origin', '*');
       return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'application/json required' } });
     }
     const parsed = TaskPacketZ.safeParse(((req as any).body) ?? {});
     if (!parsed.success) {
-      reply.header('access-control-allow-origin', '*');
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Invalid Task Packet', details: parsed.error.flatten() } });
     }
     const { job_id } = engine.create(parsed.data);
     reply.header('cache-control', 'no-store');
-    reply.header('access-control-allow-origin', '*');
     return reply.send({ job_id });
   });
 
@@ -58,7 +55,6 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
     const parsed = JobStatusZ.safeParse(body);
     if (!parsed.success) app.log.warn({ err: parsed.error }, 'job status schema mismatch');
     reply.header('cache-control', 'no-store');
-    reply.header('access-control-allow-origin', '*');
     return reply.send(body);
   });
 
