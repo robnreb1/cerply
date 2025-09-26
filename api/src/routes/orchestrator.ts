@@ -15,6 +15,13 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
     return;
   }
 
+  // Simple readiness probe for orchestrator prefix (useful for staging canary)
+  app.get('/api/orchestrator/ping', async (_req: FastifyRequest, reply: FastifyReply) => {
+    reply.header('cache-control', 'no-store');
+    reply.header('access-control-allow-origin', '*');
+    return reply.send({ ok: true, mode: ORCH_MODE });
+  });
+
   // POST /api/orchestrator/jobs
   app.post('/api/orchestrator/jobs', async (req: FastifyRequest, reply: FastifyReply) => {
     const ct = String((req.headers as any)['content-type'] || '').toLowerCase();

@@ -1067,7 +1067,8 @@ app.get('/__whoami', async (_req, reply) => {
     cwd: process.cwd(),
     node: process.version,
     startedAt: new Date().toISOString(),
-    note: 'Fastify API process'
+    note: 'Fastify API process',
+    xOrchestratorEnabled: String(process.env.ORCH_ENABLED || '').toLowerCase()
   });
 });
 
