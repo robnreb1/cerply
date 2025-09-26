@@ -1,10 +1,1 @@
-{
-  "epic": 55,
-  "action": "security-baselines-p1",
-  "route": "/api/certified/plan",
-  "verdict": "green",
-  "timestamp": "2025-09-25T05:48:36Z",
-  "pr": 146,
-  "status": "open-pr",
-  "branch": "feat/security-baselines-p1"
-}
+{"epic":82,"action":"certified-verify-finalized","status":"done","pr":148,"timestamp":"2025-09-26T10:17:27Z"}
