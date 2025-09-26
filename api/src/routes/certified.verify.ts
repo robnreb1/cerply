@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { canonicalizePlan, computeLock } from '../planner/lock';
+import { canonicalizePlan } from '../planner/lock';
+import crypto from 'node:crypto';
 import { emitAudit } from './certified.audit';
 
 const LockZ = z.object({
@@ -35,6 +36,19 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
       return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Expected content-type: application/json' } });
     }
 
+    // Guard payload size similar to plan route (16KB)
+    try {
+      const hdrLen = Number((req.headers as any)?.['content-length'] ?? '0') || 0;
+      let calcLen = 0;
+      try { calcLen = Buffer.byteLength(JSON.stringify((req as any).body ?? {}), 'utf8'); } catch {}
+      const size = Math.max(hdrLen, calcLen);
+      if (size > 16 * 1024) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Body exceeds 16KB', details: { limit: 16384, size } } });
+      }
+    } catch {}
+
     const body = (req as any).body;
     const parsed = VerifyReqZ.safeParse(body);
     if (!parsed.success) {
@@ -47,27 +61,38 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
 
     // Recompute canonical and hash
     const { json, bytes } = canonicalizePlan(plan);
-    const computed = computeLock(plan);
+    // Recompute using client's requested algorithm if available
+    const requestedAlgo = String(lock.algo);
+    let computedHash = '';
+    let algoUnavailable = false;
+    try {
+      const h = (crypto as any).createHash(requestedAlgo);
+      h.update(json);
+      computedHash = h.digest('hex');
+    } catch {
+      algoUnavailable = true;
+    }
 
     let ok = true;
     let mismatch: any = undefined;
-    if (lock.algo !== computed.algo) {
+    if (algoUnavailable) {
       ok = false;
-      mismatch = { reason: 'algo' };
-    } else if (lock.hash !== computed.hash) {
+      mismatch = { reason: 'algo', detail: 'unavailable' };
+    } else if (lock.hash !== computedHash) {
       ok = false;
       mismatch = { reason: 'hash' };
     }
 
     const resp: any = {
       ok,
-      computed: { algo: computed.algo, hash: computed.hash, size_bytes: bytes },
+      computed: { algo: requestedAlgo, hash: algoUnavailable ? undefined : computedHash, size_bytes: bytes },
       provided: { algo: lock.algo, hash: lock.hash },
     };
     if (!ok && mismatch) resp.mismatch = mismatch;
 
     try {
-      emitAudit({ ts: new Date().toISOString(), request_id: meta?.request_id, action: 'verify', lock_algo: computed.algo, lock_hash_prefix: String(computed.hash).slice(0, 16), ok });
+      const pref = algoUnavailable ? undefined : String(computedHash).slice(0, 16);
+      emitAudit({ ts: new Date().toISOString(), request_id: meta?.request_id, action: 'verify', lock_algo: requestedAlgo, lock_hash_prefix: pref, ok });
     } catch {}
 
     reply.header('access-control-allow-origin', '*');
