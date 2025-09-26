@@ -53,6 +53,40 @@
           }
         }
       }
+    },
+    "/api/certified/verify": {
+      "post": {
+        "summary": "Verify certified plan lock (preview)",
+        "description": "Re-canonicalizes a plan and compares the hash to the provided lock.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Verification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyResponse"
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid payload" },
+          "415": { "description": "Unsupported media type (expect application/json)" }
+        }
+      },
+      "options": {
+        "summary": "CORS preflight",
+        "responses": { "204": { "description": "No Content; includes CORS headers" } }
+      }
     }
   },
   "components": {
@@ -187,6 +221,56 @@
                 }
               }
             }
+          }
+        }
+      },
+      "VerifyRequest": {
+        "type": "object",
+        "required": ["plan", "lock"],
+        "properties": {
+          "plan": {
+            "type": "object",
+            "required": ["title", "items"],
+            "properties": {
+              "title": { "type": "string" },
+              "items": { "type": "array", "items": { "$ref": "#/components/schemas/PlanItem" }, "minItems": 1 }
+            }
+          },
+          "lock": {
+            "type": "object",
+            "required": ["algo", "hash"],
+            "properties": {
+              "algo": { "type": "string", "enum": ["blake3", "sha256"] },
+              "hash": { "type": "string" }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": { "request_id": { "type": "string" } }
+          }
+        }
+      },
+      "VerifyResponse": {
+        "type": "object",
+        "required": ["ok", "computed"],
+        "properties": {
+          "ok": { "type": "boolean" },
+          "computed": {
+            "type": "object",
+            "required": ["algo"],
+            "properties": {
+              "algo": { "type": "string" },
+              "hash": { "type": ["string", "null"] },
+              "size_bytes": { "type": "integer" }
+            }
+          },
+          "provided": {
+            "type": "object",
+            "properties": { "algo": { "type": "string" }, "hash": { "type": "string" } }
+          },
+          "mismatch": {
+            "type": "object",
+            "properties": { "reason": { "type": "string" }, "detail": { "type": "string" } }
           }
         }
       }
