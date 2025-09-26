@@ -36,6 +36,19 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
       return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Expected content-type: application/json' } });
     }
 
+    // Guard payload size similar to plan route (16KB)
+    try {
+      const hdrLen = Number((req.headers as any)?.['content-length'] ?? '0') || 0;
+      let calcLen = 0;
+      try { calcLen = Buffer.byteLength(JSON.stringify((req as any).body ?? {}), 'utf8'); } catch {}
+      const size = Math.max(hdrLen, calcLen);
+      if (size > 16 * 1024) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Body exceeds 16KB', details: { limit: 16384, size } } });
+      }
+    } catch {}
+
     const body = (req as any).body;
     const parsed = VerifyReqZ.safeParse(body);
     if (!parsed.success) {

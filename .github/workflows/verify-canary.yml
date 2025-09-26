@@ -1,0 +1,42 @@
+name: verify-canary
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  plan-verify:
+    runs-on: ubuntu-latest
+    env:
+      BASE: https://cerply-api-staging-latest.onrender.com
+    steps:
+      - name: Plan
+        run: |
+          body='{"topic":"Hashes"}'
+          curl -sS -D plan.h -o plan.json -X POST "$BASE/api/certified/plan" -H 'origin: https://app.cerply.com' -H 'content-type: application/json' --data "$body"
+          tr -d '\r' < plan.h | sed -n '1,80p'
+          code=$(head -n1 plan.h | awk '{print $2}')
+          test "$code" = "200" || test "$code" = "501" || (echo "Unexpected plan status=$code" && exit 1)
+          grep -qi '^access-control-allow-origin: \*' plan.h || (echo 'Missing ACAO:* on plan' && exit 1)
+      - name: Verify
+        run: |
+          lock=$(jq -c '.lock' plan.json)
+          plan=$(jq -c '.plan' plan.json)
+          if [ "$lock" = "null" ] || [ -z "$lock" ]; then echo '(no lock present; skipping verify)'; exit 0; fi
+          echo '{"plan":'$plan',"lock":'$lock'}' > verify.body.json
+          curl -sS -D verify.h -o verify.json -X POST "$BASE/api/certified/verify" -H 'origin: https://app.cerply.com' -H 'content-type: application/json' --data @verify.body.json
+          tr -d '\r' < verify.h | sed -n '1,80p'
+          code=$(head -n1 verify.h | awk '{print $2}')
+          test "$code" = "200" || (echo "Unexpected verify status=$code" && exit 1)
+          ok=$(jq -r '.ok' verify.json)
+          test "$ok" = "true" || (echo 'verify ok:false' && exit 1)
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: certified_audit
+          path: |
+            plan.json
+            verify.json
+            plan.h
+            verify.h
