@@ -168,6 +168,21 @@ export async function createApp() {
       }
     } catch {}
   });
+  // Explicit CORS preflight for Orchestrator endpoints
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/orchestrator/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, authorization')
+          .code(204)
+          .send();
+      }
+    } catch {}
+  });
   
   // ── Observability: per-request duration headers + optional DB sampling ──
   const OBS_PCT = Number(process.env.OBS_SAMPLE_PCT || '0'); // 0..100
@@ -293,6 +308,22 @@ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
   } catch {}
   return payload;
 });
+  // Targeted CORS: ensure orchestrator responses have ACAO:* and no ACAC
+  app.addHook('onSend', async (request:any, reply:any, payload:any) => {
+    try {
+      const method = String(request?.method || '').toUpperCase();
+      const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
+      const isOrch = url.startsWith('/api/orchestrator/');
+      if (method !== 'OPTIONS' && isOrch) {
+        reply.header('access-control-allow-origin', '*');
+        try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+        try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
+        try { (reply as any).removeHeader?.('x-cors-certified-hook'); } catch {}
+        try { (reply as any).raw?.removeHeader?.('x-cors-certified-hook'); } catch {}
+      }
+    } catch {}
+    return payload;
+  });
 
 // Public-route bypass helper for any global guards (auth/CSRF).
 function isPublicURL(url = '') {
