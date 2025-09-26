@@ -62,6 +62,7 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
   app.get('/api/orchestrator/events', async (req: FastifyRequest, reply: FastifyReply) => {
     const q = (req.query as any) || {};
     const id = String(q.job || '');
+    const once = (() => { const v = String(q.once ?? '').toLowerCase(); return v === '1' || v === 'true' || v === 'yes'; })();
     const ok = JobIdZ.safeParse(id);
     if (!ok.success) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'missing or invalid job id' } });
 
@@ -93,7 +94,17 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
     }, 15000);
 
     // Initial announce
-    try { reply.raw.write(`event: ready\n`); reply.raw.write(`data: {"job_id":"${id}","mode":"${ORCH_MODE}"}\n\n`); } catch {}
+    try {
+      reply.raw.write(`event: ready\n`);
+      reply.raw.write(`data: {"job_id":"${id}","mode":"${ORCH_MODE}"}\n\n`);
+      if (once) {
+        // In tests or debug, allow immediate completion so inject() can return
+        try { clearInterval(heartbeat); } catch {}
+        try { un(); } catch {}
+        try { reply.raw.end(); } catch {}
+        return;
+      }
+    } catch {}
 
     // Close handler
     req.raw.on('close', () => {
