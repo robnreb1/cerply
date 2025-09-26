@@ -1,8 +1,7 @@
 {
   "epic": 47,
-  "action": "orchestrator-v0-finalize",
-  "status": "pr-open",
-  "pr": 153,
-  "verdict": "❌ missing ACAO:*",
-  "ts": "2025-09-26T11:19:11Z"
+  "action": "orchestrator-cors-enable",
+  "status": "in-progress",
+  "pr": 154,
+  "timestamp": "2025-09-26T11:34:23Z"
 }
