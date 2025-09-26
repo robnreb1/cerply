@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [ main ]
   push:
-    branches: [ feat/orchestrator-v0-preview ]
+    branches: [ feat/orchestrator-v0-preview, feat/orchestrator-v0-lifecycle ]
 
 jobs:
   api-unit:
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - run: npm ci
-      - name: Orchestrator CORS Canary (staging)
+      - name: Orchestrator Canary (staging)
         env:
           API_BASE: https://cerply-api-staging-latest.onrender.com
         run: node scripts/smoke-api.mjs
