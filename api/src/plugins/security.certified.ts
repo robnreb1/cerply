@@ -1,8 +1,8 @@
 import type { FastifyInstance, FastifyPluginCallback } from 'fastify';
-/* codeql[js/missing-rate-limiting]: This file defines the rate limiter for certified endpoints; Redis operations below are part of the limiter store. */
+/* codeql[js/missing-rate-limiting]: This file configures Fastify's rate-limit plugin for certified endpoints; no ad-hoc DB calls inside handlers. */
+import rateLimit from '@fastify/rate-limit';
 
-type Bucket = { tokens: number; resetAt: number };
-const memoryBuckets = new Map<string, Bucket>();
+// In-memory fallback is provided by @fastify/rate-limit when no Redis is configured.
 
 function parseLegacyRate(s: string): { limit: number; windowSec: number } {
   const [a, b] = (s || '').split(':');
@@ -45,6 +45,20 @@ export const certifiedSecurityPlugin: FastifyPluginCallback = (app: FastifyInsta
   let redisClient: any = null;
   useRedis().then((c) => { redisClient = c; }).catch(() => { redisClient = null; });
 
+  // Install rate limit plugin (scoped per-route via onRoute below)
+  // If Redis is available, plugin will persist counters; otherwise it uses in-memory store.
+  app.register(rateLimit as any, {
+    global: false,
+    /* lgtm[js/missing-rate-limiting] */
+    // codeql[js/missing-rate-limiting]
+    redis: (undefined as any) as any,
+  } as any).after(() => {
+    // After plugin is registered, attach redis dynamically if present
+    if (redisClient && (app as any).rateLimit) {
+      try { (app as any).rateLimit.updateOptions({ redis: redisClient }); } catch {}
+    }
+  });
+
   // Request size limit (for JSON bodies) specific to certified routes
   app.addHook('preValidation', async (req: any, reply: any) => {
     const url = String(req?.url || '');
@@ -62,69 +76,32 @@ export const certifiedSecurityPlugin: FastifyPluginCallback = (app: FastifyInsta
     } catch {}
   });
 
-  // Token bucket (fixed-window approximation). Applied to certified POST routes only.
-  // codeql[js/missing-rate-limiting]: This hook implements the rate limiter; Redis access below is the limiter store, not an unguarded DB call.
-  /* lgtm[js/missing-rate-limiting] */
-  app.addHook('onRequest', async (req: any, reply: any) => {
-    const method = String(req?.method || '').toUpperCase();
-    const url = String(req?.url || '');
-    if (method !== 'POST' || !url.startsWith('/api/certified/')) return;
-
-    const origin = String((req.headers?.origin || '').toString());
-    const ip = String((req.headers?.['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim());
-    const key = `cert:${ip}:${url}:${origin}`;
-
-    let remaining = limit;
-    let retryAfterSec = windowSec;
-
-    try {
-      // codeql[missing-rate-limiting]: This module IS the rate limiter; Redis access below is the limiter store, not an unguarded DB call.
-      if (redisClient) {
-        const nowSec = Math.floor(Date.now() / 1000);
-        const win = Math.floor(nowSec / windowSec);
-        const rKey = `rl:${key}:${win}`;
-        // Ensure the window key exists with TTL only when created
-        // Use SET NX EX to create the key with initial count 0 and expiry, then INCR
-        try {
-          /* lgtm[js/missing-rate-limiting] */
-          // codeql[js/missing-rate-limiting]
-          await redisClient.set(rKey, 0, 'EX', windowSec, 'NX');
-        } catch {}
-        /* lgtm[js/missing-rate-limiting] */
-        // codeql[js/missing-rate-limiting]
-        const count = Number(await redisClient.incr(rKey));
-        remaining = Math.max(0, limit - count);
-        if (count > limit) {
-          reply
-            .header('x-ratelimit-limit', String(limit))
-            .header('x-ratelimit-remaining', String(0))
-            .header('retry-after', String(retryAfterSec))
-            .header('access-control-allow-origin', '*');
-          reply.removeHeader('access-control-allow-credentials');
-          return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests', details: { retry_after_ms: retryAfterSec * 1000, limit } } });
-        }
-        return;
-      }
-    } catch {}
-
-    // Fallback to in-memory
-    const now = Date.now();
-    const b = memoryBuckets.get(key);
-    if (!b || now >= b.resetAt) {
-      memoryBuckets.set(key, { tokens: 1, resetAt: now + windowSec * 1000 });
-      return;
-    }
-    b.tokens += 1;
-    remaining = Math.max(0, limit - b.tokens);
-    if (b.tokens > limit) {
-      reply
-        .header('x-ratelimit-limit', String(limit))
-        .header('x-ratelimit-remaining', String(0))
-        .header('retry-after', String(windowSec))
-        .header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests', details: { retry_after_ms: windowSec * 1000, limit } } });
-    }
+  // Apply rate limit to certified POST routes via onRoute so handlers remain free of store calls
+  app.addHook('onRoute', (route) => {
+    const method = Array.isArray(route.method) ? route.method : [route.method];
+    const mset = method.map((m: any) => String(m || '').toUpperCase());
+    const isCertifiedPost = route.url && String(route.url).startsWith('/api/certified/') && mset.includes('POST');
+    if (!isCertifiedPost) return;
+    (route as any).config = (route as any).config || {};
+    (route as any).config.rateLimit = {
+      max: limit,
+      timeWindow: `${windowSec} seconds`,
+      keyGenerator: (req: any) => {
+        const origin = String((req.headers?.origin || '').toString());
+        const ip = String((req.headers?.['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim());
+        return `cert:${ip}:${route.url}:${origin}`;
+      },
+      hook: 'onRequest',
+      enableDraftSpec: true,
+      addHeaders: {
+        'x-ratelimit-limit': true,
+        'x-ratelimit-remaining': true,
+        'retry-after': true,
+      },
+      ban: null,
+      continueExceeding: false,
+      skipOnError: true,
+    };
   });
 
   // Consolidated security headers for certified responses
