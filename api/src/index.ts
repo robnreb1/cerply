@@ -259,6 +259,10 @@ export async function createApp() {
     const sec = (await import('./plugins/security.certified')).default as any;
     await app.register(sec);
   } catch {}
+  try {
+    const orchSec = (await import('./plugins/security.orchestrator')).default as any;
+    await app.register(orchSec);
+  } catch {}
   // Register Certified verify routes
   try {
     await registerCertifiedVerifyRoutes(app);
