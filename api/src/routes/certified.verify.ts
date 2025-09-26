@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { canonicalizePlan, computeLock } from '../planner/lock';
+import { emitAudit } from './certified.audit';
 
 const LockZ = z.object({
   algo: z.union([z.literal('blake3'), z.literal('sha256')]),
@@ -42,7 +43,7 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Invalid verify payload' } });
     }
 
-    const { plan, lock } = parsed.data as any;
+    const { plan, lock, meta } = parsed.data as any;
 
     // Recompute canonical and hash
     const { json, bytes } = canonicalizePlan(plan);
@@ -64,6 +65,10 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
       provided: { algo: lock.algo, hash: lock.hash },
     };
     if (!ok && mismatch) resp.mismatch = mismatch;
+
+    try {
+      emitAudit({ ts: new Date().toISOString(), request_id: meta?.request_id, action: 'verify', lock_algo: computed.algo, lock_hash_prefix: String(computed.hash).slice(0, 16), ok });
+    } catch {}
 
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');

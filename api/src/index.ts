@@ -56,6 +56,7 @@ import { registerRoutesDump }     from './routes/routesDump';
 import { registerLedgerRoutes }   from './routes/ledger';
 import { registerExportRoutes }   from './routes/exports';
 import { registerCertifiedVerifyRoutes } from './routes/certified.verify';
+import { registerCertifiedAuditPreview, emitAudit } from './routes/certified.audit';
 
 
 // Helper: get session cookie from parsed cookies or raw header
@@ -233,6 +234,9 @@ export async function createApp() {
   // Register Certified verify routes
   try {
     await registerCertifiedVerifyRoutes(app);
+  } catch {}
+  try {
+    await registerCertifiedAuditPreview(app);
   } catch {}
   // Runtime deploy channel (optional): allows staging/prod to report environment without rebuilds
   const RUNTIME_CHANNEL = process.env.RUNTIME_CHANNEL || '';
