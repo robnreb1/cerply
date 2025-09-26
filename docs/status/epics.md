@@ -1,6 +1,6 @@
 # Epics Dashboard (auto-generated)
 
-_Last updated: 2025-09-26T12:27:01.862Z_
+_Last updated: 2025-09-26T18:17:57.722Z_
 
 Epics = issues labeled **Epic**. Priority from labels **P0–P3** or **priority:{critical|high|medium|low}**.
 
@@ -19,8 +19,8 @@ Epics = issues labeled **Epic**. Priority from labels **P0–P3** or **priority:
 | #48 | [Learner Engine (MVP)](https://github.com/robnreb1/cerply/issues/48) | P2 | in-progress | 2025-09-24 19:34:31Z |
 | #53 | [GTM Readiness (minimal)](https://github.com/robnreb1/cerply/issues/53) | P2 | in-progress | 2025-09-24 19:34:30Z |
 | #54 | [Certified Content (Admin)](https://github.com/robnreb1/cerply/issues/54) | P2 | in-progress | 2025-09-24 19:34:28Z |
+| #47 | [Conversational Orchestrator & Loop-Guard](https://github.com/robnreb1/cerply/issues/47) | P3 | in-progress | 2025-09-26 17:59:18Z |
 | #52 | [Observability + Telemetry & Cost Ledger](https://github.com/robnreb1/cerply/issues/52) | P3 | done | 2025-09-24 19:34:36Z |
-| #47 | [Conversational Orchestrator & Loop-Guard](https://github.com/robnreb1/cerply/issues/47) | P3 | in-progress | 2025-09-24 19:34:34Z |
 | #57 | [Groups/Challenges (flag)](https://github.com/robnreb1/cerply/issues/57) | P3 | in-progress | 2025-09-24 19:34:33Z |
 
 ### In Progress
