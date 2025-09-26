@@ -39,7 +39,7 @@ describe('Orchestrator routes (preview)', () => {
     // poll status until finished (with small timeout)
     let status = 'queued';
     const t0 = Date.now();
-    while (Date.now() - t0 < 3000 && status !== 'finished' && status !== 'failed') {
+    while (Date.now() - t0 < 3000 && status !== 'succeeded' && status !== 'failed') {
       const s = await app.inject({ method: 'GET', url: `/api/orchestrator/jobs/${job_id}` });
       expect([200,404]).toContain(s.statusCode);
       if (s.statusCode === 200) {
@@ -48,7 +48,7 @@ describe('Orchestrator routes (preview)', () => {
       }
       await new Promise(res => setTimeout(res, 50));
     }
-    expect(['finished','failed']).toContain(status);
+    expect(['succeeded','failed']).toContain(status);
   });
 
   it('accepts snake_case limits and normalizes', async () => {

@@ -29,7 +29,7 @@ export const JobIdZ = z.string().min(6);
 
 export const JobStatusZ = z.object({
   job_id: JobIdZ,
-  status: z.enum(['queued','running','finished','failed','cancelled']),
+  status: z.enum(['queued','running','succeeded','failed','canceled']),
   started_at: z.string().optional(),
   finished_at: z.string().optional(),
   error: z.string().optional(),
@@ -65,4 +65,3 @@ export function normalizeTaskPacketInput(input: any): any {
   if (Object.keys(limits).length > 0) out.limits = limits;
   return out;
 }
-
