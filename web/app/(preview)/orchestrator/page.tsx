@@ -28,6 +28,7 @@ export default function OrchestratorPreviewPage() {
     const es = new EventSource(url);
     evtRef.current = es;
     es.onmessage = (e) => setEvents((prev) => [...prev, e.data]);
+    es.addEventListener('ready', (e) => setEvents((prev) => [...prev, (e as MessageEvent).data]));
     es.addEventListener('step.start', (e) => setEvents((prev) => [...prev, (e as MessageEvent).data]));
     es.addEventListener('end', (e) => setEvents((prev) => [...prev, (e as MessageEvent).data]));
   };

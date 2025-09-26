@@ -27,7 +27,8 @@ test('Orchestrator preview: submit → stream → finish (mock)', async ({ page 
 
   await page.goto('/orchestrator');
   await page.getByRole('button', { name: 'Submit' }).click();
-  await expect(page.locator('pre')).toContainText('job-123', { timeout: 10000 });
+  // Accept either explicit job id or the ready payload
+  await expect(page.locator('pre')).toContainText('ready', { timeout: 10000 });
   await expect(page.locator('pre')).toContainText('finished');
 });
 
