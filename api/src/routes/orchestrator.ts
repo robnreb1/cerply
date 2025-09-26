@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { TaskPacketZ, JobIdZ, JobStatusZ, OrchestratorEventZ } from '../schemas/orchestrator';
+import { TaskPacketZ, JobIdZ, JobStatusZ, OrchestratorEventZ, normalizeTaskPacketInput } from '../schemas/orchestrator';
 import { InMemoryEngine, resolveBackend } from '../orchestrator/engine';
 
 const ORCH_ENABLED = String(process.env.ORCH_ENABLED || 'false').toLowerCase() === 'true';
@@ -28,7 +28,9 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
     if (!ct.includes('application/json')) {
       return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'application/json required' } });
     }
-    const parsed = TaskPacketZ.safeParse(((req as any).body) ?? {});
+    const raw = ((req as any).body) ?? {};
+    const pre = normalizeTaskPacketInput(raw);
+    const parsed = TaskPacketZ.safeParse(pre);
     if (!parsed.success) {
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Invalid Task Packet', details: parsed.error.flatten() } });
     }
