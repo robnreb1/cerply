@@ -70,6 +70,8 @@
 **Expected headers:** Responses may include `x-edge: proxy` (optional) and reflect backend cache-control.
 
 ### Security baselines (P1) — Certified endpoints
+- Verify (preview): `POST /api/certified/verify` accepts `{ plan, lock, meta? }`, re-canonicalizes, hashes, compares, returns `{ ok, computed, provided, mismatch? }`. CORS invariants preserved; OPTIONS 204; strict JSON.
+- Audit preview (flagged): `GET /api/certified/_audit_preview?limit=100` when `FF_CERTIFIED_AUDIT_PREVIEW=true`.
 - Request size caps: `MAX_REQUEST_BYTES` (default 32KB). Exceeding returns 413 JSON `{ error: { code: 'PAYLOAD_TOO_LARGE', details: { max_bytes } } }`.
 - Rate limits: token-bucket on certified POSTs. `RATE_LIMIT_CERTIFIED_BURST` (default 20), `RATE_LIMIT_CERTIFIED_REFILL_PER_SEC` (default 5). Uses `REDIS_URL` when provided; falls back to in-memory. Returns 429 JSON `{ error: { code: 'RATE_LIMITED', details: { retry_after_ms, limit } } }` with `x-ratelimit-*` and `retry-after`.
 - Security headers added to certified responses (non-OPTIONS): `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`. CORS invariants retained: `ACAO:*`, no `ACAC:true`.
