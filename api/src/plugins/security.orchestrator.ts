@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginCallback } from 'fastify';
+import { readCookie, getSession } from '../session';
 import rateLimit from '@fastify/rate-limit';
 
 export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance, _opts, done) => {
@@ -37,6 +38,35 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
         return reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: `Body exceeds ${maxBytes} bytes`, details: { max_bytes: maxBytes, size } } });
       }
     } catch {}
+  });
+
+  // CSRF + optional session requirement (when AUTH_ENABLED)
+  app.addHook('preHandler', async (req: any, reply: any) => {
+    const authEnabled = String(process.env.AUTH_ENABLED ?? 'false').toLowerCase() === 'true';
+    if (!authEnabled) return;
+    const method = String(req?.method || '').toUpperCase();
+    const url = String(req?.url || '');
+    if (!url.startsWith('/api/orchestrator/')) return;
+    if (method === 'OPTIONS' || method === 'GET') return;
+    // Require session when flag set
+    const requireSession = String(process.env.AUTH_REQUIRE_SESSION ?? 'false').toLowerCase() === 'true';
+    const cookieName = String(process.env.AUTH_COOKIE_NAME ?? 'sid');
+    const sid = readCookie(req, cookieName);
+    const sess = await getSession(sid);
+    if (requireSession && !sess) {
+      reply.header('access-control-allow-origin', '*');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'session required' } });
+    }
+    // CSRF double-submit
+    const headerToken = String((req.headers?.['x-csrf-token'] ?? '')).trim();
+    const cookieToken = String(readCookie(req, 'csrf') || '').trim();
+    const valid = Boolean(sess && headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
+    if (!valid) {
+      reply.header('access-control-allow-origin', '*');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      return reply.code(403).send({ error: { code: 'CSRF', message: 'csrf required' } });
+    }
   });
 
   // Security headers for non-OPTIONS
