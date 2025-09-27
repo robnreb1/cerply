@@ -27,6 +27,7 @@ function sizeWithinLimit(req: any): boolean {
 }
 
 function applyCors(reply: FastifyReply) {
+  try { if ((reply as any).raw?.headersSent) return; } catch {}
   reply.header('access-control-allow-origin', '*');
   try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
 }
