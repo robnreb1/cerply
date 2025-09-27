@@ -1,6 +1,6 @@
 # Epics Dashboard (auto-generated)
 
-_Last updated: 2025-09-26T18:17:57.722Z_
+_Last updated: 2025-09-27T06:17:21.326Z_
 
 Epics = issues labeled **Epic**. Priority from labels **P0–P3** or **priority:{critical|high|medium|low}**.
 
@@ -12,14 +12,14 @@ Epics = issues labeled **Epic**. Priority from labels **P0–P3** or **priority:
 | #55 | [Security & Compliance](https://github.com/robnreb1/cerply/issues/55) | P0 | in-progress | 2025-09-26 08:29:22Z |
 | #51 | [Infra & Deployment](https://github.com/robnreb1/cerply/issues/51) | P0 | in-progress | 2025-09-24 19:34:20Z |
 | #50 | [Auth & Session](https://github.com/robnreb1/cerply/issues/50) | P0 | in-progress | 2025-09-24 19:34:19Z |
-| #59 | [Launch Orchestration](https://github.com/robnreb1/cerply/issues/59) | P1 | in-progress | 2025-09-24 19:34:27Z |
+| #59 | [Launch Orchestration](https://github.com/robnreb1/cerply/issues/59) | P1 | in-progress | 2025-09-26 20:29:44Z |
 | #49 | [Persistence Uplift](https://github.com/robnreb1/cerply/issues/49) | P1 | in-progress | 2025-09-24 19:34:26Z |
 | #56 | [Web UX & Reliability (behavior-only)](https://github.com/robnreb1/cerply/issues/56) | P1 | in-progress | 2025-09-24 19:34:24Z |
 | #58 | [Documentation & Spec Hygiene](https://github.com/robnreb1/cerply/issues/58) | P1 | in-progress | 2025-09-24 19:34:22Z |
 | #48 | [Learner Engine (MVP)](https://github.com/robnreb1/cerply/issues/48) | P2 | in-progress | 2025-09-24 19:34:31Z |
 | #53 | [GTM Readiness (minimal)](https://github.com/robnreb1/cerply/issues/53) | P2 | in-progress | 2025-09-24 19:34:30Z |
 | #54 | [Certified Content (Admin)](https://github.com/robnreb1/cerply/issues/54) | P2 | in-progress | 2025-09-24 19:34:28Z |
-| #47 | [Conversational Orchestrator & Loop-Guard](https://github.com/robnreb1/cerply/issues/47) | P3 | in-progress | 2025-09-26 17:59:18Z |
+| #47 | [Conversational Orchestrator & Loop-Guard](https://github.com/robnreb1/cerply/issues/47) | P3 | in-progress | 2025-09-26 19:27:09Z |
 | #52 | [Observability + Telemetry & Cost Ledger](https://github.com/robnreb1/cerply/issues/52) | P3 | done | 2025-09-24 19:34:36Z |
 | #57 | [Groups/Challenges (flag)](https://github.com/robnreb1/cerply/issues/57) | P3 | in-progress | 2025-09-24 19:34:33Z |
 
