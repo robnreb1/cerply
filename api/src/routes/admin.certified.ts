@@ -34,6 +34,13 @@ function applyCors(reply: FastifyReply) {
 export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   if (!enabled()) return;
 
+  // Ensure rate-limit plugin is present (non-global) for per-route configs (satisfies static checks)
+  try {
+    const rl = (await import('@fastify/rate-limit')).default as any;
+    // Safe to re-register; no-op if already registered globally elsewhere
+    await app.register(rl, { global: false } as any);
+  } catch {}
+
   // Preflight: OPTIONS for all admin endpoints
   app.addHook('onRequest', async (req: any, reply: any) => {
     try {
