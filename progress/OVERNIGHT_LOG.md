@@ -3,6 +3,7 @@
 - Implemented admin schemas `api/src/schemas/admin.certified.ts`.
 - Added NDJSON store helper `api/src/store/adminCertifiedStore.ts`.
 - Implemented routes `api/src/routes/admin.certified.ts` with CORS/security headers, token auth, size cap, audit lines.
+- Added admin CORS/security plugin `api/src/plugins/security.admin.ts` and registered before routes.
 - Mounted routes behind `ADMIN_PREVIEW` + `ADMIN_TOKEN` in `api/src/index.ts`.
 - Extended OpenAPI with admin paths.
 - Web preview page at `web/app/(preview)/admin/certified/page.tsx`.

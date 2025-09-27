@@ -63,6 +63,7 @@
 - Size cap: `ADMIN_MAX_REQUEST_BYTES` (default 32KB). Stateless; CSRF N/A.
 - Endpoints: POST/GET sources; POST items/ingest; GET items (filter by status); GET item details; POST approve/reject (emits audit line).
 - Storage: NDJSON file append-only at `api/store/admin-certified.ndjson` (v0); future durable store behind a flag.
+ - See `docs/admin/CERTIFIED_ADMIN_V0.md` for exact curls and expected headers.
 
 - Soft route guard (flagged): if `AUTH_REQUIRE_SESSION=true`, mutating under `/api/orchestrator/*` and `/api/certified/*` returns 401 when session missing.
 - Gate all behavior behind `AUTH_ENABLED=true`.

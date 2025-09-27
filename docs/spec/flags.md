@@ -12,6 +12,7 @@ Admin preview flags (EPIC #54):
 - ADMIN_TOKEN: required bearer token for admin routes
 - ADMIN_MAX_REQUEST_BYTES: size cap in bytes (default 32768)
 - ADMIN_RATE_LIMIT: per-route limit hint (reserved)
+ - CORS invariants: ACAO:* on responses; no ACAC; OPTIONS returns 204 with `access-control-allow-headers: content-type, x-admin-token`.
 
  - PREVIEW_ANALYTICS (default: off) — enables `/api/analytics/*` preview endpoints.
  - ANALYTICS_INGEST_SECRET (optional) — when set, `POST /api/analytics/ingest` requires `Authorization: Bearer <secret>`.
