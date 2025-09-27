@@ -23,6 +23,18 @@ export const adminSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance,
     }
   });
 
+  // Explicit OPTIONS route to guarantee preflight behavior in tests and prod
+  try {
+    app.options('/api/admin/*', async (_req: any, reply: any) => {
+      reply
+        .header('access-control-allow-origin', '*')
+        .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+        .header('access-control-allow-headers', 'content-type, x-admin-token');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      return reply.code(204).send();
+    });
+  } catch {}
+
   // Security + CORS invariants for non-OPTIONS admin responses
   app.addHook('onSend', async (req: any, reply: any, payload: any) => {
     // Skip if headers already sent (defensive against double-writes in tests)

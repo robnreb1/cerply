@@ -74,13 +74,17 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   function authGuard(req: FastifyRequest, reply: FastifyReply): boolean {
     if (!tokenOk(req.headers as any)) {
       applyCors(reply);
-      reply.header('www-authenticate', 'Bearer');
-      reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
+      if (!(reply as any).raw?.headersSent) {
+        reply.header('www-authenticate', 'Bearer');
+        reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
+      }
       return false;
     }
     if (!sizeWithinLimit(req)) {
       applyCors(reply);
-      reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'request too large' } });
+      if (!(reply as any).raw?.headersSent) {
+        reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'request too large' } });
+      }
       return false;
     }
     return true;
