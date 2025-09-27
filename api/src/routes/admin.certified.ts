@@ -42,35 +42,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     await app.register(rl, { global: false } as any);
   } catch {}
 
-  // Preflight: OPTIONS for all admin endpoints
-  app.addHook('onRequest', async (req: any, reply: any) => {
-    try {
-      const method = String(req?.method || '').toUpperCase();
-      const url = String(req?.url || '');
-      if (method === 'OPTIONS' && url.startsWith('/api/admin/certified/')) {
-        return reply
-          .header('access-control-allow-origin', '*')
-          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-          .header('access-control-allow-headers', 'content-type, x-admin-token, authorization')
-          .code(204)
-          .send();
-      }
-    } catch {}
-  });
-
-  // Security headers baseline for admin responses
-  app.addHook('onSend', async (req: any, reply: any, payload: any) => {
-    try {
-      const url = String(req?.url || '');
-      if (!url.startsWith('/api/admin/certified/')) return payload;
-      applyCors(reply);
-      reply.header('cross-origin-opener-policy', 'same-origin');
-      reply.header('cross-origin-resource-policy', 'same-site');
-      reply.header('referrer-policy', 'no-referrer');
-      reply.header('x-content-type-options', 'nosniff');
-    } catch {}
-    return payload;
-  });
+  // Preflight and security headers handled by security.admin plugin
 
   function authGuard(req: FastifyRequest, reply: FastifyReply): boolean {
     if (!tokenOk(req.headers as any)) {
