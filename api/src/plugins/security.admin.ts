@@ -35,22 +35,22 @@ export const adminSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance,
     });
   } catch {}
 
-  // Security + CORS invariants for non-OPTIONS admin responses
-  app.addHook('onSend', async (req: any, reply: any, payload: any) => {
-    try { if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload; } catch {}
+  // Set headers early to avoid post-send header mutations
+  app.addHook('preHandler', async (req: any, reply: any) => {
     const isAdmin = String(req?.url || '').startsWith('/api/admin/');
-    if (isAdmin && String(req?.method || '').toUpperCase() !== 'OPTIONS') {
-      // Security headers
-      reply.header('X-Content-Type-Options', 'nosniff');
-      reply.header('Referrer-Policy', 'no-referrer');
-      reply.header('Cross-Origin-Opener-Policy', 'same-origin');
-      reply.header('Cross-Origin-Resource-Policy', 'same-site');
-      // CORS invariants
-      reply.header('access-control-allow-origin', '*');
-      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-    }
-    return payload;
+    if (!isAdmin) return;
+    const method = String(req?.method || '').toUpperCase();
+    if (method === 'OPTIONS') return; // handled in onRequest/options route
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('Referrer-Policy', 'no-referrer');
+    reply.header('Cross-Origin-Opener-Policy', 'same-origin');
+    reply.header('Cross-Origin-Resource-Policy', 'same-site');
+    reply.header('access-control-allow-origin', '*');
+    try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
   });
+
+  // No-op onSend (defensive): never modify headers after send
+  app.addHook('onSend', async (_req: any, _reply: any, payload: any) => payload);
 
   // Per-route rate limit for admin POSTs (uses plugin above)
   app.addHook('onRoute', (route) => {
