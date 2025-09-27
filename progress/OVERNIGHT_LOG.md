@@ -86,3 +86,4 @@
 [2025-09-26T20:27:40Z] EPIC #59 — Launch Metrics v0: created LAUNCH_STATUS.md and CI workflow
 [2025-09-26T22:05:00Z] EPIC #50 P0 — Auth & Session v0: implemented anonymous sessions + CSRF guard; API tests added; OpenAPI updated; preview web /auth panel; CI canary added.
 [2025-09-26T22:20:00Z] EPIC #50 — Orchestrator v0 CORS closeout: CSRF N/A (ACAC disabled); headers captured and docs updated.
+
