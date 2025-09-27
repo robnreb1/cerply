@@ -8,20 +8,7 @@ export const adminSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance,
   // Local rate-limit registration (not global); allow per-route configs
   app.register(rateLimit as any, { global: false } as any);
 
-  // OPTIONS preflight: ensure 204 and ACAO:* for admin prefix
-  app.addHook('onRequest', async (req: any, reply: any) => {
-    const method = String(req?.method || '').toUpperCase();
-    const url = String(req?.url || '');
-    if (method === 'OPTIONS' && url.startsWith('/api/admin/')) {
-      reply
-        .header('access-control-allow-origin', '*')
-        .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-        .header('access-control-allow-headers', 'content-type, x-admin-token')
-        // ensure ACAC not present
-        .removeHeader?.('access-control-allow-credentials');
-      return reply.code(204).send();
-    }
-  });
+  // (moved to explicit app.options route below)
 
   // Explicit OPTIONS route to guarantee preflight behavior in tests and prod
   try {
