@@ -1,3 +1,13 @@
+### 2025-09-27 — EPIC #54 Certified Admin v0 (preview)
+- Added ADMIN_* flags in `api/src/env.ts`.
+- Implemented admin schemas `api/src/schemas/admin.certified.ts`.
+- Added NDJSON store helper `api/src/store/adminCertifiedStore.ts`.
+- Implemented routes `api/src/routes/admin.certified.ts` with CORS/security headers, token auth, size cap, audit lines.
+- Mounted routes behind `ADMIN_PREVIEW` + `ADMIN_TOKEN` in `api/src/index.ts`.
+- Extended OpenAPI with admin paths.
+- Web preview page at `web/app/(preview)/admin/certified/page.tsx`.
+- Tests: `api/tests/admin.certified.preview.test.ts` for preflight, auth, happy path, 413.
+- Docs updated: `docs/admin/CERTIFIED_ADMIN_V0.md`, `docs/spec/flags.md`, `docs/functional-spec.md`.
 [-] Orchestrator v0 CI & docs wired — E2E (mock) + CORS canary in smoke script.
 - 2025-09-23 08:00:14 start openapi+e2e branch
 - 2025-09-23 09:19:40 start harden branch
@@ -73,3 +83,5 @@
 =======
 
 [2025-09-26T20:27:40Z] EPIC #59 — Launch Metrics v0: created LAUNCH_STATUS.md and CI workflow
+[2025-09-26T22:05:00Z] EPIC #50 P0 — Auth & Session v0: implemented anonymous sessions + CSRF guard; API tests added; OpenAPI updated; preview web /auth panel; CI canary added.
+[2025-09-26T22:20:00Z] EPIC #50 — Orchestrator v0 CORS closeout: CSRF N/A (ACAC disabled); headers captured and docs updated.

@@ -47,7 +47,31 @@
 - **2025-08-19**: Added /debug/env runtime page and vercel smoke script.
 - **2025-01-27**: Staging domains (Vercel + Render), proxy correctness, debug page verified.
 
-## 12) Addendum A — Staging & Edge Canaries (M1)
+## 12) Auth v0 (Anonymous Sessions + CSRF)
+
+- Anonymous sessions (server-issued opaque id) with TTL `${AUTH_SESSION_TTL_SECONDS:-604800}`.
+- Endpoints:
+  - `POST /api/auth/session` → `{ session_id, csrf_token, expires_at }` and sets cookies: `${AUTH_COOKIE_NAME:-sid}` (HttpOnly; Secure in prod; SameSite=Lax; Path=/), and `csrf` (non-HttpOnly; Secure in prod; SameSite=Lax; Path=/).
+  - `GET /api/auth/session` → `{ session_id, expires_at }` or 401 if missing.
+  - `DELETE /api/auth/session` → clears cookies, `{ ok: true }`.
+- CSRF (double-submit) required for any non-GET under `/api/`: require both `X-CSRF-Token` header and `csrf` cookie equal to the token. On fail → `403 { error: { code: "CSRF" } }`.
+- CORS invariants: OPTIONS 204; non-OPTIONS include `Access-Control-Allow-Origin: *`; no `Access-Control-Allow-Credentials: true`.
+## Admin Certified v0 (Preview) — EPIC #54
+- Namespace: `/api/admin/certified/*` gated by `ADMIN_PREVIEW=true` and bearer header `X-Admin-Token` (or `Authorization: Bearer …`).
+- CORS invariants: ACAO:* on responses; no ACAC; OPTIONS returns 204 with allow headers `content-type, x-admin-token, authorization`.
+- Security headers on responses: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-site`.
+- Size cap: `ADMIN_MAX_REQUEST_BYTES` (default 32KB). Stateless; CSRF N/A.
+- Endpoints: POST/GET sources; POST items/ingest; GET items (filter by status); GET item details; POST approve/reject (emits audit line).
+- Storage: NDJSON file append-only at `api/store/admin-certified.ndjson` (v0); future durable store behind a flag.
+
+- Soft route guard (flagged): if `AUTH_REQUIRE_SESSION=true`, mutating under `/api/orchestrator/*` and `/api/certified/*` returns 401 when session missing.
+- Gate all behavior behind `AUTH_ENABLED=true`.
+
+## 13) Addendum A — Staging & Edge Canaries (M1)
+### Orchestrator v0 — Security Model
+- Stateless, header-only surface; browsers do not send cookies (no ACAC).
+- CSRF is not applicable until/if credentialed flows are introduced.
+- See `docs/orchestrator/V0.md` for details and a TODO for credentialed flows.
 
 **Scope:** staging only, while backend rewrites are stabilized.
 
@@ -63,7 +87,7 @@
 
 **De-scope in M2:** Remove these routes once proxy is live.
 
-## 13) Spec Delta — Real API Proxy (M2)
+## 14) Spec Delta — Real API Proxy (M2)
 
 **Target:** Replace edge canaries with Next.js rewrites that forward `/api/*` to `${NEXT_PUBLIC_API_BASE}` (no CORS).
 
@@ -96,7 +120,7 @@
 - Limits normalization: inputs may use snake_case keys (`max_steps`, `max_wall_ms`, `max_tokens`) which are normalized to camelCase before validation/execution. When `maxWallMs` is omitted, a conservative default of 10s is applied.
 
 
-## 14) Enterprise‑Ready Minimalist UI (ER‑MUI)
+## 15) Enterprise‑Ready Minimalist UI (ER‑MUI)
 
 **Role:** Product design + build assistant extension for a minimalist, enterprise‑ready UI using natural language input as the primary interaction.
 
@@ -158,7 +182,7 @@
 
 > Implementation target: Next.js (App Router) + Tailwind (existing stack). Place components under `web/components/ui/…`. Keep styles token‑driven where feasible.
 
-### 15.1 `<InputAction />`
+### 16.1 `<InputAction />`
 Responsibilities:
 - Centered large input; supports paste, URL entry, drag‑drop, and file picker.
 - Cycles placeholder text every few seconds.
@@ -260,7 +284,7 @@ export function InputAction({
 }
 ```
 
-### 15.2 `<TrustBadgesRow />`
+### 16.2 `<TrustBadgesRow />`
 - Sticky/subtle bottom row by default; always shown beneath input when `enterprise=true`.
 
 ```tsx
@@ -276,7 +300,7 @@ export function TrustBadgesRow({ visible = false }: { visible?: boolean }) {
 }
 ```
 
-### 15.3 Module Card + Stack
+### 16.3 Module Card + Stack
 
 ```tsx
 // components/ui/ModuleCard.tsx
@@ -309,7 +333,7 @@ export function ModuleStack({ items }: { items: Module[] }) {
 }
 ```
 
-### 15.4 Page wireframe (App Router)
+### 16.4 Page wireframe (App Router)
 
 ```tsx
 // app/page.tsx (wireframe – replace existing hero if needed)
@@ -342,7 +366,7 @@ export default function Home() {
 
 ---
 
-## 16) States & Progressive Disclosure
+## 17) States & Progressive Disclosure
 
 - **State A — Initial load (input only)**
   - Center input, micro‑copy below, subtle TrustBadgesRow at bottom (or prominent if `enterprise=true`).
@@ -362,7 +386,7 @@ export default function Home() {
 
 ---
 
-## 17) Acceptance Criteria Additions (UI)
+## 18) Acceptance Criteria Additions (UI)
 
 - Initial home screen shows a **single input action** centered with rounded borders and cycling placeholders (3 exemplars). The **actual top bar** shows the reassurance line centered in italics: “Helping you master what matters.”
 - Beneath the input, an **icon row** displays: Certified, Curate, Guild, Account, Upload (Upload emphasized). Enter key submits; on mobile a subtle “Learn it” button is acceptable as fallback.
@@ -382,7 +406,7 @@ export default function Home() {
 - The composer shows **Upload** and **Send** on the right (compact); there is **no** “Press Enter…” helper text.
 - The space between the typed opener and the input is visually tight (≈12–16px).
 
-## 18) Build Plan Integration
+## 19) Build Plan Integration
 
 - **Stack:** Next.js App Router + Tailwind (existing). Add components under `web/components/ui/…`.
 - **Feature Flag:** `NEXT_PUBLIC_ENTERPRISE_MODE` (`'true'|'false'`) controls enterprise prominence.
@@ -392,7 +416,7 @@ export default function Home() {
 
 ---
 
-## 19) Copy Blocks (for reuse)
+## 20) Copy Blocks (for reuse)
 
 **Placeholders**
 - Paste your meeting notes…
@@ -406,7 +430,7 @@ export default function Home() {
 - Audit‑ready · Expert‑reviewed · Adaptive · Private by default
 
 
-## 20) AI Interaction & Generation — Model Routing & Cost Envelope
+## 21) AI Interaction & Generation — Model Routing & Cost Envelope
 
 ### 20.1 Tasks → Models
 - **Content generation (first pass)**: `generate.modules`, `generate.items` → **gpt-5** (quality-first).
@@ -425,7 +449,7 @@ export default function Home() {
 - **Retries**: one fast retry on transient 5xx; then degrade with typed JSON error.
 - **Budgets/guardrails**: per-org daily token caps; per-request max_tokens per task.
 
-## 21) API Surface for M3 (Preview, Generate, Score, Daily)
+## 22) API Surface for M3 (Preview, Generate, Score, Daily)
 
 - `POST /api/preview` (mini): Accepts text/url/file ref; returns `{ summary, proposed_modules[], clarifying_questions[] }`.
 - `POST /api/generate` (gpt-5 → mini): Accepts confirmed plan; returns **schema-valid** modules/items JSON.
@@ -454,7 +478,7 @@ Web integration (preview): `/certified/study` calls schedule on start/reset, pos
 - Engine selection: If `FF_OPENAI_ADAPTER_V0=true` and `PLANNER_ENGINE=openai`, PLAN uses `openai-v0` (preview; deterministic fallback when no key). Response `provenance.engine: "openai-v0"`.
 - Evaluator: `npm -w api run -s planner:eval:openai` writes metrics to `api/tests/fixtures/planner-eval.openai.json`.
 - CI: Offline eval always runs; optional keyed smoke when secret exists.
-## 22) Backlog (Next 10)
+## 23) Backlog (Next 10)
 
 1. LLM router + runner stubs (`api/src/llm/*`).
 2. JSON schemas: `modules.schema.json`, `score.schema.json`.

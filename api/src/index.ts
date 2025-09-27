@@ -57,6 +57,7 @@ import { registerLedgerRoutes }   from './routes/ledger';
 import { registerExportRoutes }   from './routes/exports';
 import { registerCertifiedVerifyRoutes } from './routes/certified.verify';
 import { registerCertifiedAuditPreview, emitAudit } from './routes/certified.audit';
+import { registerAdminCertifiedRoutes } from './routes/admin.certified';
 
 
 // Helper: get session cookie from parsed cookies or raw header
@@ -183,6 +184,21 @@ export async function createApp() {
       }
     } catch {}
   });
+  // Explicit CORS preflight for Auth endpoints
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/auth/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, x-csrf-token')
+          .code(204)
+          .send();
+      }
+    } catch {}
+  });
   // Ensure ACAO:* early for orchestrator responses
   app.addHook('preHandler', async (req: any, reply: any) => {
     try {
@@ -253,7 +269,7 @@ export async function createApp() {
   // Security plugins (CORS invariants for multiple prefixes + certified-specific limits)
   try {
     const cors = (await import('./plugins/security.cors')).default as any;
-    await app.register(cors, { prefixes: ['/api/certified', '/api/orchestrator'] });
+    await app.register(cors, { prefixes: ['/api', '/api/certified', '/api/orchestrator', '/api/auth'] });
   } catch {}
   try {
     const sec = (await import('./plugins/security.certified')).default as any;
@@ -262,6 +278,10 @@ export async function createApp() {
   try {
     const orchSec = (await import('./plugins/security.orchestrator')).default as any;
     await app.register(orchSec);
+  } catch {}
+  try {
+    const authSec = (await import('./plugins/security.auth')).default as any;
+    await app.register(authSec);
   } catch {}
   // Register Certified verify routes
   try {
@@ -326,6 +346,22 @@ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
   return payload;
 });
   // (Orchestrator) no onSend hook needed; headers are set in preHandler to avoid mutation-after-send issues
+// Late enforcement for orchestrator: ensure ACAO:* and strip ACAC on all non-OPTIONS responses
+app.addHook('onSend', async (request:any, reply:any, payload:any) => {
+  try {
+    const method = String(request?.method || '').toUpperCase();
+    const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
+    const isOrch = url.startsWith('/api/orchestrator/');
+    if (isOrch && method !== 'OPTIONS') {
+      // Always allow any origin for orchestrator endpoints (responses only)
+      reply.header('access-control-allow-origin', '*');
+      // Remove ACAC if any upstream sets it
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
+    }
+  } catch {}
+  return payload;
+});
 
 // Public-route bypass helper for any global guards (auth/CSRF).
 function isPublicURL(url = '') {
@@ -532,6 +568,15 @@ try {
   const { registerCertifiedRoutes } = await import('./routes/certified');
   await registerCertifiedRoutes(app);
 } catch {}
+
+  // Admin Certified (preview-only, gated by ADMIN_PREVIEW and ADMIN_TOKEN)
+  try {
+    const enabled = String(process.env.ADMIN_PREVIEW || 'false').toLowerCase() === 'true';
+    const token = String(process.env.ADMIN_TOKEN || '').trim();
+    if (enabled && token) {
+      await registerAdminCertifiedRoutes(app);
+    }
+  } catch {}
 
 // Certified Retention v0 (preview)
 try {

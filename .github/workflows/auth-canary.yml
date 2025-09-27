@@ -1,0 +1,44 @@
+name: auth-canary
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '15 * * * *'
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Canary checks against staging
+        shell: bash
+        env:
+          STAGING: https://cerply-api-staging-latest.onrender.com
+        run: |
+          set -euo pipefail
+          echo 'Create session'
+          CREATE=$(curl -sS -D- -o /tmp/body.$$ -X POST "$STAGING/api/auth/session" \
+            -H 'origin: https://app.cerply.com' -H 'content-type: application/json' --data '{}' | tr -d '\r')
+          echo "$CREATE" | sed -n '1,30p'
+          SID_COOKIE=$(printf "%s\n" "$CREATE" | awk -F': ' 'tolower($1)=="set-cookie"{print $2}' | head -n1 | cut -d';' -f1)
+          test -n "$SID_COOKIE" || (echo 'Missing Set-Cookie sid' && exit 1)
+          CSRF=$(jq -r '.csrf_token' /tmp/body.$$)
+          echo "CSRF: $CSRF"
+          # Orchestrator without CSRF -> 403
+          R=$(curl -sS -D- -o /dev/null -X POST "$STAGING/api/orchestrator/jobs" \
+            -H 'origin: https://app.cerply.com' -H 'content-type: application/json' \
+            -H "cookie: $SID_COOKIE" \
+            --data '{"goal":"healthcheck","steps":[],"limits":{"maxSteps":1,"maxWallMs":3000}}')
+          echo "$R" | sed -n '1,20p'
+          echo "$R" | grep -i '^HTTP/.* 403' >/dev/null || (echo 'Expected 403 without CSRF' && exit 1)
+          echo "$R" | grep -i '^access-control-allow-origin: \*' >/dev/null || (echo 'Missing ACAO:*' && exit 1)
+          echo "$R" | grep -vi '^access-control-allow-credentials: true' >/dev/null || (echo 'Has ACAC:true' && exit 1)
+          # With CSRF -> 200
+          R2=$(curl -sS -D- -o /dev/null -X POST "$STAGING/api/orchestrator/jobs" \
+            -H 'origin: https://app.cerply.com' -H 'content-type: application/json' \
+            -H "cookie: $SID_COOKIE; csrf=$CSRF" -H "x-csrf-token: $CSRF" \
+            --data '{"goal":"healthcheck","steps":[],"limits":{"maxSteps":1,"maxWallMs":3000}}')
+          echo "$R2" | sed -n '1,20p'
+          echo "$R2" | grep -i '^HTTP/.* 200' >/dev/null || (echo 'Expected 200 with CSRF' && exit 1)
+          echo "$R2" | grep -i '^access-control-allow-origin: \*' >/dev/null || (echo 'Missing ACAO:* on success' && exit 1)
+          echo "$R2" | grep -i '^access-control-allow-credentials: true' && (echo 'Found ACAC:true — fail' && exit 1) || true
+
+
