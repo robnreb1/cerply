@@ -85,6 +85,8 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const parsed = SourceCreateReq.safeParse((req as any).body);
     if (!parsed.success) {
       applyCors(reply);
+      // Avoid writing headers twice when Fastify already started sending
+      if ((reply as any).raw?.headersSent) return;
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: parsed.error.message } });
     }
     const id = makeId('src');
@@ -155,6 +157,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const q = ItemQuery.safeParse((req as any).query);
     if (!q.success) {
       applyCors(reply);
+      if ((reply as any).raw?.headersSent) return;
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: q.error.message } });
     }
     const idx = upsertIndex<any>('item');
@@ -172,6 +175,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const row = idx.get(id);
     if (!row) {
       applyCors(reply);
+      if ((reply as any).raw?.headersSent) return;
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'item not found' } });
     }
     applyCors(reply);
@@ -186,6 +190,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const row = idx.get(id);
     if (!row) {
       applyCors(reply);
+      if ((reply as any).raw?.headersSent) return;
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'item not found' } });
     }
     const next = { ...row, status: 'approved' as const, updatedAt: new Date().toISOString() };

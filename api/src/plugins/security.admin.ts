@@ -24,6 +24,8 @@ export const adminSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance,
 
   // Security + CORS invariants for non-OPTIONS admin responses
   app.addHook('onSend', async (req: any, reply: any, payload: any) => {
+    // Skip if headers already sent (defensive against double-writes in tests)
+    try { if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload; } catch {}
     const isAdmin = String(req?.url || '').startsWith('/api/admin/');
     if (isAdmin && String(req?.method || '').toUpperCase() !== 'OPTIONS') {
       // Security headers
