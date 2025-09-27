@@ -17,8 +17,9 @@ export const adminSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance,
         .header('access-control-allow-origin', '*')
         .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
         .header('access-control-allow-headers', 'content-type, x-admin-token')
-        .code(204)
-        .send();
+        // ensure ACAC not present
+        .removeHeader?.('access-control-allow-credentials');
+      return reply.code(204).send();
     }
   });
 

@@ -576,8 +576,7 @@ try {
   // Admin Certified (preview-only, gated by ADMIN_PREVIEW and ADMIN_TOKEN)
   try {
     const enabled = String(process.env.ADMIN_PREVIEW || 'false').toLowerCase() === 'true';
-    const token = String(process.env.ADMIN_TOKEN || '').trim();
-    if (enabled && token) {
+    if (enabled) {
       await registerAdminCertifiedRoutes(app);
     }
   } catch {}
