@@ -16,10 +16,12 @@ describe('Admin Certified (preview) API', () => {
     vi.unstubAllEnvs();
   });
 
-  it('OPTIONS preflight returns 204 with ACAO:* and no ACAC', async () => {
-    const r = await app.inject({ method: 'OPTIONS', url: '/api/admin/certified/items/ingest' });
+  it('OPTIONS preflight returns 204 with ACAO:* and allow headers include x-admin-token', async () => {
+    const r = await app.inject({ method: 'OPTIONS', url: '/api/admin/certified/items/ingest', headers: { 'access-control-request-headers': 'content-type, x-admin-token' } });
     expect(r.statusCode).toBe(204);
     expect(r.headers['access-control-allow-origin']).toBe('*');
+    const allowHeaders = String(r.headers['access-control-allow-headers'] || '').toLowerCase();
+    expect(allowHeaders).toContain('x-admin-token');
     expect(r.headers['access-control-allow-credentials']).toBeUndefined();
   });
 
@@ -29,15 +31,19 @@ describe('Admin Certified (preview) API', () => {
     expect(r.headers['access-control-allow-origin']).toBe('*');
   });
 
-  it('creates source and ingests item, then approves', async () => {
+  it('creates source and ingests item, then approves, with ACAO:* and no ACAC', async () => {
     const hdr = { 'x-admin-token': 'secret', 'content-type': 'application/json' } as const;
     const s = await app.inject({ method: 'POST', url: '/api/admin/certified/sources', headers: hdr, payload: { name: 'Docs', baseUrl: 'https://example.com', notes: 'seed' } });
     expect(s.statusCode).toBe(200);
+    expect(s.headers['access-control-allow-origin']).toBe('*');
+    expect(s.headers['access-control-allow-credentials']).toBeUndefined();
     const source_id = s.json().source_id;
     expect(typeof source_id).toBe('string');
 
     const i = await app.inject({ method: 'POST', url: '/api/admin/certified/items/ingest', headers: hdr, payload: { title: 'Spec', url: 'https://example.com', tags: ['demo'] } });
     expect(i.statusCode).toBe(200);
+    expect(i.headers['access-control-allow-origin']).toBe('*');
+    expect(i.headers['access-control-allow-credentials']).toBeUndefined();
     const item_id = i.json().item_id;
     expect(typeof item_id).toBe('string');
 
@@ -49,6 +55,8 @@ describe('Admin Certified (preview) API', () => {
     const ap = await app.inject({ method: 'POST', url: `/api/admin/certified/items/${item_id}/approve`, headers: { 'x-admin-token': 'secret' } });
     expect(ap.statusCode).toBe(200);
     expect(ap.json().status).toBe('approved');
+    expect(ap.headers['access-control-allow-origin']).toBe('*');
+    expect(ap.headers['access-control-allow-credentials']).toBeUndefined();
   });
 
   it('enforces size cap 413', async () => {

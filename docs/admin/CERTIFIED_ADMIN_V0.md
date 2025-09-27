@@ -29,8 +29,15 @@ Auth:
 Storage:
 - NDJSON file `api/store/admin-certified.ndjson` with append-only rows; last write wins for items
 
-Example curl (local, token redacted):
+Example curls (local, token redacted):
 ```bash
+# OPTIONS preflight for ingest
+curl -sS -i -X OPTIONS http://localhost:8080/api/admin/certified/items/ingest \
+  -H 'Origin: http://localhost:3000' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type, x-admin-token' | sed -n '1,30p'
+
+# POST ingest
 curl -sS -X POST http://localhost:8080/api/admin/certified/items/ingest \
   -H 'content-type: application/json' \
   -H 'x-admin-token: <redacted>' \

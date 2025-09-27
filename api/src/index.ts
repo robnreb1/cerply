@@ -283,6 +283,10 @@ export async function createApp() {
     const authSec = (await import('./plugins/security.auth')).default as any;
     await app.register(authSec);
   } catch {}
+  try {
+    const adminSec = (await import('./plugins/security.admin')).default as any;
+    await app.register(adminSec);
+  } catch {}
   // Register Certified verify routes
   try {
     await registerCertifiedVerifyRoutes(app);

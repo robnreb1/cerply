@@ -12,6 +12,7 @@ jobs:
         shell: bash
         env:
           STAGING: https://cerply-api-staging-latest.onrender.com
+          ADMIN_TOKEN_STG: ${{ secrets.ADMIN_TOKEN_STG }}
         run: |
           set -euo pipefail
           echo 'Create session'
@@ -40,5 +41,26 @@ jobs:
           echo "$R2" | grep -i '^HTTP/.* 200' >/dev/null || (echo 'Expected 200 with CSRF' && exit 1)
           echo "$R2" | grep -i '^access-control-allow-origin: \*' >/dev/null || (echo 'Missing ACAO:* on success' && exit 1)
           echo "$R2" | grep -i '^access-control-allow-credentials: true' && (echo 'Found ACAC:true — fail' && exit 1) || true
+
+          echo 'Admin preview OPTIONS preflight'
+          O=$(curl -sS -i -X OPTIONS "$STAGING/api/admin/certified/items/ingest" \
+            -H 'Origin: https://app.cerply.com' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type, x-admin-token' | tr -d '\r')
+          echo "$O" | sed -n '1,30p'
+          echo "$O" | grep -i '^HTTP/.* 204' >/dev/null || (echo 'Expected 204 preflight' && exit 1)
+          echo "$O" | grep -i '^access-control-allow-origin: \*' >/dev/null || (echo 'Missing ACAO:* on OPTIONS' && exit 1)
+          echo "$O" | grep -vi '^access-control-allow-credentials: true' >/dev/null || (echo 'Has ACAC:true on OPTIONS' && exit 1)
+          echo "$O" | grep -i '^access-control-allow-headers: .*x-admin-token' >/dev/null || (echo 'Missing x-admin-token in allow-headers' && exit 1)
+
+          echo 'Admin preview POST ingest'
+          P=$(curl -sS -D- -o /dev/null -X POST "$STAGING/api/admin/certified/items/ingest" \
+            -H 'origin: https://app.cerply.com' -H 'content-type: application/json' \
+            -H "x-admin-token: ${ADMIN_TOKEN_STG}" \
+            --data '{"title":"Canary","url":"https://example.com","tags":["ci"]}' | tr -d '\r')
+          echo "$P" | egrep -i '^(HTTP/|access-control-allow-origin|access-control-allow-credentials|x-content-type-options|referrer-policy|cross-origin-opener-policy|cross-origin-resource-policy|x-ratelimit-)' || true
+          echo "$P" | grep -i '^HTTP/.* 20[0-9]' >/dev/null || (echo 'Expected 2xx from admin ingest' && exit 1)
+          echo "$P" | grep -i '^access-control-allow-origin: \*' >/dev/null || (echo 'Missing ACAO:* on POST' && exit 1)
+          echo "$P" | grep -i '^access-control-allow-credentials: true' && (echo 'Found ACAC:true on POST — fail' && exit 1) || true
 
 
