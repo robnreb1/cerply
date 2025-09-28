@@ -4,6 +4,8 @@ type CorsPluginOpts = { prefixes: string[] };
 
 export const registerSecurityCors: FastifyPluginCallback<CorsPluginOpts> = (app: FastifyInstance, opts, done) => {
   const prefixes = (opts?.prefixes || []).map(s => s.replace(/\/$/, ''));
+  // Exclude admin paths to avoid overlapping with admin plugin and route-level headers
+  const isManagedPath = (url: string) => prefixes.some(p => url.startsWith(p + '/')) && !url.startsWith('/api/admin/');
 
   // OPTIONS 204 for each prefix
   app.addHook('onRequest', async (req: any, reply: any) => {
@@ -11,7 +13,7 @@ export const registerSecurityCors: FastifyPluginCallback<CorsPluginOpts> = (app:
       const method = String(req?.method || '').toUpperCase();
       if (method !== 'OPTIONS') return;
       const url = String(req?.url || '');
-      if (!prefixes.some(p => url.startsWith(p + '/'))) return;
+      if (!isManagedPath(url)) return;
       // Guard: if already handled, skip
       if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return;
       reply
@@ -30,7 +32,7 @@ export const registerSecurityCors: FastifyPluginCallback<CorsPluginOpts> = (app:
       const method = String(req?.method || '').toUpperCase();
       if (method === 'OPTIONS') return payload;
       const url = String(req?.url || '');
-      if (!prefixes.some(p => url.startsWith(p + '/'))) return payload;
+      if (!isManagedPath(url)) return payload;
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
       try { (reply as any).removeHeader?.('x-cors-certified-hook'); } catch {}
