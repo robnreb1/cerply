@@ -184,6 +184,21 @@ export async function createApp() {
       }
     } catch {}
   });
+  // Explicit CORS preflight for Admin endpoints
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/admin/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, x-admin-token')
+          .code(204)
+          .send();
+      }
+    } catch {}
+  });
   // Explicit CORS preflight for Auth endpoints
   app.addHook('onRequest', async (req: any, reply: any) => {
     try {
@@ -204,6 +219,17 @@ export async function createApp() {
     try {
       const url = String(req?.url || '');
       if (!url.startsWith('/api/orchestrator/')) return;
+      reply.header('access-control-allow-origin', '*');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+    } catch {}
+  });
+  // Ensure ACAO:* early for admin responses
+  app.addHook('preHandler', async (req: any, reply: any) => {
+    try {
+      const url = String(req?.url || '');
+      if (!url.startsWith('/api/admin/')) return;
+      const method = String(req?.method || '').toUpperCase();
+      if (method === 'OPTIONS') return;
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
     } catch {}
