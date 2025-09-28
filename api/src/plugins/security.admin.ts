@@ -10,17 +10,21 @@ export const adminSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance,
 
   // (moved to explicit app.options route below)
 
-  // Explicit OPTIONS route to guarantee preflight behavior in tests and prod
-  try {
-    app.options('/api/admin/*', async (_req: any, reply: any) => {
-      reply
-        .header('access-control-allow-origin', '*')
-        .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-        .header('access-control-allow-headers', 'content-type, x-admin-token');
-      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-      return reply.code(204).send();
-    });
-  } catch {}
+  // OPTIONS preflight for admin: handle via onRequest to catch any path
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/admin/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, x-admin-token');
+        try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+        return reply.code(204).send();
+      }
+    } catch {}
+  });
 
   // Set headers early to avoid post-send header mutations
   app.addHook('preHandler', async (req: any, reply: any) => {
