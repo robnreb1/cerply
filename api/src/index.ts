@@ -286,10 +286,6 @@ export async function createApp() {
     const authSec = (await import('./plugins/security.auth')).default as any;
     await app.register(authSec);
   } catch {}
-  try {
-    const adminSec = (await import('./plugins/security.admin')).default as any;
-    await app.register(adminSec);
-  } catch {}
   // Register Certified verify routes
   try {
     await registerCertifiedVerifyRoutes(app);
@@ -576,12 +572,16 @@ try {
   await registerCertifiedRoutes(app);
 } catch {}
 
-  // Admin Certified (preview-only, gated by ADMIN_PREVIEW and ADMIN_TOKEN)
+  // Admin scope: register security first, then routes, under /api/admin
   try {
+    const adminSec = (await import('./plugins/security.admin')).default as any;
     const enabled = String(process.env.ADMIN_PREVIEW || 'false').toLowerCase() === 'true';
-    if (enabled) {
-      await registerAdminCertifiedRoutes(app);
-    }
+    await app.register(async (admin: any) => {
+      await admin.register(adminSec);
+      if (enabled) {
+        await registerAdminCertifiedRoutes(admin);
+      }
+    }, { prefix: '/api/admin' });
   } catch {}
 
 // Certified Retention v0 (preview)
