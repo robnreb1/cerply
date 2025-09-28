@@ -17,7 +17,7 @@ describe('Admin Certified (preview) API', () => {
   });
 
   it('OPTIONS preflight returns 204 with ACAO:* and allow headers include x-admin-token', async () => {
-    const r = await app.inject({ method: 'OPTIONS', url: '/api/admin/certified/items/ingest', headers: { 'access-control-request-headers': 'content-type, x-admin-token' } });
+    const r = await app.inject({ method: 'OPTIONS', url: '/api/admin/certified/items/ingest', headers: { 'access-control-request-headers': 'content-type, x-admin-token', 'access-control-request-method': 'POST' } });
     expect(r.statusCode).toBe(204);
     expect(r.headers['access-control-allow-origin']).toBe('*');
     const allowHeaders = String(r.headers['access-control-allow-headers'] || '').toLowerCase();

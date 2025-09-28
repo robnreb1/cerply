@@ -19,7 +19,7 @@ export const adminSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance,
         reply
           .header('access-control-allow-origin', '*')
           .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-          .header('access-control-allow-headers', 'content-type, x-admin-token');
+          .header('access-control-allow-headers', 'content-type, x-admin-token, authorization');
         try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
         return reply.code(204).send();
       }

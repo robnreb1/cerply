@@ -12,10 +12,12 @@ export const registerSecurityCors: FastifyPluginCallback<CorsPluginOpts> = (app:
       if (method !== 'OPTIONS') return;
       const url = String(req?.url || '');
       if (!prefixes.some(p => url.startsWith(p + '/'))) return;
+      // Guard: if already handled, skip
+      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return;
       reply
         .header('access-control-allow-origin', '*')
         .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-        .header('access-control-allow-headers', 'content-type, authorization')
+        .header('access-control-allow-headers', 'content-type, authorization, x-admin-token')
         .code(204)
         .send();
     } catch {}

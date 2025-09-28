@@ -193,7 +193,7 @@ export async function createApp() {
         reply
           .header('access-control-allow-origin', '*')
           .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-          .header('access-control-allow-headers', 'content-type, x-admin-token')
+          .header('access-control-allow-headers', 'content-type, x-admin-token, authorization')
           .code(204)
           .send();
       }
