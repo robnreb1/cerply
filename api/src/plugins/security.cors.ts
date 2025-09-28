@@ -24,6 +24,7 @@ export const registerSecurityCors: FastifyPluginCallback<CorsPluginOpts> = (app:
   // For non-OPTIONS responses on these prefixes, enforce ACAO:* and strip ACAC and debug header
   app.addHook('onSend', async (req: any, reply: any, payload: any) => {
     try {
+      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload;
       const method = String(req?.method || '').toUpperCase();
       if (method === 'OPTIONS') return payload;
       const url = String(req?.url || '');
