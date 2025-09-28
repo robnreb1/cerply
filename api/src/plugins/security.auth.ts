@@ -94,6 +94,7 @@ export const authSecurityPlugin: FastifyPluginCallback<AuthPluginOpts> = (app: F
   // Non-OPTIONS responses: enforce CORS invariants for auth endpoints
   app.addHook('onSend', async (req: any, reply: any, payload: any) => {
     try {
+      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload;
       const method = String(req?.method || '').toUpperCase();
       const url = String(req?.url || '');
       if (url.startsWith('/api/auth/') && method !== 'OPTIONS') {

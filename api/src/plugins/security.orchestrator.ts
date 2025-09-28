@@ -69,8 +69,9 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
     }
   });
 
-  // Security headers for non-OPTIONS
+  // Security headers for non-OPTIONS (guard headersSent)
   app.addHook('onSend', async (req: any, reply: any, payload: any) => {
+    try { if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload; } catch {}
     const isOrch = String(req?.url || '').startsWith('/api/orchestrator/');
     if (isOrch && String(req?.method || '').toUpperCase() !== 'OPTIONS') {
       reply.header('X-Content-Type-Options', 'nosniff');
