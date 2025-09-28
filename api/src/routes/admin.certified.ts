@@ -26,11 +26,7 @@ function sizeWithinLimit(req: any): boolean {
   return size <= limit;
 }
 
-function applyCors(reply: FastifyReply) {
-  try { if ((reply as any).raw?.headersSent) return; } catch {}
-  reply.header('access-control-allow-origin', '*');
-  try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-}
+// CORS/security headers are handled centrally by the security.admin plugin
 
 export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   if (!enabled()) return;
@@ -46,7 +42,6 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
 
   function authGuard(req: FastifyRequest, reply: FastifyReply): boolean {
     if (!tokenOk(req.headers as any)) {
-      applyCors(reply);
       if (!(reply as any).raw?.headersSent) {
         reply.header('www-authenticate', 'Bearer');
         reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
@@ -54,7 +49,6 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
       return false;
     }
     if (!sizeWithinLimit(req)) {
-      applyCors(reply);
       if (!(reply as any).raw?.headersSent) {
         reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'request too large' } });
       }
@@ -68,7 +62,6 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     if (!authGuard(req, reply)) return;
     const parsed = SourceCreateReq.safeParse((req as any).body);
     if (!parsed.success) {
-      applyCors(reply);
       // Avoid writing headers twice when Fastify already started sending
       if ((reply as any).raw?.headersSent) return;
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: parsed.error.message } });
@@ -76,7 +69,6 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const id = makeId('src');
     const row = { id, ...parsed.data, createdAt: new Date().toISOString() };
     append({ type: 'source', data: row });
-    applyCors(reply);
     return reply.send({ source_id: id });
   });
 
@@ -85,7 +77,6 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     if (!authGuard(req, reply)) return;
     const idx = upsertIndex<any>('source');
     const list = Array.from(idx.values());
-    applyCors(reply);
     return reply.send({ sources: list });
   });
 
@@ -122,7 +113,6 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     if (!authGuard(req, reply)) return;
     const parsed = ItemIngestReq.safeParse((req as any).body);
     if (!parsed.success) {
-      applyCors(reply);
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: parsed.error.message } });
     }
     const { title, url, tags } = parsed.data;
@@ -131,7 +121,6 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const now = new Date().toISOString();
     const row = { id, title, url, tags, sha256, mime, status: 'pending' as const, createdAt: now, updatedAt: now, provenance };
     append({ type: 'item', data: row });
-    applyCors(reply);
     return reply.send({ item_id: id });
   });
 
@@ -140,14 +129,12 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     if (!authGuard(req, reply)) return;
     const q = ItemQuery.safeParse((req as any).query);
     if (!q.success) {
-      applyCors(reply);
       if ((reply as any).raw?.headersSent) return;
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: q.error.message } });
     }
     const idx = upsertIndex<any>('item');
     let list = Array.from(idx.values());
     if (q.data.status) list = list.filter(r => r.status === q.data.status);
-    applyCors(reply);
     return reply.send({ items: list });
   });
 
@@ -158,11 +145,9 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const idx = upsertIndex<any>('item');
     const row = idx.get(id);
     if (!row) {
-      applyCors(reply);
       if ((reply as any).raw?.headersSent) return;
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'item not found' } });
     }
-    applyCors(reply);
     return reply.send(row);
   });
 
@@ -173,14 +158,12 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const idx = upsertIndex<any>('item');
     const row = idx.get(id);
     if (!row) {
-      applyCors(reply);
       if ((reply as any).raw?.headersSent) return;
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'item not found' } });
     }
     const next = { ...row, status: 'approved' as const, updatedAt: new Date().toISOString() };
     append({ type: 'item', data: next });
     append({ type: 'audit', data: { request_id: (req as any).id, item_id: id, decision: 'approve', at: new Date().toISOString() } });
-    applyCors(reply);
     return reply.send({ ok: true, id, status: 'approved' });
   });
 
@@ -191,13 +174,11 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const idx = upsertIndex<any>('item');
     const row = idx.get(id);
     if (!row) {
-      applyCors(reply);
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'item not found' } });
     }
     const next = { ...row, status: 'rejected' as const, updatedAt: new Date().toISOString() };
     append({ type: 'item', data: next });
     append({ type: 'audit', data: { request_id: (req as any).id, item_id: id, decision: 'reject', at: new Date().toISOString() } });
-    applyCors(reply);
     return reply.send({ ok: true, id, status: 'rejected' });
   });
 }
