@@ -2,9 +2,26 @@ import type { FastifyInstance } from 'fastify';
 import fp from 'fastify-plugin';
 import rateLimit from '@fastify/rate-limit';
 
+function readAdminToken(): string {
+  return (process.env.ADMIN_TOKEN ?? '').trim();
+}
+
+function getIncomingAdminToken(req: any): string | null {
+  const h = (req?.headers ?? {}) as Record<string, string>;
+  const x = typeof h['x-admin-token'] === 'string' ? String(h['x-admin-token']).trim() : '';
+  if (x) return x;
+  const a = typeof h['authorization'] === 'string' ? String(h['authorization']).trim() : '';
+  if (!a) return null;
+  const [scheme, token] = a.split(/\s+/, 2);
+  if ((scheme || '').toLowerCase() === 'bearer' && token) return token.trim();
+  return null;
+}
+
 const plugin = async (app: FastifyInstance) => {
   // Optional per-route rate limit for admin; default conservative
   const limit = Math.max(1, parseInt(process.env.ADMIN_RATE_LIMIT || '20', 10));
+  const ADMIN_PREFIX = '/api/admin/';
+  const EXPECTED = readAdminToken();
 
   // Local rate-limit registration (not global); allow per-route configs
   app.register(rateLimit as any, { global: false } as any);
@@ -12,13 +29,14 @@ const plugin = async (app: FastifyInstance) => {
   // OPTIONS preflight for admin: short-circuit early
   app.addHook('onRequest', (req: any, reply: any, done: () => void) => {
     const url = (req as any).routeOptions?.url || (req?.raw?.url || '');
-    if (!String(url).startsWith('/api/admin/')) return done();
+    if (!String(url).startsWith(ADMIN_PREFIX)) return done();
     if (String(req.method || '').toUpperCase() !== 'OPTIONS') return done();
     reply
       .code(204)
       .header('access-control-allow-origin', '*')
       .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
       .header('access-control-allow-headers', 'content-type, x-admin-token, authorization');
+    try { reply.removeHeader('access-control-allow-credentials'); } catch {}
     try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
     reply.send(); // stop lifecycle here
   });
@@ -26,14 +44,25 @@ const plugin = async (app: FastifyInstance) => {
   // Set headers early to avoid post-send header mutations
   app.addHook('preHandler', (req: any, reply: any, done: () => void) => {
     const url = (req as any).routeOptions?.url || (req?.raw?.url || '');
-    if (!String(url).startsWith('/api/admin/')) return done();
+    if (!String(url).startsWith(ADMIN_PREFIX)) return done();
     if (String(req.method || '').toUpperCase() === 'OPTIONS') return done();
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('Referrer-Policy', 'no-referrer');
     reply.header('Cross-Origin-Opener-Policy', 'same-origin');
     reply.header('Cross-Origin-Resource-Policy', 'same-site');
     reply.header('access-control-allow-origin', '*');
+    try { reply.removeHeader('access-control-allow-credentials'); } catch {}
     try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
+
+    // Token auth (accept x-admin-token or Authorization: Bearer ...)
+    if (EXPECTED) {
+      const incoming = getIncomingAdminToken(req);
+      if (!incoming || incoming !== EXPECTED) {
+        reply.header('www-authenticate', 'Bearer');
+        reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
+        return; // stop further handlers
+      }
+    }
     done();
   });
 
