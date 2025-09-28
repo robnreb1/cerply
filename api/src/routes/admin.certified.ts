@@ -62,15 +62,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     return true;
   }
 
-  // Explicit OPTIONS preflight for admin certified paths (test reliability)
-  app.options('/api/admin/certified/*', async (_req: any, reply: any) => {
-    reply
-      .header('access-control-allow-origin', '*')
-      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-      .header('access-control-allow-headers', 'content-type, x-admin-token');
-    try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-    return reply.code(204).send();
-  });
+  // OPTIONS covered by admin security plugin (avoid duplication here)
 
   // POST /sources
   app.post('/api/admin/certified/sources', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
