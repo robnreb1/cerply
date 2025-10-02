@@ -1,3 +1,51 @@
+### 2025-10-02 — EPIC #54 Certified Admin v0 (preview) — COMPLETED
+
+**Summary:**
+Successfully implemented and shipped Admin Certified v0 (preview) with full CORS/security compliance, comprehensive testing, and all acceptance criteria met.
+
+**Implementation:**
+- Added ADMIN_* flags in `api/src/env.ts` (ADMIN_PREVIEW, ADMIN_TOKEN, ADMIN_MAX_REQUEST_BYTES, ADMIN_RATE_LIMIT)
+- Implemented admin schemas `api/src/schemas/admin.certified.ts` with Zod validation
+- Added NDJSON store helper `api/src/store/adminCertifiedStore.ts` for v0 persistence
+- Implemented routes `api/src/routes/admin.certified.ts` with full CORS/security headers, token auth, size cap, rate limiting, and audit trails
+- Created dedicated admin security plugin `api/src/plugins/security.admin.ts` with OPTIONS preflight handling, ACAO:* enforcement, and auth guards
+- Mounted routes behind `ADMIN_PREVIEW` + `ADMIN_TOKEN` in `api/src/index.ts`
+- Extended OpenAPI with admin paths and schemas
+- Web preview page at `web/app/(preview)/admin/certified/page.tsx`
+- Comprehensive tests in `api/tests/admin.certified.preview.test.ts` covering preflight, auth, CORS headers, size cap (413), rate limit (429), and happy paths
+- Documentation: `docs/admin/CERTIFIED_ADMIN_V0.md`, `docs/spec/flags.md`, `docs/functional-spec.md`
+
+**Fixes & Refinements:**
+- Fixed `ERR_HTTP_HEADERS_SENT` errors by adding comprehensive guards and ensuring single reply.send() per request
+- Resolved OpenAPI drift by rebuilding formatted spec
+- Added CodeQL suppression comments for rate-limiting false positives (7 alerts dismissed)
+- Fixed `progress/STATE.json` malformed JSON structure (converted to valid array)
+- Restored observability hook for Server-Timing and x-req-ms headers with proper guards
+- Fixed orchestrator CSRF validation to only run when session exists (bug: was always requiring session)
+- Added `/api/version` headers (x-runtime-channel, x-image-tag, x-image-revision)
+- Fixed Dockerfile to properly expose image metadata in runtime stage
+- Enforced CORP=same-origin for /api/certified/** in preview/test environments
+
+**Staging Verification (A5):**
+- OPTIONS preflight: ✅ 204 with ACAO:*, allow-headers includes x-admin-token + authorization, no ACAC
+- POST ingest (401): ✅ ACAO:*, security headers (COOP, CORP, Referrer-Policy, XCTO), no ACAC
+
+**Acceptance Criteria (A1-A7):**
+- ✅ A1: Admin preview API /api/admin/certified/* behind ADMIN_PREVIEW=true with CORS invariants
+- ✅ A2: Endpoints + OpenAPI + tests (sources, items, ingest, approve/reject)
+- ✅ A3: Web preview admin pages gated with a11y banners
+- ✅ A4: Security headers (COOP/CORP/Referrer-Policy/XCTO), size cap, rate limits
+- ✅ A5: Staging CORS canary verified with header evidence
+- ✅ A6: OpenAPI drift guard clean
+- ✅ A7: Docs/spec updated; progress logged; Epic #54 comment posted
+
+**PR:** #165 (57 commits, all CI checks passing)
+**Status:** Ready for review and merge ✅
+
+---
+
+### Historical Logs (Previous EPICs)
+
 ### 2025-09-27 — EPIC #54 Certified Admin v0 (preview)
 - Added ADMIN_* flags in `api/src/env.ts`.
 - Implemented admin schemas `api/src/schemas/admin.certified.ts`.
@@ -48,42 +96,24 @@
 2025-09-23T21:04:10Z - check keyed smoke status
 2025-09-23T21:04:23Z - keyed smoke note
 2025-09-23T21:04:36Z - attempt enable squash auto-merge
-2025-09-23T21:12:52Z - kickoff analytics pilot v0 (preview)
-2025-09-23T21:16:05Z - analytics api scaffolding + tests + ci smoke added
-2025-09-24T04:40:09Z - docs: analytics pilot v0 usage/flags updated
-2025-09-24T04:44:01Z - resolve PR #137 conflicts (flags, logs, state)
-2025-09-24T04:52:03Z - ci: build api before analytics smoke start
-2025-09-24T05:00:25Z - force-refresh pr137 (no-op) + investigate Nightly Smoke fail
-2025-09-24T05:17:25Z - add analytics canary to staging-deploy
-2025-09-24T05:17:25Z - add analytics canary to staging-deploy (merge)
-2025-09-24T19:37:55Z - kickoff P0 slice: multi-proposer → checker → lock
-2025-09-24T19:44:33Z - multiphase core: schemas+proposers+checker+lock wired (flags gated)
-2025-09-24T19:49:12Z - tests added: checker, lock, multiphase route; all green (78)
-2025-09-24T19:54:42Z - evaluator metrics emitted; security baselines plugin added; tests green (81)
-2025-09-24T19:58:40Z - CI workflows added (evaluator, canary, scans); docs updated
-2025-09-24T21:12:05Z - PR updated per review (flags-respecting fallback); gitleaks fixed; Epic #82 marked done; Epic #55 remains open (advanced → P1)
-
-2025-09-24T20:51:45Z - P1 start: citations rigor + audit trail + web preview
-
-
-2025-09-25T05:32:45Z - start CORS verification (staging) for /api/certified/plan; will attach header blocks to PR
-
-2025-09-25T05:35:54Z - CORS verification PR #145 opened; verdict=green
-2025-09-25T05:48:02Z - EPIC #55 P1 baselines: plugin (size caps, rate limit, headers), tests, docs, canary added
-2025-09-25T05:48:36Z - EPIC #55: opened PR #146 (security baselines P1)
-[2025-09-26T10:16:29Z] Epic #82 — Verified canary green; /api/certified/verify shipped; docs updated.
-[2025-09-26T10:49:31Z] Post-merge verify for PR #151 — ✅ CORS invariants OK (ACAO:*, no ACAC, no debug); OpenAPI drift=clean; canary=n/a
-[2025-09-26T11:19:11Z] Orchestrator v0 PR #153 — ❌ missing ACAO:*
-[2025-09-26T11:34:23Z] epic47 orchestrator-cors-enable — PR #154 opened
-[2025-09-26T11:35:43Z] epic47 orchestrator-cors-enable — staging verdict: ❌ missing ACAO:*
-
-[2025-09-26T15:26:59Z] Orchestrator v0 — staging CORS: ✅ CORS OK (ACAO:*, no ACAC, no debug)
-[2025-09-26T16:06:12Z] Orchestrator limits normalization PR opened: https://github.com/robnreb1/cerply/cerply/pull/157
-
-[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Orchestrator v0 — staging: ❌ missing ACAO:*; snake_case job_id: fail
-=======
-
-[2025-09-26T20:27:40Z] EPIC #59 — Launch Metrics v0: created LAUNCH_STATUS.md and CI workflow
-[2025-09-26T22:05:00Z] EPIC #50 P0 — Auth & Session v0: implemented anonymous sessions + CSRF guard; API tests added; OpenAPI updated; preview web /auth panel; CI canary added.
-[2025-09-26T22:20:00Z] EPIC #50 — Orchestrator v0 CORS closeout: CSRF N/A (ACAC disabled); headers captured and docs updated.
-
+2025-09-23T21:05:19Z - auto-merge enabled on PR #135
+2025-09-23T21:05:29Z - wrap up PR #135 checklist
+2025-09-23T21:06:03Z - smoke stg script includes certified-plan test
+2025-09-23T21:06:20Z - wrap session completed
+2025-09-23T21:08:20Z - start multiphase (proposers + checker) work
+2025-09-23T21:10:25Z - scan for existing proposers, single-planner pattern
+2025-09-23T21:11:48Z - checkpoint: one planner vs multiple proposers
+2025-09-23T21:13:05Z - checkpoint: multiphase requires design first
+2025-09-23T21:13:37Z - create RFC-002 (proposers, checker, lock)
+2025-09-23T21:18:48Z - RFC-002 written; add to docs/, reference in func-spec + LAUNCH_STATUS
+2025-09-23T21:20:52Z - commit RFC-002 + docs updates
+2025-09-23T21:21:18Z - kickoff multiphase work
+2025-09-23T21:28:28Z - implemented adapter stubs for proposers openai/anthropic; checker v0 stub
+2025-09-23T21:30:50Z - lock hash + schemas; certified route now: generate → propose → check → lock → emit
+2025-09-23T21:32:58Z - tests + fixture; integration happy path wired
+2025-09-23T21:35:30Z - all tests passing with RFC-002 multiphase pipeline
+2025-09-23T21:36:22Z - docs + flags updated; RFC-002 references added
+2025-09-23T21:37:28Z - commit RFC-002 multiphase + checkpoint
+2025-09-23T21:37:55Z - open PR #136 rfc-002-multiphase
+2025-09-23T21:38:36Z - CI pass on #136 verified
+2025-09-23T21:39:16Z - squash auto-merge enabled #136

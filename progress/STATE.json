@@ -2,9 +2,11 @@
   {
     "epic": 54,
     "action": "certified-admin-v0-preview",
-    "status": "done",
-    "timestamp": "2025-09-27T08:25:00Z",
-    "pr": 165
+    "status": "completed",
+    "timestamp": "2025-10-02T18:45:00Z",
+    "pr": 165,
+    "acceptance": "A1-A7 all verified",
+    "notes": "Full CORS/security compliance, staging verified, all CI checks passing"
   },
   {
     "epic": 59,
