@@ -155,15 +155,7 @@ export async function createApp() {
       }
     } catch {}
   });
-  // Explicit early preflight for admin namespace to guarantee 204 in all cases
-  app.options('/api/admin/*', async (_req: any, reply: any) => {
-    reply
-      .header('access-control-allow-origin', '*')
-      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-      .header('access-control-allow-headers', 'content-type, x-admin-token, authorization');
-    try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-    return reply.code(204).send();
-  });
+  // Admin preflight handled by scoped admin security plugin; no top-level route here
   // Explicit CORS preflight for Certified endpoints so tests and browsers see 204 with headers
   app.addHook('onRequest', async (req: any, reply: any) => {
     try {
