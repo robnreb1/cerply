@@ -234,7 +234,7 @@ export async function createApp() {
   });
   app.addHook('onSend', async (req:any, reply:any, payload:any) => {
     // Avoid header writes after send (tests may complete very quickly)
-    try { if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload; } catch {}
+    try { if ((reply as any).hijacked === true || reply.sent === true || (reply as any).raw?.headersSent) return payload; } catch {}
     try {
       const url = String(req?.url || (req?.raw && (req.raw as any).url) || '');
       if (url.startsWith('/api/admin/')) return payload;
@@ -347,13 +347,13 @@ try {
 } catch {}
 
 // Targeted CORS: ensure certified POST responses have ACAO:* and no ACAC
-app.addHook('onSend', async (request:any, reply:any, payload:any) => {
+ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
   try {
     const method = String(request?.method || '').toUpperCase();
     const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
     const isCertified = url.startsWith('/api/certified/');
       // Skip if hijacked/headers already sent (e.g., SSE)
-      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload;
+      if ((reply as any).hijacked === true || reply.sent === true || (reply as any).raw?.headersSent) return payload;
     if (method !== 'OPTIONS' && isCertified) {
       // Always allow any origin for certified endpoints (responses only)
       reply.header('access-control-allow-origin', '*');
@@ -369,14 +369,14 @@ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
 });
   // (Orchestrator) no onSend hook needed; headers are set in preHandler to avoid mutation-after-send issues
 // Late enforcement for orchestrator: ensure ACAO:* and strip ACAC on all non-OPTIONS responses
-app.addHook('onSend', async (request:any, reply:any, payload:any) => {
+ app.addHook('onSend', async (request:any, reply:any, payload:any) => {
   try {
     const method = String(request?.method || '').toUpperCase();
     const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
     const isOrch = url.startsWith('/api/orchestrator/');
     if (isOrch && method !== 'OPTIONS') {
       // Skip if headers already sent (e.g., SSE or early termination)
-      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload;
+      if ((reply as any).hijacked === true || reply.sent === true || (reply as any).raw?.headersSent) return payload;
       // Always allow any origin for orchestrator endpoints (responses only)
       reply.header('access-control-allow-origin', '*');
       // Remove ACAC if any upstream sets it
