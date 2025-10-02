@@ -49,13 +49,15 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
       if ((reply as any).raw?.headersSent) return false;
       reply.header('www-authenticate', 'Bearer');
-      return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } }) as unknown as boolean;
+      reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
+      return false;
     }
     if (!sizeWithinLimit(req)) {
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
       if ((reply as any).raw?.headersSent) return false;
-      return reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'request too large' } }) as unknown as boolean;
+      reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'request too large' } });
+      return false;
     }
     return true;
   }
