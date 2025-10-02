@@ -22,17 +22,7 @@ const plugin = async (app: FastifyInstance) => {
   const limit = Math.max(1, parseInt(process.env.ADMIN_RATE_LIMIT || '20', 10));
   const EXPECTED = readAdminToken();
 
-  // Catch-all OPTIONS inside this scoped instance (prefix applied by parent)
-  app.options('/*', async (_req: any, reply: any) => {
-    reply
-      .code(204)
-      .header('access-control-allow-origin', '*')
-      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-      .header('access-control-allow-headers', 'content-type, x-admin-token, authorization');
-    try { reply.removeHeader('access-control-allow-credentials'); } catch {}
-    try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
-    return reply.send();
-  });
+  // Preflight inside this scoped instance (prefix applied by parent) via onRequest short-circuit
 
   // Local rate-limit registration (not global); allow per-route configs
   app.register(rateLimit as any, { global: false } as any);
@@ -44,6 +34,17 @@ const plugin = async (app: FastifyInstance) => {
     reply.header('access-control-allow-origin', '*');
     try { reply.removeHeader('access-control-allow-credentials'); } catch {}
     try { (reply as any).raw?.removeHeader?.('Access-Control-Allow-Credentials'); } catch {}
+    // Handle OPTIONS preflight early to avoid any downstream guards returning 400
+    const method = String(req?.method || '').toUpperCase();
+    if (method === 'OPTIONS') {
+      if ((reply as any).raw?.headersSent) return done();
+      reply
+        .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+        .header('access-control-allow-headers', 'content-type, x-admin-token, authorization')
+        .code(204)
+        .send();
+      return;
+    }
     done();
   });
 

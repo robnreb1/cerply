@@ -45,18 +45,16 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
       // Ensure CORS on auth failures
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-      if (!(reply as any).raw?.headersSent) {
-        reply.header('www-authenticate', 'Bearer');
-        reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
-      }
+      if ((reply as any).raw?.headersSent) return false;
+      reply.header('www-authenticate', 'Bearer');
+      reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
       return false;
     }
     if (!sizeWithinLimit(req)) {
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-      if (!(reply as any).raw?.headersSent) {
-        reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'request too large' } });
-      }
+      if ((reply as any).raw?.headersSent) return false;
+      reply.code(413).send({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'request too large' } });
       return false;
     }
     return true;
@@ -71,7 +69,6 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-      // Avoid writing headers twice when Fastify already started sending
       if ((reply as any).raw?.headersSent) return;
       reply.code(400).send({ error: { code: 'BAD_REQUEST', message: parsed.error.message } });
       return;
