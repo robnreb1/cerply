@@ -31,12 +31,6 @@ function sizeWithinLimit(req: any): boolean {
 export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   if (!enabled()) return;
 
-  // Ensure rate-limit plugin is present (non-global) for per-route configs (satisfies static checks)
-  try {
-    const rl = (await import('@fastify/rate-limit')).default as any;
-    // Safe to re-register; no-op if already registered globally elsewhere
-    await app.register(rl, { global: false } as any);
-  } catch {}
 
   // Preflight and security headers handled by security.admin plugin
   app.options('/certified/*', async (_req: any, reply: any) => {
