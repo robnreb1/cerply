@@ -59,6 +59,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   // POST /sources
   app.post('/certified/sources', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!authGuard(req, reply)) return;
+    if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const parsed = SourceCreateReq.safeParse((req as any).body);
     if (!parsed.success) {
       reply.header('access-control-allow-origin', '*');
@@ -77,6 +78,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   // GET /sources
   app.get('/certified/sources', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!authGuard(req, reply)) return;
+    if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const idx = upsertIndex<any>('source');
     const list = Array.from(idx.values());
     reply.header('access-control-allow-origin', '*');
@@ -115,6 +117,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   // POST /items/ingest
   app.post('/certified/items/ingest', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!authGuard(req, reply)) return;
+    if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const parsed = ItemIngestReq.safeParse((req as any).body);
     if (!parsed.success) {
       reply.header('access-control-allow-origin', '*');
@@ -135,6 +138,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   // GET /items
   app.get('/certified/items', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!authGuard(req, reply)) return;
+    if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const q = ItemQuery.safeParse((req as any).query);
     if (!q.success) {
       reply.header('access-control-allow-origin', '*');
@@ -153,6 +157,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   // GET /items/:id
   app.get('/certified/items/:id', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!authGuard(req, reply)) return;
+    if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const { id } = (req as any).params as { id: string };
     const idx = upsertIndex<any>('item');
     const row = idx.get(id);
@@ -170,6 +175,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   // POST /items/:id/approve
   app.post('/certified/items/:id/approve', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!authGuard(req, reply)) return;
+    if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const { id } = (req as any).params as { id: string };
     const idx = upsertIndex<any>('item');
     const row = idx.get(id);
@@ -190,6 +196,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   // POST /items/:id/reject
   app.post('/certified/items/:id/reject', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     if (!authGuard(req, reply)) return;
+    if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const { id } = (req as any).params as { id: string };
     const idx = upsertIndex<any>('item');
     const row = idx.get(id);
