@@ -10,12 +10,14 @@ let storeInstance: AdminCertifiedStore | null = null;
 export function getAdminCertifiedStore(): AdminCertifiedStore {
   if (storeInstance) return storeInstance;
 
-  const storeType = String(process.env.ADMIN_STORE || 'ndjson').toLowerCase();
+  // Match the Zod transform logic from env.ts: default to 'ndjson' for undefined, empty, or invalid values
+  const rawVal = process.env.ADMIN_STORE;
+  const storeType = (!rawVal || (rawVal !== 'ndjson' && rawVal !== 'sqlite')) ? 'ndjson' : rawVal;
 
   if (storeType === 'sqlite') {
     storeInstance = new PrismaAdminCertifiedStore();
   } else {
-    // Default to NDJSON (includes unknown values)
+    // Default to NDJSON
     storeInstance = new NDJsonAdminCertifiedStore();
   }
 
