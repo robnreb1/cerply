@@ -77,8 +77,10 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
    */
   app.post('/api/certified/plan', { config: { public: true } }, async (_req: FastifyRequest, reply: FastifyReply) => {
     // Enforce content-type for POSTs (DoD: return 415 on wrong/missing Content-Type)
-    const method = String((_req as any).method || '').toUpperCase();
-    if (method === 'OPTIONS') return reply.code(204).send();
+    {
+      const m = String(((_req as any).method || '')).toUpperCase();
+      if (m === 'OPTIONS') return reply.code(204).send();
+    }
     const ct = String(((_req as any).headers?.['content-type'] ?? '')).toLowerCase();
     if (!ct.includes('application/json')) {
       reply.header('access-control-allow-origin', '*');

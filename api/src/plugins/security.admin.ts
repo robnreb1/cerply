@@ -48,7 +48,7 @@ const plugin = async (app: FastifyInstance) => {
   });
 
   // Set headers early to avoid post-send header mutations
-  app.addHook('preHandler', (req: any, reply: any, done: () => void) => {
+  app.addHook('preHandler', (req: any, reply: any, done: (err?: Error) => void) => {
     if (reply.sent) return done();
     if (String(req.method || '').toUpperCase() === 'OPTIONS') return done();
     reply.header('X-Content-Type-Options', 'nosniff');
@@ -64,10 +64,11 @@ const plugin = async (app: FastifyInstance) => {
       const incoming = getIncomingAdminToken(req);
       if (!incoming || incoming !== EXPECTED) {
         reply.header('www-authenticate', 'Bearer');
-        return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
+        reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
+        return done();
       }
     }
-    done();
+    return done();
   });
 
   // Ensure errors still include ACAO and no ACAC without touching onSend
