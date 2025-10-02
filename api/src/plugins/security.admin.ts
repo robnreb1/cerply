@@ -29,15 +29,15 @@ const plugin = async (app: FastifyInstance) => {
 
   // OPTIONS preflight for admin: short-circuit early
   // Always set ACAO early so even 429s include it
-  app.addHook('onRequest', (req: any, reply: any, done: () => void) => {
-    if (reply.sent) return done();
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    if (reply.sent) return;
     reply.header('access-control-allow-origin', '*');
     try { reply.removeHeader('access-control-allow-credentials'); } catch {}
     try { (reply as any).raw?.removeHeader?.('Access-Control-Allow-Credentials'); } catch {}
     // Handle OPTIONS preflight early to avoid any downstream guards returning 400
     const method = String(req?.method || '').toUpperCase();
     if (method === 'OPTIONS') {
-      if ((reply as any).raw?.headersSent) return done();
+      if ((reply as any).raw?.headersSent) return;
       reply
         .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
         .header('access-control-allow-headers', 'content-type, x-admin-token, authorization')
@@ -45,7 +45,7 @@ const plugin = async (app: FastifyInstance) => {
         .send();
       return;
     }
-    done();
+    return;
   });
 
   // Set headers early to avoid post-send header mutations
