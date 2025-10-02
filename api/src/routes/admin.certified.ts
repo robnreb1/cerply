@@ -35,15 +35,9 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   // Preflight and security headers are handled by security.admin plugin; no route-level OPTIONS here
 
   function authGuard(req: FastifyRequest, reply: FastifyReply): boolean {
-    if (!tokenOk(req.headers as any)) {
-      // Ensure CORS on auth failures
-      reply.header('access-control-allow-origin', '*');
-      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-      if ((reply as any).raw?.headersSent) return false;
-      reply.header('www-authenticate', 'Bearer');
-      reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'invalid admin token' } });
-      return false;
-    }
+    // Token authentication is handled centrally by security.admin plugin's preHandler.
+    // Here we only enforce size limits and bail early if a previous hook already sent a reply.
+    if ((reply as any).sent === true || (reply as any).raw?.headersSent) return false;
     if (!sizeWithinLimit(req)) {
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
