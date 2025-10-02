@@ -232,55 +232,7 @@ export async function createApp() {
   app.addHook('onRequest', async (req:any, _reply:any) => {
     req.__t0 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
   });
-  app.addHook('onSend', async (req:any, reply:any, payload:any) => {
-    // Avoid header writes after send (tests may complete very quickly)
-    try { if ((reply as any).hijacked === true || reply.sent === true || (reply as any).raw?.headersSent) return payload; } catch {}
-    try {
-      const url = String(req?.url || (req?.raw && (req.raw as any).url) || '');
-      if (url.startsWith('/api/admin/')) return payload;
-    } catch {}
-    const t1 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
-    const ms = Math.max(0, Math.round((t1 - (req.__t0 || t1)) * 10) / 10);
-    reply.header('Server-Timing', `app;dur=${ms}`);
-    reply.header('x-req-ms', String(ms));
-
-    // probabilistic DB sink of latency as event payload
-    try {
-      if (OBS_PCT > 0 && Math.random() * 100 < OBS_PCT) {
-        const db = (app as any).db;
-        if (db?.execute) {
-          const payload = {
-            route: String((req.routerPath || req.url || '')).slice(0, 120),
-            method: req.method,
-            status: reply.statusCode,
-            ms
-          };
-          await db.execute(`insert into events(user_id, type, payload) values ($1,$2,$3)`, [null, 'latency', payload]);
-        }
-      }
-    } catch {}
-    // Inject runtime channel into /api/version response without changing existing fields
-    try {
-      const routePath = String((req as any).routerPath || (req as any).url || '').trim();
-      if (process.env.RUNTIME_CHANNEL && routePath === '/api/version') {
-        reply.header('x-runtime-channel', process.env.RUNTIME_CHANNEL);
-        if (payload && typeof payload === 'object') {
-          return { ...(payload as any), runtime: { channel: process.env.RUNTIME_CHANNEL } };
-        }
-        if (typeof payload === 'string') {
-          const trimmed = payload.trim();
-          if (trimmed.startsWith('{')) {
-            try {
-              const parsed = JSON.parse(trimmed);
-              const next = { ...parsed, runtime: { channel: process.env.RUNTIME_CHANNEL } };
-              return JSON.stringify(next);
-            } catch {}
-          }
-        }
-      }
-    } catch {}
-    return payload;
-  });
+  app.addHook('onSend', async (_req:any, _reply:any, payload:any) => payload);
   // ────────────────────────────────────────────────────────────────────────
   // Request ID header and availability on req
   app.addHook('onRequest', async (req, reply) => {
@@ -360,45 +312,10 @@ try {
 } catch {}
 
 // Targeted CORS: ensure certified POST responses have ACAO:* and no ACAC
- app.addHook('onSend', async (request:any, reply:any, payload:any) => {
-  try {
-    const method = String(request?.method || '').toUpperCase();
-    const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
-    const isCertified = url.startsWith('/api/certified/');
-      // Skip if hijacked/headers already sent (e.g., SSE)
-      if ((reply as any).hijacked === true || reply.sent === true || (reply as any).raw?.headersSent) return payload;
-    if (method !== 'OPTIONS' && isCertified) {
-      // Always allow any origin for certified endpoints (responses only)
-      reply.header('access-control-allow-origin', '*');
-      // Remove ACAC if any upstream sets it
-      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-      try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
-      // Hard-strip any leftover debug header defensively
-      try { (reply as any).removeHeader?.('x-cors-certified-hook'); } catch {}
-      try { (reply as any).raw?.removeHeader?.('x-cors-certified-hook'); } catch {}
-    }
-  } catch {}
-  return payload;
-});
+ app.addHook('onSend', async (_request:any, _reply:any, payload:any) => payload);
   // (Orchestrator) no onSend hook needed; headers are set in preHandler to avoid mutation-after-send issues
 // Late enforcement for orchestrator: ensure ACAO:* and strip ACAC on all non-OPTIONS responses
- app.addHook('onSend', async (request:any, reply:any, payload:any) => {
-  try {
-    const method = String(request?.method || '').toUpperCase();
-    const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
-    const isOrch = url.startsWith('/api/orchestrator/');
-    if (isOrch && method !== 'OPTIONS') {
-      // Skip if headers already sent (e.g., SSE or early termination)
-      if ((reply as any).hijacked === true || reply.sent === true || (reply as any).raw?.headersSent) return payload;
-      // Always allow any origin for orchestrator endpoints (responses only)
-      reply.header('access-control-allow-origin', '*');
-      // Remove ACAC if any upstream sets it
-      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-      try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
-    }
-  } catch {}
-  return payload;
-});
+ app.addHook('onSend', async (_request:any, _reply:any, payload:any) => payload);
 
 // Public-route bypass helper for any global guards (auth/CSRF).
 function isPublicURL(url = '') {
