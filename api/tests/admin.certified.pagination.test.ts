@@ -16,8 +16,8 @@ describe('Admin Certified Pagination & Filtering (NDJSON)', () => {
     app = await buildApp();
 
     // Seed test data: sources and items
-    const s1 = await app.inject({ method: 'POST', url: '/api/admin/certified/sources', headers: hdr, payload: { name: 'Source Alpha', baseUrl: 'https://alpha.example.com' } });
-    const s2 = await app.inject({ method: 'POST', url: '/api/admin/certified/sources', headers: hdr, payload: { name: 'Source Beta', baseUrl: 'https://beta.example.com' } });
+    const s1 = await app.inject({ method: 'POST', url: '/api/admin/certified/sources', headers: hdr, payload: { name: 'Source Alpha', url: 'https://alpha.example.com' } });
+    const s2 = await app.inject({ method: 'POST', url: '/api/admin/certified/sources', headers: hdr, payload: { name: 'Source Beta', url: 'https://beta.example.com' } });
 
     // Create 5 items with varying properties
     await app.inject({ method: 'POST', url: '/api/admin/certified/items/ingest', headers: hdr, payload: { title: 'Item One', url: 'https://alpha.example.com/one' } });
@@ -134,7 +134,7 @@ describe('Admin Certified Pagination & Filtering (SQLite)', () => {
     app = await buildApp();
 
     // Seed test data
-    await app.inject({ method: 'POST', url: '/api/admin/certified/sources', headers: hdr, payload: { name: 'SQLite Source', baseUrl: 'https://sqlite.example.com' } });
+    await app.inject({ method: 'POST', url: '/api/admin/certified/sources', headers: hdr, payload: { name: 'SQLite Source', url: 'https://sqlite.example.com' } });
     await app.inject({ method: 'POST', url: '/api/admin/certified/items/ingest', headers: hdr, payload: { title: 'SQLite Item One', url: 'https://sqlite.example.com/one' } });
     await app.inject({ method: 'POST', url: '/api/admin/certified/items/ingest', headers: hdr, payload: { title: 'SQLite Item Two', url: 'https://sqlite.example.com/two' } });
     await app.inject({ method: 'POST', url: '/api/admin/certified/items/ingest', headers: hdr, payload: { title: 'SQLite Special', url: 'https://sqlite.example.com/special' } });
