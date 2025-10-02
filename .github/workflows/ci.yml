@@ -290,6 +290,11 @@ jobs:
       - name: Generate Prisma Client
         run: npm --workspace ./api run prisma:generate
 
+      - name: Initialize Test Database
+        run: cd api && npx prisma db push --skip-generate --accept-data-loss
+        env:
+          DATABASE_URL: "file:./.data/admin-test.sqlite"
+
       - name: Run API tests
         env:
           NODE_ENV: test
