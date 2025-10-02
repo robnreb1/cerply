@@ -55,14 +55,14 @@ export const ItemQuery = z.object({
   source_id: z.string().optional(),
   q: z.string().max(200).optional(),
   page: z.coerce.number().int().positive().optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
+  limit: z.coerce.number().int().positive().optional(),
 });
 export type ItemQuery = z.infer<typeof ItemQuery>;
 
 export const SourceQuery = z.object({
   q: z.string().max(200).optional(),
   page: z.coerce.number().int().positive().optional(),
-  limit: z.coerce.number().int().positive().max(100).optional(),
+  limit: z.coerce.number().int().positive().optional(),
 });
 export type SourceQuery = z.infer<typeof SourceQuery>;
 

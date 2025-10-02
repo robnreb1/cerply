@@ -18,10 +18,15 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
   private prisma: PrismaClient;
 
   constructor() {
+    // Use relative path from api/ directory for both dev and test
+    const dbPath = process.env.NODE_ENV === 'test'
+      ? 'file:./.data/admin-test.sqlite'
+      : 'file:./.data/admin.sqlite';
+    
     this.prisma = new PrismaClient({
       datasources: {
         db: {
-          url: `file:${process.cwd()}/api/.data/admin.sqlite`,
+          url: dbPath,
         },
       },
     });
