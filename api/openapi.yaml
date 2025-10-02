@@ -174,3 +174,200 @@ paths:
           schema: { type: string }
       responses:
         '200': { description: OK }
+  /api/admin/certified/sources:
+    get:
+      summary: List admin sources (ADMIN_PREVIEW=true)
+      security:
+        - AdminToken: []
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema: { type: string, maxLength: 200 }
+          description: Search query for name/url
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 1 }
+          description: Page number for pagination
+        - in: query
+          name: limit
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100 }
+          description: Items per page (clamped to 100)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sources: { type: array, items: { type: object } }
+                  total: { type: integer }
+                  page: { type: integer }
+                  limit: { type: integer }
+        '401': { description: Unauthorized }
+    post:
+      summary: Create admin source (ADMIN_PREVIEW=true)
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, baseUrl]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                baseUrl: { type: string, format: uri }
+                notes: { type: string, maxLength: 2000 }
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  source_id: { type: string }
+        '401': { description: Unauthorized }
+        '413': { description: Payload too large }
+  /api/admin/certified/items:
+    get:
+      summary: List admin items (ADMIN_PREVIEW=true)
+      security:
+        - AdminToken: []
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema: { type: string, enum: [pending, approved, rejected, queued, error] }
+          description: Filter by status
+        - in: query
+          name: source_id
+          required: false
+          schema: { type: string }
+          description: Filter by source ID
+        - in: query
+          name: q
+          required: false
+          schema: { type: string, maxLength: 200 }
+          description: Search query for title/url
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 1 }
+          description: Page number for pagination
+        - in: query
+          name: limit
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100 }
+          description: Items per page (clamped to 100)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { type: object } }
+                  total: { type: integer }
+                  page: { type: integer }
+                  limit: { type: integer }
+        '401': { description: Unauthorized }
+  /api/admin/certified/items/ingest:
+    post:
+      summary: Ingest admin item (ADMIN_PREVIEW=true)
+      security:
+        - AdminToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, url]
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                url: { type: string, format: uri }
+                tags: { type: array, items: { type: string, minLength: 1, maxLength: 40 }, maxItems: 20 }
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item_id: { type: string }
+        '401': { description: Unauthorized }
+        '413': { description: Payload too large }
+  /api/admin/certified/items/{id}:
+    get:
+      summary: Get admin item by ID (ADMIN_PREVIEW=true)
+      security:
+        - AdminToken: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '404': { description: Not found }
+  /api/admin/certified/items/{id}/approve:
+    post:
+      summary: Approve admin item (ADMIN_PREVIEW=true)
+      security:
+        - AdminToken: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: string }
+                  status: { type: string, enum: [approved] }
+        '401': { description: Unauthorized }
+        '404': { description: Not found }
+  /api/admin/certified/items/{id}/reject:
+    post:
+      summary: Reject admin item (ADMIN_PREVIEW=true)
+      security:
+        - AdminToken: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  id: { type: string }
+                  status: { type: string, enum: [rejected] }
+        '401': { description: Unauthorized }
+        '404': { description: Not found }
+components:
+  securitySchemes:
+    AdminToken:
+      type: apiKey
+      in: header
+      name: X-Admin-Token
