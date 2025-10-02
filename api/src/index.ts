@@ -139,6 +139,22 @@ function deterministicGenerateStub() {
 export async function createApp() {
   // --- App bootstrap ---
   const app = Fastify({ logger: true });
+  // Earliest guard: short-circuit admin preflight at onRequest to avoid any downstream 400s
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/admin/')) {
+        if ((reply as any).raw?.headersSent) return;
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, x-admin-token, authorization')
+          .code(204)
+          .send();
+      }
+    } catch {}
+  });
   // Explicit early preflight for admin namespace to guarantee 204 in all cases
   app.options('/api/admin/*', async (_req: any, reply: any) => {
     reply
