@@ -136,19 +136,29 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const { title, url, tags } = parsed.data;
     const { sha256, mime, provenance } = await probeUrlHead(url);
     
-    // Ensure source exists or create a default one
+    // Ensure a default source exists for items without an explicit source
+    // For v0, we use 'unknown' as the sourceId; ensure it exists in the DB
     let sourceId = 'unknown';
     try {
-      const existingSource = await store.getSource('unknown');
-      if (!existingSource) {
+      // Try to find existing 'unknown' source by ID first
+      let unknownSource = await store.getSource('unknown');
+      if (!unknownSource) {
+        // If not found, search by name to avoid duplicates
+        const allSources = await store.listSources({ q: 'Unknown Source' });
+        unknownSource = allSources.sources.find((s) => s.name === 'Unknown Source') || null;
+      }
+      if (!unknownSource) {
+        // Create it with a fixed ID if possible, otherwise use generated ID
         const defaultSource = await store.createSource({
           name: 'Unknown Source',
           url: undefined,
         });
         sourceId = defaultSource.id;
+      } else {
+        sourceId = unknownSource.id;
       }
     } catch {
-      // If getSource/createSource fails, still use 'unknown' and let DB handle it
+      // If all else fails, use literal 'unknown' and let the DB handle constraint errors
     }
 
     const item = await store.createItem({

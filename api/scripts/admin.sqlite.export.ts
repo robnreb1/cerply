@@ -31,7 +31,7 @@ async function exportToNDJSON() {
           data: {
             id: src.id,
             name: src.name,
-            baseUrl: src.url || undefined,
+            url: src.url || undefined,
             createdAt: src.createdAt.toISOString(),
           },
           ts: src.createdAt.toISOString(),
