@@ -3,7 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const cliArgs = process.argv.slice(2);
-const args = ['run', '--reporter=verbose', ...cliArgs];
+// If CI is passing reporter flags, don't add our own
+const hasReporter = cliArgs.some(arg => arg.startsWith('--reporter'));
+const defaultReporter = hasReporter ? [] : ['--reporter=verbose'];
+const args = ['run', ...defaultReporter, ...cliArgs];
 
 function exists(p) { try { return fs.existsSync(p); } catch { return false; } }
 
