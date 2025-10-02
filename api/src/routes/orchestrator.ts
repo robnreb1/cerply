@@ -47,7 +47,9 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
       }
     }
 
-    const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
+  const method = String((req as any).method || '').toUpperCase();
+  if (method === 'OPTIONS') return reply.code(204).send();
+  const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
     if (!ct.includes('application/json')) {
       return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'application/json required' } });
     }

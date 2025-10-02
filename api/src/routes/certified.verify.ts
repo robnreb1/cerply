@@ -28,8 +28,10 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
   });
 
   app.post('/api/certified/verify', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
-    // Strict content-type
-    const ct = String((req.headers as any)?.['content-type'] || '').toLowerCase();
+  const method = String((req as any).method || '').toUpperCase();
+  if (method === 'OPTIONS') return reply.code(204).send();
+  // Strict content-type
+  const ct = String((req.headers as any)?.['content-type'] || '').toLowerCase();
     if (!ct.includes('application/json')) {
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');

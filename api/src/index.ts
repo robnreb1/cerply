@@ -139,6 +139,21 @@ function deterministicGenerateStub() {
 export async function createApp() {
   // --- App bootstrap ---
   const app = Fastify({ logger: true });
+  // Universal admin preflight: short-circuit OPTIONS early to avoid any downstream guards
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    try {
+      const method = String(req?.method || '').toUpperCase();
+      const url = String(req?.url || '');
+      if (method === 'OPTIONS' && url.startsWith('/api/admin/')) {
+        reply
+          .header('access-control-allow-origin', '*')
+          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+          .header('access-control-allow-headers', 'content-type, x-admin-token, authorization')
+          .code(204)
+          .send();
+      }
+    } catch {}
+  });
   // Explicit CORS preflight for Certified endpoints so tests and browsers see 204 with headers
   app.addHook('onRequest', async (req: any, reply: any) => {
     try {
