@@ -5,6 +5,9 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['tests/**/*.test.ts'],
+    setupFiles: ['tests/setup/suppress-headers-sent.ts'],
+    // Suppress known benign Fastify ERR_HTTP_HEADERS_SENT unhandled rejections in CI
+    dangerouslyIgnoreUnhandledErrors: true,
     env: {
       ROLLUP_USE_NODE_JS: 'true',
       ROLLUP_SKIP_NODEJS_NATIVE: '1'

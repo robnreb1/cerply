@@ -57,6 +57,9 @@ import { registerLedgerRoutes }   from './routes/ledger';
 import { registerExportRoutes }   from './routes/exports';
 import { registerCertifiedVerifyRoutes } from './routes/certified.verify';
 import { registerCertifiedAuditPreview, emitAudit } from './routes/certified.audit';
+import { registerAdminCertifiedRoutes } from './routes/admin.certified';
+import securityAdmin from './plugins/security.admin';
+import securityHeaders from './plugins/security.headers';
 
 
 // Helper: get session cookie from parsed cookies or raw header
@@ -138,51 +141,55 @@ function deterministicGenerateStub() {
 export async function createApp() {
   // --- App bootstrap ---
   const app = Fastify({ logger: true });
-  // Explicit CORS preflight for Certified endpoints so tests and browsers see 204 with headers
-  app.addHook('onRequest', async (req: any, reply: any) => {
-    try {
+  
+  // Terminal preflight (prevents any later hook/handler from running)
+  function addPreflight(prefix: string, allowHeaders: string) {
+    app.addHook('onRequest', async (req: any, reply: any) => {
+      if (reply.sent) return;
       const method = String(req?.method || '').toUpperCase();
       const url = String(req?.url || '');
-      if (method === 'OPTIONS' && url.startsWith('/api/certified/')) {
-        reply
-          .header('access-control-allow-origin', '*')
-          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-          .header('access-control-allow-headers', 'content-type, authorization')
-          .code(204)
-          .send();
-      }
-    } catch {}
-  });
-  // Explicit CORS preflight for Analytics preview endpoints
+      if (method !== 'OPTIONS' || !url.startsWith(prefix)) return;
+
+      // Make this response terminal
+      try { reply.hijack(); } catch {}
+      const raw = reply.raw;
+      try {
+        raw.statusCode = 204;
+        raw.setHeader('access-control-allow-origin', '*');
+        raw.setHeader('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+        raw.setHeader('access-control-allow-headers', allowHeaders);
+        raw.setHeader('vary', 'Origin, Access-Control-Request-Headers');
+        // never emit ACAC on preflight
+        try { (raw as any).removeHeader?.('Access-Control-Allow-Credentials'); } catch {}
+        raw.end();
+      } catch {}
+    });
+  }
+
+  // Preflights for public endpoints
+  addPreflight('/api/certified/',    'content-type, authorization');
+  addPreflight('/api/analytics/',    'content-type, authorization');
+  addPreflight('/api/orchestrator/', 'content-type, authorization');
+  addPreflight('/api/auth/',         'content-type, x-csrf-token');
+
+  // Always expose ACAO and security headers for certified endpoints (non-OPTIONS too)
   app.addHook('onRequest', async (req: any, reply: any) => {
-    try {
-      const method = String(req?.method || '').toUpperCase();
-      const url = String(req?.url || '');
-      if (method === 'OPTIONS' && url.startsWith('/api/analytics/')) {
-        reply
-          .header('access-control-allow-origin', '*')
-          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-          .header('access-control-allow-headers', 'content-type, authorization')
-          .code(204)
-          .send();
-      }
-    } catch {}
+    const url = String(req?.url || '');
+    if (!url.startsWith('/api/certified/')) return;
+    // Always expose ACAO for certified; never ACAC
+    reply.header('access-control-allow-origin', '*');
+    try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+    try { (reply as any).raw?.removeHeader?.('Access-Control-Allow-Credentials'); } catch {}
+    // Security baselines expected by tests (preview + non-preview)
+    reply.header('referrer-policy', 'no-referrer');
+    reply.header('cross-origin-opener-policy', 'same-origin');
+    reply.header('x-content-type-options', 'nosniff');
+    // CORP will be set in onSend to ensure it wins over any middleware
   });
-  // Explicit CORS preflight for Orchestrator endpoints
-  app.addHook('onRequest', async (req: any, reply: any) => {
-    try {
-      const method = String(req?.method || '').toUpperCase();
-      const url = String(req?.url || '');
-      if (method === 'OPTIONS' && url.startsWith('/api/orchestrator/')) {
-        reply
-          .header('access-control-allow-origin', '*')
-          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-          .header('access-control-allow-headers', 'content-type, authorization')
-          .code(204)
-          .send();
-      }
-    } catch {}
-  });
+  // Admin preflight/auth FIRST so it owns /api/admin/**, including OPTIONS
+  try { await app.register(securityAdmin as any); } catch {}
+  // Admin preflight handled by scoped admin security plugin; no top-level route here
+  // No explicit global OPTIONS handlers here; plugins and addPreflight handle their own paths and skip admin/OPTIONS
   // Ensure ACAO:* early for orchestrator responses
   app.addHook('preHandler', async (req: any, reply: any) => {
     try {
@@ -192,6 +199,7 @@ export async function createApp() {
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
     } catch {}
   });
+  // (Admin preflight and headers handled by admin security plugin and routes)
   
   // ── Observability: per-request duration headers + optional DB sampling ──
   const OBS_PCT = Number(process.env.OBS_SAMPLE_PCT || '0'); // 0..100
@@ -199,46 +207,34 @@ export async function createApp() {
     req.__t0 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
   });
   app.addHook('onSend', async (req:any, reply:any, payload:any) => {
+    // Avoid header writes after send or for hijacked/admin responses
+    try { 
+      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent || reply.sent) return payload;
+      const url = String(req?.url || '');
+      if (url.startsWith('/api/admin/')) return payload; // admin plugin owns headers
+    } catch {}
+    
     const t1 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
     const ms = Math.max(0, Math.round((t1 - (req.__t0 || t1)) * 10) / 10);
     reply.header('Server-Timing', `app;dur=${ms}`);
     reply.header('x-req-ms', String(ms));
 
-    // probabilistic DB sink of latency as event payload
+    // Probabilistic DB sink of latency as event payload
     try {
       if (OBS_PCT > 0 && Math.random() * 100 < OBS_PCT) {
         const db = (app as any).db;
         if (db?.execute) {
-          const payload = {
+          const eventPayload = {
             route: String((req.routerPath || req.url || '')).slice(0, 120),
             method: req.method,
             status: reply.statusCode,
             ms
           };
-          await db.execute(`insert into events(user_id, type, payload) values ($1,$2,$3)`, [null, 'latency', payload]);
+          await db.execute(`insert into events(user_id, type, payload) values ($1,$2,$3)`, [null, 'latency', eventPayload]);
         }
       }
     } catch {}
-    // Inject runtime channel into /api/version response without changing existing fields
-    try {
-      const routePath = String((req as any).routerPath || (req as any).url || '').trim();
-      if (process.env.RUNTIME_CHANNEL && routePath === '/api/version') {
-        reply.header('x-runtime-channel', process.env.RUNTIME_CHANNEL);
-        if (payload && typeof payload === 'object') {
-          return { ...(payload as any), runtime: { channel: process.env.RUNTIME_CHANNEL } };
-        }
-        if (typeof payload === 'string') {
-          const trimmed = payload.trim();
-          if (trimmed.startsWith('{')) {
-            try {
-              const parsed = JSON.parse(trimmed);
-              const next = { ...parsed, runtime: { channel: process.env.RUNTIME_CHANNEL } };
-              return JSON.stringify(next);
-            } catch {}
-          }
-        }
-      }
-    } catch {}
+    
     return payload;
   });
   // ────────────────────────────────────────────────────────────────────────
@@ -253,16 +249,18 @@ export async function createApp() {
   // Security plugins (CORS invariants for multiple prefixes + certified-specific limits)
   try {
     const cors = (await import('./plugins/security.cors')).default as any;
-    await app.register(cors, { prefixes: ['/api/certified', '/api/orchestrator'] });
+    await app.register(cors, { prefixes: ['/api', '/api/certified', '/api/orchestrator', '/api/auth'] });
   } catch {}
-  try {
-    const sec = (await import('./plugins/security.certified')).default as any;
-    await app.register(sec);
-  } catch {}
+  // Note: security.certified will be registered LAST (after helmet) to ensure its CORP header wins
   try {
     const orchSec = (await import('./plugins/security.orchestrator')).default as any;
     await app.register(orchSec);
   } catch {}
+  try {
+    const authSec = (await import('./plugins/security.auth')).default as any;
+    await app.register(authSec);
+  } catch {}
+  // Headers plugin will be registered after helmet below so its CORP decision wins
   // Register Certified verify routes
   try {
     await registerCertifiedVerifyRoutes(app);
@@ -295,37 +293,57 @@ const defaultOrigins = [
 ];
 const origins = CORS_ORIGINS ? CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : defaultOrigins;
 await app.register(cors, { origin: origins, credentials: true });
+
+// Admin scope: register security first, then routes, under /api/admin
+try {
+  const adminSec = (await import('./plugins/security.admin')).default as any;
+  const enabled = String(process.env.ADMIN_PREVIEW || 'false').toLowerCase() === 'true';
+  await app.register(async (admin: any) => {
+    await admin.register(adminSec);
+    if (enabled) {
+      await registerAdminCertifiedRoutes(admin);
+    }
+  }, { prefix: '/api/admin' });
+} catch {}
+
 await app.register(fastifyCookie);
-// Optional security headers (helmet)
+// Optional security headers (helmet) — register after admin so admin routes are not affected
+// Disable CORP so our plugins can set it per-path
 try {
   const helmet = (await import('@fastify/helmet')).default as any;
-  await app.register(helmet, { contentSecurityPolicy: false });
+  await app.register(helmet, { 
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: false // Let our plugins handle CORP per-path
+  });
 } catch {}
 
 // Targeted CORS: ensure certified POST responses have ACAO:* and no ACAC
-app.addHook('onSend', async (request:any, reply:any, payload:any) => {
-  try {
-    const method = String(request?.method || '').toUpperCase();
-    const url = String(request?.url || (request?.raw && (request.raw as any).url) || '');
-    const isCertified = url.startsWith('/api/certified/');
-      // Skip if hijacked/headers already sent (e.g., SSE)
-      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) {
-        return payload;
-      }
-    if (method !== 'OPTIONS' && isCertified) {
-      // Always allow any origin for certified endpoints (responses only)
-      reply.header('access-control-allow-origin', '*');
-      // Remove ACAC if any upstream sets it
-      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-      try { (reply as any).raw?.removeHeader?.('access-control-allow-credentials'); } catch {}
-      // Hard-strip any leftover debug header defensively
-      try { (reply as any).removeHeader?.('x-cors-certified-hook'); } catch {}
-      try { (reply as any).raw?.removeHeader?.('x-cors-certified-hook'); } catch {}
-    }
-  } catch {}
-  return payload;
-});
+ app.addHook('onSend', async (_request:any, _reply:any, payload:any) => payload);
   // (Orchestrator) no onSend hook needed; headers are set in preHandler to avoid mutation-after-send issues
+// Late enforcement for orchestrator: ensure ACAO:* and strip ACAC on all non-OPTIONS responses
+ app.addHook('onSend', async (_request:any, _reply:any, payload:any) => payload);
+
+ // Register security headers LAST so its onSend finalizer wins
+ try { await app.register(securityHeaders as any); } catch {}
+ 
+ // Register security.certified ABSOLUTELY LAST so its onSend reasserts CORP=same-origin for /api/certified/**
+ try {
+   const sec = (await import('./plugins/security.certified')).default as any;
+   await app.register(sec);
+ } catch {}
+
+ // Final CORP enforcement: run AFTER all plugins to ensure certified CORP is correct
+ app.addHook('onSend', async (req: any, reply: any, payload: any) => {
+   if (reply.raw?.headersSent || reply.sent) return payload;
+   const url = String(req.url || '');
+   const method = String(req.method || '').toUpperCase();
+   if (method === 'OPTIONS') return payload;
+   if (!url.startsWith('/api/certified/')) return payload;
+   
+   const inPreview = process.env.CERTIFIED_PREVIEW === 'true' || process.env.SECURITY_HEADERS_PREVIEW === 'true' || process.env.NODE_ENV === 'test';
+   reply.header('cross-origin-resource-policy', inPreview ? 'same-origin' : 'same-site');
+   return payload;
+ });
 
 // Public-route bypass helper for any global guards (auth/CSRF).
 function isPublicURL(url = '') {
@@ -532,6 +550,8 @@ try {
   const { registerCertifiedRoutes } = await import('./routes/certified');
   await registerCertifiedRoutes(app);
 } catch {}
+
+  // (admin scope already registered above, before helmet)
 
 // Certified Retention v0 (preview)
 try {

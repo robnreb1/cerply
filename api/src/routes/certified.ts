@@ -23,43 +23,7 @@ function isEnabled() {
 }
 
 export function registerCertifiedRoutes(app: FastifyInstance) {
-  // Early hook to ensure CORS preflight works even if path matching varies
-  app.addHook('onRequest', async (req: any, reply: any) => {
-    try {
-      const method = String(req?.method || '').toUpperCase();
-      const url = String(req?.url || '');
-      if (method === 'OPTIONS' && url.startsWith('/api/certified/')) {
-        reply
-          .header('access-control-allow-origin', '*')
-          .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-          .header('access-control-allow-headers', 'content-type, authorization')
-          .code(204)
-          .send();
-        return reply;
-      }
-    } catch {}
-  });
-  // Enforce CORS invariants on all certified responses (non-OPTIONS)
-  app.addHook('onSend', async (req: any, reply: any, payload: any) => {
-    try {
-      const method = String(req?.method || '').toUpperCase();
-      const url = String(req?.url || '');
-      if (url.startsWith('/api/certified/') && method !== 'OPTIONS') {
-        reply.header('access-control-allow-origin', '*');
-        reply.removeHeader('access-control-allow-credentials');
-        reply.removeHeader('x-cors-certified-hook');
-      }
-    } catch {}
-    return payload;
-  });
-  // CORS preflight for certified endpoints
-  app.options('/api/certified/*', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
-    reply
-      .header('access-control-allow-origin', '*')
-      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-      .header('access-control-allow-headers', 'content-type, authorization');
-    return reply.code(204).send();
-  });
+  // CORS for certified is handled by global security.cors plugin; avoid duplicate preflight/onSend here
 
   // Plan
   /**
@@ -77,6 +41,10 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
    */
   app.post('/api/certified/plan', { config: { public: true } }, async (_req: FastifyRequest, reply: FastifyReply) => {
     // Enforce content-type for POSTs (DoD: return 415 on wrong/missing Content-Type)
+    {
+      const m = String(((_req as any).method || '')).toUpperCase();
+      if (m === 'OPTIONS') return reply.code(204).send();
+    }
     const ct = String(((_req as any).headers?.['content-type'] ?? '')).toLowerCase();
     if (!ct.includes('application/json')) {
       reply.header('access-control-allow-origin', '*');

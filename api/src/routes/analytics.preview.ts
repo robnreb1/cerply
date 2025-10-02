@@ -23,14 +23,7 @@ export async function registerAnalyticsPreviewRoutes(app: FastifyInstance) {
     } catch {}
   });
 
-  // CORS preflight
-  app.options('/api/analytics/*', { config: { public: true } }, async (_req, reply) => {
-    reply
-      .header('access-control-allow-origin', '*')
-      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-      .header('access-control-allow-headers', 'content-type, authorization');
-    return reply.code(204).send();
-  });
+  // CORS preflight handled via onRequest above
 
   // Ingest
   app.post('/api/analytics/ingest', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {

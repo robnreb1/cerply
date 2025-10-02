@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { TaskPacketZ, JobIdZ, JobStatusZ, OrchestratorEventZ, normalizeTaskPacketInput } from '../schemas/orchestrator';
 import { InMemoryEngine, resolveBackend } from '../orchestrator/engine';
+import { readCookie, getSession } from '../session';
 
 const ORCH_ENABLED = String(process.env.ORCH_ENABLED || 'false').toLowerCase() === 'true';
 const ORCH_MODE = (process.env.ORCH_MODE || 'mock').toString(); // mock|live
@@ -24,7 +25,31 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
 
   // POST /api/orchestrator/jobs
   app.post('/api/orchestrator/jobs', async (req: FastifyRequest, reply: FastifyReply) => {
-    const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
+    // Auth v0: CSRF + optional session requirement (flag-gated)
+    const authEnabled = String(process.env.AUTH_ENABLED ?? 'false').toLowerCase() === 'true';
+    if (authEnabled) {
+      const requireSession = String(process.env.AUTH_REQUIRE_SESSION ?? 'false').toLowerCase() === 'true';
+      const cookieName = String(process.env.AUTH_COOKIE_NAME ?? 'sid');
+      const sid = readCookie(req as any, cookieName);
+      const sess = await getSession(sid);
+      if (requireSession && !sess) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'session required' } });
+      }
+      const headerToken = String(((req.headers as any)['x-csrf-token'] ?? '')).trim();
+      const cookieToken = String(readCookie(req as any, 'csrf') || '').trim();
+      const valid = Boolean(sess && headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
+      if (!valid) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(403).send({ error: { code: 'CSRF', message: 'csrf required' } });
+      }
+    }
+
+  const method = String((req as any).method || '').toUpperCase();
+  if (method === 'OPTIONS') return reply.code(204).send();
+  const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
     if (!ct.includes('application/json')) {
       return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'application/json required' } });
     }

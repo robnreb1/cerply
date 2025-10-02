@@ -28,6 +28,15 @@ RUN npm run build
 
 # 3) Slim runtime with only prod deps
 FROM node:20-bullseye-slim AS runtime
+
+# Re-declare build args in THIS stage and expose them as envs the app reads
+ARG IMAGE_TAG
+ARG GIT_SHA
+ARG IMAGE_CREATED
+ENV IMAGE_TAG=${IMAGE_TAG} \
+    IMAGE_REVISION=${GIT_SHA} \
+    IMAGE_CREATED=${IMAGE_CREATED}
+
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package*.json ./
@@ -35,13 +44,6 @@ ENV CI=true
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY --from=build /app/dist ./dist
 
-# Re-declare build args in final stage and expose as envs & labels
-ARG IMAGE_TAG=""
-ARG GIT_SHA=""
-ARG IMAGE_CREATED=""
-ENV IMAGE_TAG="${IMAGE_TAG}" \
-    IMAGE_REVISION="${GIT_SHA}" \
-    IMAGE_CREATED="${IMAGE_CREATED}"
 LABEL org.opencontainers.image.version="${IMAGE_TAG}" \
       org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.created="${IMAGE_CREATED}"

@@ -18,18 +18,13 @@ const VerifyReqZ = z.object({
 });
 
 export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
-  // CORS preflight
-  app.options('/api/certified/verify', { config: { public: true } }, async (_req: FastifyRequest, reply: FastifyReply) => {
-    reply
-      .header('access-control-allow-origin', '*')
-      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-      .header('access-control-allow-headers', 'content-type, authorization');
-    return reply.code(204).send();
-  });
+  // CORS preflight now handled by shared CORS plugin; no explicit OPTIONS here
 
   app.post('/api/certified/verify', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
-    // Strict content-type
-    const ct = String((req.headers as any)?.['content-type'] || '').toLowerCase();
+  const method = String((req as any).method || '').toUpperCase();
+  if (method === 'OPTIONS') return reply.code(204).send();
+  // Strict content-type
+  const ct = String((req.headers as any)?.['content-type'] || '').toLowerCase();
     if (!ct.includes('application/json')) {
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');

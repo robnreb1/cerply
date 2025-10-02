@@ -1,0 +1,57 @@
+name: CORS Canary (Admin)
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '17 * * * *'
+
+jobs:
+  cors-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        envs:
+          - name: staging
+            base: https://cerply-api-staging-latest.onrender.com
+          - name: prod
+            base: https://api.cerply.com
+    steps:
+      - name: Show target
+        run: |
+          echo "Target: ${{ matrix.envs.name }} => ${{ matrix.envs.base }}"
+
+      - name: OPTIONS preflight returns 204 with correct headers
+        run: |
+          set -euo pipefail
+          BASE=${{ matrix.envs.base }}
+          curl -sS -i -X OPTIONS "$BASE/api/admin/certified/items/ingest" \
+            -H 'Origin: https://app.cerply.com' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type, x-admin-token, authorization' \
+          | tee /tmp/opts.txt \
+          | sed -n '1,40p'
+          test "$(awk -F' ' 'BEGIN{IGNORECASE=1} /^HTTP\//{print $2; exit}' /tmp/opts.txt)" = "204"
+          AH="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/{print $0}' /tmp/opts.txt)"; echo "$AH" | grep -qi "\*:*$"
+          ALH="$(awk 'BEGIN{IGNORECASE=1} /^access-control-allow-headers:/{print $0}' /tmp/opts.txt)"; echo "$ALH" | grep -qi 'x-admin-token' && echo "$ALH" | grep -qi 'authorization'
+
+      - name: POST invalid returns 4xx with ACAO:* and no ACAC
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN_STG || secrets.ADMIN_TOKEN_PROD || '' }}
+        run: |
+          set -euo pipefail
+          BASE=${{ matrix.envs.base }}
+          # Expect 401 without token or 400 with invalid body; both must include ACAO:* and omit ACAC:true
+          code=$(curl -sS -o /tmp/post.out -D /tmp/post.h -X POST "$BASE/api/admin/certified/items/ingest" \
+            -H 'origin: https://app.cerply.com' \
+            -H 'content-type: application/json' \
+            --data '{"bad":"payload"}' \
+            -w '%{http_code}')
+          echo "HTTP $code"; sed -n '1,60p' /tmp/post.h
+          test "$code" -ge 400 && test "$code" -lt 500
+          awk 'BEGIN{IGNORECASE=1} /^access-control-allow-origin:/{print $0}' /tmp/post.h | grep -qi "\*:*$"
+          if awk 'BEGIN{IGNORECASE=1} /^access-control-allow-credentials:/{print $0}' /tmp/post.h | grep -qi 'true'; then
+            echo 'ACAC:true present (FAIL)'; exit 1; fi
+
+

@@ -30,6 +30,11 @@ const EnvSchema = z.object({
   ALLOW_DEV_ADMIN: z.enum(['true','false']).optional(),
   RATE_LIMIT_ENABLED: z.enum(['true','false']).optional(),
   CORS_ORIGINS: z.string().optional(),
+  // Admin Certified Preview (EPIC #54)
+  ADMIN_PREVIEW: z.enum(['true','false']).optional(),
+  ADMIN_TOKEN: z.string().optional(),
+  ADMIN_MAX_REQUEST_BYTES: z.string().optional(),
+  ADMIN_RATE_LIMIT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
