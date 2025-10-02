@@ -28,7 +28,7 @@ export const ItemIngestReq = z.object({
 });
 export type ItemIngestReq = z.infer<typeof ItemIngestReq>;
 
-export const ItemStatus = z.enum(['pending','approved','rejected']);
+export const ItemStatus = z.enum(['pending','approved','rejected','queued','error']);
 
 export const Item = z.object({
   id: z.string(),

@@ -16,23 +16,30 @@ import type {
 
 export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
   private prisma: PrismaClient;
+  private initialized: boolean = false;
 
   constructor() {
-    // Use relative path from api/ directory for both dev and test
-    const dbPath = process.env.NODE_ENV === 'test'
-      ? 'file:./.data/admin-test.sqlite'
-      : 'file:./.data/admin.sqlite';
-    
+    // Prisma will use the URL from schema.prisma, which points to ./.data/admin.sqlite
+    // In tests, we can override via DATABASE_URL env var or let it use the default
     this.prisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: dbPath,
-        },
-      },
+      log: process.env.NODE_ENV === 'test' ? [] : ['error'],
     });
   }
 
+  private async ensureInitialized() {
+    if (this.initialized) return;
+    try {
+      // Test connection by querying
+      await this.prisma.$connect();
+      this.initialized = true;
+    } catch (error) {
+      console.error('Prisma connection failed:', error);
+      throw error;
+    }
+  }
+
   async createSource(data: Omit<AdminSource, 'id' | 'createdAt'>): Promise<AdminSource> {
+    await this.ensureInitialized();
     const record = await this.prisma.adminSource.create({
       data: {
         id: makeId('src'),
@@ -49,6 +56,7 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
   }
 
   async listSources(options?: ListSourcesOptions): Promise<ListSourcesResult> {
+    await this.ensureInitialized();
     const { q, page, limit } = options || {};
     const hasPage = typeof page === 'number' && page > 0;
     const take = hasPage ? Math.min(Math.max(1, limit || 20), 100) : undefined;
@@ -86,6 +94,7 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
   }
 
   async getSource(id: string): Promise<AdminSource | null> {
+    await this.ensureInitialized();
     const record = await this.prisma.adminSource.findUnique({ where: { id } });
     if (!record) return null;
     return {
@@ -97,6 +106,7 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
   }
 
   async createItem(data: Omit<AdminItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<AdminItem> {
+    await this.ensureInitialized();
     const record = await this.prisma.$transaction(async (tx) => {
       const item = await tx.adminItem.create({
         data: {
@@ -128,6 +138,7 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
   }
 
   async listItems(options?: ListItemsOptions): Promise<ListItemsResult> {
+    await this.ensureInitialized();
     const { status, sourceId, q, page, limit } = options || {};
     const hasPage = typeof page === 'number' && page > 0;
     const take = hasPage ? Math.min(Math.max(1, limit || 20), 100) : undefined;
@@ -162,12 +173,14 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
   }
 
   async getItem(id: string): Promise<AdminItem | null> {
+    await this.ensureInitialized();
     const record = await this.prisma.adminItem.findUnique({ where: { id } });
     if (!record) return null;
     return this.mapItemRecord(record);
   }
 
   async updateItemStatus(id: string, status: AdminItem['status']): Promise<AdminItem | null> {
+    await this.ensureInitialized();
     const record = await this.prisma.$transaction(async (tx) => {
       const item = await tx.adminItem.findUnique({ where: { id } });
       if (!item) return null;
@@ -196,6 +209,7 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
   }
 
   async logAudit(event: AdminAuditEvent): Promise<void> {
+    await this.ensureInitialized();
     await this.prisma.adminEvent.create({
       data: {
         id: makeId('evt'),
