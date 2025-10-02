@@ -243,6 +243,10 @@ export async function createApp() {
   app.addHook('onSend', async (req:any, reply:any, payload:any) => {
     // Avoid header writes after send (tests may complete very quickly)
     try { if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload; } catch {}
+    try {
+      const url = String(req?.url || (req?.raw && (req.raw as any).url) || '');
+      if (url.startsWith('/api/admin/')) return payload;
+    } catch {}
     const t1 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
     const ms = Math.max(0, Math.round((t1 - (req.__t0 || t1)) * 10) / 10);
     reply.header('Server-Timing', `app;dur=${ms}`);
