@@ -7,7 +7,7 @@ export const AdminAuthHeader = z.object({
 
 export const SourceCreateReq = z.object({
   name: z.string().min(1).max(120),
-  baseUrl: z.string().url(),
+  url: z.string().url().optional(),
   notes: z.string().max(2000).optional(),
 });
 export type SourceCreateReq = z.infer<typeof SourceCreateReq>;
@@ -15,8 +15,7 @@ export type SourceCreateReq = z.infer<typeof SourceCreateReq>;
 export const Source = z.object({
   id: z.string(),
   name: z.string(),
-  baseUrl: z.string(),
-  notes: z.string().optional(),
+  url: z.string().optional(),
   createdAt: z.string(),
 });
 export type Source = z.infer<typeof Source>;

@@ -64,9 +64,10 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
 
     const where: any = {};
     if (q) {
+      // SQLite doesn't support mode: 'insensitive'; use contains only (case-sensitive)
       where.OR = [
-        { name: { contains: q, mode: 'insensitive' } },
-        { url: { contains: q, mode: 'insensitive' } },
+        { name: { contains: q } },
+        { url: { contains: q } },
       ];
     }
 
@@ -148,9 +149,10 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
     if (status) where.status = status;
     if (sourceId) where.sourceId = sourceId;
     if (q) {
+      // SQLite doesn't support mode: 'insensitive'; use contains only (case-sensitive)
       where.OR = [
-        { title: { contains: q, mode: 'insensitive' } },
-        { url: { contains: q, mode: 'insensitive' } },
+        { title: { contains: q } },
+        { url: { contains: q } },
       ];
     }
 

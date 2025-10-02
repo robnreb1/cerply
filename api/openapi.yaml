@@ -218,10 +218,10 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, baseUrl]
+              required: [name]
               properties:
                 name: { type: string, minLength: 1, maxLength: 120 }
-                baseUrl: { type: string, format: uri }
+                url: { type: string, format: uri }
                 notes: { type: string, maxLength: 2000 }
       responses:
         '200':

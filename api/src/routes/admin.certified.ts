@@ -64,7 +64,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
       if ((reply as any).raw?.headersSent) return;
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: parsed.error.message } });
     }
-    const source = await store.createSource({ name: parsed.data.name, url: parsed.data.baseUrl });
+    const source = await store.createSource({ name: parsed.data.name, url: parsed.data.url });
     reply.header('access-control-allow-origin', '*');
     try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
     return reply.send({ source_id: source.id });
@@ -136,6 +136,21 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const { title, url, tags } = parsed.data;
     const { sha256, mime, provenance } = await probeUrlHead(url);
     
+    // Ensure source exists or create a default one
+    let sourceId = 'unknown';
+    try {
+      const existingSource = await store.getSource('unknown');
+      if (!existingSource) {
+        const defaultSource = await store.createSource({
+          name: 'Unknown Source',
+          url: undefined,
+        });
+        sourceId = defaultSource.id;
+      }
+    } catch {
+      // If getSource/createSource fails, still use 'unknown' and let DB handle it
+    }
+
     const item = await store.createItem({
       title,
       url,
@@ -144,7 +159,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
       mime,
       status: 'pending',
       provenance,
-      sourceId: 'unknown',
+      sourceId,
     });
     
     reply.header('access-control-allow-origin', '*');
