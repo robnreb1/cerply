@@ -59,14 +59,16 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
       removeHeaderSafe(reply, 'access-control-allow-credentials');
       return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'session required' } });
     }
-    // CSRF double-submit
-    const headerToken = String((req.headers?.['x-csrf-token'] ?? '')).trim();
-    const cookieToken = String(readCookie(req, 'csrf') || '').trim();
-    const valid = Boolean(sess && headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
-    if (!valid) {
-      setHeaderSafe(reply, 'access-control-allow-origin', '*');
-      removeHeaderSafe(reply, 'access-control-allow-credentials');
-      return reply.code(403).send({ error: { code: 'CSRF', message: 'csrf required' } });
+    // CSRF double-submit (only when session exists)
+    if (sess) {
+      const headerToken = String((req.headers?.['x-csrf-token'] ?? '')).trim();
+      const cookieToken = String(readCookie(req, 'csrf') || '').trim();
+      const valid = Boolean(headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
+      if (!valid) {
+        setHeaderSafe(reply, 'access-control-allow-origin', '*');
+        removeHeaderSafe(reply, 'access-control-allow-credentials');
+        return reply.code(403).send({ error: { code: 'CSRF', message: 'csrf required' } });
+      }
     }
   });
 
