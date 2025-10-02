@@ -1,9 +1,8 @@
 // Initialize SQLite test database before running tests
-import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-// Ensure .data directory exists
+// Ensure .data directory exists for SQLite databases
 const dataDir = path.join(process.cwd(), '.data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -11,31 +10,22 @@ if (!fs.existsSync(dataDir)) {
 
 const testDbPath = path.join(dataDir, 'admin-test.sqlite');
 
-// Remove old test DB if exists
+// Clean up old test DB and journal files for a fresh start
 try {
   if (fs.existsSync(testDbPath)) {
     fs.unlinkSync(testDbPath);
   }
   // Also remove journal files
-  ['.sqlite-journal', '.sqlite-shm', '.sqlite-wal'].forEach(ext => {
+  ['-journal', '-shm', '-wal'].forEach(ext => {
     const file = testDbPath + ext;
     if (fs.existsSync(file)) {
       fs.unlinkSync(file);
     }
   });
-} catch {}
-
-// Create empty test DB by running Prisma push
-try {
-  execSync('npx prisma db push --skip-generate', { 
-    cwd: process.cwd(),
-    env: { 
-      ...process.env,
-      NODE_ENV: 'test'
-    },
-    stdio: 'pipe'
-  });
-} catch (error) {
-  // Ignore errors - will be created on first use
+} catch (err) {
+  // Ignore cleanup errors
 }
+
+// Note: Prisma will create the database file on first connection
+// using the schema defined in prisma/schema.prisma
 

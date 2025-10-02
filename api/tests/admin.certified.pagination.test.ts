@@ -123,7 +123,7 @@ describe('Admin Certified Pagination & Filtering (NDJSON)', () => {
 });
 
 describe('Admin Certified Pagination & Filtering (SQLite)', () => {
-  let app: Awaited<ReturnType<typeof buildApp>>;
+  let app: Awaited<ReturnType<typeof buildApp>> | undefined;
   const hdr = { 'x-admin-token': 'secret', 'content-type': 'application/json' } as const;
 
   beforeAll(async () => {
@@ -141,7 +141,7 @@ describe('Admin Certified Pagination & Filtering (SQLite)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 
