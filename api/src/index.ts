@@ -339,8 +339,21 @@ const defaultOrigins = [
 ];
 const origins = CORS_ORIGINS ? CORS_ORIGINS.split(',').map(s => s.trim()).filter(Boolean) : defaultOrigins;
 await app.register(cors, { origin: origins, credentials: true });
+
+// Admin scope: register security first, then routes, under /api/admin
+try {
+  const adminSec = (await import('./plugins/security.admin')).default as any;
+  const enabled = String(process.env.ADMIN_PREVIEW || 'false').toLowerCase() === 'true';
+  await app.register(async (admin: any) => {
+    await admin.register(adminSec);
+    if (enabled) {
+      await registerAdminCertifiedRoutes(admin);
+    }
+  }, { prefix: '/api/admin' });
+} catch {}
+
 await app.register(fastifyCookie);
-// Optional security headers (helmet)
+// Optional security headers (helmet) — register after admin so admin routes are not affected
 try {
   const helmet = (await import('@fastify/helmet')).default as any;
   await app.register(helmet, { contentSecurityPolicy: false });
@@ -593,17 +606,7 @@ try {
   await registerCertifiedRoutes(app);
 } catch {}
 
-  // Admin scope: register security first, then routes, under /api/admin
-  try {
-    const adminSec = (await import('./plugins/security.admin')).default as any;
-    const enabled = String(process.env.ADMIN_PREVIEW || 'false').toLowerCase() === 'true';
-    await app.register(async (admin: any) => {
-      await admin.register(adminSec);
-      if (enabled) {
-        await registerAdminCertifiedRoutes(admin);
-      }
-    }, { prefix: '/api/admin' });
-  } catch {}
+  // (admin scope already registered above, before helmet)
 
 // Certified Retention v0 (preview)
 try {
