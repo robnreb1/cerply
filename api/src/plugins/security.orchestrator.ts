@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginCallback } from 'fastify';
 import { readCookie, getSession } from '../session';
 import rateLimit from '@fastify/rate-limit';
+import { setHeaderSafe, removeHeaderSafe } from './_safeHeaders';
 
 export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance, _opts, done) => {
   const maxBytes = Math.max(1024, parseInt(process.env.ORCH_MAX_REQUEST_BYTES || '32768', 10));
@@ -8,17 +9,17 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
   // Per-route rate limit via onRoute hook after plugin registration
   app.register(rateLimit as any, { global: false } as any);
 
-  // OPTIONS preflight: ensure 204 and ACAO:*
+  // OPTIONS preflight + early ACAO for orchestrator
   app.addHook('onRequest', async (req: any, reply: any) => {
-    const method = String(req?.method || '').toUpperCase();
     const url = String(req?.url || '');
-    if (method === 'OPTIONS' && url.startsWith('/api/orchestrator/')) {
-      reply
-        .header('access-control-allow-origin', '*')
-        .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-        .header('access-control-allow-headers', 'content-type, authorization')
-        .code(204)
-        .send();
+    if (!url.startsWith('/api/orchestrator/')) return;
+    setHeaderSafe(reply, 'access-control-allow-origin', '*');
+    removeHeaderSafe(reply, 'access-control-allow-credentials');
+    const method = String(req?.method || '').toUpperCase();
+    if (method === 'OPTIONS') {
+      setHeaderSafe(reply, 'access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+      setHeaderSafe(reply, 'access-control-allow-headers', 'content-type, authorization');
+      return reply.code(204).send();
     }
   });
 
@@ -54,8 +55,8 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
     const sid = readCookie(req, cookieName);
     const sess = await getSession(sid);
     if (requireSession && !sess) {
-      reply.header('access-control-allow-origin', '*');
-      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      setHeaderSafe(reply, 'access-control-allow-origin', '*');
+      removeHeaderSafe(reply, 'access-control-allow-credentials');
       return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'session required' } });
     }
     // CSRF double-submit
@@ -63,24 +64,20 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
     const cookieToken = String(readCookie(req, 'csrf') || '').trim();
     const valid = Boolean(sess && headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
     if (!valid) {
-      reply.header('access-control-allow-origin', '*');
-      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      setHeaderSafe(reply, 'access-control-allow-origin', '*');
+      removeHeaderSafe(reply, 'access-control-allow-credentials');
       return reply.code(403).send({ error: { code: 'CSRF', message: 'csrf required' } });
     }
   });
 
-  // Security headers for non-OPTIONS (guard headersSent)
-  app.addHook('onSend', async (req: any, reply: any, payload: any) => {
-    try { if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload; } catch {}
+  // Security headers for non-OPTIONS (preHandler; no onSend mutations)
+  app.addHook('preHandler', async (req: any, reply: any) => {
     const isOrch = String(req?.url || '').startsWith('/api/orchestrator/');
-    if (isOrch && String(req?.method || '').toUpperCase() !== 'OPTIONS') {
-      reply.header('X-Content-Type-Options', 'nosniff');
-      reply.header('Referrer-Policy', 'no-referrer');
-      // CORS invariants
-      reply.header('access-control-allow-origin', '*');
-      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-    }
-    return payload;
+    if (!isOrch || String(req?.method || '').toUpperCase() === 'OPTIONS') return;
+    setHeaderSafe(reply, 'X-Content-Type-Options', 'nosniff');
+    setHeaderSafe(reply, 'Referrer-Policy', 'no-referrer');
+    setHeaderSafe(reply, 'access-control-allow-origin', '*');
+    removeHeaderSafe(reply, 'access-control-allow-credentials');
   });
 
   // Rate limit config on routes

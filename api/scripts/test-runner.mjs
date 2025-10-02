@@ -1,29 +1,24 @@
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 import path from 'node:path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const root = path.resolve(__dirname, '..');
-const vitestBin = path.join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'vitest.cmd' : 'vitest');
+const cliArgs = process.argv.slice(2);
+const args = ['run', '--reporter=verbose', ...cliArgs];
 
-const args = ['run', '--reporter=verbose'];
-const env = { ...process.env, NODE_OPTIONS: '--unhandled-rejections=none' };
+function exists(p) { try { return fs.existsSync(p); } catch { return false; } }
 
-const child = spawn(vitestBin, args, { cwd: root, env });
+const cwd = process.cwd();
+const candidates = [
+  path.join(cwd, 'node_modules', '.bin', 'vitest'),
+  path.join(cwd, '..', 'node_modules', '.bin', 'vitest'),
+  path.join(cwd, '..', '..', 'node_modules', '.bin', 'vitest'),
+];
 
-let stdoutBuf = '';
-let stderrBuf = '';
+const localVitest = candidates.find(exists);
+const isWin = process.platform === 'win32';
+const cmd = localVitest ? localVitest : (isWin ? 'npx.cmd' : 'npx');
+const cmdArgs = localVitest ? args : ['-y', 'vitest', ...args];
 
-child.stdout.on('data', (chunk) => { stdoutBuf += chunk.toString(); });
-child.stderr.on('data', (chunk) => { stderrBuf += chunk.toString(); });
-
-child.on('close', (code) => {
-  const combined = stdoutBuf + (stderrBuf ? `\n${stderrBuf}` : '');
-  // Remove the specific Unhandled Errors block for Fastify/ERR_HTTP_HEADERS_SENT only
-  const cleaned = combined.replace(/\n?⎯[\s\S]*?Unhandled Errors[\s\S]*?Serialized Error: \{ code: 'ERR_HTTP_HEADERS_SENT' \}[\s\S]*?(?:\n\n|$)/g, '\n');
-  process.stdout.write(cleaned);
-  process.exit(code || 0);
-});
-
-
+const child = spawn(cmd, cmdArgs, { stdio: 'inherit', env: process.env });
+child.on('exit', (code) => process.exit(code ?? 1));
+child.on('error', (err) => { console.error(err); process.exit(1); });

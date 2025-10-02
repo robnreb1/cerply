@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyPluginCallback, FastifyRequest } from 'fastify';
+import { setHeaderSafe, removeHeaderSafe } from './_safeHeaders';
 import { createSession, deleteSession, getSession, readCookie, type SessionRecord } from '../session';
 
 type AuthPluginOpts = {};
@@ -41,14 +42,15 @@ export const authSecurityPlugin: FastifyPluginCallback<AuthPluginOpts> = (app: F
   const ENV = env();
   if (!ENV.enabled) { done(); return; }
 
-  // OPTIONS CORS invariants for /api/auth/session (explicit route)
-  app.options('/api/auth/session', async (_req, reply) => {
-    reply
-      .header('access-control-allow-origin', '*')
-      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
-      .header('access-control-allow-headers', 'content-type, x-csrf-token')
-      .code(204)
-      .send();
+  // OPTIONS CORS invariants for /api/auth/session handled via onRequest
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    const method = String(req?.method || '').toUpperCase();
+    const url = String(req?.url || '');
+    if (method !== 'OPTIONS' || url !== '/api/auth/session') return;
+    setHeaderSafe(reply, 'access-control-allow-origin', '*');
+    setHeaderSafe(reply, 'access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+    setHeaderSafe(reply, 'access-control-allow-headers', 'content-type, x-csrf-token');
+    return reply.code(204).send();
   });
 
   // Attach session to every request
@@ -91,18 +93,13 @@ export const authSecurityPlugin: FastifyPluginCallback<AuthPluginOpts> = (app: F
     }
   });
 
-  // Non-OPTIONS responses: enforce CORS invariants for auth endpoints
-  app.addHook('onSend', async (req: any, reply: any, payload: any) => {
-    try {
-      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload;
-      const method = String(req?.method || '').toUpperCase();
-      const url = String(req?.url || '');
-      if (url.startsWith('/api/auth/') && method !== 'OPTIONS') {
-        reply.header('access-control-allow-origin', '*');
-        reply.removeHeader('access-control-allow-credentials');
-      }
-    } catch {}
-    return payload;
+  // Non-OPTIONS responses: enforce CORS invariants for auth endpoints in preHandler
+  app.addHook('preHandler', async (req: any, reply: any) => {
+    const method = String(req?.method || '').toUpperCase();
+    const url = String(req?.url || '');
+    if (!url.startsWith('/api/auth/') || method === 'OPTIONS') return;
+    setHeaderSafe(reply, 'access-control-allow-origin', '*');
+    removeHeaderSafe(reply, 'access-control-allow-credentials');
   });
 
   // Routes: /api/auth/session

@@ -28,19 +28,18 @@ export const registerSecurityCors: FastifyPluginCallback<CorsPluginOpts> = (app:
     } catch {}
   });
 
-  // For non-OPTIONS responses on these prefixes, enforce ACAO:* and strip ACAC and debug header
-  app.addHook('onSend', async (req: any, reply: any, payload: any) => {
+  // For non-OPTIONS responses on these prefixes, enforce headers early in preHandler; avoid onSend mutations
+  app.addHook('preHandler', async (req: any, reply: any) => {
     try {
-      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent) return payload;
       const method = String(req?.method || '').toUpperCase();
-      if (method === 'OPTIONS') return payload;
+      if (method === 'OPTIONS') return;
       const url = String(req?.url || '');
-      if (!isManagedPath(url)) return payload;
+      if (!isManagedPath(url)) return;
+      if ((reply as any).raw?.headersSent) return;
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
       try { (reply as any).removeHeader?.('x-cors-certified-hook'); } catch {}
     } catch {}
-    return payload;
   });
 
   done();
