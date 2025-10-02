@@ -1,15 +1,16 @@
-{
-
-  "epic": 54,
-  "action": "certified-admin-v0-preview",
-  "status": "done",
-  "timestamp": "2025-09-27T08:25:00Z",
-  "pr": null
-
-  "epic": 59,
-  "action": "launch-metrics-v0",
-  "status": "open-pr",
-  "timestamp": "2025-09-26T20:29:44Z",
-  "pr": 163
-
-}
+[
+  {
+    "epic": 54,
+    "action": "certified-admin-v0-preview",
+    "status": "done",
+    "timestamp": "2025-09-27T08:25:00Z",
+    "pr": 165
+  },
+  {
+    "epic": 59,
+    "action": "launch-metrics-v0",
+    "status": "open-pr",
+    "timestamp": "2025-09-26T20:29:44Z",
+    "pr": 163
+  }
+]
