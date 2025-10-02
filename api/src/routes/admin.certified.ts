@@ -39,6 +39,14 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   } catch {}
 
   // Preflight and security headers handled by security.admin plugin
+  app.options('/certified/*', async (_req: any, reply: any) => {
+    reply
+      .header('access-control-allow-origin', '*')
+      .header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE')
+      .header('access-control-allow-headers', 'content-type, x-admin-token, authorization');
+    try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+    return reply.code(204).send();
+  });
 
   function authGuard(req: FastifyRequest, reply: FastifyReply): boolean {
     if (!tokenOk(req.headers as any)) {
