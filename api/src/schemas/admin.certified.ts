@@ -52,8 +52,19 @@ export type Item = z.infer<typeof Item>;
 
 export const ItemQuery = z.object({
   status: ItemStatus.optional(),
+  source_id: z.string().optional(),
+  q: z.string().max(200).optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
 });
 export type ItemQuery = z.infer<typeof ItemQuery>;
+
+export const SourceQuery = z.object({
+  q: z.string().max(200).optional(),
+  page: z.coerce.number().int().positive().optional(),
+  limit: z.coerce.number().int().positive().max(100).optional(),
+});
+export type SourceQuery = z.infer<typeof SourceQuery>;
 
 export const ApproveRejectReq = z.object({}).passthrough();
 
@@ -68,6 +79,7 @@ export const AdminSchemas = {
   AdminAuthHeader,
   SourceCreateReq,
   Source,
+  SourceQuery,
   ItemIngestReq,
   Item,
   ItemQuery,

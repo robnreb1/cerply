@@ -1,0 +1,56 @@
+// Prisma schema for Admin Certified subsystem (EPIC #55)
+// SQLite provider for durable storage opt-in via ADMIN_STORE=sqlite
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../.data/admin.sqlite"
+}
+
+// Admin Source — content source for certified items
+model AdminSource {
+  id        String      @id @default(cuid())
+  name      String
+  url       String?
+  createdAt DateTime    @default(now())
+  items     AdminItem[]
+
+  @@map("admin_sources")
+}
+
+// Admin Item — certifiable content item
+model AdminItem {
+  id         String       @id @default(cuid())
+  sourceId   String       @map("source_id")
+  status     String       @default("queued") // queued|approved|rejected|error
+  title      String?
+  url        String
+  sha256     String
+  sizeBytes  Int?         @map("size_bytes")
+  meta       String?      // JSON serialized
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  source     AdminSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  events     AdminEvent[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([sourceId, createdAt(sort: Desc)])
+  @@map("admin_items")
+}
+
+// Admin Event — audit trail for item lifecycle
+model AdminEvent {
+  id        String    @id @default(cuid())
+  itemId    String    @map("item_id")
+  type      String    // ingest|approve|reject|error
+  payload   String?   // JSON serialized
+  createdAt DateTime  @default(now()) @map("created_at")
+  item      AdminItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, createdAt(sort: Desc)])
+  @@map("admin_events")
+}
+

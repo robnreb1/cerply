@@ -35,6 +35,8 @@ const EnvSchema = z.object({
   ADMIN_TOKEN: z.string().optional(),
   ADMIN_MAX_REQUEST_BYTES: z.string().optional(),
   ADMIN_RATE_LIMIT: z.string().optional(),
+  // Admin Certified Store (EPIC #55)
+  ADMIN_STORE: z.enum(['ndjson','sqlite']).optional().default('ndjson'),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
