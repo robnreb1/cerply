@@ -9,54 +9,326 @@
     "/api/admin/certified/sources": {
       "post": {
         "summary": "Create source (admin preview)",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name","baseUrl"], "properties": { "name": {"type":"string"}, "baseUrl": {"type":"string","format":"uri"}, "notes": {"type":"string"} } } } } },
-        "responses": { "200": { "description": "Created", "content": { "application/json": { "schema": { "type":"object", "required":["source_id"], "properties": { "source_id": {"type":"string"} } } } } }, "400": { "description": "Bad request" }, "401": { "description": "Unauthorized" }, "413": { "description": "Too large" } }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "baseUrl"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "baseUrl": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "source_id"
+                  ],
+                  "properties": {
+                    "source_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "413": {
+            "description": "Too large"
+          }
+        }
       },
       "get": {
         "summary": "List sources (admin preview)",
-        "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "object", "properties": { "sources": { "type": "array", "items": { "type": "object" } } } } } } }, "401": { "description": "Unauthorized" } }
+        "responses": {
+          "200": {
+            "description": "List",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sources": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
       },
-      "options": { "summary":"CORS preflight", "responses": { "204": { "description": "No Content" } } }
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     },
     "/api/admin/certified/items/ingest": {
       "post": {
         "summary": "Ingest item (admin preview)",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["title","url"], "properties": { "title": {"type":"string"}, "url": {"type":"string","format":"uri"}, "tags": {"type":"array","items":{"type":"string"}} } } } } },
-        "responses": { "200": { "description": "Queued", "content": { "application/json": { "schema": { "type":"object", "required":["item_id"], "properties": { "item_id": {"type":"string"} } } } } }, "400": { "description": "Bad request" }, "401": { "description": "Unauthorized" }, "413": { "description": "Too large" } }
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "url"
+                ],
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "item_id"
+                  ],
+                  "properties": {
+                    "item_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "413": {
+            "description": "Too large"
+          }
+        }
       },
-      "options": { "summary":"CORS preflight", "responses": { "204": { "description": "No Content" } } }
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     },
     "/api/admin/certified/items": {
       "get": {
         "summary": "List items (admin preview)",
-        "parameters": [ { "name": "status", "in": "query", "schema": { "type":"string", "enum": ["pending","approved","rejected"] } } ],
-        "responses": { "200": { "description": "List", "content": { "application/json": { "schema": { "type": "object", "properties": { "items": { "type": "array", "items": { "type": "object" } } } } } } }, "401": { "description": "Unauthorized" } }
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "approved",
+                "rejected"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
       },
-      "options": { "summary":"CORS preflight", "responses": { "204": { "description": "No Content" } } }
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     },
     "/api/admin/certified/items/{id}": {
       "get": {
         "summary": "Get item (admin preview)",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type":"string" } } ],
-        "responses": { "200": { "description": "Item", "content": { "application/json": { "schema": { "type": "object" } } } }, "401": { "description": "Unauthorized" }, "404": { "description": "Not found" } }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
       },
-      "options": { "summary":"CORS preflight", "responses": { "204": { "description": "No Content" } } }
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     },
     "/api/admin/certified/items/{id}/approve": {
       "post": {
         "summary": "Approve item (admin preview)",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type":"string" } } ],
-        "responses": { "200": { "description": "Approved" }, "401": { "description": "Unauthorized" }, "404": { "description": "Not found" } }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approved"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
       },
-      "options": { "summary":"CORS preflight", "responses": { "204": { "description": "No Content" } } }
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     },
     "/api/admin/certified/items/{id}/reject": {
       "post": {
         "summary": "Reject item (admin preview)",
-        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type":"string" } } ],
-        "responses": { "200": { "description": "Rejected" }, "401": { "description": "Unauthorized" }, "404": { "description": "Not found" } }
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rejected"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
       },
-      "options": { "summary":"CORS preflight", "responses": { "204": { "description": "No Content" } } }
+      "options": {
+        "summary": "CORS preflight",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
     },
     "/api/auth/session": {
       "post": {
