@@ -118,7 +118,11 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
           url: data.url,
           sha256: data.sha256,
           sizeBytes: null,
-          meta: data.provenance ? JSON.stringify({ mime: data.mime, provenance: data.provenance, tags: data.tags }) : null,
+          meta: JSON.stringify({ 
+            mime: data.mime, 
+            provenance: data.provenance, 
+            tags: data.tags 
+          }),
         },
       });
 
