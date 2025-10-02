@@ -4,8 +4,11 @@ type CorsPluginOpts = { prefixes: string[] };
 
 export const registerSecurityCors: FastifyPluginCallback<CorsPluginOpts> = (app: FastifyInstance, opts, done) => {
   const prefixes = (opts?.prefixes || []).map(s => s.replace(/\/$/, ''));
-  // Exclude admin paths to avoid overlapping with admin plugin and route-level headers
-  const isManagedPath = (url: string) => prefixes.some(p => url.startsWith(p + '/')) && !url.startsWith('/api/admin/');
+  // Exclude admin, orchestrator, and auth paths to avoid overlapping with their scoped plugins
+  const isManagedPath = (url: string) => prefixes.some(p => url.startsWith(p + '/'))
+    && !url.startsWith('/api/admin/')
+    && !url.startsWith('/api/orchestrator/')
+    && !url.startsWith('/api/auth/');
 
   // OPTIONS 204 for each prefix
   app.addHook('onRequest', async (req: any, reply: any) => {
