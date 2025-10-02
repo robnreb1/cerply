@@ -81,7 +81,7 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
       hasPage ? this.prisma.adminSource.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    const sources: AdminSource[] = records.map((r) => ({
+    const sources: AdminSource[] = records.map((r: any) => ({
       id: r.id,
       name: r.name,
       url: r.url || undefined,
@@ -108,7 +108,7 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
 
   async createItem(data: Omit<AdminItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<AdminItem> {
     await this.ensureInitialized();
-    const record = await this.prisma.$transaction(async (tx) => {
+    const record = await this.prisma.$transaction(async (tx: any) => {
       const item = await tx.adminItem.create({
         data: {
           id: makeId('itm'),
@@ -166,7 +166,7 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
       hasPage ? this.prisma.adminItem.count({ where }) : Promise.resolve(undefined),
     ]);
 
-    const items: AdminItem[] = records.map((r) => this.mapItemRecord(r));
+    const items: AdminItem[] = records.map((r: any) => this.mapItemRecord(r));
 
     if (hasPage && total !== undefined) {
       return { items, total, page: page!, limit: take! };
@@ -183,7 +183,7 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
 
   async updateItemStatus(id: string, status: AdminItem['status']): Promise<AdminItem | null> {
     await this.ensureInitialized();
-    const record = await this.prisma.$transaction(async (tx) => {
+    const record = await this.prisma.$transaction(async (tx: any) => {
       const item = await tx.adminItem.findUnique({ where: { id } });
       if (!item) return null;
 
