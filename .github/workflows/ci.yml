@@ -284,6 +284,10 @@ jobs:
           npm ci --workspaces --include-workspace-root --no-audit --no-fund
           git diff --exit-code package-lock.json || (echo "Root lockfile drifted"; exit 1)
 
+      - name: Generate Prisma Client (explicit)
+        working-directory: ./api
+        run: npx prisma generate --schema=./prisma/schema.prisma
+
       - name: Build API
         run: npm --workspace ./api run build
 
