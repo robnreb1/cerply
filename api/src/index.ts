@@ -206,7 +206,37 @@ export async function createApp() {
   app.addHook('onRequest', async (req:any, _reply:any) => {
     req.__t0 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
   });
-  app.addHook('onSend', async (_req:any, _reply:any, payload:any) => payload);
+  app.addHook('onSend', async (req:any, reply:any, payload:any) => {
+    // Avoid header writes after send or for hijacked/admin responses
+    try { 
+      if ((reply as any).hijacked === true || (reply as any).raw?.headersSent || reply.sent) return payload;
+      const url = String(req?.url || '');
+      if (url.startsWith('/api/admin/')) return payload; // admin plugin owns headers
+    } catch {}
+    
+    const t1 = (global as any).performance?.now ? (global as any).performance.now() : Date.now();
+    const ms = Math.max(0, Math.round((t1 - (req.__t0 || t1)) * 10) / 10);
+    reply.header('Server-Timing', `app;dur=${ms}`);
+    reply.header('x-req-ms', String(ms));
+
+    // Probabilistic DB sink of latency as event payload
+    try {
+      if (OBS_PCT > 0 && Math.random() * 100 < OBS_PCT) {
+        const db = (app as any).db;
+        if (db?.execute) {
+          const eventPayload = {
+            route: String((req.routerPath || req.url || '')).slice(0, 120),
+            method: req.method,
+            status: reply.statusCode,
+            ms
+          };
+          await db.execute(`insert into events(user_id, type, payload) values ($1,$2,$3)`, [null, 'latency', eventPayload]);
+        }
+      }
+    } catch {}
+    
+    return payload;
+  });
   // ────────────────────────────────────────────────────────────────────────
   // Request ID header and availability on req
   app.addHook('onRequest', async (req, reply) => {
