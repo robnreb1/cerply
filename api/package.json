@@ -20,7 +20,7 @@
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:push": "drizzle-kit push --config=drizzle.config.ts",
     "db:seed": "tsx scripts/seed.ts",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --name init_admin_store",
     "openapi:build": "tsx scripts/openapi-build.ts",
     "openapi:check": "npm run openapi:build && test -f openapi/build/openapi.json",
