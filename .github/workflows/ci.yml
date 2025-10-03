@@ -332,11 +332,21 @@ jobs:
         run: npm ci --workspaces --include-workspace-root
       - name: Build API
         run: npm --workspace ./api run build
+      - name: Initialize Test Database
+        working-directory: ./api
+        run: |
+          mkdir -p .data
+          export DATABASE_URL="file:$PWD/.data/admin-test.sqlite"
+          npx prisma db push --skip-generate --accept-data-loss --schema=./prisma/schema.prisma
+          echo "✅ Database file created:"
+          ls -lh .data/admin-test.sqlite || echo "❌ File not found!"
       - name: Start API preview (background)
         env:
           PREVIEW_ANALYTICS: 'true'
           FASTIFY_AUTOSTART: 'true'
           PORT: 8080
+          NODE_ENV: test
+          DATABASE_URL: "file:./.data/admin-test.sqlite"
         run: |
           npm --workspace ./api run start &
           echo $! > /tmp/api_pid.txt
@@ -376,11 +386,21 @@ jobs:
         run: npm ci --workspaces --include-workspace-root
       - name: Build API
         run: npm --workspace ./api run build
+      - name: Initialize Test Database
+        working-directory: ./api
+        run: |
+          mkdir -p .data
+          export DATABASE_URL="file:$PWD/.data/admin-test.sqlite"
+          npx prisma db push --skip-generate --accept-data-loss --schema=./prisma/schema.prisma
+          echo "✅ Database file created:"
+          ls -lh .data/admin-test.sqlite || echo "❌ File not found!"
       - name: Start API preview (background)
         env:
           PREVIEW_ANALYTICS: 'true'
           FASTIFY_AUTOSTART: 'true'
           PORT: 8080
+          NODE_ENV: test
+          DATABASE_URL: "file:./.data/admin-test.sqlite"
         run: |
           npm --workspace ./api run start &
           echo $! > /tmp/api_pid.txt
