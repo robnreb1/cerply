@@ -56,8 +56,14 @@ export async function createApp() {
         fallbacks.map(n => (mod as any)[n]).find((fn: any) => typeof fn === 'function') ??
         (typeof (mod as any) === 'function' ? (mod as any) : undefined);
 
-      if (typeof candidate === 'function') await app.register(candidate as any);
-      else app.log.warn({ modPath }, 'No registerable export found');
+      if (typeof candidate === 'function') {
+        const result = app.register(candidate as any);
+        if (result && typeof result.then === 'function') {
+          await result;
+        }
+      } else {
+        app.log.warn({ modPath }, 'No registerable export found');
+      }
     } catch (err) {
       app.log.error({ err, modPath }, 'Route registration failed');
     }
@@ -93,9 +99,6 @@ export async function createApp() {
 
   // Health route (critical for CI health checks)
   await safeRegister('./routes/health', ['registerHealth']);
-
-  // DB health route for database connectivity checks
-  await safeRegister('./routes/dbHealth', ['registerDbHealth']);
 
   return app;
 }
