@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import createApp from '../src/index';
+import { createApp } from '../src/index';
 
 describe('Certified audit preview route', () => {
   let app: Awaited<ReturnType<typeof createApp>>;

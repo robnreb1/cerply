@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import createApp from '../src/index';
+import { createApp } from '../src/index';
 
 const COOKIE = 'cerply_session=test';
 

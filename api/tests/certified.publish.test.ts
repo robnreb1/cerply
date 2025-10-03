@@ -18,7 +18,7 @@ import path from 'node:path';
 import { sign, toBase64, verify as verifyEd25519, _resetCache } from '../src/lib/ed25519';
 import { artifactFor, canonicalize, sha256Hex, writeArtifact, readArtifact, getArtifactsDir } from '../src/lib/artifacts';
 import { resetStoreInstance } from '../src/store/adminCertifiedStoreFactory';
-import createApp from '../src/index';
+import { createApp } from '../src/index';
 import type { FastifyInstance } from 'fastify';
 
 describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
