@@ -18,10 +18,14 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
   }
 
   // Register orchestrator security plugin for CSRF protection
-  // Temporarily disabled due to potential startup issues
-  // console.log('Registering orchestrator security plugin...');
-  // await app.register(orchestratorSecurityPlugin);
-  // console.log('Orchestrator security plugin registered successfully');
+  console.log('Registering orchestrator security plugin...');
+  try {
+    await app.register(orchestratorSecurityPlugin);
+    console.log('Orchestrator security plugin registered successfully');
+  } catch (err) {
+    console.error('Failed to register orchestrator security plugin:', err);
+    // Continue without security plugin rather than failing startup
+  }
 
   // Simple readiness probe for orchestrator prefix (useful for staging canary)
   app.get('/api/orchestrator/ping', async (_req: FastifyRequest, reply: FastifyReply) => {
