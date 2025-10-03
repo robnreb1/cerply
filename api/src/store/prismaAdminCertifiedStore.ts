@@ -20,8 +20,15 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
 
   constructor() {
     // Prisma will use the URL from schema.prisma, which points to ./.data/admin.sqlite
-    // In tests, we can override via DATABASE_URL env var or let it use the default
+    // In tests, we override to use admin-test.sqlite
+    const testDbUrl = process.env.NODE_ENV === 'test' 
+      ? 'file:./.data/admin-test.sqlite'
+      : undefined;
+    
     this.prisma = new PrismaClient({
+      datasources: testDbUrl ? {
+        db: { url: testDbUrl }
+      } : undefined,
       log: process.env.NODE_ENV === 'test' ? [] : ['error'],
     });
   }
