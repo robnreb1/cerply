@@ -91,5 +91,11 @@ export async function createApp() {
   // Export routes for analytics
   await safeRegister('./routes/exports', ['registerExportRoutes']);
 
+  // Health route (critical for CI health checks)
+  await safeRegister('./routes/health', ['registerHealth']);
+
+  // DB health route for database connectivity checks
+  await safeRegister('./routes/dbHealth', ['registerDbHealth']);
+
   return app;
 }
