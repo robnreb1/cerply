@@ -91,8 +91,5 @@ export async function createApp() {
   // Export routes for analytics
   await safeRegister('./routes/exports', ['registerExportRoutes']);
 
-  // Routes dump for debugging
-  await safeRegister('./routes/routesDump', ['registerRoutesDump']);
-
   return app;
 }
