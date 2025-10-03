@@ -479,6 +479,135 @@ Web integration (preview): `/certified/study` calls schedule on start/reset, pos
 - Engine selection: If `FF_OPENAI_ADAPTER_V0=true` and `PLANNER_ENGINE=openai`, PLAN uses `openai-v0` (preview; deterministic fallback when no key). Response `provenance.engine: "openai-v0"`.
 - Evaluator: `npm -w api run -s planner:eval:openai` writes metrics to `api/tests/fixtures/planner-eval.openai.json`.
 - CI: Offline eval always runs; optional keyed smoke when secret exists.
+## 22A) OKR Alignment (Authoritative)
+
+> Purpose: Make OKRs enforceable from the spec itself. These KRs are measured via explicit events, metrics, and endpoints so delivery cannot drift from business value.
+
+### O1. Be the trusted engine for learning anything, with retention that sticks.
+- **KR1.1** ≥80% of learners complete ≥1 scheduled review in week one.
+  - **Signals**: `review.completed` events within 7 days of first learn; denominator = unique `session_id` with ≥1 generated item.
+  - **Metric**: `okr.o1.kr1_1_w1_review_rate`.
+- **KR1.2** ≥60% retention at 30 days (spaced recall).
+  - **Signals**: `review.graded` for items due at ≥30 days; correct/incorrect.
+  - **Metric**: `okr.o1.kr1_2_retention_30d`.
+- **KR1.3** TTFP (artefact → first plan) p95 < 60s.
+  - **Signals**: `ingest.received` → `plan.ready` (first); p95.
+  - **Metric**: `okr.o1.kr1_3_ttfp_p95_seconds`.
+- **KR1.4** Median learner satisfaction ≥70.
+  - **Signals**: `feedback.submitted { score: 0–100 }` post‑session.
+  - **Metric**: `okr.o1.kr1_4_satisfaction_median`.
+
+### O2. Establish Cerply Certified as the gold standard for horizontal topics.
+- **KR2.1** ≥150 Certified items published in 6 months.
+  - **Signals**: `certified.item.published`.
+  - **Metric**: `okr.o2.kr2_1_items_total`.
+- **KR2.2** ≥5 high‑value domains covered (e.g., compliance, data protection, safety, finance basics, onboarding).
+  - **Signals**: `certified.domain.enabled { domain_id }`.
+  - **Metric**: `okr.o2.kr2_2_domains_count`.
+- **KR2.3** 100% Certified items have expert ratification + audit trail.
+  - **Signals**: `certified.item.ratified { expert_id, audit_uri }`.
+  - **Metric**: `okr.o2.kr2_3_ratified_pct`.
+- **KR2.4** ≥3 design‑partner orgs adopt Certified packs in pilots.
+  - **Signals**: `org.pack.deployed { org_id, pack_id, plan: "pilot" }`.
+  - **Metric**: `okr.o2.kr2_4_design_partners`.
+
+### O3. Build enterprise‑grade adoption and monetization (D2B).
+- **KR3.1** ≥3 paying enterprise pilots.
+  - **Signals**: `billing.subscription.created { plan: "pilot_paid" }`.
+  - **Metric**: `okr.o3.kr3_1_paying_pilots`.
+- **KR3.2** ≥50% pilot → paid conversion.
+  - **Signals**: `pilot.closed { outcome: "won|lost" }`.
+  - **Metric**: `okr.o3.kr3_2_pilot_conversion_rate`.
+- **KR3.3** ≥95% uptime; SSO + audit logs live.
+  - **Signals**: uptime from ops monitor; feature flags `FF_SSO`, `FF_AUDIT_LOGS`.
+  - **Metrics**: `okr.o3.kr3_3_uptime_pct`, boolean checks for SSO/audit endpoints.
+- **KR3.4** Pricing benchmark ≥20% lower than average LMS pilot alternatives while maintaining margins.
+  - **Signals**: `deal.benchmark.recorded { competitor, price_per_seat }`.
+  - **Metric**: `okr.o3.kr3_4_price_delta_pct`.
+
+### O4. Leverage consumer use (D2C) as data + funnel, not revenue.
+- **KR4.1** D2C waitlist ≥5,000.
+  - **Signals**: `waitlist.joined`.
+  - **Metric**: `okr.o4.kr4_1_waitlist_total`.
+- **KR4.2** ≥1,000 weekly active learners.
+  - **Signals**: `session.active` (weekly unique).
+  - **Metric**: `okr.o4.kr4_2_wau`.
+- **KR4.3** ≥25% of learners export/share a module.
+  - **Signals**: `module.exported|module.shared` per learner.
+  - **Metric**: `okr.o4.kr4_3_share_export_rate`.
+- **KR4.4** ≥20 Certified topics originate from D2C patterns.
+  - **Signals**: `certified.topic.created { source: "d2c_insight" }`.
+  - **Metric**: `okr.o4.kr4_4_topics_from_d2c`.
+
+### O5. Demonstrate defensibility through certification + telemetry.
+- **KR5.1** 100% of Certified items include lineage + citations.
+  - **Signals**: `certified.item.published { lineage:[], citations:[] }` non‑empty.
+  - **Metric**: `okr.o5.kr5_1_lineage_coverage_pct`.
+- **KR5.2** ≥1 external validation study published.
+  - **Signals**: `evidence.study.published { uri }`.
+  - **Metric**: `okr.o5.kr5_2_studies_count`.
+- **KR5.3** Telemetry dashboard live with daily token use, cost, retention outcomes.
+  - **Signals**: ETL to ops store.
+  - **Metric**: `okr.o5.kr5_3_dashboard_ok` boolean health.
+- **KR5.4** ≥2 industry associations accept Cerply Certified for CPD/CE.
+  - **Signals**: `cpe.provider.accepted { association }`.
+  - **Metric**: `okr.o5.kr5_4_associations_count`.
+
+---
+
+### Instrumentation & API Requirements
+- **Events schema**: Emit the signals above via `api/src/events/*.ts` with fields shown. Persist to append‑only NDJSON (preview) or durable store when flagged.
+- **Metrics endpoint**: `GET /api/ops/kpis` returns JSON `{ o1:{ kr1_1:..., kr1_2:..., kr1_3:..., kr1_4:... }, o2:{...}, ... }` with timestamps and denominators. Must return 200; never 404.
+- **Uptime source**: Integrate ops monitor (Render/Healthcheck) and expose `uptime_30d` inside `/api/ops/kpis`.
+- **Feature flags**: `FF_SSO`, `FF_AUDIT_LOGS`, `FF_OKR_METRICS=true` gate non‑essential features but **/api/ops/kpis** must exist when flag on.
+
+### Acceptance (22A)
+- `GET /api/ops/kpis` returns 200 JSON with all KRs present; includes `generated_at` ISO timestamp.
+- p95 TTFP (`okr.o1.kr1_3_ttfp_p95_seconds`) < 60 on staging demo dataset.
+- Ratification coverage (`okr.o2.kr2_3_ratified_pct`) = 100% for all items with status `published`.
+- Dashboard health (`okr.o5.kr5_3_dashboard_ok`) reports `true` and includes daily token + cost aggregates.
+- CI smoke `scripts/smoke-okr.sh` (to be added) asserts presence and schema of `/api/ops/kpis`.
+
+### Verification
+- Local: `curl -sS http://localhost:3001/api/ops/kpis | jq` → check KR fields.
+- Staging: `curl -sS "$STG/api/ops/kpis" -H "x-vercel-protection-bypass: $TOKEN" | jq`.
+- Logs: verify events emitted for `review.completed`, `certified.item.published`, ratifications, and billing events.
+
+
+## 22B) Regulatory Scanner v0
+
+> MVP for ingesting and scanning policy, legal, or regulatory documents for critical changes, obligations, and compliance triggers.
+
+- **Input:** PDF, DOCX, or pasted text (policy, regulation, SOP, etc.).
+- **Processing:**
+  - Extracts obligations, deadlines, and compliance requirements.
+  - Flags changes vs. previous versions (if supplied).
+  - Identifies responsible parties and key risk areas.
+- **Output:**
+  - Structured JSON: `{ obligations:[], deadlines:[], triggers:[], changes:[], risk_areas:[] }`
+  - UI: Renders a summary table and highlights new/changed obligations.
+- **Acceptance:**
+  - Upload/scan completes in <90s for <50pp docs.
+  - Minimum 80% precision on obligations extraction (manual eval, 10 test docs).
+  - Change detection works for redlines or prior version diffs.
+  - API: `POST /api/regscan/scan` returns structured results; never 404.
+
+## 22C) Content Atom Schema v0
+
+> Foundation for all micro-learning and compliance content, supporting modularity, versioning, and audit.
+
+- **Atom:** The base unit of content (lesson, quiz item, obligation, etc.).
+- **Schema:**
+  - `id`, `type`, `body`, `source_ref`, `created_at`, `updated_at`, `version`, `lineage`, `citations`, `tags`, `status`.
+  - Types include: `lesson`, `quiz_item`, `obligation`, `policy_change`, `note`, `evidence`.
+- **Audit Trail:**
+  - Every atom links to source(s) and prior version(s).
+  - All certified atoms must have non-empty `lineage` and at least one `citation` (see OKR 5.1).
+- **Acceptance:**
+  - All generated modules and certified items conform to schema (validated at API boundary).
+  - Versioning and audit fields are present and populated for every atom in `/api/certified/*` and `/api/coverage`.
+  - Schema published at `/api/schema/content-atom.json` (never 404).
+
 ## 23) Backlog (Next 10)
 
 1. LLM router + runner stubs (`api/src/llm/*`).

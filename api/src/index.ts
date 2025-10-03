@@ -5,11 +5,16 @@ import helmet from '@fastify/helmet';
 
 type Fn = (instance: any, opts?: any) => Promise<void> | void;
 
-export default async function createApp() {
+export async function createApp() {
   const app = Fastify({ logger: true });
   
   // CORS — tests expect wildcard and no credentials
-  await app.register(cors, { origin: '*', credentials: false });
+  await app.register(cors, { 
+    origin: '*', 
+    credentials: false,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['content-type', 'authorization']
+  });
 
   // Helmet (let CORP be set per-route)
   await app.register(helmet, { crossOriginResourcePolicy: false });
@@ -72,6 +77,22 @@ export default async function createApp() {
 
   // Auth routes for session management
   await safeRegister('./routes/auth', ['registerAuthRoutes']);
+
+  // Analytics routes for smoke tests and event tracking
+  await safeRegister('./routes/analytics', ['registerAnalyticsRoutes']);
+  await safeRegister('./routes/analytics.preview', ['registerAnalyticsPreviewRoutes']);
+
+  // Ingest routes for legacy compatibility and smoke tests
+  await safeRegister('./routes/ingest', ['registerIngestRoutes']);
+
+  // Chat routes for smoke tests
+  await safeRegister('./routes/chat', ['registerChatRoutes']);
+
+  // Export routes for analytics
+  await safeRegister('./routes/exports', ['registerExportRoutes']);
+
+  // Routes dump for debugging
+  await safeRegister('./routes/routesDump', ['registerRoutesDump']);
 
   return app;
 }

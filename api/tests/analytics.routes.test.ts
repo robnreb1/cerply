@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { createApp } from '../src';
 
 describe('Analytics Preview Routes', () => {
   it('OPTIONS returns 204 and ACAO:*', async () => {
     process.env.PREVIEW_ANALYTICS = 'true';
+    const { createApp } = await import('../src');
     const app = await createApp();
     const res = await app.inject({ method: 'OPTIONS', url: '/api/analytics/ingest' });
     expect(res.statusCode).toBe(204);
@@ -13,6 +13,7 @@ describe('Analytics Preview Routes', () => {
   it('POST ingest enforces content-type and secret when set', async () => {
     process.env.PREVIEW_ANALYTICS = 'true';
     process.env.ANALYTICS_INGEST_SECRET = 't';
+    const { createApp } = await import('../src');
     const app = await createApp();
     const r415 = await app.inject({ method: 'POST', url: '/api/analytics/ingest', payload: '{}' });
     expect(r415.statusCode).toBe(415);
@@ -25,6 +26,7 @@ describe('Analytics Preview Routes', () => {
   it('ingest + aggregate roundtrip', async () => {
     process.env.PREVIEW_ANALYTICS = 'true';
     delete process.env.ANALYTICS_INGEST_SECRET;
+    const { createApp } = await import('../src');
     const app = await createApp();
     const now = new Date().toISOString();
     const ingest = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json' }, payload: JSON.stringify({ events: [ { event:'plan_request', ts: now, anon_session_id: 's1', context:{ topic:'Hashes', engine:'mock' } } ] }) });
