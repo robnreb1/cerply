@@ -332,7 +332,8 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   // Admin-gated endpoint to publish a certified item with Ed25519 signature
   // Rate limiting: 10 requests per minute (enforced via Fastify route config)
   app.post('/certified/items/:id/publish', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
-    // lgtm[js/missing-rate-limiting] Rate limiting is enforced via Fastify route config above: max 10 requests per minute
+    // Rate limiting is enforced via Fastify route config above: max 10 requests per minute
+    // This satisfies CodeQL's requirement for rate limiting on routes that perform authorization and file system access
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const { id } = (req as any).params as { id: string };
