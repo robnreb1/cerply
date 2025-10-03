@@ -90,48 +90,6 @@ export async function buildApp(_opts?: FastifyServerOptions) {
     }
   });
 
-  // ---- Public signature blob (.sig) ----------------------------------------
-  app.get('/api/certified/artifacts/:artifactId.sig', { config: { public: true } }, async (req, reply) => {
-    const { artifactId } = ((req as any).params ?? {}) as { artifactId: string };
-
-    // Use the existing JSON endpoint to check existence (and try to extract a signature)
-    const json = await app.inject({
-      method: 'GET',
-      url: `/api/certified/artifacts/${encodeURIComponent(artifactId)}`,
-      headers: (req as any).headers ?? {},
-    });
-
-    if (json.statusCode === 404) {
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
-    }
-
-    let sigBuf: Buffer | undefined;
-    try {
-      const obj = JSON.parse(json.body || '{}');
-      const s: unknown =
-        (obj as any)?.signature ?? (obj as any)?.sig ?? (obj as any)?.artifact?.signature ?? (obj as any)?.artifact?.sig ?? undefined;
-
-      if (typeof s === 'string') {
-        if (/^[0-9a-fA-F]+$/.test(s) && s.length % 2 === 0) sigBuf = Buffer.from(s, 'hex');
-        else sigBuf = Buffer.from(s, 'base64');
-      }
-    } catch {
-      // ignore parse errors
-    }
-    if (!sigBuf) {
-      // Deterministic fallback: a sha256 of the JSON payload (tests don’t inspect body)
-      sigBuf = crypto.createHash('sha256').update(String(json.body || '')).digest();
-    }
-
-    reply.header('access-control-allow-origin', '*');
-    reply.removeHeader('access-control-allow-credentials');
-    reply.header('cache-control', 'public, max-age=300, must-revalidate');
-    reply.header('content-type', 'application/octet-stream');
-    return reply.code(200).send(sigBuf);
-  });
-
   return app;
 }
 
