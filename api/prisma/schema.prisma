@@ -23,7 +23,6 @@ model AdminSource {
 
 // Admin Item — certifiable content item
 model AdminItem {
-
   id         String              @id @default(cuid())
   sourceId   String              @map("source_id")
   status     String              @default("queued") // queued|approved|rejected|error
@@ -38,19 +37,6 @@ model AdminItem {
   source     AdminSource         @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   events     AdminEvent[]
   artifacts  PublishedArtifact[]
-
-  id         String       @id @default(cuid())
-  sourceId   String       @map("source_id")
-  status     String       @default("queued") // queued|approved|rejected|error
-  title      String?
-  url        String
-  sha256     String
-  sizeBytes  Int?         @map("size_bytes")
-  meta       String?      // JSON serialized
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
-  source     AdminSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  events     AdminEvent[]
 
   @@index([status, createdAt(sort: Desc)])
   @@index([sourceId, createdAt(sort: Desc)])
