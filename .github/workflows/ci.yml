@@ -293,7 +293,9 @@ jobs:
 
       - name: Initialize Test Database
         working-directory: ./api
-        run: npx prisma db push --skip-generate --accept-data-loss --schema=./prisma/schema.prisma
+        run: |
+          mkdir -p .data
+          npx prisma db push --skip-generate --accept-data-loss --schema=./prisma/schema.prisma
         env:
           DATABASE_URL: "file:./.data/admin-test.sqlite"
 
