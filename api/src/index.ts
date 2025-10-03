@@ -50,21 +50,28 @@ export async function createApp() {
 
   async function safeRegister(modPath: string, fallbacks: string[] = []) {
     try {
+      console.log(`Attempting to register: ${modPath}`);
       const mod = await import(modPath);
+      console.log(`Module imported successfully: ${modPath}`, Object.keys(mod));
+      
       const candidate: Fn | undefined =
         (mod as any).default ??
         fallbacks.map(n => (mod as any)[n]).find((fn: any) => typeof fn === 'function') ??
         (typeof (mod as any) === 'function' ? (mod as any) : undefined);
 
       if (typeof candidate === 'function') {
+        console.log(`Found registerable function for: ${modPath}`);
         const result = app.register(candidate as any);
         if (result && typeof result.then === 'function') {
           await result;
         }
+        console.log(`Successfully registered: ${modPath}`);
       } else {
+        console.log(`No registerable export found for: ${modPath}, fallbacks: ${fallbacks.join(', ')}`);
         app.log.warn({ modPath }, 'No registerable export found');
       }
     } catch (err) {
+      console.error(`Failed to register ${modPath}:`, err);
       app.log.error({ err, modPath }, 'Route registration failed');
     }
   }
@@ -98,7 +105,9 @@ export async function createApp() {
   await safeRegister('./routes/exports', ['registerExportRoutes']);
 
   // Health route (critical for CI health checks)
+  console.log('Registering health routes...');
   await safeRegister('./routes/health', ['registerHealth']);
+  console.log('Health routes registered successfully');
 
   return app;
 }
