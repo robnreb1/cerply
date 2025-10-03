@@ -343,9 +343,10 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     const maxRequests = 10;
     
     // Simple in-memory rate limiting (in addition to Fastify route config)
-    if (!global.rateLimitStore) global.rateLimitStore = new Map();
+    const globalStore = (global as any);
+    if (!globalStore.rateLimitStore) globalStore.rateLimitStore = new Map();
     const key = `publish:${clientIP}`;
-    const requests = global.rateLimitStore.get(key) || [];
+    const requests = globalStore.rateLimitStore.get(key) || [];
     
     // Clean old requests outside the window
     const validRequests = requests.filter((timestamp: number) => now - timestamp < windowMs);
@@ -359,7 +360,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     
     // Add current request
     validRequests.push(now);
-    global.rateLimitStore.set(key, validRequests);
+    globalStore.rateLimitStore.set(key, validRequests);
     
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
