@@ -40,8 +40,8 @@ else
   exit 1
 fi
 
-echo "[smoke-stg] /api/analytics/record"
-curl_json -X POST "$API_BASE/api/analytics/record" \
+echo "[smoke-stg] /api/analytics/ingest"
+curl_json -X POST "$API_BASE/api/analytics/ingest" \
   -H 'content-type: application/json' \
   --data '{"kind":"smoke-stg","ts":"'"$(date -Iseconds)"'"}' | jq .
 
