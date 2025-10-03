@@ -295,7 +295,7 @@ jobs:
         working-directory: ./api
         run: |
           mkdir -p .data
-          export DATABASE_URL="file:./.data/admin-test.sqlite"
+          export DATABASE_URL="file:$PWD/.data/admin-test.sqlite"
           npx prisma db push --skip-generate --accept-data-loss --schema=./prisma/schema.prisma
           echo "✅ Database file created:"
           ls -lh .data/admin-test.sqlite || echo "❌ File not found!"
@@ -303,7 +303,7 @@ jobs:
       - name: Run API tests
         env:
           NODE_ENV: test
-          DATABASE_URL: "file:./.data/admin-test.sqlite"
+          DATABASE_URL: "file:./api/.data/admin-test.sqlite"
           RATE_LIMIT_ENABLED: 'false'
           ROLLUP_USE_NODE_JS: 'true'
           ROLLUP_SKIP_NODEJS_NATIVE: '1'
