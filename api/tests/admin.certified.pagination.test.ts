@@ -193,6 +193,11 @@ describe('Admin Certified Pagination & Filtering (SQLite)', () => {
 
   it('sources pagination works with SQLite', async () => {
     const r = await app.inject({ method: 'GET', url: '/api/admin/certified/sources?page=1&limit=1', headers: { 'x-admin-token': 'secret' } });
+    if (r.statusCode !== 200) {
+      console.error('SQLite pagination test failed with status:', r.statusCode);
+      console.error('Response body:', r.body);
+      console.error('Response payload:', r.payload);
+    }
     expect(r.statusCode).toBe(200);
     const body = r.json();
     expect(body.page).toBe(1);
