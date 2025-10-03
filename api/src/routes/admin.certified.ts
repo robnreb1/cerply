@@ -8,7 +8,6 @@ import { sign, toBase64 } from '../lib/ed25519';
 import { artifactFor, writeArtifact, getArtifactsDir, canonicalize } from '../lib/artifacts';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import securityAdminPlugin from '../plugins/security.admin';
 
 
 function enabled(): boolean {
@@ -42,8 +41,7 @@ function sizeWithinLimit(req: any): boolean {
 export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   if (!enabled()) return;
 
-  // Register security admin plugin for proper rate limiting and authentication
-  await app.register(securityAdminPlugin);
+  // Security admin plugin is registered at app level in index.ts
 
   const store = getAdminCertifiedStore();
 

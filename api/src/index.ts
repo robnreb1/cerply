@@ -70,6 +70,10 @@ export async function createApp() {
   }
 
   // Admin routes (from your repo; restored in step A)
+  // Register security admin plugin at app level for proper rate limiting
+  const securityAdminPlugin = await import('./plugins/security.admin');
+  await app.register(securityAdminPlugin.default);
+  
   const adminCertifiedModule = await import('./routes/admin.certified');
   await app.register(adminCertifiedModule.registerAdminCertifiedRoutes, { prefix: '/api/admin' });
 
