@@ -7,7 +7,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:../.data/admin.sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // Admin Source — content source for certified items

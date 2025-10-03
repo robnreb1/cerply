@@ -19,21 +19,23 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
   private initialized: boolean = false;
 
   constructor() {
-    // Prisma will use the URL from schema.prisma, which points to ./.data/admin.sqlite
-    // In tests, we override to use admin-test.sqlite
-    const testDbUrl = process.env.NODE_ENV === 'test' 
-      ? 'file:./.data/admin-test.sqlite'
-      : undefined;
+    // Prisma uses DATABASE_URL from environment
+    // CI sets DATABASE_URL=file:./.data/admin-test.sqlite for tests
+    // Otherwise defaults to file:./.data/admin.sqlite
+    
+    // Set default if not provided
+    if (!process.env.DATABASE_URL) {
+      process.env.DATABASE_URL = process.env.NODE_ENV === 'test'
+        ? 'file:./.data/admin-test.sqlite'
+        : 'file:./.data/admin.sqlite';
+    }
     
     if (process.env.NODE_ENV === 'test') {
-      console.log('[PrismaStore] Using test database:', testDbUrl);
+      console.log('[PrismaStore] Using database:', process.env.DATABASE_URL);
       console.log('[PrismaStore] CWD:', process.cwd());
     }
     
     this.prisma = new PrismaClient({
-      datasources: testDbUrl ? {
-        db: { url: testDbUrl }
-      } : undefined,
       log: process.env.NODE_ENV === 'test' ? [] : ['error'],
     });
   }
