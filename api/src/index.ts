@@ -79,6 +79,7 @@ export async function createApp() {
   // Register the full certified routes (including plan, schedule, progress, etc.)
   await safeRegister('./routes/certified', ['registerCertified']);
   await safeRegister('./routes/certified.retention', ['registerCertifiedRetentionRoutes']);
+  await safeRegister('./routes/certified.audit', ['registerCertifiedAuditPreview']);
 
   // Orchestrator routes for job management and SSE
   await safeRegister('./routes/orchestrator', ['registerOrchestratorRoutes']);
