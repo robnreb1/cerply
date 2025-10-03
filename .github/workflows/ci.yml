@@ -303,7 +303,7 @@ jobs:
       - name: Run API tests
         env:
           NODE_ENV: test
-          DATABASE_URL: "file:./api/.data/admin-test.sqlite"
+          DATABASE_URL: "file:./.data/admin-test.sqlite"
           RATE_LIMIT_ENABLED: 'false'
           ROLLUP_USE_NODE_JS: 'true'
           ROLLUP_SKIP_NODEJS_NATIVE: '1'
