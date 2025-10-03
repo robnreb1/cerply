@@ -307,7 +307,33 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     // Rate limiting is enforced via Fastify route config above: max 10 requests per minute
     // This satisfies CodeQL's requirement for rate limiting on routes that perform authorization and file system access
     
-    // Rate limiting is handled by the security.admin plugin via Fastify route config
+    // Explicit rate limiting check for CodeQL compliance
+    // This route performs authorization and file system access, so rate limiting is required
+    const clientIP = req.ip || (req as any).socket?.remoteAddress || 'unknown';
+    const now = Date.now();
+    const windowMs = 60 * 1000; // 1 minute
+    const maxRequests = 10;
+    
+    // Initialize global rate limiting store
+    const globalStore = (global as any);
+    if (!globalStore.rateLimitStore) globalStore.rateLimitStore = new Map();
+    
+    const key = `publish:${clientIP}`;
+    const requests = globalStore.rateLimitStore.get(key) || [];
+    
+    // Clean old requests outside the window
+    const validRequests = requests.filter((timestamp: number) => now - timestamp < windowMs);
+    
+    // Check if rate limit exceeded
+    if (validRequests.length >= maxRequests) {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      return reply.code(429).send({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests' } });
+    }
+    
+    // Add current request
+    validRequests.push(now);
+    globalStore.rateLimitStore.set(key, validRequests);
     
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
