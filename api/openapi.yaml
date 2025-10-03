@@ -365,7 +365,7 @@ paths:
                   status: { type: string, enum: [rejected] }
         '401': { description: Unauthorized }
         '404': { description: Not found }
-  
+
   # [OKR: O1.KR3, O2.KR1] EPIC #56: Certified Publish v1
   /api/admin/certified/items/{id}/publish:
     post:
@@ -678,6 +678,7 @@ paths:
                         properties:
                           limit: { type: integer }
                           size: { type: integer }
+
 
 components:
   securitySchemes:

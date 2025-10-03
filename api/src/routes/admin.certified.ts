@@ -9,6 +9,7 @@ import { artifactFor, writeArtifact, getArtifactsDir, canonicalize } from '../li
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
+
 function enabled(): boolean {
   return String(process.env.ADMIN_PREVIEW || 'false').toLowerCase() === 'true';
 }
@@ -294,6 +295,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     return reply.send({ ok: true, id, status: 'rejected' });
   });
 
+
   // POST /items/:id/publish [OKR: O2.KR1, O1.KR1, O3.KR2]
   // Admin-gated endpoint to publish a certified item with Ed25519 signature
   app.post('/certified/items/:id/publish', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
@@ -408,3 +410,4 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
 }
 
 export default registerAdminCertifiedRoutes; 
+
