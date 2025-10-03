@@ -7,7 +7,7 @@ type Fn = (instance: any, opts?: any) => Promise<void> | void;
 
 export default async function createApp() {
   const app = Fastify({ logger: true });
-
+  
   // CORS — tests expect wildcard and no credentials
   await app.register(cors, { origin: '*', credentials: false });
 
