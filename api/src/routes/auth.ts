@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import crypto from 'crypto';
 import { createSession } from '../session';
+import { readCookie } from '../session';
 
 type Session = { email: string; createdAt: number };
 const SESSIONS = new Map<string, Session>();
@@ -73,18 +74,52 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   app.post('/api/auth/session', async (req, reply) => {
     reply.header('x-api', 'auth-session');
     const session = await createSession();
-    
+
     // Set both session and CSRF cookies
     reply.header('Set-Cookie', [
       `sid=${session.id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`,
       `csrf=${session.csrfToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`
     ]);
-    
-    return { 
-      ok: true, 
+
+    return {
+      ok: true,
       csrf_token: session.csrfToken,
-      session_id: session.id 
+      session_id: session.id,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     };
+  });
+
+  // Session retrieval endpoint
+  app.get('/api/auth/session', async (req, reply) => {
+    reply.header('x-api', 'auth-session');
+    
+    // Check for session cookie
+    const cookieName = String(process.env.AUTH_COOKIE_NAME ?? 'sid');
+    const sid = readCookie(req, cookieName);
+    
+    if (!sid) {
+      return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'No session found' } });
+    }
+    
+    // For now, return basic session info (could be enhanced with actual session validation)
+    return {
+      ok: true,
+      session_id: sid,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    };
+  });
+
+  // Session deletion endpoint for clearing cookies
+  app.delete('/api/auth/session', async (req, reply) => {
+    reply.header('x-api', 'auth-session');
+    
+    // Clear both session and CSRF cookies by setting Max-Age=0
+    reply.header('Set-Cookie', [
+      'sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
+      'csrf=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
+    ]);
+
+    return { ok: true };
   });
 }
 
