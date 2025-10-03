@@ -102,3 +102,18 @@ export async function createApp() {
 
   return app;
 }
+
+// Server startup (only when run directly)
+if (require.main === module) {
+  (async () => {
+    try {
+      const app = await createApp();
+      const port = Number(process.env.PORT ?? 8080);
+      await app.listen({ host: '0.0.0.0', port });
+      console.log(`[api] listening on http://0.0.0.0:${port}`);
+    } catch (err) {
+      console.error('fastify_boot_error', err);
+      process.exit(1);
+    }
+  })();
+}
