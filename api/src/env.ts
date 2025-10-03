@@ -15,6 +15,7 @@ const EnvSchema = z.object({
   ITEMS_MODEL_FALLBACK: z.string().optional(),
   ITEMS_MODEL_FALLBACK_2: z.string().optional(),
   // Accept postgres:// (and postgresql://) as well as http(s) if ever used
+  // Also accept file: for SQLite (Admin Certified v1 store)
   DATABASE_URL: z
     .string()
     .optional()
@@ -22,7 +23,8 @@ const EnvSchema = z.object({
       (v) =>
         !v ||
         /^(postgres(ql)?:\/\/)/i.test(v) ||
-        /^https?:\/\//i.test(v),
+        /^https?:\/\//i.test(v) ||
+        /^file:/i.test(v),
       {
         message: 'Invalid url',
       }
