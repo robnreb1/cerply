@@ -25,6 +25,11 @@ export class PrismaAdminCertifiedStore implements AdminCertifiedStore {
       ? 'file:./.data/admin-test.sqlite'
       : undefined;
     
+    if (process.env.NODE_ENV === 'test') {
+      console.log('[PrismaStore] Using test database:', testDbUrl);
+      console.log('[PrismaStore] CWD:', process.cwd());
+    }
+    
     this.prisma = new PrismaClient({
       datasources: testDbUrl ? {
         db: { url: testDbUrl }
