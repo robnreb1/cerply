@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { SourceCreateReq, ItemIngestReq, ItemQuery, ItemStatus } from '../schemas/admin.certified';
-import { append, upsertIndex, makeId, sha256Hex } from '../store/adminCertifiedStore';
+import { SourceCreateReq, SourceQuery, ItemIngestReq, ItemQuery, ItemStatus } from '../schemas/admin.certified';
+import { getAdminCertifiedStore } from '../store/adminCertifiedStoreFactory';
+import { sha256Hex } from '../store/ndjsonAdminCertifiedStore';
 
 function enabled(): boolean {
   return String(process.env.ADMIN_PREVIEW || 'false').toLowerCase() === 'true';
@@ -31,6 +32,7 @@ function sizeWithinLimit(req: any): boolean {
 export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   if (!enabled()) return;
 
+  const store = getAdminCertifiedStore();
 
   // Preflight and security headers are handled by security.admin plugin; no route-level OPTIONS here
 
@@ -62,12 +64,10 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
       if ((reply as any).raw?.headersSent) return;
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: parsed.error.message } });
     }
-    const id = makeId('src');
-    const row = { id, ...parsed.data, createdAt: new Date().toISOString() };
-    append({ type: 'source', data: row });
+    const source = await store.createSource({ name: parsed.data.name, url: parsed.data.url });
     reply.header('access-control-allow-origin', '*');
     try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-    return reply.send({ source_id: id });
+    return reply.send({ source_id: source.id });
   });
 
   // GET /sources
@@ -75,11 +75,23 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     // lgtm[js/missing-rate-limiting] Rate limiting is enforced via route config above and admin security plugin
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
-    const idx = upsertIndex<any>('source');
-    const list = Array.from(idx.values());
+    
+    const parsed = SourceQuery.safeParse((req as any).query);
+    if (!parsed.success) {
+      reply.header('access-control-allow-origin', '*');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: parsed.error.message } });
+    }
+
+    const result = await store.listSources(parsed.data);
     reply.header('access-control-allow-origin', '*');
     try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-    return reply.send({ sources: list });
+    
+    // Backward compatibility: if no pagination params, return array in legacy format
+    if (result.total === undefined) {
+      return reply.send({ sources: result.sources });
+    }
+    return reply.send(result);
   });
 
   async function probeUrlHead(url: string): Promise<{ sha256: string; mime: string; provenance: any }> {
@@ -122,14 +134,47 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: parsed.error.message } });
     }
     const { title, url, tags } = parsed.data;
-    const id = makeId('itm');
     const { sha256, mime, provenance } = await probeUrlHead(url);
-    const now = new Date().toISOString();
-    const row = { id, title, url, tags, sha256, mime, status: 'pending' as const, createdAt: now, updatedAt: now, provenance };
-    append({ type: 'item', data: row });
+    
+    // Ensure a default source exists for items without an explicit source
+    // For v0, we use 'unknown' as the sourceId; ensure it exists in the DB
+    let sourceId = 'unknown';
+    try {
+      // Try to find existing 'unknown' source by ID first
+      let unknownSource = await store.getSource('unknown');
+      if (!unknownSource) {
+        // If not found, search by name to avoid duplicates
+        const allSources = await store.listSources({ q: 'Unknown Source' });
+        unknownSource = allSources.sources.find((s) => s.name === 'Unknown Source') || null;
+      }
+      if (!unknownSource) {
+        // Create it with a fixed ID if possible, otherwise use generated ID
+        const defaultSource = await store.createSource({
+          name: 'Unknown Source',
+          url: undefined,
+        });
+        sourceId = defaultSource.id;
+      } else {
+        sourceId = unknownSource.id;
+      }
+    } catch {
+      // If all else fails, use literal 'unknown' and let the DB handle constraint errors
+    }
+
+    const item = await store.createItem({
+      title,
+      url,
+      tags,
+      sha256,
+      mime,
+      status: 'pending',
+      provenance,
+      sourceId,
+    });
+    
     reply.header('access-control-allow-origin', '*');
     try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-    return reply.send({ item_id: id });
+    return reply.send({ item_id: item.id });
   });
 
   // GET /items
@@ -137,19 +182,31 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     // lgtm[js/missing-rate-limiting] Rate limiting is enforced via route config above and admin security plugin
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
-    const q = ItemQuery.safeParse((req as any).query);
-    if (!q.success) {
+    
+    const parsed = ItemQuery.safeParse((req as any).query);
+    if (!parsed.success) {
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
       if ((reply as any).raw?.headersSent) return;
-      return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: q.error.message } });
+      return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: parsed.error.message } });
     }
-    const idx = upsertIndex<any>('item');
-    let list = Array.from(idx.values());
-    if (q.data.status) list = list.filter(r => r.status === q.data.status);
+
+    const result = await store.listItems({
+      status: parsed.data.status,
+      sourceId: parsed.data.source_id,
+      q: parsed.data.q,
+      page: parsed.data.page,
+      limit: parsed.data.limit,
+    });
+
     reply.header('access-control-allow-origin', '*');
     try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-    return reply.send({ items: list });
+    
+    // Backward compatibility: if no pagination params, return array in legacy format
+    if (result.total === undefined) {
+      return reply.send({ items: result.items });
+    }
+    return reply.send(result);
   });
 
   // GET /items/:id
@@ -158,17 +215,18 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const { id } = (req as any).params as { id: string };
-    const idx = upsertIndex<any>('item');
-    const row = idx.get(id);
-    if (!row) {
+    
+    const item = await store.getItem(id);
+    if (!item) {
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
       if ((reply as any).raw?.headersSent) return;
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'item not found' } });
     }
+    
     reply.header('access-control-allow-origin', '*');
     try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
-    return reply.send(row);
+    return reply.send(item);
   });
 
   // POST /items/:id/approve
@@ -177,17 +235,22 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const { id } = (req as any).params as { id: string };
-    const idx = upsertIndex<any>('item');
-    const row = idx.get(id);
-    if (!row) {
+    
+    const item = await store.updateItemStatus(id, 'approved');
+    if (!item) {
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
       if ((reply as any).raw?.headersSent) return;
       return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'item not found' } });
     }
-    const next = { ...row, status: 'approved' as const, updatedAt: new Date().toISOString() };
-    append({ type: 'item', data: next });
-    append({ type: 'audit', data: { request_id: (req as any).id, item_id: id, decision: 'approve', at: new Date().toISOString() } });
+    
+    await store.logAudit({
+      request_id: (req as any).id,
+      item_id: id,
+      decision: 'approve',
+      at: new Date().toISOString(),
+    });
+    
     reply.header('access-control-allow-origin', '*');
     try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
     return reply.send({ ok: true, id, status: 'approved' });
@@ -199,17 +262,22 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const { id } = (req as any).params as { id: string };
-    const idx = upsertIndex<any>('item');
-    const row = idx.get(id);
-    if (!row) {
+    
+    const item = await store.updateItemStatus(id, 'rejected');
+    if (!item) {
       reply.header('access-control-allow-origin', '*');
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
       reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'item not found' } });
       return;
     }
-    const next = { ...row, status: 'rejected' as const, updatedAt: new Date().toISOString() };
-    append({ type: 'item', data: next });
-    append({ type: 'audit', data: { request_id: (req as any).id, item_id: id, decision: 'reject', at: new Date().toISOString() } });
+    
+    await store.logAudit({
+      request_id: (req as any).id,
+      item_id: id,
+      decision: 'reject',
+      at: new Date().toISOString(),
+    });
+    
     reply.header('access-control-allow-origin', '*');
     try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
     return reply.send({ ok: true, id, status: 'rejected' });
@@ -217,5 +285,3 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
 }
 
 export default registerAdminCertifiedRoutes;
-
-

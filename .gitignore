@@ -29,3 +29,9 @@ coverage/
 # OS
 .DS_Store
 .vercel
+
+# Data files
+api/.data/*.sqlite
+api/.data/*.sqlite-journal
+api/.data/*.sqlite-shm
+api/.data/*.sqlite-wal

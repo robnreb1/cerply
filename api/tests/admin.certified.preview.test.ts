@@ -33,7 +33,7 @@ describe('Admin Certified (preview) API', () => {
 
   it('creates source and ingests item, then approves, with ACAO:* and no ACAC', async () => {
     const hdr = { 'x-admin-token': 'secret', 'content-type': 'application/json' } as const;
-    const s = await app.inject({ method: 'POST', url: '/api/admin/certified/sources', headers: hdr, payload: { name: 'Docs', baseUrl: 'https://example.com', notes: 'seed' } });
+    const s = await app.inject({ method: 'POST', url: '/api/admin/certified/sources', headers: hdr, payload: { name: 'Docs', url: 'https://example.com', notes: 'seed' } });
     expect(s.statusCode).toBe(200);
     expect(s.headers['access-control-allow-origin']).toBe('*');
     expect(s.headers['access-control-allow-credentials']).toBeUndefined();

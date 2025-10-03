@@ -126,7 +126,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 'api/package-lock.json'
+          cache-dependency-path: 'package-lock.json'
       - name: Install deps (api)
         run: npm ci
         working-directory: ./api
@@ -284,12 +284,26 @@ jobs:
           npm ci --workspaces --include-workspace-root --no-audit --no-fund
           git diff --exit-code package-lock.json || (echo "Root lockfile drifted"; exit 1)
 
+      - name: Generate Prisma Client (explicit)
+        working-directory: ./api
+        run: npx prisma generate --schema=./prisma/schema.prisma
+
       - name: Build API
         run: npm --workspace ./api run build
+
+      - name: Initialize Test Database
+        working-directory: ./api
+        run: |
+          mkdir -p .data
+          export DATABASE_URL="file:$PWD/.data/admin-test.sqlite"
+          npx prisma db push --skip-generate --accept-data-loss --schema=./prisma/schema.prisma
+          echo "✅ Database file created:"
+          ls -lh .data/admin-test.sqlite || echo "❌ File not found!"
 
       - name: Run API tests
         env:
           NODE_ENV: test
+          DATABASE_URL: "file:./.data/admin-test.sqlite"
           RATE_LIMIT_ENABLED: 'false'
           ROLLUP_USE_NODE_JS: 'true'
           ROLLUP_SKIP_NODEJS_NATIVE: '1'

@@ -6,6 +6,7 @@
     "node": ">=20.x"
   },
   "scripts": {
+    "postinstall": "prisma generate --schema=./prisma/schema.prisma",
     "clean": "rimraf dist",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
@@ -20,6 +21,8 @@
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:push": "drizzle-kit push --config=drizzle.config.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --name init_admin_store",
     "openapi:build": "tsx scripts/openapi-build.ts",
     "openapi:check": "npm run openapi:build && test -f openapi/build/openapi.json",
     "planner:eval": "tsx scripts/planner-eval.ts",
@@ -33,6 +36,7 @@
     "@fastify/helmet": "^11.1.1",
     "@fastify/multipart": "7.7.3",
     "@fastify/rate-limit": "^8.0.0",
+    "@prisma/client": "^5.20.0",
     "dotenv": "^17.2.1",
     "drizzle-kit": "^0.24.2",
     "drizzle-orm": "^0.33.0",
@@ -55,6 +59,7 @@
     "esbuild": "^0.21.5",
     "magic-string": "^0.30.19",
     "picocolors": "^1.1.1",
+    "prisma": "^5.20.0",
     "rimraf": "^6.0.1",
     "supertest": "^7.1.4",
     "tsup": "^8.0.2",

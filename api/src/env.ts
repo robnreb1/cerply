@@ -15,6 +15,7 @@ const EnvSchema = z.object({
   ITEMS_MODEL_FALLBACK: z.string().optional(),
   ITEMS_MODEL_FALLBACK_2: z.string().optional(),
   // Accept postgres:// (and postgresql://) as well as http(s) if ever used
+  // Also accept file: for SQLite (Admin Certified v1 store)
   DATABASE_URL: z
     .string()
     .optional()
@@ -22,7 +23,8 @@ const EnvSchema = z.object({
       (v) =>
         !v ||
         /^(postgres(ql)?:\/\/)/i.test(v) ||
-        /^https?:\/\//i.test(v),
+        /^https?:\/\//i.test(v) ||
+        /^file:/i.test(v),
       {
         message: 'Invalid url',
       }
@@ -35,6 +37,16 @@ const EnvSchema = z.object({
   ADMIN_TOKEN: z.string().optional(),
   ADMIN_MAX_REQUEST_BYTES: z.string().optional(),
   ADMIN_RATE_LIMIT: z.string().optional(),
+  // Admin Certified Store (EPIC #55)
+  ADMIN_STORE: z
+    .string()
+    .optional()
+    .transform((val) => {
+      if (!val || (val !== 'ndjson' && val !== 'sqlite')) {
+        return 'ndjson'; // Fallback to default for undefined, empty, or invalid values
+      }
+      return val as 'ndjson' | 'sqlite';
+    }),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -5,7 +5,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['tests/**/*.test.ts'],
-    setupFiles: ['tests/setup/suppress-headers-sent.ts'],
+    setupFiles: ['tests/setup/suppress-headers-sent.ts', 'tests/setup/init-sqlite.ts'],
     // Suppress known benign Fastify ERR_HTTP_HEADERS_SENT unhandled rejections in CI
     dangerouslyIgnoreUnhandledErrors: true,
     env: {
