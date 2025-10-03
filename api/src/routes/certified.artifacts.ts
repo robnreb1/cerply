@@ -71,68 +71,6 @@ export async function registerCertifiedArtifactsRoutes(app: FastifyInstance) {
     }
   });
 
-  // POST /api/certified/verify — Verify artifact by ID or inline payload [OKR: O1.KR1, O3.KR2]
-  app.post('/api/certified/verify', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
-    const prisma = new PrismaClient();
-    try {
-      setPublicHeaders(reply);
-      const body = (req.body ?? {}) as any;
-
-      // Mode 1: verify by artifactId
-      if (typeof body.artifactId === 'string' && body.artifactId.trim() !== '') {
-        const artifactId = body.artifactId.trim();
-        const record = await prisma.publishedArtifact.findUnique({ where: { id: artifactId }, include: { item: true } });
-        if (!record) {
-          return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'artifact not found' } });
-        }
-        const artifact = await readArtifact(getArtifactsDir(), artifactId);
-        if (!artifact) {
-          return reply.code(404).send({ error: { code: 'FILE_NOT_FOUND', message: 'artifact file not found' } });
-        }
-        if (artifact.sha256 !== record.sha256) {
-          return reply.code(200).send({ ok: false, reason: 'sha256_mismatch', details: { expected: record.sha256, got: artifact.sha256 } });
-        }
-        if (!record.item?.lockHash || record.item.lockHash !== artifact.lockHash) {
-          return reply.code(200).send({ ok: false, reason: 'lock_mismatch', details: { expected: record.item?.lockHash, got: artifact.lockHash } });
-        }
-        const canonicalWithSha = canonicalize(artifact);
-        const sigValid = verifySignature(Buffer.from(canonicalWithSha, 'utf8'), record.signature);
-        if (!sigValid) {
-          return reply.code(200).send({ ok: false, reason: 'signature_invalid' });
-        }
-        return reply.code(200).send({ ok: true, artifactId, sha256: artifact.sha256, lockHash: artifact.lockHash });
-      }
-
-      if (body.artifact && typeof body.signature === 'string') {
-        const { sha256: providedSha, ...artifactBase } = body.artifact as any;
-        const recomputedSha = sha256Hex(canonicalize(artifactBase));
-        if (providedSha && providedSha !== recomputedSha) {
-          return reply.code(200).send({ ok: false, reason: 'sha256_mismatch', details: { expected: providedSha, got: recomputedSha } });
-        }
-        const canonicalWithSha = canonicalize({ ...artifactBase, sha256: providedSha ?? recomputedSha });
-        const sigValid = verifySignature(Buffer.from(canonicalWithSha, 'utf8'), body.signature);
-        if (!sigValid) {
-          return reply.code(200).send({ ok: false, reason: 'signature_invalid' });
-        }
-        return reply.code(200).send({ ok: true, sha256: providedSha ?? recomputedSha });
-      }
-
-      if (body.plan && body.lock && typeof body.lock.hash === 'string') {
-        const recomputedSha = sha256Hex(canonicalize(body.plan));
-        if (body.lock.hash !== recomputedSha) {
-          return reply.code(200).send({ ok: false, reason: 'sha256_mismatch', details: { expected: body.lock.hash, got: recomputedSha } });
-        }
-        return reply.code(200).send({ ok: true, sha256: recomputedSha });
-      }
-
-      return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Must provide artifactId or (artifact + signature)' } });
-    } catch (err: any) {
-      setPublicHeaders(reply);
-      return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: err.message } });
-    } finally {
-      await prisma.$disconnect().catch(() => {});
-    }
-  });
 }
 
 export default registerCertifiedArtifactsRoutes;

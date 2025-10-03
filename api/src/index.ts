@@ -74,6 +74,7 @@ export async function createApp() {
 
   // Public certified routes (artifacts, verify, legacy aliases)
   await safeRegister('./routes/certified.artifacts', ['registerCertifiedArtifactsRoutes']);
+  await safeRegister('./routes/certified.verify', ['registerCertifiedVerifyRoutes']);
   
   // Register the full certified routes (including plan, schedule, progress, etc.)
   await safeRegister('./routes/certified', ['registerCertified']);
