@@ -44,7 +44,6 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
 
   // CSRF + optional session requirement (when AUTH_ENABLED)
   app.addHook('preHandler', async (req: any, reply: any) => {
-    console.log('CSRF preHandler hook executing for:', req.url);
     const authEnabled = String(process.env.AUTH_ENABLED ?? 'false').toLowerCase() === 'true';
     if (!authEnabled) return;
     const method = String(req?.method || '').toUpperCase();
@@ -56,13 +55,6 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
     const cookieName = String(process.env.AUTH_COOKIE_NAME ?? 'sid');
     const sid = readCookie(req, cookieName);
     const sess = await getSession(sid);
-    console.log('Session Debug:', { 
-      requireSession, 
-      cookieName, 
-      sid: sid || 'MISSING', 
-      hasSession: !!sess,
-      sessionId: sess?.id 
-    });
     if (requireSession && !sess) {
       setHeaderSafe(reply, 'access-control-allow-origin', '*');
       removeHeaderSafe(reply, 'access-control-allow-credentials');
@@ -72,24 +64,13 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
     if (sess) {
       const headerToken = String((req.headers?.['x-csrf-token'] ?? '')).trim();
       const cookieToken = String(readCookie(req, 'csrf') || '').trim();
-      console.log('CSRF Debug:', { 
-        hasSession: !!sess, 
-        sessionId: sess?.id, 
-        headerToken: headerToken || 'MISSING', 
-        cookieToken: cookieToken || 'MISSING', 
-        expectedToken: sess?.csrfToken 
-      });
       // Both header and cookie must be present and match the session token
       const valid = Boolean(headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
       if (!valid) {
-        console.log('CSRF validation failed, returning 403');
         setHeaderSafe(reply, 'access-control-allow-origin', '*');
         removeHeaderSafe(reply, 'access-control-allow-credentials');
         return reply.code(403).send({ error: { code: 'CSRF', message: 'csrf required' } });
       }
-      console.log('CSRF validation passed');
-    } else {
-      console.log('No session found for CSRF validation');
     }
   });
 

@@ -36,7 +36,36 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
 
   // POST /api/orchestrator/jobs
   app.post('/api/orchestrator/jobs', async (req: FastifyRequest, reply: FastifyReply) => {
-    // CSRF protection is handled by orchestratorSecurityPlugin
+    // CSRF protection - check if auth is enabled
+    const authEnabled = String(process.env.AUTH_ENABLED ?? 'false').toLowerCase() === 'true';
+    if (authEnabled) {
+      const method = String((req as any).method || '').toUpperCase();
+      if (method !== 'OPTIONS' && method !== 'GET') {
+        // Check for session and CSRF token
+        const requireSession = String(process.env.AUTH_REQUIRE_SESSION ?? 'false').toLowerCase() === 'true';
+        const cookieName = String(process.env.AUTH_COOKIE_NAME ?? 'sid');
+        const sid = readCookie(req, cookieName);
+        const sess = await getSession(sid);
+        
+        if (requireSession && !sess) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'session required' } });
+        }
+        
+        // CSRF double-submit (only when session exists)
+        if (sess) {
+          const headerToken = String((req.headers as any)?.['x-csrf-token'] ?? '').trim();
+          const cookieToken = String(readCookie(req, 'csrf') || '').trim();
+          const valid = Boolean(headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
+          if (!valid) {
+            reply.header('access-control-allow-origin', '*');
+            reply.removeHeader('access-control-allow-credentials');
+            return reply.code(403).send({ error: { code: 'CSRF', message: 'csrf required' } });
+          }
+        }
+      }
+    }
 
   const method = String((req as any).method || '').toUpperCase();
   if (method === 'OPTIONS') return reply.code(204).send();
