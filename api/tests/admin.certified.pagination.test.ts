@@ -130,7 +130,21 @@ describe('Admin Certified Pagination & Filtering (SQLite)', () => {
     vi.stubEnv('ADMIN_PREVIEW', 'true');
     vi.stubEnv('ADMIN_TOKEN', 'secret');
     vi.stubEnv('ADMIN_STORE', 'sqlite');
+    vi.stubEnv('NODE_ENV', 'test');
+    vi.stubEnv('DATABASE_URL', 'file:./.data/admin-test.sqlite');
     resetStoreInstance();
+    
+    // Ensure test database directory exists and run migrations
+    const fs = await import('fs/promises');
+    await fs.mkdir('.data', { recursive: true });
+    const { exec } = await import('child_process');
+    await new Promise<void>((resolve, reject) => {
+      exec('npx prisma db push', (error, stdout, stderr) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    });
+    
     app = await buildApp();
 
     // Seed test data

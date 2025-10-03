@@ -70,7 +70,8 @@ export async function createApp() {
   }
 
   // Admin routes (from your repo; restored in step A)
-  await safeRegister('./routes/admin.certified', ['registerAdminCertified']);
+  const adminCertifiedModule = await import('./routes/admin.certified');
+  await app.register(adminCertifiedModule.registerAdminCertifiedRoutes, { prefix: '/api/admin' });
 
   // Public certified routes (artifacts, verify, legacy aliases)
   await safeRegister('./routes/certified.artifacts', ['registerCertifiedArtifactsRoutes']);

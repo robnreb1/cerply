@@ -33,6 +33,9 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
     testDbPath = path.join(process.cwd(), 'api', '.data', `test-publish-${Date.now()}.sqlite`);
     testArtifactsDir = path.join(process.cwd(), 'api', '.artifacts-test');
     
+    // Ensure test directories exist
+    await fs.mkdir(path.dirname(testDbPath), { recursive: true });
+    
     process.env.NODE_ENV = 'test';
     process.env.DATABASE_URL = `file:${testDbPath}`;
     process.env.ADMIN_STORE = 'sqlite';
@@ -92,7 +95,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
     it('OPTIONS preflight on admin publish route returns 204 with CORS headers', async () => {
       const resp = await app.inject({
         method: 'OPTIONS',
-        url: '/certified/items/test-id/publish',
+        url: '/api/admin/certified/items/test-id/publish',
         headers: {
           origin: 'https://example.com',
           'access-control-request-method': 'POST',
@@ -127,7 +130,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
       // Create source
       const sourceResp = await app.inject({
         method: 'POST',
-        url: '/certified/sources',
+        url: '/api/admin/certified/sources',
         headers: {
           'content-type': 'application/json',
           'x-admin-token': adminToken,
@@ -141,7 +144,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
       // Create item
       const itemResp = await app.inject({
         method: 'POST',
-        url: '/certified/items/ingest',
+        url: '/api/admin/certified/items/ingest',
         headers: {
           'content-type': 'application/json',
           'x-admin-token': adminToken,
@@ -167,7 +170,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
     it('[OKR: O2.KR1] publishes an item successfully (first time)', async () => {
       const resp = await app.inject({
         method: 'POST',
-        url: `/certified/items/${testItemId}/publish`,
+        url: `/api/admin/certified/items/${testItemId}/publish`,
         headers: {
           'content-type': 'application/json',
           'x-admin-token': adminToken,
@@ -196,7 +199,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
     it('[OKR: O2.KR1] returns 409 on republish with same lockHash (idempotency)', async () => {
       const resp = await app.inject({
         method: 'POST',
-        url: `/certified/items/${testItemId}/publish`,
+        url: `/api/admin/certified/items/${testItemId}/publish`,
         headers: {
           'content-type': 'application/json',
           'x-admin-token': adminToken,
@@ -215,7 +218,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
     it('returns 404 for unknown item', async () => {
       const resp = await app.inject({
         method: 'POST',
-        url: '/certified/items/unknown-item-id/publish',
+        url: '/api/admin/certified/items/unknown-item-id/publish',
         headers: {
           'content-type': 'application/json',
           'x-admin-token': adminToken,
@@ -231,7 +234,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
       // Create item without lockHash
       const itemResp = await app.inject({
         method: 'POST',
-        url: '/certified/items/ingest',
+        url: '/api/admin/certified/items/ingest',
         headers: {
           'content-type': 'application/json',
           'x-admin-token': adminToken,
@@ -245,7 +248,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
       
       const resp = await app.inject({
         method: 'POST',
-        url: `/certified/items/${itemData.item_id}/publish`,
+        url: `/api/admin/certified/items/${itemData.item_id}/publish`,
         headers: {
           'content-type': 'application/json',
           'x-admin-token': adminToken,
@@ -260,7 +263,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
     it('returns 401 without admin token', async () => {
       const resp = await app.inject({
         method: 'POST',
-        url: `/certified/items/${testItemId}/publish`,
+        url: `/api/admin/certified/items/${testItemId}/publish`,
         headers: {
           'content-type': 'application/json',
         },
@@ -491,7 +494,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
     it('existing admin certified routes still work', async () => {
       const resp = await app.inject({
         method: 'GET',
-        url: '/certified/sources',
+        url: '/api/admin/certified/sources',
         headers: {
           'x-admin-token': adminToken,
         },
