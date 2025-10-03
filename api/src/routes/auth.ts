@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import crypto from 'crypto';
+import { createSession } from '../session';
 
 type Session = { email: string; createdAt: number };
 const SESSIONS = new Map<string, Session>();
@@ -66,6 +67,24 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     reply.header('x-api', 'auth-logout');
     reply.header('Set-Cookie', 'cerply_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
     return { ok: true };
+  });
+
+  // Session creation endpoint for CSRF tests
+  app.post('/api/auth/session', async (req, reply) => {
+    reply.header('x-api', 'auth-session');
+    const session = await createSession();
+    
+    // Set both session and CSRF cookies
+    reply.header('Set-Cookie', [
+      `sid=${session.id}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`,
+      `csrf=${session.csrfToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`
+    ]);
+    
+    return { 
+      ok: true, 
+      csrf_token: session.csrfToken,
+      session_id: session.id 
+    };
   });
 }
 
