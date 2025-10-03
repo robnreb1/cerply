@@ -261,11 +261,24 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
     });
     
     it('returns 401 without admin token', async () => {
-      const resp = await app.inject({
+      // Use a fresh item to avoid idempotency conflicts
+      const itemResp = await app.inject({
         method: 'POST',
-        url: `/api/admin/certified/items/${testItemId}/publish`,
+        url: '/api/admin/certified/items/ingest',
         headers: {
           'content-type': 'application/json',
+          'x-admin-token': adminToken,
+        },
+        payload: { title: 'Unauthorized Test Item', url: 'https://example.com/unauthorized' },
+      });
+      const itemData = JSON.parse(itemResp.body);
+      
+      const resp = await app.inject({
+        method: 'POST',
+        url: `/api/admin/certified/items/${itemData.item_id}/publish`,
+        headers: {
+          'content-type': 'application/json',
+          // No x-admin-token header
         },
       });
       

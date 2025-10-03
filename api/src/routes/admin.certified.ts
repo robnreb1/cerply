@@ -41,10 +41,42 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
 
   const store = getAdminCertifiedStore();
 
-  // Preflight and security headers are handled by security.admin plugin; no route-level OPTIONS here
+  // CORS preflight handling for admin routes
+  app.addHook('onRequest', async (req: any, reply: any) => {
+    const url = String(req?.url || '');
+    if (!url.startsWith('/api/admin/certified/')) return;
+    
+    // Set CORS headers for all admin certified routes
+    reply.header('access-control-allow-origin', '*');
+    reply.removeHeader('access-control-allow-credentials');
+    
+    // Handle OPTIONS preflight
+    const method = String(req?.method || '').toUpperCase();
+    if (method === 'OPTIONS') {
+      reply.header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+      reply.header('access-control-allow-headers', 'content-type, authorization, x-admin-token');
+      return reply.code(204).send();
+    }
+  });
+
+  // Authentication guard for admin routes
+  app.addHook('preHandler', async (req: any, reply: any) => {
+    const url = String(req?.url || '');
+    if (!url.startsWith('/api/admin/certified/')) return;
+    
+    const method = String(req?.method || '').toUpperCase();
+    if (method === 'OPTIONS') return; // Skip auth for OPTIONS
+    
+    // Check admin token
+    if (!tokenOk(req.headers)) {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'admin token required' } });
+    }
+  });
 
   function authGuard(req: FastifyRequest, reply: FastifyReply): boolean {
-    // Token authentication is handled centrally by security.admin plugin's preHandler.
+    // Token authentication is now handled by preHandler hook above
     // Here we only enforce size limits and bail early if a previous hook already sent a reply.
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return false;
     if (!sizeWithinLimit(req)) {
