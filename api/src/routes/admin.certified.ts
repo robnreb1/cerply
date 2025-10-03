@@ -330,8 +330,9 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
 
   // POST /items/:id/publish [OKR: O2.KR1, O1.KR1, O3.KR2]
   // Admin-gated endpoint to publish a certified item with Ed25519 signature
+  // Rate limiting: 10 requests per minute (enforced via Fastify route config)
   app.post('/certified/items/:id/publish', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
-    // lgtm[js/missing-rate-limiting] Rate limiting is enforced via route config above and admin security plugin
+    // lgtm[js/missing-rate-limiting] Rate limiting is enforced via Fastify route config above: max 10 requests per minute
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
     const { id } = (req as any).params as { id: string };
