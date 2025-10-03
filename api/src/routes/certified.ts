@@ -142,7 +142,11 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
     // Enforce content-type for POSTs (DoD: return 415 on wrong/missing Content-Type)
     {
       const m = String(((_req as any).method || '')).toUpperCase();
-      if (m === 'OPTIONS') return reply.code(204).send();
+      if (m === 'OPTIONS') {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(204).send();
+      }
     }
     const ct = String(((_req as any).headers?.['content-type'] ?? '')).toLowerCase();
     if (!ct.includes('application/json')) {
