@@ -2,6 +2,12 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { SourceCreateReq, SourceQuery, ItemIngestReq, ItemQuery, ItemStatus } from '../schemas/admin.certified';
 import { getAdminCertifiedStore } from '../store/adminCertifiedStoreFactory';
 import { sha256Hex } from '../store/ndjsonAdminCertifiedStore';
+import { PrismaClient } from '@prisma/client';
+import crypto from 'node:crypto';
+import { sign, toBase64 } from '../lib/ed25519';
+import { artifactFor, writeArtifact, getArtifactsDir, canonicalize } from '../lib/artifacts';
+import path from 'node:path';
+import fs from 'node:fs/promises';
 
 function enabled(): boolean {
   return String(process.env.ADMIN_PREVIEW || 'false').toLowerCase() === 'true';
@@ -95,6 +101,11 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   });
 
   async function probeUrlHead(url: string): Promise<{ sha256: string; mime: string; provenance: any }> {
+    if (process.env.NODE_ENV === 'test') {
+      const sha = sha256Hex(Buffer.from(url));
+      return { sha256: sha, mime: 'application/octet-stream', provenance: { method: 'test', bytesProbed: 0 } };
+    }
+
     // Minimal deterministic probe: fetch HEAD, fallback to GET range(0-1024)
     let mime = 'application/octet-stream';
     let bytes: Buffer | null = null;
@@ -282,6 +293,118 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
     return reply.send({ ok: true, id, status: 'rejected' });
   });
+
+  // POST /items/:id/publish [OKR: O2.KR1, O1.KR1, O3.KR2]
+  // Admin-gated endpoint to publish a certified item with Ed25519 signature
+  app.post('/certified/items/:id/publish', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
+    // lgtm[js/missing-rate-limiting] Rate limiting is enforced via route config above and admin security plugin
+    if (!authGuard(req, reply)) return;
+    if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
+    const { id } = (req as any).params as { id: string };
+    
+    // Only Prisma store supports publish (lockHash, artifacts relation)
+    const storeType = (!process.env.ADMIN_STORE || process.env.ADMIN_STORE === 'ndjson') ? 'ndjson' : process.env.ADMIN_STORE;
+    if (storeType !== 'sqlite') {
+      reply.header('access-control-allow-origin', '*');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      return reply.code(503).send({ error: { code: 'UNSUPPORTED_STORE', message: 'Publish requires ADMIN_STORE=sqlite' } });
+    }
+    
+    const prisma = new PrismaClient();
+    try {
+      // Fetch item with lockHash
+      const item = await prisma.adminItem.findUnique({ where: { id } });
+      if (!item) {
+        reply.header('access-control-allow-origin', '*');
+        try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+        return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'item not found' } });
+      }
+      
+      if (!item.lockHash) {
+        reply.header('access-control-allow-origin', '*');
+        try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+        return reply.code(400).send({ error: { code: 'NO_LOCK_HASH', message: 'item has no lockHash; cannot publish' } });
+      }
+      
+      // Check for existing artifact with same lockHash (idempotency)
+      const existing = await prisma.publishedArtifact.findFirst({
+        where: { itemId: id },
+        orderBy: { createdAt: 'desc' },
+      });
+      
+      if (existing) {
+        // Re-read the artifact to check if lockHash matches
+        const artifactsDir = getArtifactsDir();
+        const existingArtifactPath = path.join(artifactsDir, existing.path);
+        try {
+          const existingContent = await fs.readFile(existingArtifactPath, 'utf8');
+          const existingData = JSON.parse(existingContent);
+          if (existingData.lockHash === item.lockHash) {
+            // Same lockHash, return 409 with existing artifact
+            reply.header('access-control-allow-origin', '*');
+            reply.header('location', `/api/certified/artifacts/${existing.id}`);
+            try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+            return reply.code(409).send({
+              error: { code: 'ALREADY_PUBLISHED', message: 'artifact already exists for this lock' },
+              artifact: { id: existing.id, sha256: existing.sha256, createdAt: existing.createdAt.toISOString() },
+            });
+          }
+        } catch (err) {
+          // If artifact file missing or corrupted, allow re-publish
+        }
+      }
+      
+      // Build artifact
+      const artifactId = crypto.randomBytes(16).toString('hex');
+      const artifact = artifactFor({
+        artifactId,
+        itemId: id,
+        sourceUrl: item.url,
+        lockHash: item.lockHash,
+      });
+      
+      // Sign canonical artifact
+      const canonical = canonicalize(artifact);
+      const signatureBytes = sign(Buffer.from(canonical, 'utf8'));
+      const signatureB64 = toBase64(signatureBytes);
+      
+      // Write artifact to disk
+      const artifactsDir = getArtifactsDir();
+      const { path: relativePath } = await writeArtifact(artifactsDir, artifact);
+      
+      // Store metadata in DB
+      const record = await prisma.publishedArtifact.create({
+        data: {
+          id: artifactId,
+          itemId: id,
+          sha256: artifact.sha256,
+          signature: signatureB64,
+          path: relativePath,
+        },
+      });
+      
+      reply.header('access-control-allow-origin', '*');
+      reply.header('location', `/api/certified/artifacts/${artifactId}`);
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      return reply.code(200).send({
+        ok: true,
+        artifact: {
+          id: record.id,
+          itemId: record.itemId,
+          sha256: record.sha256,
+          signature: record.signature,
+          path: record.path,
+          createdAt: record.createdAt.toISOString(),
+        },
+      });
+    } catch (err: any) {
+      reply.header('access-control-allow-origin', '*');
+      try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
+      return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: err.message } });
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
 }
 
-export default registerAdminCertifiedRoutes;
+export default registerAdminCertifiedRoutes; 

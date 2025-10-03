@@ -61,12 +61,10 @@ export default async function createApp() {
   // Admin routes (from your repo; restored in step A)
   await safeRegister('./routes/admin.certified', ['registerAdminCertified']);
 
-  // Public certified (artifacts + verify) — we add this next
-  await safeRegister('./routes/public.certified', ['registerPublicCertified']);
-
+  // Public certified routes (artifacts, verify, legacy aliases)
   await safeRegister('./routes/certified.artifacts', ['registerCertifiedArtifactsRoutes']);
-
-  // Existing “certified” routes you already have (e.g., generate)
+  
+  // Register the full certified routes (including plan, schedule, progress, etc.)
   await safeRegister('./routes/certified', ['registerCertified']);
 
   return app;

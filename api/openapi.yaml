@@ -365,6 +365,320 @@ paths:
                   status: { type: string, enum: [rejected] }
         '401': { description: Unauthorized }
         '404': { description: Not found }
+  
+  # [OKR: O1.KR3, O2.KR1] EPIC #56: Certified Publish v1
+  /api/admin/certified/items/{id}/publish:
+    post:
+      summary: Publish certified item with Ed25519 signature
+      description: |
+        Admin-gated endpoint to publish a certified item as a signed artifact.
+        Requires item to have a lockHash. Idempotent: returns 409 if already published with same lock.
+      security:
+        - AdminToken: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+          description: AdminItem ID
+      responses:
+        '200':
+          description: Artifact published successfully (first time)
+          headers:
+            Location:
+              schema: { type: string }
+              description: "/api/certified/artifacts/{artifactId}"
+            Access-Control-Allow-Origin:
+              schema: { type: string, enum: ['*'] }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, artifact]
+                properties:
+                  ok: { type: boolean }
+                  artifact:
+                    type: object
+                    required: [id, itemId, sha256, signature, path, createdAt]
+                    properties:
+                      id: { type: string }
+                      itemId: { type: string }
+                      sha256: { type: string }
+                      signature: { type: string, description: "Base64-encoded Ed25519 signature" }
+                      path: { type: string }
+                      createdAt: { type: string, format: date-time }
+        '409':
+          description: Already published (idempotency)
+          headers:
+            Location:
+              schema: { type: string }
+            Access-Control-Allow-Origin:
+              schema: { type: string, enum: ['*'] }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error, artifact]
+                properties:
+                  error:
+                    type: object
+                    required: [code, message]
+                    properties:
+                      code: { type: string, enum: [ALREADY_PUBLISHED] }
+                      message: { type: string }
+                  artifact:
+                    type: object
+                    required: [id, sha256, createdAt]
+                    properties:
+                      id: { type: string }
+                      sha256: { type: string }
+                      createdAt: { type: string, format: date-time }
+        '400':
+          description: Bad request (e.g., missing lockHash)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: object
+                    required: [code, message]
+                    properties:
+                      code: { type: string, enum: [NO_LOCK_HASH] }
+                      message: { type: string }
+        '401': { description: Unauthorized }
+        '404': { description: Not found }
+        '503':
+          description: Service unavailable (requires ADMIN_STORE=sqlite)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: object
+                    required: [code, message]
+                    properties:
+                      code: { type: string, enum: [UNSUPPORTED_STORE] }
+                      message: { type: string }
+
+  # [OKR: O1.KR2] EPIC #56: Public Artifact Delivery
+  /api/certified/artifacts/{artifactId}:
+    get:
+      summary: Get published artifact JSON
+      description: |
+        Public endpoint to retrieve signed artifact JSON with CDN-ready headers.
+      parameters:
+        - in: path
+          name: artifactId
+          required: true
+          schema: { type: string }
+          description: Published artifact ID
+      responses:
+        '200':
+          description: Artifact JSON
+          headers:
+            Access-Control-Allow-Origin:
+              schema: { type: string, enum: ['*'] }
+              description: "Public CORS (no credentials)"
+            ETag:
+              schema: { type: string }
+              description: "Weak validator: W/\"<sha256>\""
+            Cache-Control:
+              schema: { type: string, enum: ['public, max-age=300'] }
+              description: "CDN-friendly caching (5 minutes)"
+            Referrer-Policy:
+              schema: { type: string, enum: ['no-referrer'] }
+            X-Content-Type-Options:
+              schema: { type: string, enum: ['nosniff'] }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, artifactId, itemId, sourceUrl, lockHash, sha256, createdAtISO]
+                properties:
+                  version: { type: string, enum: ['cert.v1'] }
+                  artifactId: { type: string }
+                  itemId: { type: string }
+                  sourceUrl: { type: string, nullable: true }
+                  lockHash: { type: string, description: "SHA-256 from certification lock step" }
+                  sha256: { type: string, description: "SHA-256 of canonical artifact JSON" }
+                  createdAtISO: { type: string, format: date-time }
+        '404':
+          description: Artifact not found
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: object
+                    required: [code, message]
+                    properties:
+                      code: { type: string, enum: [NOT_FOUND, FILE_NOT_FOUND] }
+                      message: { type: string }
+
+  /api/certified/artifacts/{artifactId}.sig:
+    get:
+      summary: Get artifact Ed25519 signature (binary)
+      description: |
+        Public endpoint to retrieve Ed25519 signature as raw binary (64 bytes).
+        CDN-ready with same caching headers as artifact JSON.
+      parameters:
+        - in: path
+          name: artifactId
+          required: true
+          schema: { type: string }
+          description: Published artifact ID
+      responses:
+        '200':
+          description: Binary signature (64 bytes)
+          headers:
+            Access-Control-Allow-Origin:
+              schema: { type: string, enum: ['*'] }
+            Cache-Control:
+              schema: { type: string, enum: ['public, max-age=300'] }
+            Referrer-Policy:
+              schema: { type: string, enum: ['no-referrer'] }
+            X-Content-Type-Options:
+              schema: { type: string, enum: ['nosniff'] }
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Artifact not found
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: object
+                    required: [code, message]
+                    properties:
+                      code: { type: string, enum: [NOT_FOUND] }
+                      message: { type: string }
+
+  # [OKR: O1.KR1, O3.KR2] EPIC #56: Extended Verify Endpoint
+  /api/certified/verify:
+    post:
+      summary: Verify artifact signature and integrity (extended)
+      description: |
+        Supports three verification modes:
+        1. By artifactId: { "artifactId": "..." }
+        2. Inline artifact + signature: { "artifact": {...}, "signature": "base64" }
+        3. Legacy plan lock: { "plan": {...}, "lock": {...} }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              oneOf:
+                - required: [artifactId]
+                  properties:
+                    artifactId: { type: string }
+                    meta: { type: object, properties: { request_id: { type: string } } }
+                - required: [artifact, signature]
+                  properties:
+                    artifact:
+                      type: object
+                      description: "Artifact JSON to verify"
+                    signature:
+                      type: string
+                      description: "Base64-encoded Ed25519 signature"
+                    meta: { type: object, properties: { request_id: { type: string } } }
+                - required: [plan, lock]
+                  properties:
+                    plan: { type: object }
+                    lock:
+                      type: object
+                      required: [algo, hash]
+                      properties:
+                        algo: { type: string, enum: [blake3, sha256] }
+                        hash: { type: string }
+                        canonical_bytes: { type: integer }
+                    meta: { type: object, properties: { request_id: { type: string } } }
+      responses:
+        '200':
+          description: Verification result
+          headers:
+            Access-Control-Allow-Origin:
+              schema: { type: string, enum: ['*'] }
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    required: [ok]
+                    properties:
+                      ok: { type: boolean, enum: [true] }
+                      artifactId: { type: string }
+                      sha256: { type: string }
+                      lockHash: { type: string }
+                  - type: object
+                    required: [ok, reason]
+                    properties:
+                      ok: { type: boolean, enum: [false] }
+                      reason:
+                        type: string
+                        enum: [lock_mismatch, sha256_mismatch, signature_invalid]
+                      details: { type: object }
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: object
+                    required: [code, message]
+                    properties:
+                      code: { type: string, enum: [BAD_REQUEST] }
+                      message: { type: string }
+        '404':
+          description: Artifact not found
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: object
+                    required: [code, message]
+                    properties:
+                      code: { type: string, enum: [NOT_FOUND, FILE_NOT_FOUND] }
+                      message: { type: string }
+        '413':
+          description: Payload too large (exceeds 16KB)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error:
+                    type: object
+                    required: [code, message, details]
+                    properties:
+                      code: { type: string, enum: [PAYLOAD_TOO_LARGE] }
+                      message: { type: string }
+                      details:
+                        type: object
+                        required: [limit, size]
+                        properties:
+                          limit: { type: integer }
+                          size: { type: integer }
+
 components:
   securitySchemes:
     AdminToken:
