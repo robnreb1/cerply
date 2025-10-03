@@ -8,6 +8,7 @@ import { sign, toBase64 } from '../lib/ed25519';
 import { artifactFor, writeArtifact, getArtifactsDir, canonicalize } from '../lib/artifacts';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import securityAdminPlugin from '../plugins/security.admin';
 
 
 function enabled(): boolean {
@@ -34,75 +35,19 @@ function sizeWithinLimit(req: any): boolean {
   return size <= limit;
 }
 
-// Rate limiting implementation for CodeQL compliance
-function checkRateLimit(req: FastifyRequest): { allowed: boolean; remaining?: number } {
-  const clientIP = req.ip || (req as any).socket?.remoteAddress || 'unknown';
-  const now = Date.now();
-  const windowMs = 60 * 1000; // 1 minute
-  const maxRequests = 10;
-  
-  // Initialize global rate limiting store
-  const globalStore = (global as any);
-  if (!globalStore.rateLimitStore) globalStore.rateLimitStore = new Map();
-  
-  const key = `publish:${clientIP}`;
-  const requests = globalStore.rateLimitStore.get(key) || [];
-  
-  // Clean old requests outside the window
-  const validRequests = requests.filter((timestamp: number) => now - timestamp < windowMs);
-  
-  // Check if rate limit exceeded
-  if (validRequests.length >= maxRequests) {
-    return { allowed: false, remaining: 0 };
-  }
-  
-  // Add current request
-  validRequests.push(now);
-  globalStore.rateLimitStore.set(key, validRequests);
-  
-  return { allowed: true, remaining: maxRequests - validRequests.length };
-}
+// Rate limiting is handled by the security.admin plugin
 
 // CORS/security headers are handled centrally by the security.admin plugin
 
 export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
   if (!enabled()) return;
 
+  // Register security admin plugin for proper rate limiting and authentication
+  await app.register(securityAdminPlugin);
+
   const store = getAdminCertifiedStore();
 
-  // CORS preflight handling for admin routes
-  app.addHook('onRequest', async (req: any, reply: any) => {
-    const url = String(req?.url || '');
-    if (!url.startsWith('/api/admin/certified/')) return;
-    
-    // Set CORS headers for all admin certified routes
-    reply.header('access-control-allow-origin', '*');
-    reply.removeHeader('access-control-allow-credentials');
-    
-    // Handle OPTIONS preflight
-    const method = String(req?.method || '').toUpperCase();
-    if (method === 'OPTIONS') {
-      reply.header('access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
-      reply.header('access-control-allow-headers', 'content-type, authorization, x-admin-token');
-      return reply.code(204).send();
-    }
-  });
-
-  // Authentication guard for admin routes
-  app.addHook('preHandler', async (req: any, reply: any) => {
-    const url = String(req?.url || '');
-    if (!url.startsWith('/api/admin/certified/')) return;
-    
-    const method = String(req?.method || '').toUpperCase();
-    if (method === 'OPTIONS') return; // Skip auth for OPTIONS
-    
-    // Check admin token
-    if (!tokenOk(req.headers)) {
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'admin token required' } });
-    }
-  });
+  // CORS and authentication are now handled by the security.admin plugin
 
   function authGuard(req: FastifyRequest, reply: FastifyReply): boolean {
     // Token authentication is now handled by preHandler hook above
@@ -364,14 +309,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     // Rate limiting is enforced via Fastify route config above: max 10 requests per minute
     // This satisfies CodeQL's requirement for rate limiting on routes that perform authorization and file system access
     
-    // Rate limiting implementation for CodeQL compliance
-    // This route performs authorization and file system access, so rate limiting is required
-    const rateLimitResult = checkRateLimit(req);
-    if (!rateLimitResult.allowed) {
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(429).send({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests' } });
-    }
+    // Rate limiting is handled by the security.admin plugin via Fastify route config
     
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
