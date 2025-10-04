@@ -5,13 +5,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// For binary responses, disable body parsing
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 async function proxyArtifact(req: NextRequest, { params }: { params: { artifactId: string } }) {
   const { artifactId } = params;
   
