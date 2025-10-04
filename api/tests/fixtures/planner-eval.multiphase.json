@@ -6,62 +6,62 @@
     {
       "topic": "Hashes",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     },
     {
       "topic": "Graphs",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     },
     {
       "topic": "Sorting",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     },
     {
       "topic": "Databases",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     },
     {
       "topic": "HTTP",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     },
     {
       "topic": "TLS",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     },
     {
       "topic": "Kubernetes",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     },
     {
       "topic": "Docker",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     },
     {
       "topic": "Queues",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     },
     {
       "topic": "Caching",
       "citations": 0,
-      "planLen": 5,
-      "engines": "adaptive-v1,openai-v0"
+      "planLen": 0,
+      "engines": ""
     }
   ]
 }

@@ -2,11 +2,20 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import { pool, query } from './db';
 
 type Fn = (instance: any, opts?: any) => Promise<void> | void;
 
 export async function createApp() {
   const app = Fastify({ logger: true });
+  
+  // Attach database connection to app instance for routes that need it
+  (app as any).db = {
+    execute: async (sql: string, params: unknown[] = []) => {
+      const { rows } = await query(sql, params);
+      return rows;
+    }
+  };
   
   // CORS — tests expect wildcard and no credentials
   await app.register(cors, { 
@@ -105,9 +114,27 @@ export async function createApp() {
 
   // Export routes for analytics
   await safeRegister('./routes/exports', ['registerExportRoutes']);
+  
+  // Ledger routes for observability
+  await safeRegister('./routes/ledger', ['registerLedgerRoutes']);
 
   // Health route (critical for CI health checks)
   await safeRegister('./routes/health', ['registerHealth']);
+  
+  // Dev routes for observability smoke tests
+  await safeRegister('./routes/dev', ['registerDevRoutes']);
+  
+  // Additional dev route modules (CommonJS exports)
+  const devMigrate = await import('./routes/dev');
+  if ((devMigrate as any).registerDevMigrate) {
+    await app.register((devMigrate as any).registerDevMigrate);
+  }
+  if ((devMigrate as any).registerDevSeed) {
+    await app.register((devMigrate as any).registerDevSeed);
+  }
+  if ((devMigrate as any).registerDevBackfill) {
+    await app.register((devMigrate as any).registerDevBackfill);
+  }
 
   return app;
 }
