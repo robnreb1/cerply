@@ -332,18 +332,47 @@ jobs:
         run: npm ci --workspaces --include-workspace-root
       - name: Build API
         run: npm --workspace ./api run build
+      - name: Initialize Test Database
+        working-directory: ./api
+        run: |
+          mkdir -p .data
+          export DATABASE_URL="file:$PWD/.data/admin-test.sqlite"
+          npx prisma db push --skip-generate --accept-data-loss --schema=./prisma/schema.prisma
+          echo "✅ Database file created:"
+          ls -lh .data/admin-test.sqlite || echo "❌ File not found!"
       - name: Start API preview (background)
         env:
           PREVIEW_ANALYTICS: 'true'
           FASTIFY_AUTOSTART: 'true'
           PORT: 8080
+          NODE_ENV: test
+          DATABASE_URL: "file:./.data/admin-test.sqlite"
         run: |
+          # Kill any existing processes on port 8080
+          pkill -f "node.*api" || true
+          sleep 2
+          
+          # Start the API
           npm --workspace ./api run start &
           echo $! > /tmp/api_pid.txt
+          
+          # Wait for API to be ready
           for i in {1..60}; do
-            if curl -fsS http://localhost:8080/api/health >/dev/null; then break; fi
+            if curl -fsS http://localhost:8080/api/health >/dev/null; then 
+              echo "API is ready"
+              break
+            fi
+            echo "Waiting for API... attempt $i"
             sleep 1
           done
+          
+          # Final health check
+          curl -fsS http://localhost:8080/api/health || {
+            echo "API health check failed"
+            ps aux | grep node || true
+            netstat -tlnp | grep 8080 || true
+            exit 1
+          }
       - name: Ingest sample events
         run: |
           now=$(date -u +%FT%TZ)
@@ -360,49 +389,6 @@ jobs:
         run: |
           if [ -f /tmp/api_pid.txt ]; then kill $(cat /tmp/api_pid.txt) || true; fi
 
-  analytics-smoke-dup:
-    name: Analytics Smoke (preview ingest/aggregate)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-      - name: Install deps
-        run: npm ci --workspaces --include-workspace-root
-      - name: Build API
-        run: npm --workspace ./api run build
-      - name: Start API preview (background)
-        env:
-          PREVIEW_ANALYTICS: 'true'
-          FASTIFY_AUTOSTART: 'true'
-          PORT: 8080
-        run: |
-          npm --workspace ./api run start &
-          echo $! > /tmp/api_pid.txt
-          for i in {1..60}; do
-            if curl -fsS http://localhost:8080/api/health >/dev/null; then break; fi
-            sleep 1
-          done
-      - name: Ingest sample events
-        run: |
-          now=$(date -u +%FT%TZ)
-          curl -sS -X POST http://localhost:8080/api/analytics/ingest \
-            -H 'content-type: application/json' \
-            --data "{\"events\":[{\"event\":\"plan_request\",\"ts\":\"$now\",\"anon_session_id\":\"ci\",\"context\":{\"topic\":\"TLS\",\"engine\":\"mock\"}}]}" \
-            -D /tmp/ingest.hdrs -o /dev/null
-          grep -qiE '^access-control-allow-origin: \*' /tmp/ingest.hdrs
-      - name: Aggregate
-        run: |
-          curl -sS http://localhost:8080/api/analytics/aggregate | jq -e '.totals.by_event.plan_request >= 1' >/dev/null
-      - name: Stop API
-        if: always()
-        run: |
-          if [ -f /tmp/api_pid.txt ]; then kill $(cat /tmp/api_pid.txt) || true; fi
 
 
       # NEW — start server before smoke

@@ -4,6 +4,7 @@ import rateLimit from '@fastify/rate-limit';
 import { setHeaderSafe, removeHeaderSafe } from './_safeHeaders';
 
 export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyInstance, _opts, done) => {
+  console.log('Orchestrator security plugin executing...');
   const maxBytes = Math.max(1024, parseInt(process.env.ORCH_MAX_REQUEST_BYTES || '32768', 10));
 
   // Per-route rate limit via onRoute hook after plugin registration
@@ -63,6 +64,7 @@ export const orchestratorSecurityPlugin: FastifyPluginCallback = (app: FastifyIn
     if (sess) {
       const headerToken = String((req.headers?.['x-csrf-token'] ?? '')).trim();
       const cookieToken = String(readCookie(req, 'csrf') || '').trim();
+      // Both header and cookie must be present and match the session token
       const valid = Boolean(headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
       if (!valid) {
         setHeaderSafe(reply, 'access-control-allow-origin', '*');

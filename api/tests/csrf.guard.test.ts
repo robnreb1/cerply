@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import createApp from '../src/index';
+import { createApp } from '../src/index';
 
 describe('CSRF double-submit guard', () => {
   let app: Awaited<ReturnType<typeof createApp>>;
@@ -15,8 +15,8 @@ describe('CSRF double-submit guard', () => {
     const body = r.json() as any;
     const setCookie = r.headers['set-cookie'] as any;
     const cookies = Array.isArray(setCookie) ? setCookie.join('; ') : String(setCookie || '');
-    const sidCookie = cookies.split(',').find((c: string) => /sid=/.test(c))?.split(';')[0] || '';
-    const csrfCookie = cookies.split(',').find((c: string) => /csrf=/.test(c))?.split(';')[0] || '';
+    const sidCookie = cookies.split('; ').find((c: string) => /sid=/.test(c))?.split(';')[0] || '';
+    const csrfCookie = cookies.split('; ').find((c: string) => /csrf=/.test(c))?.split(';')[0] || '';
     const csrf = body.csrf_token;
     return { sidCookie, csrfCookie, csrf };
   }

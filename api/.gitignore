@@ -1,0 +1,4 @@
+# Artifacts directory (locally generated signed content)
+# [OKR: O4.KR2]
+.artifacts/
+

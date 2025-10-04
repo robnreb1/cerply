@@ -23,18 +23,20 @@ model AdminSource {
 
 // Admin Item — certifiable content item
 model AdminItem {
-  id         String       @id @default(cuid())
-  sourceId   String       @map("source_id")
-  status     String       @default("queued") // queued|approved|rejected|error
+  id         String              @id @default(cuid())
+  sourceId   String              @map("source_id")
+  status     String              @default("queued") // queued|approved|rejected|error
   title      String?
   url        String
   sha256     String
-  sizeBytes  Int?         @map("size_bytes")
-  meta       String?      // JSON serialized
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
-  source     AdminSource  @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  lockHash   String?             @map("lock_hash") // Added for publish flow
+  sizeBytes  Int?                @map("size_bytes")
+  meta       String?             // JSON serialized
+  createdAt  DateTime            @default(now()) @map("created_at")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
+  source     AdminSource         @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   events     AdminEvent[]
+  artifacts  PublishedArtifact[]
 
   @@index([status, createdAt(sort: Desc)])
   @@index([sourceId, createdAt(sort: Desc)])
@@ -53,4 +55,19 @@ model AdminEvent {
   @@index([itemId, createdAt(sort: Desc)])
   @@map("admin_events")
 }
+
+// Published Artifact — signed and published certified content [OKR: O1.KR1]
+model PublishedArtifact {
+  id        String    @id @default(cuid())
+  itemId    String    @map("item_id")
+  sha256    String    // SHA-256 of canonical artifact JSON
+  signature String    // Ed25519 signature (base64)
+  path      String    // Relative path under artifacts directory
+  createdAt DateTime  @default(now()) @map("created_at")
+  item      AdminItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, createdAt(sort: Desc)])
+  @@map("published_artifacts")
+}
+
 

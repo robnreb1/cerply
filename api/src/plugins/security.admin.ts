@@ -31,9 +31,7 @@ const plugin = async (app: FastifyInstance) => {
   // Always set ACAO early so even 429s include it (all admin paths)
   app.addHook('onRequest', async (req: any, reply: any) => {
     if (reply.sent) return;
-    const url = String(req?.url || '');
     const method = String(req?.method || '').toUpperCase();
-    if (!url.startsWith('/api/admin/')) return;
     setHeaderSafe(reply, 'access-control-allow-origin', '*');
     removeHeaderSafe(reply, 'access-control-allow-credentials');
     // TERMINAL preflight: hijack and end immediately so no further hooks run
@@ -54,7 +52,7 @@ const plugin = async (app: FastifyInstance) => {
   });
 
   // Dedicated preflight route for admin: terminal 204
-  app.options('/api/admin/*', async (_req: any, reply: any) => {
+  app.options('/*', async (_req: any, reply: any) => {
     setHeaderSafe(reply, 'access-control-allow-origin', '*');
     setHeaderSafe(reply, 'access-control-allow-methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
     setHeaderSafe(reply, 'access-control-allow-headers', 'content-type, x-admin-token, authorization');
@@ -105,7 +103,7 @@ const plugin = async (app: FastifyInstance) => {
     const method = Array.isArray(route.method) ? route.method : [route.method];
     const mset = method.map((m: any) => String(m || '').toUpperCase());
     const isPost = mset.includes('POST');
-    if (typeof route.url === 'string' && route.url.startsWith('/api/admin/') && isPost) {
+    if (typeof route.url === 'string' && isPost) {
       (route as any).config = { ...(route as any).config, rateLimit: { max: limit, timeWindow: '1 minute' } };
     }
   });

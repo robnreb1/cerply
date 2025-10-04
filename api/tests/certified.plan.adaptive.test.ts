@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import createApp from '../src/index';
+import { createApp } from '../src/index';
 
 describe('Certified PLAN with adaptive engine (preview, gated)', () => {
   let app: Awaited<ReturnType<typeof createApp>>;

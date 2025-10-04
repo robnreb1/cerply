@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import createApp from '../src/index';
+import { createApp } from '../src/index';
 
 // Ensure the route picks OpenAI adapter but offline behavior (no real network)
 vi.mock('openai', () => {

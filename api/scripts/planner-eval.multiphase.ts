@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import createApp from '../src/index';
+import { createApp } from '../src/index';
 
 type Row = { topic: string; level?: 'beginner'|'intermediate'|'advanced'; goals?: string[] };
 

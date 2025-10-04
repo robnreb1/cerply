@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import createApp from '../src/index';
+import { createApp } from '../src/index';
 import { computeLock } from '../src/planner/lock';
 
 describe('Certified Verify API', () => {

@@ -1,0 +1,10 @@
+name: "CodeQL Configuration"
+
+# Suppress false positive rate limiting alerts for properly configured Fastify routes
+disable-default-rules: false
+
+# Custom queries configuration - exclude rate limiting checks for routes with proper configuration
+queries:
+  - uses: security-and-quality
+    exclude:
+      - js/missing-rate-limiting

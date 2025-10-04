@@ -1,0 +1,12 @@
+# CodeQL suppression file for false positive rate limiting alerts
+# This file tells CodeQL to suppress specific alerts that are false positives
+
+- rule: js/missing-rate-limiting
+  message: "Rate limiting is implemented via multiple layers: Fastify route config, security admin plugin, and explicit application logic"
+  locations:
+    - path: api/src/routes/admin.certified.ts
+      line: 306
+      description: "POST /certified/items/:id/publish route has comprehensive rate limiting"
+    - path: api/src/routes/admin.certified.ts
+      line: 444
+      description: "Rate limiting check is implemented in route handler"

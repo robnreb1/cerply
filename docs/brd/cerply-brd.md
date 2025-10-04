@@ -43,6 +43,59 @@ B7. Platforms: Web first; iOS/Android (consumer & corporate) planned; corporate 
 B8. Ops Guarantees: staging & prod available; version endpoint and headers present; previews are label-gated, auto-expire <=48h, never block merges.
 B9. Success Metrics: TTFP < 60s; >=80% receive scheduled reviews in week one; >=150 Certified items published; >=3 design partners on Certified + IMA packs.
 
+B10. Content Freshness & Regulatory Scanning
+- Users can upload or paste regulatory/policy documents (PDF/DOCX/text).
+- System extracts obligations, deadlines, compliance triggers, and detects changes vs. prior versions.
+- Output: structured JSON and UI summary table; highlights new/changed obligations.
+- Acceptance: scan completes <90s for <50pp docs; ≥80% precision on obligations (manual eval); change detection works for redlines/prior diffs; API: `POST /api/regscan/scan` always returns structured results.
+
+B11. Adaptive Coach (Pedagogy Engine)
+- System adapts learning flow, format, and cadence based on user progress, strengths, and preferences.
+- Supports topical difficulty adjustment, spaced repetition, and format switching (text, quiz, scenario).
+- Acceptance: at least two adaptive interventions per learner in first week; ≥70% of learners receive a personalized cadence; API: adaptive recommendations accessible per learner.
+
+## 6) Cerply OKRs (v1)
+
+⸻
+
+O1. Be the trusted engine for learning anything, with retention that sticks.
+    •    KR1.1: ≥80% of learners complete at least one scheduled review in week one.
+    •    KR1.2: ≥60% retention of knowledge items after 30 days (measured via spaced recall).
+    •    KR1.3: Time-to-first-plan (TTFP) < 60 seconds from artefact ingestion.
+    •    KR1.4: ≥70 median learner satisfaction (NPS-style in-app feedback).
+
+⸻
+
+O2. Establish Cerply Certified as the gold standard for horizontal topics.
+    •    KR2.1: ≥150 Certified items published within 6 months.
+    •    KR2.2: ≥5 high-value, corporate-relevant domains covered (e.g. compliance, data protection, safety, finance basics, onboarding).
+    •    KR2.3: 100% of Certified items have expert ratification + audit trail.
+    •    KR2.4: ≥3 design partner orgs adopt Certified packs in pilots.
+
+⸻
+
+O3. Build enterprise-grade adoption and monetization (D2B).
+    •    KR3.1: Secure ≥3 paying enterprise pilots by end of quarter.
+    •    KR3.2: Convert ≥50% of pilots to paid subscriptions/contracts.
+    •    KR3.3: Deliver ≥95% uptime and compliance with enterprise security requirements (SSO, audit logs, headers).
+    •    KR3.4: Competitive pricing benchmark: ≥20% lower cost than average LMS pilot alternatives while maintaining margins.
+
+⸻
+
+O4. Leverage consumer use (D2C) as data + funnel, not revenue.
+    •    KR4.1: Grow D2C waitlist to ≥5,000 users.
+    •    KR4.2: ≥1,000 active weekly consumer learners feeding into insight pipeline.
+    •    KR4.3: ≥25% of consumer learners share/export a module (GitHub/Notion/Markdown).
+    •    KR4.4: ≥20 Certified topics originate from consumer ingestion patterns.
+
+⸻
+
+O5. Demonstrate defensibility through certification + telemetry.
+    •    KR5.1: 100% of Certified items show per-item lineage and citations.
+    •    KR5.2: Publish ≥1 external validation study (partner university, design partner audit).
+    •    KR5.3: Telemetry dashboard live with daily token use, cost, and retention outcomes.
+    •    KR5.4: ≥2 industry associations recognize Cerply Certified content as equivalent to CPD/CE credits.
+
 ## Appendix A — GTM (Authoritative Marketing Plan)
 Audience: L&D leaders, compliance managers, eng managers.
 Motion: content-led (publish Certified), founder demos, design partner pilots.

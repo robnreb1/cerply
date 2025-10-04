@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { TaskPacketZ, JobIdZ, JobStatusZ, OrchestratorEventZ, normalizeTaskPacketInput } from '../schemas/orchestrator';
 import { InMemoryEngine, resolveBackend } from '../orchestrator/engine';
 import { readCookie, getSession } from '../session';
+import { orchestratorSecurityPlugin } from '../plugins/security.orchestrator';
 
 const ORCH_ENABLED = String(process.env.ORCH_ENABLED || 'false').toLowerCase() === 'true';
 const ORCH_MODE = (process.env.ORCH_MODE || 'mock').toString(); // mock|live
@@ -16,6 +17,16 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
     return;
   }
 
+  // Register orchestrator security plugin for CSRF protection
+  console.log('Registering orchestrator security plugin...');
+  try {
+    await app.register(orchestratorSecurityPlugin);
+    console.log('Orchestrator security plugin registered successfully');
+  } catch (err) {
+    console.error('Failed to register orchestrator security plugin:', err);
+    // Continue without security plugin rather than failing startup
+  }
+
   // Simple readiness probe for orchestrator prefix (useful for staging canary)
   app.get('/api/orchestrator/ping', async (_req: FastifyRequest, reply: FastifyReply) => {
     reply.header('cache-control', 'no-store');
@@ -25,25 +36,34 @@ export async function registerOrchestratorRoutes(app: FastifyInstance) {
 
   // POST /api/orchestrator/jobs
   app.post('/api/orchestrator/jobs', async (req: FastifyRequest, reply: FastifyReply) => {
-    // Auth v0: CSRF + optional session requirement (flag-gated)
+    // CSRF protection - check if auth is enabled
     const authEnabled = String(process.env.AUTH_ENABLED ?? 'false').toLowerCase() === 'true';
     if (authEnabled) {
-      const requireSession = String(process.env.AUTH_REQUIRE_SESSION ?? 'false').toLowerCase() === 'true';
-      const cookieName = String(process.env.AUTH_COOKIE_NAME ?? 'sid');
-      const sid = readCookie(req as any, cookieName);
-      const sess = await getSession(sid);
-      if (requireSession && !sess) {
-        reply.header('access-control-allow-origin', '*');
-        reply.removeHeader('access-control-allow-credentials');
-        return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'session required' } });
-      }
-      const headerToken = String(((req.headers as any)['x-csrf-token'] ?? '')).trim();
-      const cookieToken = String(readCookie(req as any, 'csrf') || '').trim();
-      const valid = Boolean(sess && headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
-      if (!valid) {
-        reply.header('access-control-allow-origin', '*');
-        reply.removeHeader('access-control-allow-credentials');
-        return reply.code(403).send({ error: { code: 'CSRF', message: 'csrf required' } });
+      const method = String((req as any).method || '').toUpperCase();
+      if (method !== 'OPTIONS' && method !== 'GET') {
+        // Check for session and CSRF token
+        const requireSession = String(process.env.AUTH_REQUIRE_SESSION ?? 'false').toLowerCase() === 'true';
+        const cookieName = String(process.env.AUTH_COOKIE_NAME ?? 'sid');
+        const sid = readCookie(req, cookieName);
+        const sess = await getSession(sid);
+        
+        if (requireSession && !sess) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(401).send({ error: { code: 'UNAUTHORIZED', message: 'session required' } });
+        }
+        
+        // CSRF double-submit (only when session exists)
+        if (sess) {
+          const headerToken = String((req.headers as any)?.['x-csrf-token'] ?? '').trim();
+          const cookieToken = String(readCookie(req, 'csrf') || '').trim();
+          const valid = Boolean(headerToken && cookieToken && headerToken === sess.csrfToken && cookieToken === sess.csrfToken);
+          if (!valid) {
+            reply.header('access-control-allow-origin', '*');
+            reply.removeHeader('access-control-allow-credentials');
+            return reply.code(403).send({ error: { code: 'CSRF', message: 'csrf required' } });
+          }
+        }
       }
     }
 

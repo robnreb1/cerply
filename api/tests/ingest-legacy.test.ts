@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import createApp from '../src/index';
+import { createApp } from '../src/index';
 
 const COOKIE = 'cerply_session=test';
 
@@ -14,14 +14,14 @@ describe('legacy ingest wrappers', () => {
     await app.close();
   });
 
-  it('ingest/parse happy path', async () => {
-    const r = await app.inject({ method: 'POST', url: '/api/ingest/parse', payload: { text: 'hello world' } });
+  it('ingest/preview happy path', async () => {
+    const r = await app.inject({ method: 'POST', url: '/api/ingest/preview', payload: { text: 'hello world' } });
     expect(r.statusCode).toBe(200);
     const j = r.json();
     expect(j.ok).toBe(true);
   });
 
-  it('ingest/preview happy path', { timeout: 10000 }, async () => {
+  it('ingest/preview with stub header', { timeout: 10000 }, async () => {
     const r = await app.inject({ method: 'POST', url: '/api/ingest/preview', headers: { 'x-preview-impl': 'v3-stub' }, payload: { text: 'Algebra basics 30 mins' } });
     expect(r.statusCode).toBe(200);
     const j = r.json();
