@@ -54,6 +54,8 @@ COPY api/prisma ./api/prisma
 RUN npm ci --omit=dev --include-workspace-root -w api
 # Regenerate Prisma client for Debian runtime (ensures correct query engine)
 RUN npx prisma generate
+# Debug: List available query engines
+RUN ls -la /app/node_modules/.prisma/client/ | grep -E "(query_engine|libquery)" || echo "No query engines found"
 
 EXPOSE 8080
 
