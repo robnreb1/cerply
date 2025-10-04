@@ -28,8 +28,8 @@ RUN npm -w api run build
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-# Install OpenSSL 1.1 for Prisma query engine compatibility
-RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 && rm -rf /var/lib/apt/lists/*
+# Install OpenSSL libraries for Prisma query engine compatibility
+RUN apt-get update && apt-get install -y --no-install-recommends libssl3 libssl-dev && rm -rf /var/lib/apt/lists/*
 
 # --- image metadata (populated by CI build-args) ---
 ARG IMAGE_TAG=dev
@@ -52,6 +52,8 @@ COPY api/package.json api/package.json
 COPY api/prisma ./api/prisma
 # Install production dependencies and generate Prisma client for Debian/glibc
 RUN npm ci --omit=dev --include-workspace-root -w api
+# Regenerate Prisma client for Debian runtime (ensures correct query engine)
+RUN npx prisma generate
 
 EXPOSE 8080
 
