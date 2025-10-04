@@ -53,7 +53,7 @@ export async function withPrisma<T>(
   try {
     return await operation(prisma);
   } catch (error) {
-    console.error('Prisma operation failed:', error);
+    console.error('Prisma operation failed');
     return fallback;
   } finally {
     await prisma.$disconnect();
