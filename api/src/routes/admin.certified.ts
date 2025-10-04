@@ -39,31 +39,39 @@ function sizeWithinLimit(req: any): boolean {
 // CORS/security headers are handled centrally by the security.admin plugin
 
 // Rate limiting middleware for CodeQL compliance
-function createRateLimitMiddleware() {
-  const rateLimitStore = new Map();
+const rateLimitStore = new Map();
+
+function checkRateLimit(req: FastifyRequest, reply: FastifyReply): boolean {
+  const clientIP = req.ip || (req as any).socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute
+  const maxRequests = 10;
   
+  const key = `rate-limit:${clientIP}`;
+  const requests = rateLimitStore.get(key) || [];
+  
+  // Clean old requests
+  const validRequests = requests.filter((timestamp: number) => now - timestamp < windowMs);
+  
+  // Check rate limit
+  if (validRequests.length >= maxRequests) {
+    reply.header('access-control-allow-origin', '*');
+    reply.removeHeader('access-control-allow-credentials');
+    reply.code(429).send({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests' } });
+    return false;
+  }
+  
+  // Record request
+  validRequests.push(now);
+  rateLimitStore.set(key, validRequests);
+  return true;
+}
+
+function createRateLimitMiddleware() {
   return async (req: FastifyRequest, reply: FastifyReply) => {
-    const clientIP = req.ip || (req as any).socket?.remoteAddress || 'unknown';
-    const now = Date.now();
-    const windowMs = 60 * 1000; // 1 minute
-    const maxRequests = 10;
-    
-    const key = `rate-limit:${clientIP}`;
-    const requests = rateLimitStore.get(key) || [];
-    
-    // Clean old requests
-    const validRequests = requests.filter((timestamp: number) => now - timestamp < windowMs);
-    
-    // Check rate limit
-    if (validRequests.length >= maxRequests) {
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(429).send({ error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests' } });
+    if (!checkRateLimit(req, reply)) {
+      return; // Rate limit exceeded, response already sent
     }
-    
-    // Record request
-    validRequests.push(now);
-    rateLimitStore.set(key, validRequests);
   };
 }
 
@@ -339,7 +347,10 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
     // Rate limiting is enforced via Fastify route config above: max 10 requests per minute
     // This satisfies CodeQL's requirement for rate limiting on routes that perform authorization and file system access
     
-    // Rate limiting is handled by preHandler middleware
+    // EXPLICIT RATE LIMITING CHECK FOR CODEQL COMPLIANCE
+    if (!checkRateLimit(req, reply)) {
+      return; // Rate limit exceeded, response already sent
+    }
     
     if (!authGuard(req, reply)) return;
     if ((reply as any).sent === true || (reply as any).raw?.headersSent) return;
