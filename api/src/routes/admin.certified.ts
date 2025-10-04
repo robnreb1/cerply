@@ -42,7 +42,7 @@ function sizeWithinLimit(req: any): boolean {
 function createRateLimitMiddleware() {
   const rateLimitStore = new Map();
   
-  return async (req: FastifyRequest, reply: FastifyReply, done: any) => {
+  return async (req: FastifyRequest, reply: FastifyReply) => {
     const clientIP = req.ip || (req as any).socket?.remoteAddress || 'unknown';
     const now = Date.now();
     const windowMs = 60 * 1000; // 1 minute
@@ -64,8 +64,6 @@ function createRateLimitMiddleware() {
     // Record request
     validRequests.push(now);
     rateLimitStore.set(key, validRequests);
-    
-    done();
   };
 }
 
