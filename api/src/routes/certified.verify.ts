@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { canonicalizePlan } from '../planner/lock';
+import { canonicalizePlan, computeLock } from '../planner/lock';
 import crypto from 'node:crypto';
 import { emitAudit } from './certified.audit';
 import { PrismaClient } from '@prisma/client';
@@ -165,9 +165,37 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
 
     // Case C: Legacy plan lock verification
     if (body.lock) {
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(200).send({ ok: true });
+      try {
+        // Validate the lock against the plan
+        const lock = body.lock;
+        const plan = body.plan;
+        
+        if (!plan) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'plan is required for lock verification' } });
+        }
+        
+        // Compute the expected lock for the given plan
+        const expectedLock = computeLock(plan);
+        
+        // Compare the provided lock with the computed one
+        const hashMatches = lock.hash === expectedLock.hash;
+        const algoMatches = lock.algo === expectedLock.algo;
+        
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        
+        if (hashMatches && algoMatches) {
+          return reply.code(200).send({ ok: true, computed: { hash: expectedLock.hash, algo: expectedLock.algo } });
+        } else {
+          return reply.code(200).send({ ok: false, mismatch: { reason: 'hash', expected: expectedLock.hash, provided: lock.hash } });
+        }
+      } catch (err: any) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: err.message } });
+      }
     }
 
     // Otherwise: Bad request
