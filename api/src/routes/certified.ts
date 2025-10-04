@@ -137,7 +137,6 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
     // Always set CORS headers first
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');
-    
     // Security headers for preview mode
     if (process.env.SECURITY_HEADERS_PREVIEW === 'true') {
       reply.header('referrer-policy', 'no-referrer');
