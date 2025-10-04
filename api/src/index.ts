@@ -159,6 +159,18 @@ export async function createApp() {
     });
   }, { prefix: '/api/certified' });
 
+  // FINAL guard: enforce permissive CORS for all /api/certified/* responses
+  app.addHook('onSend', async (req, reply, payload) => {
+    const url = (req.raw?.url || (req as any).url || '') as string;
+    if (typeof url === 'string' && url.startsWith('/api/certified/')) {
+      // Force open CORS
+      reply.header('access-control-allow-origin', '*');
+      // Some upstream middleware sets this to true; make sure it's not present
+      try { reply.removeHeader('access-control-allow-credentials'); } catch {}
+    }
+    return payload;
+  });
+
   return app;
 }
 
