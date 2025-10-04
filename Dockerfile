@@ -3,6 +3,8 @@
 # 1) Install only root + api workspaces deterministically
 FROM node:20-alpine AS deps
 WORKDIR /app
+# Install OpenSSL 1.1 compatibility for Prisma query engine
+RUN apk add --no-cache libc6-compat openssl1.1-compat
 COPY package.json package-lock.json ./
 COPY api/package.json api/package.json
 # Install just what's needed to build API (skip web)
@@ -13,6 +15,8 @@ RUN npm ci --include-workspace-root -w api
 # 2) Build API
 FROM node:20-alpine AS builder
 WORKDIR /app
+# Install OpenSSL 1.1 compatibility for Prisma query engine
+RUN apk add --no-cache openssl1.1-compat
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/api/node_modules ./api/node_modules
 COPY --from=deps /app/package.json ./package.json
@@ -25,6 +29,8 @@ RUN npm -w api run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Install OpenSSL 1.1 compatibility for Prisma query engine (critical for runtime)
+RUN apk add --no-cache openssl1.1-compat
 
 # --- image metadata (populated by CI build-args) ---
 ARG IMAGE_TAG=dev
