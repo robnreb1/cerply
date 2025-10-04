@@ -101,9 +101,9 @@ export async function createApp() {
 
   // Public certified routes (artifacts, verify, legacy aliases)
   await safeRegister('./routes/certified.artifacts', ['registerCertifiedArtifactsRoutes']);
-  console.log('DEBUG: About to register certified.verify');
-  await safeRegister('./routes/certified.verify', ['registerCertifiedVerifyRoutes']);
-  console.log('DEBUG: Finished registering certified.verify');
+  console.log('DEBUG: About to register test-verify');
+  await safeRegister('./routes/test-verify', ['registerTestVerifyRoutes']);
+  console.log('DEBUG: Finished registering test-verify');
   
   // Register the full certified routes (including plan, schedule, progress, etc.)
   await safeRegister('./routes/certified', ['registerCertified']);
