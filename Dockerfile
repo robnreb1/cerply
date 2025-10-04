@@ -41,9 +41,10 @@ ARG GIT_SHA=local
 ARG IMAGE_CREATED=unknown
 # Debug: print build args
 RUN echo "Build args received: IMAGE_TAG=${IMAGE_TAG}, GIT_SHA=${GIT_SHA}, IMAGE_CREATED=${IMAGE_CREATED}"
-ENV IMAGE_TAG="${IMAGE_TAG}" \
-    IMAGE_REVISION="${GIT_SHA}" \
-    IMAGE_CREATED="${IMAGE_CREATED}"
+# Set environment variables with proper fallbacks
+ENV IMAGE_TAG="${IMAGE_TAG:-dev}" \
+    IMAGE_REVISION="${GIT_SHA:-local}" \
+    IMAGE_CREATED="${IMAGE_CREATED:-unknown}"
 # Debug: print environment variables after setting
 RUN echo "Environment variables set: IMAGE_TAG=${IMAGE_TAG}, IMAGE_REVISION=${IMAGE_REVISION}, IMAGE_CREATED=${IMAGE_CREATED}"
 # ---------------------------------------------------
