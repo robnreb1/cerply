@@ -32,6 +32,8 @@ ENV NODE_ENV=production
 RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 libssl-dev && rm -rf /var/lib/apt/lists/*
 # Debug: List OpenSSL libraries
 RUN find /usr/lib -name "*ssl*" -type f | head -10
+# Create symlink for libssl.so.1.1 in case Prisma looks in /lib
+RUN ln -sf /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /lib/x86_64-linux-gnu/libssl.so.1.1 || echo "Symlink creation failed or already exists"
 
 # --- image metadata (populated by CI build-args) ---
 ARG IMAGE_TAG=dev
