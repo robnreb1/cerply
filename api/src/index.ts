@@ -75,7 +75,7 @@ export async function createApp() {
         if (result && typeof result.then === 'function') {
           await result;
         }
-  } else {
+    } else {
         app.log.warn({ modPath }, 'No registerable export found');
       }
     } catch (err) {

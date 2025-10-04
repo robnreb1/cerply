@@ -1,0 +1,465 @@
+openapi: 3.0.3
+info:
+  title: Cerply Certified API
+  description: Public endpoints for publishing, fetching, and verifying Certified artifacts
+  version: 1.0.0
+  contact:
+    name: Cerply API Support
+servers:
+  - url: https://api-stg.cerply.com
+    description: Staging environment
+  - url: https://api.cerply.com
+    description: Production environment
+
+paths:
+  /api/certified/plan:
+    post:
+      summary: Generate a certified plan
+      description: Creates a structured learning plan from a topic
+      operationId: createCertifiedPlan
+      tags:
+        - Certified
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - topic
+              properties:
+                topic:
+                  type: string
+                  description: The topic to create a plan for
+                  example: "machine learning basics"
+      responses:
+        '200':
+          description: Plan generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  provenance:
+                    type: object
+                    properties:
+                      planner:
+                        type: string
+                      proposers:
+                        type: array
+                        items:
+                          type: string
+                      checker:
+                        type: string
+                  plan:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                      items:
+                        type: array
+                        items:
+                          type: object
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Service unavailable (feature disabled)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      headers:
+        Access-Control-Allow-Origin:
+          schema:
+            type: string
+            example: "*"
+        Cache-Control:
+          schema:
+            type: string
+            example: "no-cache"
+
+  /api/certified/artifacts/{artifactId}:
+    get:
+      summary: Fetch a certified artifact
+      description: Retrieves a published certified artifact by ID
+      operationId: getCertifiedArtifact
+      tags:
+        - Certified
+      security: []
+      parameters:
+        - name: artifactId
+          in: path
+          required: true
+          description: The artifact identifier
+          schema:
+            type: string
+            example: "art_123"
+      responses:
+        '200':
+          description: Artifact retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artifact:
+                    type: object
+                    description: The domain-specific artifact content
+                  sha256:
+                    type: string
+                    description: SHA-256 hash of the canonical artifact
+                    example: "a1b2c3d4e5f6..."
+                  signature:
+                    type: string
+                    description: Ed25519 signature (hex or base64)
+                    example: "deadbeef..."
+          headers:
+            ETag:
+              description: Entity tag for caching
+              schema:
+                type: string
+                example: 'W/"a1b2c3d4e5f6..."'
+            Cache-Control:
+              description: Cache control directive
+              schema:
+                type: string
+                example: "public, max-age=300, must-revalidate"
+        '404':
+          description: Artifact not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        Access-Control-Allow-Origin:
+          schema:
+            type: string
+            example: "*"
+
+  /api/certified/artifacts/{artifactId}.sig:
+    get:
+      summary: Fetch artifact signature
+      description: Retrieves the raw Ed25519 signature for a certified artifact
+      operationId: getCertifiedArtifactSignature
+      tags:
+        - Certified
+      security: []
+      parameters:
+        - name: artifactId
+          in: path
+          required: true
+          description: The artifact identifier
+          schema:
+            type: string
+            example: "art_123"
+      responses:
+        '200':
+          description: Signature retrieved successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+                description: Raw signature bytes
+          headers:
+            Cache-Control:
+              description: Cache control directive
+              schema:
+                type: string
+                example: "public, max-age=300, must-revalidate"
+        '404':
+          description: Artifact not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        Access-Control-Allow-Origin:
+          schema:
+            type: string
+            example: "*"
+
+  /api/certified/verify:
+    post:
+      summary: Verify a certified artifact
+      description: Verifies a certified artifact by ID or inline signature validation
+      operationId: verifyCertifiedArtifact
+      tags:
+        - Certified
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    artifactId:
+                      type: string
+                      description: Artifact ID to verify
+                      example: "art_123"
+                  required:
+                    - artifactId
+                - type: object
+                  properties:
+                    artifact:
+                      type: object
+                      description: The artifact to verify
+                    signature:
+                      type: string
+                      description: Ed25519 signature (hex or base64)
+                      example: "deadbeef..."
+                  required:
+                    - artifact
+                    - signature
+                - type: object
+                  properties:
+                    lock:
+                      type: object
+                      description: Legacy plan lock object
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      ok:
+                        type: boolean
+                        example: true
+                      artifactId:
+                        type: string
+                        example: "art_123"
+                      sha256:
+                        type: string
+                        example: "a1b2c3d4e5f6..."
+                      lockHash:
+                        type: string
+                        example: "deadbeef..."
+                  - type: object
+                    properties:
+                      ok:
+                        type: boolean
+                        example: false
+                      reason:
+                        type: string
+                        enum:
+                          - signature_invalid
+                          - lock_mismatch
+                          - sha256_mismatch
+                    example:
+                      ok: false
+                      reason: "signature_invalid"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Artifact not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          headers:
+            Access-Control-Allow-Origin:
+              schema:
+                type: string
+                example: "*"
+            x-cert-verify-hit:
+              description: Diagnostic header indicating verify handler was hit
+              schema:
+                type: string
+                example: "1"
+
+  /api/certified/items/{itemId}/publish:
+    post:
+      summary: Publish a certified item
+      description: Publishes a certified item with Ed25519 signature (admin only)
+      operationId: publishCertifiedItem
+      tags:
+        - Certified
+        - Admin
+      security:
+        - AdminAuth: []
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          description: The item identifier to publish
+          schema:
+            type: string
+            example: "item_123"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - lockHash
+              properties:
+                lockHash:
+                  type: string
+                  description: Lock hash for the item
+                  example: "a1b2c3d4e5f6..."
+      responses:
+        '200':
+          description: Item published successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  id:
+                    type: string
+                    example: "art_123"
+                  status:
+                    type: string
+                    example: "published"
+        '400':
+          description: Bad request (missing lock hash)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized (missing/invalid admin auth)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Idempotent republish
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  id:
+                    type: string
+                    example: "art_123"
+                  status:
+                    type: string
+                    example: "already_published"
+        '429':
+          description: Rate limited (10 requests per minute)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+          properties:
+            code:
+              type: string
+              enum:
+                - BAD_REQUEST
+                - NOT_FOUND
+                - UNAUTHORIZED
+                - RATE_LIMITED
+                - UNSUPPORTED_MEDIA_TYPE
+                - PAYLOAD_TOO_LARGE
+                - NO_LOCK_HASH
+                - INTERNAL_ERROR
+              example: "NOT_FOUND"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "artifact not found"
+            details:
+              type: object
+              description: Additional error details
+              example:
+                expected: "abc123"
+                got: "def456"
+
+  securitySchemes:
+    AdminAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Admin token for authenticated requests
+
+  headers:
+    Access-Control-Allow-Origin:
+      description: CORS header allowing all origins
+      schema:
+        type: string
+        example: "*"
+    Cache-Control:
+      description: Cache control directives
+      schema:
+        type: string
+        example: "public, max-age=300, must-revalidate"
+    ETag:
+      description: Entity tag for HTTP caching
+      schema:
+        type: string
+        example: 'W/"a1b2c3d4e5f6..."'
+    x-cert-verify-hit:
+      description: Diagnostic header for verify endpoint
+      schema:
+        type: string
+        example: "1"
+
+tags:
+  - name: Certified
+    description: Public certified artifact endpoints
+  - name: Admin
+    description: Admin-only endpoints requiring authentication
