@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
-import { canonicalizePlan, computeLock } from '../planner/lock';
+import { canonicalizePlan, computeLock, computeLockWithAlgo } from '../planner/lock';
 import crypto from 'node:crypto';
 import { emitAudit } from './certified.audit';
 import { withPrisma } from '../lib/prisma';
@@ -170,20 +170,27 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
           return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'plan is required for lock verification' } });
         }
         
-        // Compute the expected lock for the given plan
-        const expectedLock = computeLock(plan);
+        // Use the client's algorithm to compute the expected lock
+        // This prevents false negatives when server supports different algorithms
+        const expectedLock = computeLockWithAlgo(plan, lock.algo);
         
-        // Compare the provided lock with the computed one
+        // Compare only the hash using the client's algorithm
         const hashMatches = lock.hash === expectedLock.hash;
-        const algoMatches = lock.algo === expectedLock.algo;
         
         reply.header('access-control-allow-origin', '*');
         reply.removeHeader('access-control-allow-credentials');
         
-        if (hashMatches && algoMatches) {
-          return reply.code(200).send({ ok: true, computed: { hash: expectedLock.hash, algo: expectedLock.algo } });
+        if (hashMatches) {
+          return reply.code(200).send({ ok: true, computed: { hash: expectedLock.hash, algo: lock.algo } });
         } else {
-          return reply.code(200).send({ ok: false, mismatch: { reason: 'hash', expected: expectedLock.hash, provided: lock.hash } });
+          return reply.code(200).send({ 
+            ok: false, 
+            mismatch: { 
+              reason: 'hash',
+              expected: expectedLock.hash, 
+              provided: lock.hash 
+            }
+          });
         }
       } catch (err: any) {
         reply.header('access-control-allow-origin', '*');

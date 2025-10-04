@@ -7,23 +7,24 @@ export function createPrismaClient(): PrismaClient | null {
   try {
     let databaseUrl = process.env.DATABASE_URL;
     
-    // If DATABASE_URL is not set or invalid, use a default SQLite path for staging
-    if (!databaseUrl || !databaseUrl.startsWith('file:')) {
+    // If DATABASE_URL is not set or empty, use a default SQLite path for staging
+    // Only fallback when DATABASE_URL is missing, not when it's a valid non-file URL
+    if (!databaseUrl || databaseUrl.trim() === '') {
       databaseUrl = 'file:./.data/staging.sqlite';
       process.env.DATABASE_URL = databaseUrl;
     }
     
-    // Extract the file path from the DATABASE_URL
-    const filePath = databaseUrl.replace('file:', '');
-    
-    // Ensure the directory exists
-    try {
-      const dir = dirname(filePath);
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
+    // Ensure the directory exists (only for SQLite files)
+    if (databaseUrl.startsWith('file:')) {
+      try {
+        const filePath = databaseUrl.replace('file:', '');
+        const dir = dirname(filePath);
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+      } catch (dirError) {
+        console.warn('Could not create database directory:', dirError);
       }
-    } catch (dirError) {
-      console.warn('Could not create database directory:', dirError);
     }
     
     return new PrismaClient({
