@@ -170,6 +170,7 @@ export async function createApp() {
   app.addHook('onSend', async (_req, reply, payload) => {
     const commit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
     reply.header('x-app-commit', commit);
+    reply.header('x-debug-test', '1'); // Temporary debug header
     return payload;
   });
 
