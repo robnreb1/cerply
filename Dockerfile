@@ -53,7 +53,7 @@ COPY api/prisma ./api/prisma
 # Install production dependencies and generate Prisma client for Debian/glibc
 RUN npm ci --omit=dev --include-workspace-root -w api
 # Regenerate Prisma client for Debian runtime (ensures correct query engine)
-RUN npx prisma generate
+RUN npx prisma generate --schema=./api/prisma/schema.prisma
 # Debug: List available query engines
 RUN ls -la /app/node_modules/.prisma/client/ | grep -E "(query_engine|libquery)" || echo "No query engines found"
 
