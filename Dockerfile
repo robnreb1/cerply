@@ -29,7 +29,7 @@ FROM node:20-bullseye-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 # Install OpenSSL 1.1 for Prisma query engine compatibility
-RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 libssl-dev && rm -rf /var/lib/apt/lists/*
 
 # --- image metadata (populated by CI build-args) ---
 ARG IMAGE_TAG=dev
