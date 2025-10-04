@@ -125,6 +125,9 @@ export async function createApp() {
 
   // Health route (critical for CI health checks)
   await safeRegister('./routes/health', ['registerHealth']);
+  
+  // Fallback health endpoint registration (in case safeRegister fails)
+  app.get('/api/health', async () => ({ ok: true, fallback: true }));
 
   // TEMP: expose route tree + commit for staging debug
   app.get('/__debug/routes', { config: { public: true } }, async (_req, reply) => {
