@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { canonicalizePlan, computeLock } from '../planner/lock';
 import crypto from 'node:crypto';
 import { emitAudit } from './certified.audit';
-import { PrismaClient } from '@prisma/client';
+import { withPrisma } from '../lib/prisma';
 import { verify as verifySignature } from '../lib/ed25519';
 import { canonicalize, sha256Hex } from '../lib/artifacts';
 
@@ -72,17 +72,14 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
 
     // Case A: Artifact verification by ID only
     if (artifactId && !artifact && !signature) {
-      const prisma = new PrismaClient();
-      try {
+      const result = await withPrisma(async (prisma) => {
         const record = await prisma.publishedArtifact.findUnique({
           where: { id: artifactId },
           include: { item: true },
         });
         
         if (!record) {
-          reply.header('access-control-allow-origin', '*');
-          reply.removeHeader('access-control-allow-credentials');
-          return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'artifact not found' } });
+          return { success: false, error: 'NOT_FOUND', message: 'artifact not found' };
         }
         
         // Read artifact from disk
@@ -90,44 +87,41 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
         const artifactsDir = getArtifactsDir();
         const artifactData = await readArtifact(artifactsDir, artifactId);
         if (!artifactData) {
-          reply.header('access-control-allow-origin', '*');
-          reply.removeHeader('access-control-allow-credentials');
-          return reply.code(404).send({ error: { code: 'FILE_NOT_FOUND', message: 'artifact file not found' } });
+          return { success: false, error: 'FILE_NOT_FOUND', message: 'artifact file not found' };
         }
         
         // Verify lockHash matches item
         if (!record.item.lockHash || artifactData.lockHash !== record.item.lockHash) {
-          reply.header('access-control-allow-origin', '*');
-          reply.removeHeader('access-control-allow-credentials');
-          return reply.code(200).send({ ok: false, reason: 'lock_mismatch', details: { expected: record.item.lockHash, got: artifactData.lockHash } });
+          return { success: false, ok: false, reason: 'lock_mismatch', details: { expected: record.item.lockHash, got: artifactData.lockHash } };
         }
         
         // Verify SHA-256 (artifact on disk doesn't include sha256 field)
         const canonical = canonicalize(artifactData);
         const computedSha = sha256Hex(canonical);
         if (computedSha !== record.sha256) {
-          reply.header('access-control-allow-origin', '*');
-          reply.removeHeader('access-control-allow-credentials');
-          return reply.code(200).send({ ok: false, reason: 'sha256_mismatch', details: { expected: record.sha256, got: computedSha } });
+          return { success: false, ok: false, reason: 'sha256_mismatch', details: { expected: record.sha256, got: computedSha } };
         }
         
         // Verify Ed25519 signature (using same canonical form as signing)
         const sigValid = verifySignature(Buffer.from(canonical, 'utf8'), record.signature);
         if (!sigValid) {
-          reply.header('access-control-allow-origin', '*');
-          reply.removeHeader('access-control-allow-credentials');
-          return reply.code(200).send({ ok: false, reason: 'signature_invalid' });
+          return { success: false, ok: false, reason: 'signature_invalid' };
         }
         
-        reply.header('access-control-allow-origin', '*');
-        reply.removeHeader('access-control-allow-credentials');
-        return reply.code(200).send({ ok: true, artifactId, sha256: record.sha256, lockHash: artifactData.lockHash });
-      } catch (err: any) {
-        reply.header('access-control-allow-origin', '*');
-        reply.removeHeader('access-control-allow-credentials');
-        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: err.message } });
-      } finally {
-        await prisma.$disconnect();
+        return { success: true, ok: true, artifactId, sha256: record.sha256, lockHash: artifactData.lockHash };
+      }, { success: false, error: 'NOT_FOUND', message: 'artifact not found' });
+      
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      
+      if (!result.success) {
+        if (result.error === 'NOT_FOUND' || result.error === 'FILE_NOT_FOUND') {
+          return reply.code(404).send({ error: { code: result.error, message: result.message } });
+        } else if (result.ok === false) {
+          return reply.code(200).send({ ok: false, reason: result.reason, details: result.details });
+        }
+      } else {
+        return reply.code(200).send({ ok: true, artifactId: result.artifactId, sha256: result.sha256, lockHash: result.lockHash });
       }
     }
 
