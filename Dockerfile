@@ -24,12 +24,12 @@ ENV PATH="/app/api/node_modules/.bin:/app/node_modules/.bin:${PATH}"
 RUN npm -w api run build
 
 # 3) Runtime: minimal, with image metadata for /api/version + x-image-* headers
-# Use Debian slim for better OpenSSL compatibility with Prisma (OpenSSL 1.1.1+)
-FROM node:20-bookworm-slim AS runner
+# Use Debian Bullseye for OpenSSL 1.1 compatibility with Prisma
+FROM node:20-bullseye-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-# Install OpenSSL libraries for Prisma query engine compatibility
-RUN apt-get update && apt-get install -y --no-install-recommends libssl3 libssl-dev && rm -rf /var/lib/apt/lists/*
+# Install OpenSSL 1.1 for Prisma query engine compatibility
+RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 && rm -rf /var/lib/apt/lists/*
 
 # --- image metadata (populated by CI build-args) ---
 ARG IMAGE_TAG=dev
