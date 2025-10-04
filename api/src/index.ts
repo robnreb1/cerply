@@ -64,28 +64,21 @@ export async function createApp() {
 
   async function safeRegister(modPath: string, fallbacks: string[] = []) {
     try {
-      console.log('DEBUG: safeRegister importing:', modPath);
       const mod = await import(modPath);
-      console.log('DEBUG: safeRegister imported successfully:', modPath, 'exports:', Object.keys(mod));
       const candidate: Fn | undefined =
         (mod as any).default ??
         fallbacks.map(n => (mod as any)[n]).find((fn: any) => typeof fn === 'function') ??
         (typeof (mod as any) === 'function' ? (mod as any) : undefined);
 
-      console.log('DEBUG: safeRegister candidate found:', typeof candidate);
       if (typeof candidate === 'function') {
-        console.log('DEBUG: safeRegister registering function:', modPath);
         const result = app.register(candidate as any);
         if (result && typeof result.then === 'function') {
           await result;
         }
-        console.log('DEBUG: safeRegister registered successfully:', modPath);
   } else {
-        console.log('DEBUG: safeRegister no candidate found:', modPath);
         app.log.warn({ modPath }, 'No registerable export found');
       }
     } catch (err) {
-      console.log('DEBUG: safeRegister error:', modPath, err);
       app.log.error({ err, modPath }, 'Route registration failed');
     }
   }
@@ -101,9 +94,7 @@ export async function createApp() {
 
   // Public certified routes (artifacts, verify, legacy aliases)
   await safeRegister('./routes/certified.artifacts', ['registerCertifiedArtifactsRoutes']);
-  console.log('DEBUG: About to register test-verify');
-  await safeRegister('./routes/test-verify', ['registerTestVerifyRoutes']);
-  console.log('DEBUG: Finished registering test-verify');
+  await safeRegister('./routes/certified.verify', ['registerCertifiedVerifyRoutes']);
   
   // Register the full certified routes (including plan, schedule, progress, etc.)
   await safeRegister('./routes/certified', ['registerCertified']);
@@ -167,6 +158,13 @@ export async function createApp() {
       return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
     });
   }, { prefix: '/api/certified' });
+
+  // Route registration logging
+  app.addHook('onRoute', (route) => {
+    if (route.method && route.url?.includes('/api/certified')) {
+      app.log.info({ method: route.method, url: route.url }, 'route_registered');
+    }
+  });
 
   // FINAL guard: enforce permissive CORS for all /api/certified/* responses
   app.addHook('onSend', async (req, reply, payload) => {
