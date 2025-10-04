@@ -166,6 +166,13 @@ export async function createApp() {
     }
   });
 
+  // Add build header on every response so we know which build we're hitting
+  app.addHook('onSend', async (_req, reply, payload) => {
+    const commit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
+    reply.header('x-app-commit', commit);
+    return payload;
+  });
+
   // FINAL guard: enforce permissive CORS for all /api/certified/* responses
   app.addHook('onSend', async (req, reply, payload) => {
     const url = (req.raw?.url || (req as any).url || '') as string;
@@ -176,6 +183,18 @@ export async function createApp() {
       try { reply.removeHeader('access-control-allow-credentials'); } catch {}
     }
     return payload;
+  });
+
+  // TEMP: expose route tree + commit for staging debug
+  app.get('/__debug/routes', { config: { public: true } }, async (_req, reply) => {
+    const commit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
+    const routesText = app.printRoutes();
+    reply.header('access-control-allow-origin', '*');
+    return reply.code(200).send({
+      commit,
+      nodeEnv: process.env.NODE_ENV,
+      routes: routesText,
+    });
   });
 
   return app;
