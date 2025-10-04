@@ -24,7 +24,7 @@ ENV PATH="/app/api/node_modules/.bin:/app/node_modules/.bin:${PATH}"
 RUN npm -w api run build
 
 # 3) Runtime: minimal, with image metadata for /api/version + x-image-* headers
-# Use Debian slim for better OpenSSL compatibility with Prisma
+# Use Debian slim for better OpenSSL compatibility with Prisma (OpenSSL 1.1.1+)
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
