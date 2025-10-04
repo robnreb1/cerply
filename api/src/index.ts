@@ -43,10 +43,15 @@ export async function createApp() {
     }
   });
 
-  // Admin token guard for /certified/**
+  // Admin token guard for /certified/** (excluding public artifact routes)
   app.addHook('onRequest', async (req, reply) => {
     if (req.method === 'OPTIONS') return;
-    if ((req.url || '').startsWith('/certified/')) {
+    const url = req.url || '';
+    // Skip admin token requirement for public artifact routes
+    if (url.startsWith('/api/certified/artifacts/') || url.startsWith('/api/certified/verify')) {
+      return; // Allow public access to artifacts and verify endpoints
+    }
+    if (url.startsWith('/certified/')) {
       const expected = String(process.env.ADMIN_TOKEN || '').trim();
       const provided = String((req.headers as any)['x-admin-token'] || '').trim();
       if (!expected || !provided || expected !== provided) {
