@@ -92,7 +92,7 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
           return reply.code(200).send({ ok: false, reason: 'lock_mismatch', details: { expected: record.item.lockHash, got: artifactData.lockHash } });
         }
         
-        // Verify SHA-256
+        // Verify SHA-256 (artifact on disk doesn't include sha256 field)
         const canonical = canonicalize(artifactData);
         const computedSha = sha256Hex(canonical);
         if (computedSha !== record.sha256) {
@@ -101,7 +101,7 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
           return reply.code(200).send({ ok: false, reason: 'sha256_mismatch', details: { expected: record.sha256, got: computedSha } });
         }
         
-        // Verify Ed25519 signature
+        // Verify Ed25519 signature (using same canonical form as signing)
         const sigValid = verifySignature(Buffer.from(canonical, 'utf8'), record.signature);
         if (!sigValid) {
           reply.header('access-control-allow-origin', '*');
@@ -124,8 +124,10 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
     // Route 2: Artifact verification with inline artifact + signature [OKR: O1.KR1, O3.KR2]
     if (artifact && signature) {
       try {
-        // Verify SHA-256
-        const canonical = canonicalize(artifact);
+        // Verify SHA-256 (remove sha256 field for consistent computation with stored artifacts)
+        const artifactForSigning = { ...artifact };
+        delete artifactForSigning.sha256; // Remove sha256 field for consistent signing
+        const canonical = canonicalize(artifactForSigning);
         const computedSha = sha256Hex(canonical);
         if (artifact.sha256 && artifact.sha256 !== computedSha) {
           reply.header('access-control-allow-origin', '*');

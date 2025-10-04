@@ -36,10 +36,13 @@ export async function registerCertifiedArtifactsRoutes(app: FastifyInstance) {
       }
 
       setPublicHeaders(reply);
-      reply.header('etag', `W/"${artifact.sha256}"`);
+      reply.header('etag', `W/"${record.sha256}"`);
       reply.header('cache-control', 'public, max-age=300');
       reply.header('content-type', 'application/json');
-      return reply.code(200).send(artifact);
+      
+      // Add sha256 field to artifact for API response
+      const artifactWithSha256 = { ...artifact, sha256: record.sha256 };
+      return reply.code(200).send(artifactWithSha256);
     } catch (err: any) {
       setPublicHeaders(reply);
       return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: err.message } });

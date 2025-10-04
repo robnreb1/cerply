@@ -184,14 +184,13 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
       
       const data = JSON.parse(resp.body);
       expect(data.ok).toBe(true);
-      expect(data.artifact).toBeDefined();
-      expect(data.artifact.id).toBeDefined();
-      expect(data.artifact.sha256).toBeDefined();
-      expect(data.artifact.signature).toBeDefined();
-      expect(data.artifact.itemId).toBe(testItemId);
+      expect(data.artifact_id).toBeDefined();
+      expect(data.sha256).toBeDefined();
+      expect(data.signature).toBeDefined();
+      expect(data.item_id).toBe(testItemId);
       
       // Verify artifact file exists
-      const artifactPath = path.join(testArtifactsDir, `${data.artifact.id}.json`);
+      const artifactPath = path.join(testArtifactsDir, `${data.artifact_id}.json`);
       const exists = await fs.stat(artifactPath).then(() => true).catch(() => false);
       expect(exists).toBe(true);
     });
@@ -304,6 +303,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
         });
         
         const canonical = canonicalize(artifact);
+        const artifactSha256 = sha256Hex(canonical);
         const signature = sign(Buffer.from(canonical, 'utf8'));
         const signatureB64 = toBase64(signature);
         
@@ -313,7 +313,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
           data: {
             id: artifact.artifactId,
             itemId: item.id,
-            sha256: artifact.sha256,
+            sha256: artifactSha256,
             signature: signatureB64,
             path: `${artifact.artifactId}.json`,
           },
@@ -392,6 +392,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
         });
         
         const canonical = canonicalize(testArtifact);
+        const artifactSha256 = sha256Hex(canonical);
         const signature = sign(Buffer.from(canonical, 'utf8'));
         testSignature = toBase64(signature);
         
@@ -401,7 +402,7 @@ describe('[OKR: O4.KR1] EPIC #56: Certified Publish v1', () => {
           data: {
             id: testArtifact.artifactId,
             itemId: item.id,
-            sha256: testArtifact.sha256,
+            sha256: artifactSha256,
             signature: testSignature,
             path: `${testArtifact.artifactId}.json`,
           },

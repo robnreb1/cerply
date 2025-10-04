@@ -58,7 +58,7 @@ export interface ArtifactForOptions {
 }
 
 export function artifactFor(opts: ArtifactForOptions): ArtifactData {
-  const base = {
+  const artifact = {
     version: 'cert.v1' as const,
     artifactId: opts.artifactId,
     itemId: opts.itemId,
@@ -67,14 +67,12 @@ export function artifactFor(opts: ArtifactForOptions): ArtifactData {
     createdAtISO: new Date().toISOString(),
   };
   
-  // Compute SHA-256 over canonical JSON (without sha256 field initially)
-  const canonical = canonicalize(base);
+  // Compute SHA-256 over canonical JSON (without sha256 field)
+  const canonical = canonicalize(artifact);
   const sha256 = sha256Hex(canonical);
   
-  return {
-    ...base,
-    sha256,
-  };
+  // Return artifact without sha256 field for consistent signing/storage
+  return artifact;
 }
 
 /**

@@ -414,12 +414,15 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
         lockHash: item.lockHash,
       });
       
-      // Sign canonical artifact
+      // Compute SHA-256 over canonical artifact (for database storage)
       const canonical = canonicalize(artifact);
+      const artifactSha256 = sha256Hex(canonical);
+      
+      // Sign canonical artifact
       const signatureBytes = sign(Buffer.from(canonical, 'utf8'));
       const signatureB64 = toBase64(signatureBytes);
       
-      // Write artifact to disk
+      // Write artifact to disk (without sha256 field for consistent signing)
       const artifactsDir = getArtifactsDir();
       const { path: relativePath } = await writeArtifact(artifactsDir, artifact);
       
@@ -428,7 +431,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
         data: {
           id: artifactId,
           itemId: id,
-          sha256: artifact.sha256,
+          sha256: artifactSha256,
           signature: signatureB64,
           path: relativePath,
         },
@@ -439,14 +442,12 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
       try { (reply as any).removeHeader?.('access-control-allow-credentials'); } catch {}
       return reply.code(200).send({
         ok: true,
-        artifact: {
-          id: record.id,
-          itemId: record.itemId,
-          sha256: record.sha256,
-          signature: record.signature,
-          path: record.path,
-          createdAt: record.createdAt.toISOString(),
-        },
+        artifact_id: record.id,
+        item_id: record.itemId,
+        sha256: record.sha256,
+        signature: record.signature,
+        path: record.path,
+        created_at: record.createdAt.toISOString(),
       });
     } catch (err: any) {
       reply.header('access-control-allow-origin', '*');
