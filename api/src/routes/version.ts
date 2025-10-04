@@ -1,6 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export async function registerVersionRoutes(app: any) {
   app.get('/api/version', async (_req: any, reply: any) => {
+    // Debug: log all IMAGE_* and GIT_* environment variables
+    const envDebug = {
+      IMAGE_TAG: process.env.IMAGE_TAG,
+      IMAGE_REVISION: process.env.IMAGE_REVISION,
+      IMAGE_CREATED: process.env.IMAGE_CREATED,
+      GIT_SHA: process.env.GIT_SHA,
+      IMAGE_SHA: process.env.IMAGE_SHA,
+    };
+    console.log('Version endpoint debug - env vars:', envDebug);
+    
     const image = {
       tag: process.env.IMAGE_TAG || '',
       revision: (process.env.IMAGE_REVISION || process.env.GIT_SHA || process.env.IMAGE_SHA || ''),
