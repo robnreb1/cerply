@@ -1,4 +1,45 @@
-## 9) Acceptance criteria
+## 9) Certified v1 API (COMPLETED)
+
+**Epic Status:** ✅ COMPLETED - Deployed to staging and merged to main
+
+**Implementation Summary:**
+- **Admin Publish:** `POST /api/certified/items/:itemId/publish` with Ed25519 signing, rate limiting (10 req/min), and idempotent publishing
+- **Public Artifacts:** `GET /api/certified/artifacts/:artifactId` (JSON with ETag/Cache-Control) and `GET /api/certified/artifacts/:artifactId.sig` (binary signature)
+- **Public Verification:** `POST /api/certified/verify` supporting artifact ID lookup, inline signature validation, and legacy plan-lock verification
+- **Plan Generation:** `POST /api/certified/plan` with content-type validation (415), payload size limits (413), and rate limiting (429)
+
+**Technical Achievements:**
+- **CDN-Ready:** ETag headers and `Cache-Control: public, max-age=300, must-revalidate` for efficient content delivery
+- **CORS Compliance:** `Access-Control-Allow-Origin: *` with credentials removal across all public endpoints
+- **Database Resilience:** Graceful SQLite fallback when DATABASE_URL is missing, preventing 500 errors
+- **Container Compatibility:** Fixed Prisma/OpenSSL compatibility by migrating from Alpine to Debian Bullseye
+- **Security Headers:** Comprehensive headers (COOP/CORP/XFO) when `SECURITY_HEADERS_PREVIEW=true`
+
+**Acceptance Evidence:**
+```bash
+# Artifact endpoints return proper 404s with CORS headers
+curl -sI "https://api-stg.cerply.com/api/certified/artifacts/unknown-id"
+# HTTP/2 404, access-control-allow-origin: *
+
+# Verify endpoint handles all three verification cases
+curl -si -X POST "https://api-stg.cerply.com/api/certified/verify" \
+  -H 'content-type: application/json' \
+  -d '{"artifactId":"does-not-exist"}'
+# HTTP/2 404, x-cert-verify-hit: 1
+
+# Plan endpoint enforces content-type validation
+curl -sX POST "https://api-stg.cerply.com/api/certified/plan" \
+  -H 'content-type: text/plain' \
+  -d '{"topic":"test"}'
+# HTTP 415, UNSUPPORTED_MEDIA_TYPE
+```
+
+**Documentation:**
+- Full API contract: `docs/certified/README.md`
+- OpenAPI specification: `docs/certified/openapi.yaml`
+- Runbook and troubleshooting guides included
+
+## 10) Acceptance criteria
 - Curator edit ≤ 4 min/item; median item quality ≥ 70 (when flag on).
 - Import supports: text, base64 (`.pdf/.docx` stub), transcript batching.
 - Learn loop: submit/next cycle works; correctness feedback present.
@@ -607,6 +648,40 @@ Web integration (preview): `/certified/study` calls schedule on start/reset, pos
   - All generated modules and certified items conform to schema (validated at API boundary).
   - Versioning and audit fields are present and populated for every atom in `/api/certified/*` and `/api/coverage`.
   - Schema published at `/api/schema/content-atom.json` (never 404).
+
+## 22D) Channel Adapters v0
+
+### Purpose
+Enable the adaptive coach to deliver and receive lessons through multiple user channels (web, desktop, mobile, chat) without duplicating business logic.
+
+### Architecture
+- **Coach-core API:** `/api/coach/next` returns channel-neutral JSON payloads { lessonAtom, format, options }.
+- **Adapters:** Separate micro-modules translate payloads into native messages:
+  - Web/Desktop → HTML or React components.
+  - Slack → Block Kit cards.
+  - Teams → Adaptive Cards.
+  - WhatsApp/Telegram → text + buttons.
+- **Inbound Replies:** Each adapter exposes a webhook (`/api/coach/reply/:channel`) to relay answers back to the coach.
+- **Telemetry:** All channels emit `lesson.presented` and `lesson.answered` events with identical structure.
+- **Feature Flags:** `FF_CHANNEL_SLACK`, `FF_CHANNEL_TEAMS`, `FF_CHANNEL_WHATSAPP` control availability.
+
+### API Surface
+- `POST /api/coach/next`
+  - Input: { user_id, context, channel }
+  - Output: { lessonAtom, format, options, expiry }
+- `POST /api/coach/reply/:channel`
+  - Input: { lesson_id, response }
+  - Output: { next_lesson_id }
+
+### Acceptance (22D)
+- Coach plan delivered via at least two channels (web + Slack) sharing lesson state.
+- Events `lesson.presented` and `lesson.answered` captured from both channels.
+- Smoke test `scripts/smoke-channels.sh` ensures each adapter responds HTTP 200.
+
+### Verification
+- Local: `curl -sS http://localhost:3001/api/coach/next -d '{"user_id":"u1","channel":"slack"}' | jq`
+- Staging: `curl -sS "$STG/api/coach/next" -H "x-channel: teams" | jq`
+- CI: `bash scripts/smoke-channels.sh`
 
 ## 23) Backlog (Next 10)
 

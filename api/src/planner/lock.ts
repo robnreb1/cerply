@@ -32,4 +32,28 @@ export function computeLock(plan: any): { algo: 'blake3' | 'sha256'; hash: strin
   }
 }
 
+export function computeLockWithAlgo(plan: any, algo: 'blake3' | 'sha256'): { algo: 'blake3' | 'sha256'; hash: string; canonical_bytes: number } {
+  const { json, bytes } = canonicalizePlan(plan);
+  
+  if (algo === 'blake3') {
+    try {
+      const h = (crypto as any).createHash('blake3');
+      h.update(json);
+      const digest = h.digest('hex');
+      return { algo: 'blake3', hash: digest, canonical_bytes: bytes };
+    } catch {
+      // Fallback to sha256 if blake3 fails
+      const h = crypto.createHash('sha256');
+      h.update(json);
+      const digest = h.digest('hex');
+      return { algo: 'sha256', hash: digest, canonical_bytes: bytes };
+    }
+  } else {
+    const h = crypto.createHash('sha256');
+    h.update(json);
+    const digest = h.digest('hex');
+    return { algo: 'sha256', hash: digest, canonical_bytes: bytes };
+  }
+}
+
 

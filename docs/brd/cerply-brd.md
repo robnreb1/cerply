@@ -35,13 +35,55 @@ B1. Learning Flow: create project -> ingest brief/source -> plan -> lessons -> q
 B2. Adaptive Learning: flexible adjustments based on progress, strengths, preferences (topical difficulty, format, cadence).
 B3. Group Learning: users can push topics to a group and track group stats (org teams, parents, friends).
 B4. Certified Pipeline: multi-LLM converge with citations; human ratification for Industry Certified.
+  - **Status: COMPLETED** - Certified v1 API endpoints implemented with Ed25519 signing, CDN-ready artifacts, and public verification. See docs/certified/README.md for full API contract and docs/certified/openapi.yaml for OpenAPI specification.
 B5. Exports & Sharing: GitHub Issues exporter (repo/label picker), Markdown export, shareable read-only URL.
 B6. Access & Pricing:
 - Consumers (Free): limited concurrent topics; no access to Certified content.
 - Certified Access: All-in subscription or pay-as-you-go.
-B7. Platforms: Web first; iOS/Android (consumer & corporate) planned; corporate apps aligned to enterprise security.
+B7. Platforms:
+- **Core:** Web (first) and Desktop (app wrapper) for authoring and learning.
+- **Mobile:** iOS/Android apps (consumer & corporate) for adaptive coach delivery and offline sync.
+- **Chat Integrations:** Cerply must deliver adaptive coach modules through chat-based channels (Slack, Microsoft Teams, WhatsApp, Telegram, etc.) to enable habit formation (D2C) and seamless push training (D2B).
+- **APIs:** Channel-agnostic coach API (`/api/coach/next`) outputs JSON payloads renderable by each channel adapter.
+- **Acceptance:** At least one enterprise pilot delivered via chat integration; ≥30% of D2C active learners engage through non-web channels.
+- **Verification:** Coach plan retrieved through web and chat adapters shows identical lesson state and telemetry events.
 B8. Ops Guarantees: staging & prod available; version endpoint and headers present; previews are label-gated, auto-expire <=48h, never block merges.
 B9. Success Metrics: TTFP < 60s; >=80% receive scheduled reviews in week one; >=150 Certified items published; >=3 design partners on Certified + IMA packs.
+
+## 6) Certified v1 Implementation (COMPLETED)
+
+**Epic Status:** ✅ COMPLETED - Deployed to staging and merged to main
+
+**Key Deliverables:**
+- **Admin Publish Endpoint:** `POST /api/certified/items/:itemId/publish` with Ed25519 signing and idempotent publishing
+- **Public Artifact Endpoints:** `GET /api/certified/artifacts/:artifactId` (JSON) and `GET /api/certified/artifacts/:artifactId.sig` (binary signature)
+- **Public Verification:** `POST /api/certified/verify` supporting three verification modes (by ID, inline signature, legacy plan-lock)
+- **Plan Generation:** `POST /api/certified/plan` with proper error handling (415/413/429) and feature flag gating
+
+**Technical Achievements:**
+- **CDN-Ready Artifacts:** ETag and Cache-Control headers for efficient content delivery
+- **Robust CORS:** Permissive `Access-Control-Allow-Origin: *` with credentials removal
+- **Database Resilience:** Graceful handling of missing DATABASE_URL with SQLite fallback
+- **Container Compatibility:** Fixed Prisma/OpenSSL compatibility for Alpine → Debian migration
+- **Security Headers:** Comprehensive security headers (COOP/CORP/XFO) when enabled
+
+**Acceptance Evidence:**
+```bash
+# Artifact endpoints return proper 404s with CORS headers
+curl -sI "https://api-stg.cerply.com/api/certified/artifacts/unknown-id"
+# HTTP/2 404, access-control-allow-origin: *
+
+# Verify endpoint handles all three cases correctly
+curl -si -X POST "https://api-stg.cerply.com/api/certified/verify" \
+  -H 'content-type: application/json' \
+  -d '{"artifactId":"does-not-exist"}'
+# HTTP/2 404, x-cert-verify-hit: 1
+```
+
+**Documentation:**
+- Full API contract: `docs/certified/README.md`
+- OpenAPI specification: `docs/certified/openapi.yaml`
+- Runbook and troubleshooting guides included
 
 B10. Content Freshness & Regulatory Scanning
 - Users can upload or paste regulatory/policy documents (PDF/DOCX/text).
