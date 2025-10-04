@@ -14,7 +14,7 @@ services:
       - key: OPENAI_API_KEY
         sync: false            # supply via Render dashboard after first sync
       - key: DATABASE_URL
-        sync: false            # set to your external Render Postgres URL (postgres://...)
+        value: "file:./.data/staging.sqlite"  # Use SQLite for staging environment
       - key: LLM_PREVIEW
         value: "1"
       - key: LLM_PLANNER_MODEL
