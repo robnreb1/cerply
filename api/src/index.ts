@@ -43,10 +43,15 @@ export async function createApp() {
     }
   });
 
-  // Admin token guard for /certified/**
+  // Admin token guard for /certified/** (excluding public artifact routes)
   app.addHook('onRequest', async (req, reply) => {
     if (req.method === 'OPTIONS') return;
-    if ((req.url || '').startsWith('/certified/')) {
+    const url = req.url || '';
+    // Skip admin token requirement for public artifact routes
+    if (url.startsWith('/api/certified/artifacts/') || url.startsWith('/api/certified/verify')) {
+      return; // Allow public access to artifacts and verify endpoints
+    }
+    if (url.startsWith('/certified/')) {
       const expected = String(process.env.ADMIN_TOKEN || '').trim();
       const provided = String((req.headers as any)['x-admin-token'] || '').trim();
       if (!expected || !provided || expected !== provided) {
@@ -121,6 +126,21 @@ export async function createApp() {
   // Health route (critical for CI health checks)
   await safeRegister('./routes/health', ['registerHealth']);
   
+  // Version route (for Docker image metadata headers)
+  await safeRegister('./routes/version', ['registerVersionRoutes']);
+
+  // TEMP: expose route tree + commit for staging debug
+  app.get('/__debug/routes', { config: { public: true } }, async (_req, reply) => {
+    const commit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
+    const routesText = app.printRoutes();
+    reply.header('access-control-allow-origin', '*');
+    return reply.code(200).send({
+      commit,
+      nodeEnv: process.env.NODE_ENV,
+      routes: routesText,
+    });
+  });
+  
   // Dev routes for observability smoke tests
   await safeRegister('./routes/dev', ['registerDevRoutes']);
   
@@ -135,6 +155,51 @@ export async function createApp() {
   if ((devMigrate as any).registerDevBackfill) {
     await app.register((devMigrate as any).registerDevBackfill);
   }
+
+  // Force permissive CORS and scoped notFound for Certified public API
+  await app.register(async function (prefixed) {
+    // headers for ALL responses under /api/certified/*
+    prefixed.addHook('onSend', async (req, reply, payload) => {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      return payload;
+    });
+
+    // any unknown path under the prefix → stable 404 shape
+    prefixed.setNotFoundHandler((req, reply) => {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      reply.type('application/json');
+      return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
+    });
+  }, { prefix: '/api/certified' });
+
+  // Route registration logging
+  app.addHook('onRoute', (route) => {
+    if (route.method && route.url?.includes('/api/certified')) {
+      app.log.info({ method: route.method, url: route.url }, 'route_registered');
+    }
+  });
+
+  // Add build header on every response so we know which build we're hitting
+  app.addHook('onSend', async (_req, reply, payload) => {
+    const commit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
+    reply.header('x-app-commit', commit);
+    reply.header('x-debug-test', '1'); // Temporary debug header
+    return payload;
+  });
+
+  // FINAL guard: enforce permissive CORS for all /api/certified/* responses
+  app.addHook('onSend', async (req, reply, payload) => {
+    const url = (req.raw?.url || (req as any).url || '') as string;
+    if (typeof url === 'string' && url.startsWith('/api/certified/')) {
+      // Force open CORS
+      reply.header('access-control-allow-origin', '*');
+      // Some upstream middleware sets this to true; make sure it's not present
+      try { reply.removeHeader('access-control-allow-credentials'); } catch {}
+    }
+    return payload;
+  });
 
   return app;
 }

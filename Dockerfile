@@ -3,9 +3,13 @@
 # 1) Install only root + api workspaces deterministically
 FROM node:20-alpine AS deps
 WORKDIR /app
+# Install libc6-compat for Prisma query engine
+RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json ./
 COPY api/package.json api/package.json
 # Install just what's needed to build API (skip web)
+# Copy Prisma schema first so it's available during npm ci
+COPY api/prisma ./api/prisma
 RUN npm ci --include-workspace-root -w api
 
 # 2) Build API
@@ -20,17 +24,25 @@ ENV PATH="/app/api/node_modules/.bin:/app/node_modules/.bin:${PATH}"
 RUN npm -w api run build
 
 # 3) Runtime: minimal, with image metadata for /api/version + x-image-* headers
-FROM node:20-alpine AS runner
+# Use Debian Bullseye for OpenSSL 1.1 compatibility with Prisma
+FROM node:20-bullseye-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+# Install OpenSSL 1.1 for Prisma query engine compatibility
+RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 libssl-dev && rm -rf /var/lib/apt/lists/*
+# Debug: List OpenSSL libraries
+RUN find /usr/lib -name "*ssl*" -type f | head -10
+# Create symlink for libssl.so.1.1 in case Prisma looks in /lib
+RUN ln -sf /usr/lib/x86_64-linux-gnu/libssl.so.1.1 /lib/x86_64-linux-gnu/libssl.so.1.1 || echo "Symlink creation failed or already exists"
 
 # --- image metadata (populated by CI build-args) ---
 ARG IMAGE_TAG=dev
 ARG GIT_SHA=local
 ARG IMAGE_CREATED=unknown
-ENV IMAGE_TAG="${IMAGE_TAG}" \
-    IMAGE_REVISION="${GIT_SHA}" \
-    IMAGE_CREATED="${IMAGE_CREATED}"
+# Set environment variables with proper fallbacks to ensure they're never empty
+ENV IMAGE_TAG="${IMAGE_TAG:-dev}" \
+    IMAGE_REVISION="${GIT_SHA:-local}" \
+    IMAGE_CREATED="${IMAGE_CREATED:-unknown}"
 # ---------------------------------------------------
 
 # App code
@@ -41,7 +53,14 @@ COPY api/package.json ./api/package.json
 # (Reinstall in a clean layer to avoid dev deps)
 COPY package.json package-lock.json ./
 COPY api/package.json api/package.json
+# Copy Prisma schema for production dependencies
+COPY api/prisma ./api/prisma
+# Install production dependencies and generate Prisma client for Debian/glibc
 RUN npm ci --omit=dev --include-workspace-root -w api
+# Regenerate Prisma client for Debian runtime (ensures correct query engine)
+RUN npx prisma generate --schema=./api/prisma/schema.prisma
+# Debug: List available query engines
+RUN ls -la /app/node_modules/.prisma/client/ | grep -E "(query_engine|libquery)" || echo "No query engines found"
 
 EXPOSE 8080
 

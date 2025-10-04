@@ -81,12 +81,18 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
 
       // Normalize public artifact responses (JSON and .sig)
       if (typeof url === 'string' && /^\/api\/certified\/artifacts\/[^/]+(?:\.sig)?$/.test(url)) {
-        // Cache for 5 minutes
-        if (!reply.hasHeader('cache-control')) {
+        // Always set permissive CORS for all artifact routes regardless of status
+        if (!reply.hasHeader('access-control-allow-origin')) {
+          reply.header('access-control-allow-origin', '*');
+        }
+        reply.removeHeader('access-control-allow-credentials');
+
+        // Cache for 5 minutes (only on success)
+        if (status === 200 && !reply.hasHeader('cache-control')) {
           reply.header('cache-control', 'public, max-age=300, must-revalidate');
         }
 
-        // JSON artifact (non-.sig): add ETag and permissive CORS on success
+        // JSON artifact (non-.sig): add ETag on success
         if (!url.endsWith('.sig') && status === 200) {
           if (!reply.hasHeader('etag')) {
             const buf =
@@ -96,14 +102,10 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
             const sha = crypto.createHash('sha256').update(buf).digest('hex');
             reply.header('etag', `"${sha}"`);
           }
-          if (!reply.hasHeader('access-control-allow-origin')) {
-            reply.header('access-control-allow-origin', '*');
-          }
-          reply.removeHeader('access-control-allow-credentials');
         }
       }
 
-      // Verify endpoint: set permissive CORS
+      // Verify endpoint: always set permissive CORS regardless of status
       if (typeof url === 'string' && url.startsWith('/api/certified/verify')) {
         if (!reply.hasHeader('access-control-allow-origin')) {
           reply.header('access-control-allow-origin', '*');
@@ -132,6 +134,9 @@ export function registerCertifiedRoutes(app: FastifyInstance) {
    * }
    */
   app.post('/api/certified/plan', { config: { public: true } }, async (_req: FastifyRequest, reply: FastifyReply) => {
+    // Always set CORS headers first
+    reply.header('access-control-allow-origin', '*');
+    reply.removeHeader('access-control-allow-credentials');
     // Security headers for preview mode
     if (process.env.SECURITY_HEADERS_PREVIEW === 'true') {
       reply.header('referrer-policy', 'no-referrer');

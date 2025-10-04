@@ -19,10 +19,10 @@ export async function registerVersionRoutes(app: any) {
       runtime,
     };
     reply.header('x-api', 'version');
-    if (image.tag !== undefined) reply.header('x-image-tag', String(image.tag));
-    if (image.revision !== undefined) reply.header('x-image-revision', String(image.revision));
-    if (image.created !== undefined) reply.header('x-image-created', String(image.created));
-    if (runtime.channel !== undefined) reply.header('x-runtime-channel', String(runtime.channel));
+    if (image.tag !== undefined && image.tag !== '') reply.header('x-image-tag', String(image.tag));
+    if (image.revision !== undefined && image.revision !== '') reply.header('x-image-revision', String(image.revision));
+    if (image.created !== undefined && image.created !== '') reply.header('x-image-created', String(image.created));
+    if (runtime.channel !== undefined && runtime.channel !== '') reply.header('x-runtime-channel', String(runtime.channel));
     return data;
   });
 }
