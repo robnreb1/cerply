@@ -125,6 +125,18 @@ export async function createApp() {
 
   // Health route (critical for CI health checks)
   await safeRegister('./routes/health', ['registerHealth']);
+
+  // TEMP: expose route tree + commit for staging debug
+  app.get('/__debug/routes', { config: { public: true } }, async (_req, reply) => {
+    const commit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
+    const routesText = app.printRoutes();
+    reply.header('access-control-allow-origin', '*');
+    return reply.code(200).send({
+      commit,
+      nodeEnv: process.env.NODE_ENV,
+      routes: routesText,
+    });
+  });
   
   // Dev routes for observability smoke tests
   await safeRegister('./routes/dev', ['registerDevRoutes']);
@@ -184,18 +196,6 @@ export async function createApp() {
       try { reply.removeHeader('access-control-allow-credentials'); } catch {}
     }
     return payload;
-  });
-
-  // TEMP: expose route tree + commit for staging debug
-  app.get('/__debug/routes', { config: { public: true } }, async (_req, reply) => {
-    const commit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
-    const routesText = app.printRoutes();
-    reply.header('access-control-allow-origin', '*');
-    return reply.code(200).send({
-      commit,
-      nodeEnv: process.env.NODE_ENV,
-      routes: routesText,
-    });
   });
 
   return app;
