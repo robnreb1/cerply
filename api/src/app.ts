@@ -41,46 +41,12 @@ export async function buildApp(_opts?: FastifyServerOptions) {
         return payload;
       }
 
-      // Verify endpoint normalization
+      // Verify endpoint: only set CORS headers, let handler manage response format
       if (typeof url === 'string' && url.startsWith('/api/certified/verify')) {
-        // If the downstream handler returned 404 without a shaped error,
-        // convert it to { error: { code: 'NOT_FOUND' } } and keep status 404.
-        if (status === 404) {
-          try {
-            const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
-            if (parsed?.error?.code) {
-              // already shaped
-              return payload;
-            }
-          } catch {
-            // ignore parse error — we'll overwrite below
-          }
-          return JSON.stringify({ error: { code: 'NOT_FOUND' } });
+        if (!reply.hasHeader('access-control-allow-origin')) {
+          reply.header('access-control-allow-origin', '*');
         }
-
-        // Any other non-2xx error -> map to 200 { ok:false, reason:'signature_invalid' }
-        if (status >= 400) {
-          reply.code(200);
-          return JSON.stringify({ ok: false, reason: 'signature_invalid' });
-        }
-
-        // Success path -> ensure ok:true and include sha256 if inline artifact was sent
-        try {
-          const obj = typeof payload === 'string' ? JSON.parse(payload) : (payload ?? {});
-          const body: any = (request as any).body;
-          if (obj && obj.ok === true && obj.sha256 == null && body?.artifact) {
-            const buf = Buffer.from(JSON.stringify(body.artifact));
-            const sha = crypto.createHash('sha256').update(buf).digest('hex');
-            obj.sha256 = sha;
-          }
-          if (!reply.hasHeader('access-control-allow-origin')) {
-            reply.header('access-control-allow-origin', '*');
-          }
-          reply.removeHeader('access-control-allow-credentials');
-          return JSON.stringify(obj);
-        } catch {
-          return payload;
-        }
+        reply.removeHeader('access-control-allow-credentials');
       }
 
       return payload;
