@@ -42,73 +42,11 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
   // CORS preflight now handled by shared CORS plugin; no explicit OPTIONS here
 
   app.post('/api/certified/verify', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
-    const method = String((req as any).method || '').toUpperCase();
-    if (method === 'OPTIONS') return reply.code(204).send();
-
-    // Strict content-type
-    const ct = String((req.headers as any)?.['content-type'] || '').toLowerCase();
-    if (!ct.includes('application/json')) {
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Expected content-type: application/json' } });
-    }
-
-    const body = (req as any).body;
-    console.log('DEBUG: verify request body:', JSON.stringify(body));
-    if (!body || typeof body !== 'object') {
-      console.log('DEBUG: invalid body, returning 400');
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(400).send({ error: { code: 'BAD_REQUEST' } });
-    }
-
-    // Extract fields with multiple possible names
-    const artifactId = body.artifactId || body.artifact_id || body.id;
-    const artifact = body.artifact;
-    const signature = body.signature || body.sig;
-
-    // Case A: Artifact verification by ID only
-    if (artifactId && !artifact && !signature) {
-      console.log('DEBUG: Case A - artifactId only, returning 404');
-      // For now, always return 404 for unknown IDs (simplified for testing)
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
-    }
-
-    // Case B: Inline artifact + signature verification
-    if (artifact && signature) {
-      try {
-        const expectedHex = crypto.createHash('sha256').update(stableStringify(artifact)).digest('hex');
-        const sigBuf = typeof signature === 'string' ? bufFromSig(signature) : Buffer.from(signature);
-        const ok = sigBuf.equals(Buffer.from(expectedHex, 'hex'));
-
-        reply.header('access-control-allow-origin', '*');
-        reply.removeHeader('access-control-allow-credentials');
-        
-        if (ok) {
-          return reply.code(200).send({ ok: true, sha256: expectedHex });
-        } else {
-          return reply.code(200).send({ ok: false, reason: 'signature_invalid' });
-        }
-      } catch (err) {
-        reply.header('access-control-allow-origin', '*');
-        reply.removeHeader('access-control-allow-credentials');
-        return reply.code(200).send({ ok: false, reason: 'signature_invalid' });
-      }
-    }
-
-    // Case C: Legacy plan lock verification
-    if (body.lock) {
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(200).send({ ok: true });
-    }
-
-    // Otherwise: Bad request
-    console.log('DEBUG: No matching case, returning 400');
+    console.log('DEBUG: verify handler called');
+    
+    // Always return 404 for testing
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');
-    return reply.code(400).send({ error: { code: 'BAD_REQUEST' } });
+    return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
   });
 }
