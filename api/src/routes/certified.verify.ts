@@ -54,7 +54,9 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
     }
 
     const body = (req as any).body;
+    console.log('DEBUG: verify request body:', JSON.stringify(body));
     if (!body || typeof body !== 'object') {
+      console.log('DEBUG: invalid body, returning 400');
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
       return reply.code(400).send({ error: { code: 'BAD_REQUEST' } });
@@ -67,6 +69,7 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
 
     // Case A: Artifact verification by ID only
     if (artifactId && !artifact && !signature) {
+      console.log('DEBUG: Case A - artifactId only, returning 404');
       // For now, always return 404 for unknown IDs (simplified for testing)
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
@@ -103,6 +106,7 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
     }
 
     // Otherwise: Bad request
+    console.log('DEBUG: No matching case, returning 400');
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');
     return reply.code(400).send({ error: { code: 'BAD_REQUEST' } });
