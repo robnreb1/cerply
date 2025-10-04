@@ -41,6 +41,14 @@ const VerifyReqZ = z.object({
 export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
   // CORS preflight now handled by shared CORS plugin; no explicit OPTIONS here
 
+  // Add early hook to see if request reaches this plugin
+  app.addHook('onRequest', async (req, reply) => {
+    const url = req.url || '';
+    if (url === '/api/certified/verify') {
+      console.log('DEBUG: verify request reached onRequest hook');
+    }
+  });
+
   app.post('/api/certified/verify', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
     console.log('DEBUG: verify handler called');
     
