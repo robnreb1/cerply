@@ -6,6 +6,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY api/package.json api/package.json
 # Install just what's needed to build API (skip web)
+# Copy Prisma schema first so it's available during npm ci
+COPY api/prisma ./api/prisma
 RUN npm ci --include-workspace-root -w api
 
 # 2) Build API
@@ -41,6 +43,8 @@ COPY api/package.json ./api/package.json
 # (Reinstall in a clean layer to avoid dev deps)
 COPY package.json package-lock.json ./
 COPY api/package.json api/package.json
+# Copy Prisma schema for production dependencies
+COPY api/prisma ./api/prisma
 RUN npm ci --omit=dev --include-workspace-root -w api
 
 EXPOSE 8080
