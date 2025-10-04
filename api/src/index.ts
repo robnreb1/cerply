@@ -141,6 +141,24 @@ export async function createApp() {
     await app.register((devMigrate as any).registerDevBackfill);
   }
 
+  // Force permissive CORS and scoped notFound for Certified public API
+  await app.register(async function (prefixed) {
+    // headers for ALL responses under /api/certified/*
+    prefixed.addHook('onSend', async (req, reply, payload) => {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      return payload;
+    });
+
+    // any unknown path under the prefix → stable 404 shape
+    prefixed.setNotFoundHandler((req, reply) => {
+      reply.header('access-control-allow-origin', '*');
+      reply.removeHeader('access-control-allow-credentials');
+      reply.type('application/json');
+      return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
+    });
+  }, { prefix: '/api/certified' });
+
   return app;
 }
 
