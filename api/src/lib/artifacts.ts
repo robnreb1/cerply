@@ -43,7 +43,6 @@ export interface ArtifactData {
   itemId: string;
   sourceUrl: string | null;
   lockHash: string;
-  sha256: string;
   createdAtISO: string;
 }
 

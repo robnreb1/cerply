@@ -416,7 +416,7 @@ export async function registerAdminCertifiedRoutes(app: FastifyInstance) {
       
       // Compute SHA-256 over canonical artifact (for database storage)
       const canonical = canonicalize(artifact);
-      const artifactSha256 = sha256Hex(canonical);
+      const artifactSha256 = sha256Hex(Buffer.from(canonical, 'utf8'));
       
       // Sign canonical artifact
       const signatureBytes = sign(Buffer.from(canonical, 'utf8'));
