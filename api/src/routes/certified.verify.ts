@@ -57,4 +57,14 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
     reply.removeHeader('access-control-allow-credentials');
     return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
   });
+
+  // Test with a different route path
+  app.post('/api/certified/verify-test', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
+    console.log('DEBUG: verify-test handler called');
+    
+    // Always return 200 for testing
+    reply.header('access-control-allow-origin', '*');
+    reply.removeHeader('access-control-allow-credentials');
+    return reply.code(200).send({ ok: true, test: 'verify-test works' });
+  });
 }
