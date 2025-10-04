@@ -72,31 +72,94 @@ export async function registerCertifiedVerifyRoutes(app: FastifyInstance) {
 
     // Case A: Artifact verification by ID only
     if (artifactId && !artifact && !signature) {
-      // For now, always return 404 for unknown IDs (simplified for testing)
-      reply.header('access-control-allow-origin', '*');
-      reply.removeHeader('access-control-allow-credentials');
-      return reply.code(404).send({ error: { code: 'NOT_FOUND' } });
+      const prisma = new PrismaClient();
+      try {
+        const record = await prisma.publishedArtifact.findUnique({
+          where: { id: artifactId },
+          include: { item: true },
+        });
+        
+        if (!record) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'artifact not found' } });
+        }
+        
+        // Read artifact from disk
+        const { readArtifact, getArtifactsDir } = await import('../lib/artifacts');
+        const artifactsDir = getArtifactsDir();
+        const artifactData = await readArtifact(artifactsDir, artifactId);
+        if (!artifactData) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(404).send({ error: { code: 'FILE_NOT_FOUND', message: 'artifact file not found' } });
+        }
+        
+        // Verify lockHash matches item
+        if (!record.item.lockHash || artifactData.lockHash !== record.item.lockHash) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(200).send({ ok: false, reason: 'lock_mismatch', details: { expected: record.item.lockHash, got: artifactData.lockHash } });
+        }
+        
+        // Verify SHA-256 (artifact on disk doesn't include sha256 field)
+        const canonical = canonicalize(artifactData);
+        const computedSha = sha256Hex(canonical);
+        if (computedSha !== record.sha256) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(200).send({ ok: false, reason: 'sha256_mismatch', details: { expected: record.sha256, got: computedSha } });
+        }
+        
+        // Verify Ed25519 signature (using same canonical form as signing)
+        const sigValid = verifySignature(Buffer.from(canonical, 'utf8'), record.signature);
+        if (!sigValid) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(200).send({ ok: false, reason: 'signature_invalid' });
+        }
+        
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(200).send({ ok: true, artifactId, sha256: record.sha256, lockHash: artifactData.lockHash });
+      } catch (err: any) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: err.message } });
+      } finally {
+        await prisma.$disconnect();
+      }
     }
 
     // Case B: Inline artifact + signature verification
     if (artifact && signature) {
       try {
-        const expectedHex = crypto.createHash('sha256').update(stableStringify(artifact)).digest('hex');
-        const sigBuf = typeof signature === 'string' ? bufFromSig(signature) : Buffer.from(signature);
-        const ok = sigBuf.equals(Buffer.from(expectedHex, 'hex'));
-
-        reply.header('access-control-allow-origin', '*');
-        reply.removeHeader('access-control-allow-credentials');
+        // Verify SHA-256 (remove sha256 field for consistent computation with stored artifacts)
+        const artifactForSigning = { ...artifact };
+        delete artifactForSigning.sha256; // Remove sha256 field for consistent signing
+        const canonical = canonicalize(artifactForSigning);
+        const computedSha = sha256Hex(canonical);
+        if (artifact.sha256 && artifact.sha256 !== computedSha) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
+          return reply.code(200).send({ ok: false, reason: 'sha256_mismatch', details: { expected: artifact.sha256, got: computedSha } });
+        }
         
-        if (ok) {
-          return reply.code(200).send({ ok: true, sha256: expectedHex });
-        } else {
+        // Verify Ed25519 signature
+        const sigValid = verifySignature(Buffer.from(canonical, 'utf8'), signature);
+        if (!sigValid) {
+          reply.header('access-control-allow-origin', '*');
+          reply.removeHeader('access-control-allow-credentials');
           return reply.code(200).send({ ok: false, reason: 'signature_invalid' });
         }
-      } catch (err) {
+        
         reply.header('access-control-allow-origin', '*');
         reply.removeHeader('access-control-allow-credentials');
-        return reply.code(200).send({ ok: false, reason: 'signature_invalid' });
+        return reply.code(200).send({ ok: true, sha256: computedSha });
+      } catch (err: any) {
+        reply.header('access-control-allow-origin', '*');
+        reply.removeHeader('access-control-allow-credentials');
+        return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: err.message } });
       }
     }
 
