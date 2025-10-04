@@ -30,6 +30,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 # Install OpenSSL 1.1 for Prisma query engine compatibility
 RUN apt-get update && apt-get install -y --no-install-recommends libssl1.1 libssl-dev && rm -rf /var/lib/apt/lists/*
+# Debug: List OpenSSL libraries
+RUN find /usr/lib -name "*ssl*" -type f | head -10
 
 # --- image metadata (populated by CI build-args) ---
 ARG IMAGE_TAG=dev
