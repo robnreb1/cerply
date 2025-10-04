@@ -3,8 +3,8 @@
 # 1) Install only root + api workspaces deterministically
 FROM node:20-alpine AS deps
 WORKDIR /app
-# Install OpenSSL 1.1 compatibility for Prisma query engine
-RUN apk add --no-cache libc6-compat openssl1.1-compat
+# Install libc6-compat for Prisma query engine
+RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json ./
 COPY api/package.json api/package.json
 # Install just what's needed to build API (skip web)
@@ -15,8 +15,6 @@ RUN npm ci --include-workspace-root -w api
 # 2) Build API
 FROM node:20-alpine AS builder
 WORKDIR /app
-# Install OpenSSL 1.1 compatibility for Prisma query engine
-RUN apk add --no-cache openssl1.1-compat
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/api/node_modules ./api/node_modules
 COPY --from=deps /app/package.json ./package.json
@@ -26,11 +24,10 @@ ENV PATH="/app/api/node_modules/.bin:/app/node_modules/.bin:${PATH}"
 RUN npm -w api run build
 
 # 3) Runtime: minimal, with image metadata for /api/version + x-image-* headers
-FROM node:20-alpine AS runner
+# Use Debian slim for better OpenSSL compatibility with Prisma
+FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-# Install OpenSSL 1.1 compatibility for Prisma query engine (critical for runtime)
-RUN apk add --no-cache openssl1.1-compat
 
 # --- image metadata (populated by CI build-args) ---
 ARG IMAGE_TAG=dev
@@ -51,6 +48,7 @@ COPY package.json package-lock.json ./
 COPY api/package.json api/package.json
 # Copy Prisma schema for production dependencies
 COPY api/prisma ./api/prisma
+# Install production dependencies and generate Prisma client for Debian/glibc
 RUN npm ci --omit=dev --include-workspace-root -w api
 
 EXPOSE 8080
