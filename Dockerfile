@@ -49,6 +49,9 @@ ENV IMAGE_TAG="${IMAGE_TAG:-dev}" \
 COPY --from=builder /app/api/dist ./api/dist
 COPY api/package.json ./api/package.json
 
+# Copy prompt library for /api/prompts endpoint
+COPY docs/prompt-library ./docs/prompt-library
+
 # Production node_modules only
 # (Reinstall in a clean layer to avoid dev deps)
 COPY package.json package-lock.json ./
