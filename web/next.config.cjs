@@ -22,10 +22,9 @@ const nextConfig = {
   },
   async rewrites() {
     const API_ORIGIN = getApiBase();
-    const API = `${API_ORIGIN}/api`;
     return [
-      // M2 proxy: forward /api/* to backend API
-      { source: '/api/:path*', destination: `${API}/:path*` },
+      // M2 proxy: forward /api/* to backend API (preserve /api prefix)
+      { source: '/api/:path*', destination: `${API_ORIGIN}/api/:path*` },
       // Additional backend routes
       { source: '/curator/:path*',  destination: `${API_ORIGIN}/curator/:path*` },
       { source: '/evidence/:path*', destination: `${API_ORIGIN}/evidence/:path*` },
