@@ -64,25 +64,31 @@ curl -i http://localhost:3000/debug/env
 # HTTP/1.1 200 OK (shows proxy configuration)
 ```
 
-#### Staging (Authentication Protected)
+#### Staging (With Bypass Token) ✅
 ```bash
 # Health check via proxy
-curl -i https://cerply-3k4dmag15-robs-projects-230c6bef.vercel.app/api/health
-# HTTP/2 401 - Authentication Required (not 404 - proxy working)
+curl -b /tmp/vercel-cookies.jar -si https://cerply-3k4dmag15-robs-projects-230c6bef.vercel.app/api/health
+# HTTP/2 200 
+# content-type: application/json
+# x-edge: health-v2
+# x-matched-path: /api/health
+# {"ok":true,"service":"web","ts":"2025-10-05T06:17:25.977Z"}
 
 # Prompts via proxy
-curl -i https://cerply-3k4dmag15-robs-projects-230c6bef.vercel.app/api/prompts
-# HTTP/2 401 - Authentication Required (not 404 - proxy working)
+curl -b /tmp/vercel-cookies.jar -si https://cerply-3k4dmag15-robs-projects-230c6bef.vercel.app/api/prompts
+# HTTP/2 200 
+# content-type: application/json; charset=utf-8
+# x-matched-path: /api/prompts
+# x-upstream: https://api-stg.cerply.com/api/prompts
+# [{"id":"demo-1","title":"Welcome to Cerply","category":"demo"},{"id":"demo-2","title":"Try a curated prompt","category":"demo"}]
 ```
 
-**Staging Analysis:**
-- ✅ **Proxy Working:** Returns 401 (not 404) - proxy is functioning correctly
-- ❌ **Authentication Blocking:** Vercel protection preventing access to backend API
-- 🔧 **Resolution:** Need to either disable Vercel auth or use bypass token for testing
-
-**Expected vs Actual:**
-- **Expected:** 200 JSON with backend API payloads
-- **Actual:** 401 Authentication Required (proxy working, auth blocking)
+**Staging Analysis (With Bypass Token):**
+- ✅ **Status:** 200 OK (not 401/404) - proxy working perfectly
+- ✅ **Content-Type:** application/json - correct API responses
+- ✅ **Backend Data:** Real API payloads from staging backend
+- ✅ **Proxy Headers:** x-upstream shows backend URL forwarding
+- ✅ **Never 404:** Requirement fully met
 
 ## 2. ER-MUI UI Components (§14-§17)
 
