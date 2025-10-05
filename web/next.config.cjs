@@ -24,13 +24,13 @@ const nextConfig = {
     const API_ORIGIN = getApiBase();
     const API = `${API_ORIGIN}/api`;
     return [
-      // Single rewrite for /api catch-all → ${API}/:path*
+      // M2 proxy: forward /api/* to backend API
       { source: '/api/:path*', destination: `${API}/:path*` },
-      // Keep curated non-/api rewrites already accepted (map to origin)
+      // Additional backend routes
       { source: '/curator/:path*',  destination: `${API_ORIGIN}/curator/:path*` },
       { source: '/evidence/:path*', destination: `${API_ORIGIN}/evidence/:path*` },
       { source: '/learn/:path*',    destination: `${API_ORIGIN}/learn/:path*` },
-      { source: '/ping', destination: 'https://httpbin.org/status/204' },
+      { source: '/ping', destination: `${API_ORIGIN}/ping` },
     ];
   },
 };
