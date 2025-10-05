@@ -300,3 +300,4 @@ For issues or questions:
 - Run smoke tests with verbose curl output
 - Check Lighthouse report in Chrome DevTools
 
+# Force deployment trigger
