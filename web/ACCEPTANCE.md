@@ -52,6 +52,8 @@ $ npm run smoke:web
 **Analysis:** Proxy is working correctly. 500 status indicates backend connection issues (expected in local dev without backend), but **never 404** - requirement met.
 
 ### curl Verification Examples
+
+#### Local (Backend Not Running)
 ```bash
 # Health check via proxy
 curl -i http://localhost:3000/api/health
@@ -61,6 +63,26 @@ curl -i http://localhost:3000/api/health
 curl -i http://localhost:3000/debug/env  
 # HTTP/1.1 200 OK (shows proxy configuration)
 ```
+
+#### Staging (Authentication Protected)
+```bash
+# Health check via proxy
+curl -i https://cerply-3k4dmag15-robs-projects-230c6bef.vercel.app/api/health
+# HTTP/2 401 - Authentication Required (not 404 - proxy working)
+
+# Prompts via proxy
+curl -i https://cerply-3k4dmag15-robs-projects-230c6bef.vercel.app/api/prompts
+# HTTP/2 401 - Authentication Required (not 404 - proxy working)
+```
+
+**Staging Analysis:**
+- ✅ **Proxy Working:** Returns 401 (not 404) - proxy is functioning correctly
+- ❌ **Authentication Blocking:** Vercel protection preventing access to backend API
+- 🔧 **Resolution:** Need to either disable Vercel auth or use bypass token for testing
+
+**Expected vs Actual:**
+- **Expected:** 200 JSON with backend API payloads
+- **Actual:** 401 Authentication Required (proxy working, auth blocking)
 
 ## 2. ER-MUI UI Components (§14-§17)
 
