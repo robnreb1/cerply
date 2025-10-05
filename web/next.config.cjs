@@ -24,8 +24,8 @@ const nextConfig = {
     const API_ORIGIN = getApiBase();
     console.log('DEBUG: API_ORIGIN =', API_ORIGIN); // Debug log
     return [
-      // M2 proxy: forward /api/* to backend API (preserve /api prefix)
-      { source: '/api/:path*', destination: `${API_ORIGIN}/api/:path*` },
+      // NOTE: /api/* routes handled by app/api/[...path]/route.ts (runtime proxy)
+      // This ensures environment variables are read at runtime, not build time
       // Additional backend routes
       { source: '/curator/:path*',  destination: `${API_ORIGIN}/curator/:path*` },
       { source: '/evidence/:path*', destination: `${API_ORIGIN}/evidence/:path*` },
