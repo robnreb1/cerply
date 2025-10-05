@@ -231,21 +231,108 @@ jobs:
 3. **Module generation** - Connect to backend learning engine
 4. **Telemetry integration** - Add interaction tracking
 
+## 6. Production Deployment & Troubleshooting
+
+### Final Production Verification (2025-10-05)
+```bash
+# Production /api/health
+curl -i https://www.cerply.com/api/health
+# HTTP/2 200 
+# x-proxied-by: next-explicit-route
+# x-proxy-target: https://api.cerply.com/api/health
+# {"ok":true,"env":"unknown","planner":{"provider":"openai","primary":"gpt-5","fallback":"gpt-4o","enabled":false}}
+
+# Production /api/prompts
+curl -i https://www.cerply.com/api/prompts
+# HTTP/2 200 
+# x-proxied-by: next-explicit-route
+# x-proxy-target: https://api.cerply.com/api/prompts
+# [{"id":"content-summarization-prompt-2da007","title":"Content Summarization Prompt",...}]
+```
+
+**Status:** ✅ Both endpoints working in production
+
+### Issues Encountered & Solutions
+
+#### Issue 1: Catch-all Route Not Matching in Production
+- **Symptom:** `app/api/[...path]/route.ts` built successfully but returned 404 in production
+- **Root Cause:** Route file was in repository root (`app/`) instead of Vercel build directory (`web/app/`)
+- **Solution:** Moved to `web/app/api/[...path]/route.ts` + added explicit routes as fallback
+- **PR:** #190
+
+#### Issue 2: Duplicate/Conflicting Environment Variables
+- **Symptom:** Proxy hitting wrong Render services, inconsistent behavior
+- **Root Cause:** Multiple variables in Vercel pointing to different services:
+  - `NEXT_PUBLIC_API_BASE` (correct)
+  - `API_BASE` (incorrect fallback in code)
+  - `NEXT_PUBLIC_API_URL` (duplicate, pointing to wrong service)
+- **Solution:** 
+  - Deleted `API_BASE` (Production & Staging)
+  - Deleted `NEXT_PUBLIC_API_URL` (Production & Preview)
+  - Kept only `NEXT_PUBLIC_API_BASE` as single source of truth
+- **PR:** #179
+
+#### Issue 3: vercel.json Rewrites Overriding Next.js Routing
+- **Symptom:** Catch-all route not being invoked despite being built
+- **Root Cause:** `web/vercel.json` contained hardcoded rewrites to `api-stg.cerply.com`
+- **Solution:** Removed hardcoded rewrites, set `"rewrites": []` to use Next.js native routing
+- **PR:** #179
+
+#### Issue 4: Functions Config Required for App Router
+- **Symptom:** Removing `functions` config caused 404s even with explicit routes
+- **Root Cause:** Vercel needs explicit `functions` config to recognize App Router serverless functions
+- **Solution:** Re-added `functions` config for `app/api/**/*.ts` pattern with `maxDuration: 30`
+- **PR:** #188
+
+### Configuration Audit Checklist
+
+Before deployment, verify:
+
+1. **Vercel Environment Variables** (single source of truth):
+   - [ ] `NEXT_PUBLIC_API_BASE` set correctly per environment
+   - [ ] No duplicate `API_BASE` or `NEXT_PUBLIC_API_URL` variables
+   - [ ] No hardcoded URLs in variable values
+
+2. **vercel.json Configuration**:
+   - [ ] `rewrites: []` (empty - use Next.js routing)
+   - [ ] `functions` config present for `app/api/**/*.ts`
+   - [ ] No hardcoded API URLs in rewrites
+
+3. **File Structure**:
+   - [ ] API routes in `web/app/api/` (not root `app/`)
+   - [ ] Each route has `route.ts` file with proper exports
+   - [ ] Routes use runtime env vars (not build-time)
+
+4. **Code Configuration**:
+   - [ ] Single `apiBase()` function in `web/lib/apiBase.ts`
+   - [ ] No fallback to `process.env.API_BASE` in apiBase()
+   - [ ] Routes use `export const dynamic = 'force-dynamic'`
+   - [ ] Routes use `export const runtime = 'nodejs'`
+
 ## Conclusion
 
-**Status: ✅ ACCEPTED**
+**Status: ✅ ACCEPTED & DEPLOYED TO PRODUCTION**
 
 The Web M2 Proxy + ER-MUI implementation meets all critical acceptance criteria:
 
-- **Proxy functionality:** Working correctly, never returns 404
-- **UI components:** Core ER-MUI features implemented and functional
-- **Accessibility:** Exceeds 90 threshold (96/100 on both mobile and desktop)
-- **CI integration:** Complete workflow with all required checks
+- **Proxy functionality:** ✅ Working in production, never returns 404
+- **UI components:** ✅ Core ER-MUI features implemented and functional
+- **Accessibility:** ✅ Exceeds 90 threshold (96/100 on both mobile and desktop)
+- **CI integration:** ✅ Complete workflow with all required checks
+- **Production deployment:** ✅ Live and verified at www.cerply.com
 
-Minor Playwright test failures are due to strict mode violations, not functional issues. The core functionality is solid and ready for production deployment.
+**Deployment Lessons Learned:**
+1. Vercel builds from Root Directory setting - files must be in correct location
+2. Single source of truth for environment variables prevents configuration drift
+3. `vercel.json` rewrites override Next.js routing - use sparingly or not at all
+4. Explicit `functions` config required for App Router serverless functions
+5. Runtime environment variables require `dynamic = 'force-dynamic'` export
+
+See `docs/runbooks/web-deployment-troubleshooting.md` for detailed deployment procedures.
 
 ---
 
 **Generated:** 2025-10-05  
 **Epic:** Web M2 Proxy + ER-MUI  
-**Version:** v4.1
+**Version:** v4.1  
+**Production URL:** https://www.cerply.com
