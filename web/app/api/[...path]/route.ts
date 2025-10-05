@@ -18,7 +18,26 @@ function stripHopByHop(headers: Headers) {
 async function proxy(req: NextRequest, { params }: { params: { path?: string[] } }) {
   const path = (params.path ?? []).join('/');
   const src = new URL(req.url);
+  
+  // Test mode: if path is "test-proxy", return debug info instead of proxying
+  if (path === 'test-proxy') {
+    return new Response(JSON.stringify({
+      message: 'Catch-all proxy route is working!',
+      path,
+      NEXT_PUBLIC_API_BASE: process.env.NEXT_PUBLIC_API_BASE,
+      apiRoute: apiRoute(path),
+      timestamp: new Date().toISOString()
+    }), {
+      headers: { 'content-type': 'application/json', 'x-proxied-by': 'next-app-route' }
+    });
+  }
+  
   const target = `${apiRoute(path)}${src.search}`;
+
+  // Debug logging
+  console.log('[PROXY] path:', path);
+  console.log('[PROXY] target:', target);
+  console.log('[PROXY] NEXT_PUBLIC_API_BASE:', process.env.NEXT_PUBLIC_API_BASE);
 
   const auth = req.headers.get('authorization') || '';
   const init: RequestInit = {
@@ -38,6 +57,7 @@ async function proxy(req: NextRequest, { params }: { params: { path?: string[] }
   const upstream = await fetch(target, init);
   const headers = stripHopByHop(upstream.headers);
   headers.set('x-proxied-by', 'next-app-route');
+  headers.set('x-proxy-target', target); // Add target URL to response headers for debugging
 
   return new Response(upstream.body, { status: upstream.status, headers });
 }

@@ -117,6 +117,9 @@ export async function createApp() {
   // Chat routes for smoke tests
   await safeRegister('./routes/chat', ['registerChatRoutes']);
 
+  // Prompts routes for M2 proxy compatibility
+  await safeRegister('./routes/prompts', ['registerPromptsRoutes']);
+
   // Export routes for analytics
   await safeRegister('./routes/exports', ['registerExportRoutes']);
   
