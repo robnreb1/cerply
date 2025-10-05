@@ -6,11 +6,7 @@
       "headers": [{ "key": "x-vercel-json", "value": "loaded" }]
     }
   ],
-  "rewrites": [
-    { "source": "/ping", "destination": "https://httpbin.org/status/204" },
-    { "source": "/api/prompts", "destination": "https://api-stg.cerply.com/prompts" },
-    { "source": "/api/(.*)", "destination": "https://api-stg.cerply.com/api/$1" }
-  ],
+  "rewrites": [],
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "installCommand": "npm install",
