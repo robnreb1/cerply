@@ -12,6 +12,9 @@
   "installCommand": "npm install",
   "framework": "nextjs",
   "functions": {
+    "app/api/\\[...path\\]/route.ts": {
+      "maxDuration": 30
+    },
     "app/api/**/*.ts": {
       "maxDuration": 30
     },
