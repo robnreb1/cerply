@@ -18,6 +18,20 @@ function stripHopByHop(headers: Headers) {
 async function proxy(req: NextRequest, { params }: { params: { path?: string[] } }) {
   const path = (params.path ?? []).join('/');
   const src = new URL(req.url);
+  
+  // Test mode: if path is "test-proxy", return debug info instead of proxying
+  if (path === 'test-proxy') {
+    return new Response(JSON.stringify({
+      message: 'Catch-all proxy route is working!',
+      path,
+      NEXT_PUBLIC_API_BASE: process.env.NEXT_PUBLIC_API_BASE,
+      apiRoute: apiRoute(path),
+      timestamp: new Date().toISOString()
+    }), {
+      headers: { 'content-type': 'application/json', 'x-proxied-by': 'next-app-route' }
+    });
+  }
+  
   const target = `${apiRoute(path)}${src.search}`;
 
   // Debug logging
