@@ -20,6 +20,11 @@ async function proxy(req: NextRequest, { params }: { params: { path?: string[] }
   const src = new URL(req.url);
   const target = `${apiRoute(path)}${src.search}`;
 
+  // Debug logging
+  console.log('[PROXY] path:', path);
+  console.log('[PROXY] target:', target);
+  console.log('[PROXY] NEXT_PUBLIC_API_BASE:', process.env.NEXT_PUBLIC_API_BASE);
+
   const auth = req.headers.get('authorization') || '';
   const init: RequestInit = {
     method: req.method,
@@ -38,6 +43,7 @@ async function proxy(req: NextRequest, { params }: { params: { path?: string[] }
   const upstream = await fetch(target, init);
   const headers = stripHopByHop(upstream.headers);
   headers.set('x-proxied-by', 'next-app-route');
+  headers.set('x-proxy-target', target); // Add target URL to response headers for debugging
 
   return new Response(upstream.body, { status: upstream.status, headers });
 }
