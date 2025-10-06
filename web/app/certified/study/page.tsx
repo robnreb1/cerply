@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { apiBase } from '@/lib/apiBase';
 
-// UAT Banner Component (non-prod only)
+// UAT Banner Component (always visible in non-local environments for testing)
 function UATBanner({ apiBaseUrl }: { apiBaseUrl: string }) {
   const buildHash = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'dev';
-  const isProd = process.env.NODE_ENV === 'production' && !apiBaseUrl.includes('staging');
+  // Show banner everywhere except localhost
+  const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
   
-  if (isProd) return null;
+  if (isLocal) return null;
   
   return (
     <div className="bg-yellow-50 border-b-2 border-yellow-200 px-4 py-2 text-sm">
@@ -21,7 +22,7 @@ function UATBanner({ apiBaseUrl }: { apiBaseUrl: string }) {
           <span className="text-xs">Build: <code className="bg-yellow-100 px-1 py-0.5 rounded">{buildHash}</code></span>
         </div>
         <a 
-          href="https://github.com/robnreb1/cerply/blob/staging/docs/uat/M3_UAT_SCRIPT.md"
+          href="https://github.com/robnreb1/cerply/blob/main/docs/uat/M3_UAT_SCRIPT.md"
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-yellow-700 hover:text-yellow-900 underline"
@@ -53,7 +54,18 @@ type ProgressSnapshot = {
 };
 
 export default function CertifiedStudyPage() {
-  const [sessionId] = useState(() => `sess-${Date.now()}`);
+  // Persist session ID across page reloads
+  const [sessionId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('cerply_study_session');
+      if (stored) return stored;
+      const newId = `sess-${Date.now()}`;
+      localStorage.setItem('cerply_study_session', newId);
+      return newId;
+    }
+    return `sess-${Date.now()}`;
+  });
+  
   const [cards, setCards] = useState<Card[]>([
     { id: 'card-1', front: 'What is spaced repetition?', back: 'A learning technique that increases intervals of time between reviews of previously learned material.' },
     { id: 'card-2', front: 'What does SM2 stand for?', back: 'SuperMemo 2 - a spaced repetition algorithm.' },
@@ -68,10 +80,10 @@ export default function CertifiedStudyPage() {
 
   const API_BASE = apiBase();
 
-  // Load progress snapshot on mount
+  // Load progress snapshot on mount and try to resume session
   useEffect(() => {
     loadProgress();
-  }, []);
+  }, [sessionId]);
 
   const loadProgress = async () => {
     try {
@@ -79,10 +91,24 @@ export default function CertifiedStudyPage() {
       if (res.ok) {
         const data = await res.json();
         setProgress(data);
-        setMessage(`Loaded ${data.items?.length || 0} previous progress items`);
+        const itemCount = data.items?.length || 0;
+        setMessage(itemCount > 0 ? `Loaded ${itemCount} previous progress items` : 'No previous progress found');
+        console.log('[study] Progress loaded:', data);
+      } else {
+        setMessage('No previous session found');
+        console.log('[study] No progress found for session:', sessionId);
       }
     } catch (err) {
       console.error('[study] Failed to load progress:', err);
+      setMessage('Failed to load progress');
+    }
+  };
+
+  const resetSession = () => {
+    // Clear session and start fresh
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('cerply_study_session');
+      window.location.reload();
     }
   };
 
@@ -173,11 +199,12 @@ export default function CertifiedStudyPage() {
     }
   };
 
-  const resetSession = () => {
+  const onReset = () => {
+    // Just reset current session state
     setCurrentIdx(0);
     setFlipped(false);
     setSchedule(null);
-    setMessage('Session reset');
+    setMessage('Session reset. Click "Start Study Session" to begin again.');
   };
 
   const currentCard = cards[currentIdx];
@@ -254,7 +281,7 @@ export default function CertifiedStudyPage() {
 
             <div className="flex gap-3 justify-center">
               <button
-                onClick={resetSession}
+                onClick={onReset}
                 className="rounded-lg bg-zinc-200 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-300"
               >
                 Reset
@@ -264,6 +291,12 @@ export default function CertifiedStudyPage() {
                 className="rounded-lg bg-zinc-200 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-300"
               >
                 Load Progress
+              </button>
+              <button
+                onClick={resetSession}
+                className="rounded-lg bg-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-300"
+              >
+                New Session
               </button>
             </div>
 
