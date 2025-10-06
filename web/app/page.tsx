@@ -5,6 +5,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ArrowUpTrayIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
 import { COPY } from '@/lib/copy';
+import { apiBase } from '@/lib/apiBase';
 
 type Message = {
   id: string;
@@ -36,35 +37,6 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const generateIntelligentResponse = (topic: string): string => {
-    const lowerTopic = topic.toLowerCase();
-    
-    // Clarifying question first
-    if (lowerTopic.includes('quantum')) {
-      return `I'd love to help you learn about quantum mechanics! This is a fascinating field. To personalize your learning path, could you tell me:\n\n• Are you interested in the theoretical foundations (wave functions, uncertainty principle)?\n• Or specific phenomena like quantum entanglement or superposition?\n• Are you approaching this from physics, chemistry, or computer science?\n\nThis will help me structure the perfect learning journey for you.`;
-    } else if (lowerTopic.includes('python') || lowerTopic.includes('programming')) {
-      return `Great choice! Python is incredibly versatile. To tailor this perfectly:\n\n• Are you completely new to programming, or do you have some coding experience?\n• What's your goal? (web development, data science, automation, AI/ML)\n• Do you learn better through projects or structured exercises?\n\nLet me know and I'll create a path that matches your style.`;
-    } else if (lowerTopic.includes('photosynthesis') || lowerTopic.includes('biology')) {
-      return `Fascinating topic! Photosynthesis is the foundation of life on Earth. To give you the best experience:\n\n• Are you studying this for a specific course or exam?\n• Would you like to focus on the chemical reactions, the ecological impact, or both?\n• Do you prefer detailed diagrams or conceptual explanations?\n\nShare your preferences and I'll build your personalized curriculum.`;
-    } else if (lowerTopic.includes('spanish') || lowerTopic.includes('language')) {
-      return `¡Excelente! Learning Spanish opens up a whole new world. Let me understand your needs:\n\n• What's your current level? (complete beginner, some basics, intermediate)\n• Are you learning for travel, work, or personal enrichment?\n• Do you prefer conversational practice or grammar-focused learning?\n\nTell me more so I can design the most effective path for you.`;
-    }
-    
-    // Generic but intelligent fallback with dynamic content
-    return `I'd love to help you master ${topic}! To create the most effective learning path for you, could you share:\n\n• What's your current level with this topic?\n• What's motivating you to learn this right now?\n• How do you prefer to learn? (visual, hands-on, reading, etc.)\n\nThe more I understand about you, the better I can adapt the content to your needs.`;
-  };
-
-  const generateDetailedPlan = (topic: string): string => {
-    const lowerTopic = topic.toLowerCase();
-    
-    if (lowerTopic.includes('quantum')) {
-      return `Perfect! Here's your personalized quantum mechanics learning path:\n\n**Core Concepts** (Est. 3-4 weeks)\n• Wave-particle duality with interactive simulations\n• Schrödinger equation and probability waves\n• The uncertainty principle explained through real experiments\n• Quantum states and measurement\n\n**Practical Applications** (Est. 2-3 weeks)\n• Quantum tunneling in semiconductors\n• How quantum mechanics powers modern technology\n• Introduction to quantum computing basics\n• Lab exercises with virtual quantum systems\n\n**Advanced Topics** (Est. 3-4 weeks)\n• Quantum entanglement and Bell's theorem\n• Many-worlds interpretation vs Copenhagen\n• Current research in quantum information theory\n• Building intuition for quantum field theory\n\nReady to start with wave-particle duality? Just say "Let's begin" and I'll load your first interactive lesson.`;
-    }
-    
-    // Generic but topic-aware fallback
-    return `Excellent! Here's your personalized ${topic} learning path:\n\n**Core Concepts**\n• Foundational principles and key terminology\n• Building blocks that everything else depends on\n• Interactive examples and analogies\n• Self-check quizzes to confirm understanding\n\n**Practical Skills**\n• Hands-on projects applying what you've learned\n• Real-world scenarios and case studies\n• Common pitfalls and how to avoid them\n• Practice exercises with instant feedback\n\n**Advanced Topics**\n• Deeper exploration of complex areas\n• Current research and cutting-edge developments\n• Expert-level techniques and strategies\n• Capstone project to demonstrate mastery\n\nReady to dive in? Just say "Let's start" and I'll begin with the fundamentals.`;
-  };
-
   const handleSubmit = async () => {
     const text = input.trim();
     if (!text || isProcessing) return;
@@ -77,26 +49,74 @@ export default function Home() {
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput('');
     setIsProcessing(true);
 
-    // Determine if this is initial question or follow-up
-    const isFollowUp = messages.length > 0 && 
-                       messages[messages.length - 1].role === 'assistant' &&
-                       messages[messages.length - 1].content.includes('could you');
+    try {
+      // Call real API endpoint
+      const response = await fetch(`${apiBase()}/api/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: updatedMessages.map(m => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
 
-    // Simulate processing (replace with real API call)
-    setTimeout(() => {
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      let assistantContent = '';
+      
+      // Handle different action types from API
+      if (data.action === 'clarify') {
+        assistantContent = data.data.question;
+        if (data.data.chips && data.data.chips.length > 0) {
+          assistantContent += '\n\nOptions: ' + data.data.chips.join(' · ');
+        }
+      } else if (data.action === 'plan') {
+        assistantContent = 'Here\'s your personalized learning path:\n\n';
+        data.data.modules.forEach((module: any, idx: number) => {
+          assistantContent += `${idx + 1}. ${module.title}\n`;
+        });
+        assistantContent += '\nReady to start? Just say "Let\'s begin" and I\'ll guide you through.';
+      } else if (data.action === 'meta') {
+        assistantContent = data.data.notice || 'I\'m ready to help you learn. What would you like to focus on?';
+      } else {
+        assistantContent = 'I received your message. Could you tell me more about what you\'d like to learn?';
+      }
+
       const assistantMsg: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: isFollowUp ? generateDetailedPlan(text) : generateIntelligentResponse(text),
+        content: assistantContent,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      
+      setMessages(prev => [...prev, assistantMsg]);
+    } catch (error) {
+      console.error('Chat API error:', error);
+      
+      // Fallback error message
+      const errorMsg: Message = {
+        id: `assistant-${Date.now()}`,
+        role: 'assistant',
+        content: 'I\'m having trouble connecting right now. Please try again in a moment.',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
       setIsProcessing(false);
-    }, 1500);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -134,6 +154,20 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen bg-neutral-50">
+      {/* Sticky Top Bar */}
+      <header className="sticky top-0 z-50 bg-white border-b border-neutral-200 shadow-sm">
+        <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-neutral-900">Cerply</h1>
+            <span className="text-sm text-neutral-500 hidden sm:inline">
+              {COPY.topBarTagline}
+            </span>
+          </div>
+          <button className="text-sm font-medium text-brand-coral-600 hover:text-brand-coral-700">
+            Log in
+          </button>
+        </div>
+      </header>
 
       {/* Chat Messages Area */}
       <div className="flex-1 overflow-y-auto">
@@ -141,10 +175,9 @@ export default function Home() {
           {messages.length === 0 ? (
             <div className="text-center py-16">
               <div className="mb-6">
-                <h1 className="text-4xl font-bold text-neutral-900 mb-3">Cerply</h1>
-                <p className="text-lg text-neutral-600 mb-2">
-                  {COPY.topBarTagline}
-                </p>
+                <h2 className="text-2xl font-semibold text-neutral-900 mb-2">
+                  What would you like to learn?
+                </h2>
                 <p className="text-neutral-500">
                   Ask me anything, share a document, or paste a link
                 </p>
