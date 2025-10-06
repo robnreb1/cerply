@@ -81,14 +81,27 @@ export default function Home() {
       if (data.action === 'clarify') {
         assistantContent = data.data.question;
         if (data.data.chips && data.data.chips.length > 0) {
-          assistantContent += '\n\nOptions: ' + data.data.chips.join(' · ');
+          assistantContent += '\n\n' + data.data.chips.map((c: string) => `• ${c}`).join('\n');
         }
       } else if (data.action === 'plan') {
-        assistantContent = 'Here\'s your personalized learning path:\n\n';
+        if (data.data.message) {
+          assistantContent = data.data.message + '\n\n';
+        } else {
+          assistantContent = 'Here\'s your personalized learning path:\n\n';
+        }
         data.data.modules.forEach((module: any, idx: number) => {
-          assistantContent += `${idx + 1}. ${module.title}\n`;
+          assistantContent += `**${idx + 1}. ${module.title}**`;
+          if (module.description) {
+            assistantContent += `\n${module.description}`;
+          }
+          if (module.estMinutes) {
+            assistantContent += ` (${module.estMinutes} min)`;
+          }
+          assistantContent += '\n\n';
         });
-        assistantContent += '\nReady to start? Just say "Let\'s begin" and I\'ll guide you through.';
+        assistantContent += 'Ready to start? Just say "Let\'s begin" and I\'ll guide you through.';
+      } else if (data.action === 'answer') {
+        assistantContent = data.data.message || 'I\'m here to help you learn effectively.';
       } else if (data.action === 'meta') {
         assistantContent = data.data.notice || 'I\'m ready to help you learn. What would you like to focus on?';
       } else {
