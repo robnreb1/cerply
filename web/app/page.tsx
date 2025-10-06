@@ -94,12 +94,18 @@ export default function Home() {
           if (module.description) {
             assistantContent += `\n${module.description}`;
           }
-          if (module.estMinutes) {
-            assistantContent += ` (${module.estMinutes} min)`;
-          }
           assistantContent += '\n\n';
         });
         assistantContent += 'Ready to start? Just say "Let\'s begin" and I\'ll guide you through.';
+      } else if (data.action === 'confirm_plan') {
+        // User confirmed - check if logged in
+        const isLoggedIn = false; // TODO: Check actual auth state
+        
+        if (isLoggedIn) {
+          assistantContent = data.data.message + '\n\n✓ This learning path has been added to your [profile](/account).\n\nLet\'s begin with your first lesson!';
+        } else {
+          assistantContent = data.data.message + '\n\nTo save your progress and start learning, please [log in](/login) or create a free account.\n\nYour learning path will be waiting for you!';
+        }
       } else if (data.action === 'answer') {
         assistantContent = data.data.message || 'I\'m here to help you learn effectively.';
       } else if (data.action === 'meta') {
