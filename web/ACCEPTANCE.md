@@ -533,3 +533,4 @@ Testing GET /api/version has field '.ok' ... ✓
 - Vitest boot timeout issues (smoke tests verify behavior)
 
 **Next Epic:** M4 LLM Integration - replace stubs with real generation
+
