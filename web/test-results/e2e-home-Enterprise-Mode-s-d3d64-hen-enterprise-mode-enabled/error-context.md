@@ -1,0 +1,57 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "Cerply" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "Cerply" [ref=e6] [cursor=pointer]
+      - navigation [ref=e8]:
+        - link "Log in" [ref=e9] [cursor=pointer]:
+          - /url: /login
+  - main [ref=e11]:
+    - paragraph [ref=e14]: Helping you master what matters.
+    - generic [ref=e15]:
+      - heading "Cerply" [level=1] [ref=e17]
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - textbox "Paste text, URL, or drag-drop file" [ref=e20]
+          - generic [ref=e21] [cursor=pointer]: Upload
+          - button "Create modules from input" [ref=e22] [cursor=pointer]: Create modules
+        - paragraph [ref=e23]: Cerply converts anything you give it into personalised micro-learning and tests — so you remember what matters.
+        - generic [ref=e25]: Audit-ready · Expert-reviewed · Adaptive · Private by default
+      - generic [ref=e26]:
+        - button "Certified" [ref=e27] [cursor=pointer]:
+          - img [ref=e28] [cursor=pointer]
+          - generic [ref=e30] [cursor=pointer]: Certified
+        - button "Curate" [ref=e31] [cursor=pointer]:
+          - img [ref=e32] [cursor=pointer]
+          - generic [ref=e34] [cursor=pointer]: Curate
+        - button "Guild" [ref=e35] [cursor=pointer]:
+          - img [ref=e36] [cursor=pointer]
+          - generic [ref=e38] [cursor=pointer]: Guild
+        - button "Account" [ref=e39] [cursor=pointer]:
+          - img [ref=e40] [cursor=pointer]
+          - generic [ref=e42] [cursor=pointer]: Account
+        - button "Upload (emphasized)" [ref=e43] [cursor=pointer]:
+          - img [ref=e44] [cursor=pointer]
+          - generic [ref=e46] [cursor=pointer]: Upload
+    - contentinfo "Trust guarantees" [ref=e47]:
+      - generic [ref=e48]: Audit-ready · Expert-reviewed · Adaptive · Private by default
+  - contentinfo [ref=e49]:
+    - navigation [ref=e51]:
+      - link "Popular" [ref=e52] [cursor=pointer]:
+        - /url: "#popular"
+      - link "Certified" [ref=e53] [cursor=pointer]:
+        - /url: "#certified"
+      - link "Challenge" [ref=e54] [cursor=pointer]:
+        - /url: "#challenge"
+      - link "Analytics" [ref=e55] [cursor=pointer]:
+        - /url: "#analytics"
+      - link "Account" [ref=e56] [cursor=pointer]:
+        - /url: "#account"
+      - link "About" [ref=e57] [cursor=pointer]:
+        - /url: "#about"
+  - alert [ref=e58]
+```
