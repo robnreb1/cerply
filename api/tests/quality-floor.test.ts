@@ -19,7 +19,7 @@ describe('Quality Floor Evaluation Tests', () => {
   let app: FastifyInstance;
   
   beforeEach(async () => {
-    app = build();
+    app = await build();
     await app.ready();
   });
 

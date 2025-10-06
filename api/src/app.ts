@@ -93,4 +93,7 @@ export async function buildApp(_opts?: FastifyServerOptions) {
   return app;
 }
 
+// Export as 'build' for test compatibility
+export const build = buildApp;
+
 export default buildApp;
