@@ -111,8 +111,8 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
         inferredGrade = result.hint_count > 0 ? 1 : 2;
       }
       
-      const update = sm2Update(entry, inferredGrade, nowISO);
-      next = update.next;
+      const updated = sm2Update(entry, inferredGrade);
+      next = { card_id, reps: updated.reps, ef: updated.ef, intervalDays: updated.intervalDays, lastGrade: updated.lastGrade, dueISO: nextDue(nowISO, updated.intervalDays) };
       console.log(`[retention] Auto-assessment: card=${card_id}, correct=${result.correct}, latency=${result.latency_ms}ms, inferred_grade=${inferredGrade}`);
     } else if (action === 'reset') {
       next = { card_id, reps: 0, ef: 2.5, intervalDays: 0, lastGrade: undefined, dueISO: nowISO };
