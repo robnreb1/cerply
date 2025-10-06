@@ -1,0 +1,75 @@
+graph TB
+    %% User Interfaces
+    WebUI["Web (Next.js)<br/>M2 Proxy<br/>Enterprise UI"]
+    MobileApp["Mobile Apps<br/>(Future)"]
+    DesktopApp["Desktop App<br/>(Future)"]
+    
+    %% API Layer
+    API["API (Fastify)<br/>REST Endpoints<br/>CORS & Auth"]
+    
+    %% Core Services
+    M3API["M3 API Surface<br/>Preview/Generate/Score<br/>Daily Queue"]
+    CertifiedV1["Certified v1<br/>Publish/Artifacts/Verify<br/>Ed25519 Signing"]
+    RetentionEngine["Retention Engine<br/>SM2-lite Spaced Repetition<br/>Progress Tracking"]
+    AdaptiveEngine["Adaptive Engine<br/>Level Tracking<br/>Learning Patterns"]
+    
+    %% Authentication & Authorization
+    Auth["Auth & Session<br/>Anonymous Sessions<br/>CSRF Protection"]
+    AdminAuth["Admin Access<br/>Bearer Token<br/>Write Access"]
+    
+    %% Storage Layer
+    Database["Storage/Prisma<br/>PostgreSQL<br/>Migrations"]
+    FileStorage["File Storage<br/>Uploads & Artifacts<br/>CDN Ready"]
+    
+    %% External Services
+    LLMRouter["LLM Router<br/>GPT-5/5-mini/5-nano<br/>Cost Tracking"]
+    PaymentSystem["Payment System<br/>(Future)<br/>Stripe Integration"]
+    
+    %% Infrastructure
+    CI["CI/CD<br/>GitHub Actions<br/>Docker & Deploy"]
+    Observability["Observability<br/>Logging & Metrics<br/>Health Checks"]
+    
+    %% User Flows
+    WebUI --> API
+    MobileApp -.-> API
+    DesktopApp -.-> API
+    
+    %% API to Services
+    API --> M3API
+    API --> CertifiedV1
+    API --> RetentionEngine
+    API --> AdaptiveEngine
+    API --> Auth
+    API --> AdminAuth
+    
+    %% Services to Storage
+    M3API --> Database
+    CertifiedV1 --> Database
+    CertifiedV1 --> FileStorage
+    RetentionEngine --> Database
+    AdaptiveEngine --> Database
+    Auth --> Database
+    
+    %% External Dependencies
+    M3API --> LLMRouter
+    CertifiedV1 --> LLMRouter
+    AdaptiveEngine --> LLMRouter
+    
+    %% Infrastructure Connections
+    CI --> WebUI
+    CI --> API
+    Observability --> API
+    Observability --> Database
+    
+    %% Future Components (dashed)
+    PaymentSystem -.-> API
+    PaymentSystem -.-> Database
+    
+    %% Styling
+    classDef implemented fill:#90EE90,stroke:#006400,stroke-width:2px
+    classDef inProgress fill:#FFE4B5,stroke:#FF8C00,stroke-width:2px
+    classDef planned fill:#F0F0F0,stroke:#696969,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class WebUI,API,M3API,CertifiedV1,RetentionEngine,Auth,Database,CI,Observability implemented
+    class AdaptiveEngine,LLMRouter inProgress
+    class MobileApp,DesktopApp,PaymentSystem planned

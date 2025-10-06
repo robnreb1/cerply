@@ -16,10 +16,13 @@
     "smoke:api": "bash api/scripts/smoke-local.sh",
     "smoke:web": "bash web/scripts/smoke.sh",
     "smoke:stg": "bash scripts/smoke-stg.sh",
-    "smoke:prod": "bash scripts/smoke-prod.sh"
+    "smoke:prod": "bash scripts/smoke-prod.sh",
+    "traceability:check": "tsx scripts/traceability_check.ts",
+    "traceability:report": "tsx scripts/traceability_check.ts --report docs/status/traceability-dashboard.md"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "tsx": "^4.7.0"
   },
   "workspaces": [
     "api",

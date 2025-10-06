@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { apiBase } from '@/lib/apiBase';
 import { COPY as copy } from '@/lib/copy';
 
@@ -32,11 +32,20 @@ type GenerateResponse = {
 };
 
 type ScoreResponse = {
-  score: number;
+  correct: boolean;
   difficulty: 'easy' | 'medium' | 'hard';
-  misconceptions: string[];
-  next_review_days: number;
-  explanation?: string;
+  explain: string;
+  next_hint?: string;
+  diagnostics: {
+    latency_ms: number;
+    hint_count: number;
+    retry_count: number;
+    confidence: string;
+  };
+  // Legacy fields (for backward compat)
+  score?: number;
+  misconceptions?: string[];
+  next_review_days?: number;
 };
 
 type ScheduleResponse = {
@@ -52,7 +61,7 @@ type LearnerLevel = 'beginner' | 'novice' | 'intermediate' | 'advanced' | 'exper
 type SessionStats = {
   answered: number;
   correct: number;
-  totalScore: number;
+  totalLatency: number;
 };
 
 type AppState = 
@@ -69,12 +78,18 @@ export default function LearnPage() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [slowLoadTimeout, setSlowLoadTimeout] = useState(false);
   
-  // Session state
+  // Session state - AUTO-ASSESSMENT MODE
   const [flipped, setFlipped] = useState(false);
   const [userAnswer, setUserAnswer] = useState('');
   const [scoreData, setScoreData] = useState<ScoreResponse | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [level, setLevel] = useState<LearnerLevel>('beginner');
+  const [hintCount, setHintCount] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
+  const [adaptationFeedback, setAdaptationFeedback] = useState('');
+  
+  // Latency tracking
+  const flipTimestamp = useRef<number | null>(null);
   
   // NL Ask state
   const [chatOpen, setChatOpen] = useState(false);
@@ -85,11 +100,9 @@ export default function LearnPage() {
 
   // Check auth on mount & try to resume session
   useEffect(() => {
-    // Check auth status (stub for now)
     const authToken = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
     setIsAuthed(!!authToken);
 
-    // Try to resume session
     const sessionId = typeof window !== 'undefined' ? localStorage.getItem('learn_session_id') : null;
     if (sessionId) {
       resumeSession(sessionId);
@@ -98,24 +111,24 @@ export default function LearnPage() {
 
   // Calculate level from stats
   useEffect(() => {
-    if (state.phase === 'session') {
-      const accuracy = state.stats.answered > 0 ? (state.stats.correct / state.stats.answered) * 100 : 0;
-      if (accuracy >= 95) setLevel('expert');
-      else if (accuracy >= 85) setLevel('advanced');
+    if (state.phase === 'session' && state.stats.answered > 0) {
+      const accuracy = (state.stats.correct / state.stats.answered) * 100;
+      const avgLatency = state.stats.totalLatency / state.stats.answered;
+      
+      if (accuracy >= 95 && avgLatency < 10000) setLevel('expert');
+      else if (accuracy >= 85 && avgLatency < 15000) setLevel('advanced');
       else if (accuracy >= 70) setLevel('intermediate');
       else if (accuracy >= 50) setLevel('novice');
       else setLevel('beginner');
     }
   }, [state]);
 
-  // Resume session from progress API
   const resumeSession = async (sessionId: string) => {
     try {
       const res = await fetch(`${API_BASE}/api/certified/progress?sid=${sessionId}`);
       if (res.ok) {
         const data = await res.json();
         if (data.items && data.items.length > 0) {
-          // TODO: Reconstruct session from progress data
           console.log('[learn] Resume data:', data);
         }
       }
@@ -135,7 +148,6 @@ export default function LearnPage() {
     setError('');
     setSlowLoadTimeout(false);
 
-    // Show fallback content if loading takes >400ms
     const timeoutId = setTimeout(() => {
       setSlowLoadTimeout(true);
     }, 400);
@@ -183,7 +195,6 @@ export default function LearnPage() {
     }, 400);
 
     try {
-      // Generate items from preview
       const genRes = await fetch(`${API_BASE}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,7 +212,6 @@ export default function LearnPage() {
 
       const genData: GenerateResponse = await genRes.json();
       
-      // Flatten all lessons into items array
       const allItems: CardItem[] = [];
       genData.modules.forEach(mod => {
         mod.lessons.forEach(lesson => {
@@ -209,11 +219,9 @@ export default function LearnPage() {
         });
       });
 
-      // Create session
       const sessionId = `sess-${Date.now()}`;
       localStorage.setItem('learn_session_id', sessionId);
 
-      // Schedule with retention API
       const schedRes = await fetch(`${API_BASE}/api/certified/schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -240,7 +248,7 @@ export default function LearnPage() {
         sessionId,
         items: allItems,
         currentIdx: 0,
-        stats: { answered: 0, correct: 0, totalScore: 0 },
+        stats: { answered: 0, correct: 0, totalLatency: 0 },
       });
       setSlowLoadTimeout(false);
     } catch (err: any) {
@@ -256,25 +264,23 @@ export default function LearnPage() {
     setState({ phase: 'input' });
   };
 
-  // PANE: Auth Gate
   const handleSignIn = () => {
-    // For demo: set auth token
     localStorage.setItem('auth_token', 'demo-token');
     setIsAuthed(true);
     
-    // Return to preview if we were there
     if (state.phase === 'auth-gate') {
       window.location.reload();
     }
   };
 
-  // PANE B: Session - Flip card
+  // AUTO-ASSESSMENT: Flip card starts timer
   const handleFlip = async () => {
     if (state.phase !== 'session') return;
     
-    setFlipped(!flipped);
-    
     if (!flipped) {
+      setFlipped(true);
+      flipTimestamp.current = Date.now();
+      
       // Record flip event
       try {
         await fetch(`${API_BASE}/api/certified/progress`, {
@@ -293,61 +299,86 @@ export default function LearnPage() {
     }
   };
 
-  // PANE B: Grade answer
-  const handleGrade = async (grade: number) => {
-    if (state.phase !== 'session') return;
+  // AUTO-ASSESSMENT: Submit answer (no self-grading!)
+  const handleSubmit = async () => {
+    if (state.phase !== 'session' || !flipped || !flipTimestamp.current) return;
 
-    setLoading(true);
+    const latency_ms = Date.now() - flipTimestamp.current;
     const currentItem = state.items[state.currentIdx];
+    
+    setLoading(true);
 
     try {
-      // Score the answer
+      // Score the answer (auto-assessment)
       const scoreRes = await fetch(`${API_BASE}/api/score`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           item_id: currentItem.id,
-          user_answer: userAnswer || `Grade: ${grade}`,
+          user_answer: userAnswer || '(no answer provided)',
           expected_answer: currentItem.back,
+          latency_ms,
+          item_difficulty: 'medium',
+          hint_count: hintCount,
+          retry_count: retryCount,
         }),
       });
 
       if (scoreRes.ok) {
-        const scoreResult: ScoreResponse = await scoreRes.json();
-        setScoreData(scoreResult);
+        const result: ScoreResponse = await scoreRes.json();
+        setScoreData(result);
+        
+        // Auto-show explanation if wrong or slow
+        if (!result.correct || latency_ms > 20000) {
+          setShowExplanation(true);
+        }
+        
+        // Record progress with telemetry
+        await fetch(`${API_BASE}/api/certified/progress`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: state.sessionId,
+            card_id: currentItem.id,
+            action: 'submit',
+            at: new Date().toISOString(),
+            result: {
+              correct: result.correct,
+              latency_ms,
+              item_difficulty: result.difficulty,
+              item_type: currentItem.type as 'mcq' | 'free' | 'card',
+              hint_count: hintCount,
+              retry_count: retryCount,
+            },
+          }),
+        });
+
+        // Update stats
+        const newStats = {
+          answered: state.stats.answered + 1,
+          correct: state.stats.correct + (result.correct ? 1 : 0),
+          totalLatency: state.stats.totalLatency + latency_ms,
+        };
+
+        setState({
+          ...state,
+          stats: newStats,
+        });
+
+        // Show adaptation feedback
+        if (result.difficulty === 'easy') {
+          setAdaptationFeedback('🚀 Great mastery! Increasing challenge...');
+        } else if (result.difficulty === 'hard') {
+          setAdaptationFeedback('💡 Let\'s ease off a bit and build confidence');
+        }
+
+        // Auto-advance after delay
+        setTimeout(() => {
+          moveToNext();
+        }, result.correct ? 1500 : 3000); // Longer delay if wrong
       }
-
-      // Record progress
-      await fetch(`${API_BASE}/api/certified/progress`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: state.sessionId,
-          card_id: currentItem.id,
-          action: 'grade',
-          grade,
-          at: new Date().toISOString(),
-        }),
-      });
-
-      // Update stats
-      const newStats = {
-        answered: state.stats.answered + 1,
-        correct: state.stats.correct + (grade >= 4 ? 1 : 0),
-        totalScore: state.stats.totalScore + grade,
-      };
-
-      setState({
-        ...state,
-        stats: newStats,
-      });
-
-      // Move to next after delay
-      setTimeout(() => {
-        moveToNext();
-      }, 1500);
     } catch (err) {
-      console.error('[learn] Failed to grade:', err);
+      console.error('[learn] Failed to submit:', err);
       setError(copy.error.api);
     } finally {
       setLoading(false);
@@ -361,6 +392,10 @@ export default function LearnPage() {
     setUserAnswer('');
     setScoreData(null);
     setShowExplanation(false);
+    setHintCount(0);
+    setRetryCount(0);
+    setAdaptationFeedback('');
+    flipTimestamp.current = null;
 
     if (state.currentIdx < state.items.length - 1) {
       setState({
@@ -368,12 +403,10 @@ export default function LearnPage() {
         currentIdx: state.currentIdx + 1,
       });
     } else {
-      // Session complete - could show completion screen
-      setError(''); // Clear any errors
+      setError('');
     }
   };
 
-  // NL Ask handler
   const handleAsk = async () => {
     if (!chatInput.trim()) return;
 
@@ -381,7 +414,6 @@ export default function LearnPage() {
     setChatInput('');
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
 
-    // Stub response
     setTimeout(() => {
       setChatMessages(prev => [
         ...prev,
@@ -400,7 +432,7 @@ export default function LearnPage() {
       {typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && (
         <div className="bg-yellow-50 border-b-2 border-yellow-200 px-4 py-2 text-sm">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <span className="text-yellow-800">🧪 UAT Mode - Learner MVP</span>
+            <span className="text-yellow-800">🧪 UAT Mode - Learner MVP (Auto-Assessment)</span>
             <span className="text-xs text-yellow-600">API: {API_BASE}</span>
           </div>
         </div>
@@ -457,7 +489,6 @@ export default function LearnPage() {
               </div>
             )}
 
-            {/* Pane C: While you wait (slow load) */}
             {slowLoadTimeout && (
               <div className="rounded-lg bg-blue-50 border border-blue-200 p-6 space-y-4">
                 <h2 className="font-semibold text-blue-900">{copy.fallback.heading}</h2>
@@ -542,7 +573,6 @@ export default function LearnPage() {
               </div>
             )}
 
-            {/* Pane C: While you wait */}
             {slowLoadTimeout && (
               <div className="rounded-lg bg-blue-50 border border-blue-200 p-6 space-y-4">
                 <h2 className="font-semibold text-blue-900">{copy.fallback.heading}</h2>
@@ -591,7 +621,7 @@ export default function LearnPage() {
           </div>
         )}
 
-        {/* Phase: Session */}
+        {/* Phase: Session (AUTO-ASSESSMENT MODE) */}
         {state.phase === 'session' && currentItem && (
           <div className="space-y-6">
             {/* HUD */}
@@ -605,10 +635,17 @@ export default function LearnPage() {
               <div className="text-right">
                 <div className="text-sm font-medium text-zinc-700 capitalize">{copy.level[level]}</div>
                 <div className="text-xs text-zinc-500">
-                  {state.stats.answered > 0 && `${Math.round((state.stats.correct / state.stats.answered) * 100)}% accuracy`}
+                  {state.stats.answered > 0 && `${Math.round((state.stats.correct / state.stats.answered) * 100)}% correct`}
                 </div>
               </div>
             </div>
+
+            {/* Adaptation Feedback Chip */}
+            {adaptationFeedback && (
+              <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-2 text-sm text-blue-800 text-center animate-fade-in">
+                {adaptationFeedback}
+              </div>
+            )}
 
             {/* Card */}
             <div
@@ -640,79 +677,68 @@ export default function LearnPage() {
                     <p className="text-xl text-zinc-800">{currentItem.back}</p>
                   </div>
 
-                  {/* User answer input */}
-                  <textarea
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    placeholder="Your answer (optional - helps us adapt better)"
-                    className="w-full rounded-lg border border-zinc-300 px-4 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/20"
-                    rows={2}
-                    data-testid="answer-input"
-                  />
-
-                  {/* Grade buttons */}
+                  {/* User answer input (auto-assessed) */}
                   {!scoreData && (
-                    <div>
-                      <p className="text-sm text-zinc-600 mb-3">{copy.session.gradeCta}</p>
-                      <div className="flex gap-2 justify-center flex-wrap">
-                        {[1, 2, 3, 4, 5].map((grade) => (
-                          <button
-                            key={grade}
-                            onClick={() => handleGrade(grade)}
-                            disabled={loading}
-                            className={`rounded-lg px-4 py-2 font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                              grade <= 2
-                                ? 'bg-red-100 text-red-700 hover:bg-red-200 focus:ring-red-500'
-                                : grade === 3
-                                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 focus:ring-yellow-500'
-                                : 'bg-green-100 text-green-700 hover:bg-green-200 focus:ring-green-500'
-                            } disabled:opacity-50`}
-                            data-testid={`grade-${grade}`}
-                            aria-label={copy.a11y.gradeButton(grade, copy.session.grades[grade as keyof typeof copy.session.grades])}
-                          >
-                            {grade}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex justify-center gap-4 mt-2 text-xs text-zinc-500">
-                        <span>{copy.session.grades[1]}</span>
-                        <span>{copy.session.grades[5]}</span>
-                      </div>
+                    <div className="space-y-4">
+                      <textarea
+                        value={userAnswer}
+                        onChange={(e) => setUserAnswer(e.target.value)}
+                        placeholder="Type your answer here (we'll assess it automatically)..."
+                        className="w-full rounded-lg border border-zinc-300 px-4 py-3 text-sm focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/20"
+                        rows={3}
+                        data-testid="answer-input"
+                        autoFocus
+                      />
+                      
+                      <button
+                        onClick={handleSubmit}
+                        disabled={loading || !userAnswer.trim()}
+                        className="w-full rounded-lg bg-zinc-900 px-6 py-3 text-white font-medium hover:bg-zinc-800 disabled:bg-zinc-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-zinc-500"
+                        data-testid="submit-button"
+                      >
+                        {loading ? 'Assessing...' : 'Submit Answer'}
+                      </button>
                     </div>
                   )}
 
-                  {/* Score feedback */}
+                  {/* Score feedback (auto-assessment result) */}
                   {scoreData && (
-                    <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 space-y-2">
+                    <div className={`rounded-lg border p-4 space-y-2 ${
+                      scoreData.correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                    }`}>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium text-blue-900">
-                          Difficulty: <span className="capitalize">{scoreData.difficulty}</span>
+                        <span className={`text-sm font-medium ${
+                          scoreData.correct ? 'text-green-900' : 'text-red-900'
+                        }`}>
+                          {scoreData.correct ? '✓ Correct!' : '✗ Not quite'}
                         </span>
-                        <span className="text-sm text-blue-700">
-                          Next review: {scoreData.next_review_days} days
+                        <span className={`text-xs ${
+                          scoreData.correct ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          Difficulty: <span className="capitalize">{scoreData.difficulty}</span>
                         </span>
                       </div>
                       
-                      {scoreData.misconceptions.length > 0 && !showExplanation && (
+                      {/* Auto-show explanation if wrong or slow */}
+                      {showExplanation && scoreData.explain && (
+                        <div className={`text-sm pt-2 border-t ${
+                          scoreData.correct ? 'border-green-200 text-green-800' : 'border-red-200 text-red-800'
+                        }`}>
+                          <p className="font-medium mb-1">Explanation:</p>
+                          <p>{scoreData.explain}</p>
+                        </div>
+                      )}
+                      
+                      {!showExplanation && scoreData.explain && (
                         <button
                           onClick={() => setShowExplanation(true)}
-                          className="text-sm text-blue-700 hover:text-blue-900 underline focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className={`text-sm hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                            scoreData.correct ? 'text-green-700 focus:ring-green-500' : 'text-red-700 focus:ring-red-500'
+                          }`}
                           data-testid="explain-button"
-                          aria-label={copy.a11y.explainButton}
                         >
-                          {copy.session.explainCta}
+                          Show explanation
                         </button>
-                      )}
-
-                      {showExplanation && scoreData.misconceptions.length > 0 && (
-                        <div className="text-sm text-blue-800 pt-2 border-t border-blue-200">
-                          <p className="font-medium mb-1">Common misconceptions:</p>
-                          <ul className="list-disc list-inside space-y-1">
-                            {scoreData.misconceptions.map((m, i) => (
-                              <li key={i}>{m}</li>
-                            ))}
-                          </ul>
-                        </div>
                       )}
                     </div>
                   )}
@@ -731,6 +757,10 @@ export default function LearnPage() {
               <div className="rounded-lg bg-green-50 border-2 border-green-200 p-6 text-center space-y-4">
                 <h2 className="text-2xl font-bold text-green-900">{copy.session.completedHeading}</h2>
                 <p className="text-green-700">{copy.session.completedMessage(state.stats.answered)}</p>
+                <p className="text-sm text-green-600">
+                  Accuracy: {Math.round((state.stats.correct / state.stats.answered) * 100)}% • 
+                  Avg time: {Math.round(state.stats.totalLatency / state.stats.answered / 1000)}s per item
+                </p>
                 <div className="flex gap-3 justify-center">
                   <button
                     onClick={() => setState({ phase: 'input' })}
@@ -829,3 +859,4 @@ export default function LearnPage() {
     </main>
   );
 }
+
