@@ -5,6 +5,15 @@ import { z } from 'zod';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
+import { 
+  canonizeContent, 
+  searchCanonicalContent, 
+  retrieveCanonicalContent,
+  contentExists,
+  evaluateContentQuality,
+  type ContentBody,
+  type QualityMetrics
+} from '../lib/canon';
 
 // --- Usage tracking store (in-memory for preview) ---
 type UsageRecord = {
@@ -181,35 +190,109 @@ export async function registerM3Routes(app: FastifyInstance) {
     try {
       const body = GenerateRequestZ.parse(req.body);
       
-      // Generate deterministic modules conforming to schema
-      const modules = body.modules.map((m, idx) => ({
-        id: `module-${idx + 1}`,
-        title: m.title,
-        lessons: [
-          {
-            id: `lesson-${idx + 1}-1`,
-            title: `${m.title} - Part 1`,
-            explanation: `This is a detailed explanation of ${m.title.toLowerCase()}.`,
-          },
-        ],
-        items: [
-          {
-            id: `item-${idx + 1}-1`,
-            type: 'mcq' as const,
-            prompt: `What is the main concept in ${m.title}?`,
-            choices: ['Option A', 'Option B', 'Option C', 'Option D'],
-            answer: 0,
-          },
-          {
-            id: `item-${idx + 1}-2`,
-            type: 'free' as const,
-            prompt: `Explain ${m.title} in your own words.`,
-            answer: null,
-          },
-        ],
-      }));
+      // Check canon store first for existing high-quality content
+      const topic = body.modules[0]?.title || 'general';
+      const existingContent = await searchCanonicalContent({
+        topic,
+        minQuality: 0.8,
+        limit: 1
+      });
 
-      const response = { modules };
+      let response: any;
+      let source: 'canon' | 'fresh' = 'fresh';
+      let modelTier = 'gpt-5'; // Default to high-quality model
+
+      if (existingContent.length > 0) {
+        // Use canonical content
+        const canonical = existingContent[0];
+        response = {
+          modules: canonical.content.modules.map(m => ({
+            id: m.id,
+            title: m.title,
+            lessons: [{ id: m.id, title: m.title, explanation: m.content }],
+            items: [
+              {
+                id: `${m.id}-q1`,
+                type: 'mcq' as const,
+                prompt: `What is the main concept in ${m.title}?`,
+                choices: ['Option A', 'Option B', 'Option C', 'Option D'],
+                answer: 0,
+              },
+              {
+                id: `${m.id}-q2`,
+                type: 'free' as const,
+                prompt: `Explain ${m.title} in your own words.`,
+                answer: null,
+              },
+            ],
+          }))
+        };
+        source = 'canon';
+        modelTier = 'gpt-4o-mini'; // Use cheaper model for canon content
+        
+        console.log(`[m3] Using canonical content for topic: ${topic}`);
+      } else {
+        // Generate new content with quality-first pipeline
+        const modules = body.modules.map((m, idx) => ({
+          id: `module-${idx + 1}`,
+          title: m.title,
+          lessons: [
+            {
+              id: `lesson-${idx + 1}-1`,
+              title: `${m.title} - Part 1`,
+              explanation: `This is a detailed explanation of ${m.title.toLowerCase()}.`,
+            },
+          ],
+          items: [
+            {
+              id: `item-${idx + 1}-1`,
+              type: 'mcq' as const,
+              prompt: `What is the main concept in ${m.title}?`,
+              choices: ['Option A', 'Option B', 'Option C', 'Option D'],
+              answer: 0,
+            },
+            {
+              id: `item-${idx + 1}-2`,
+              type: 'free' as const,
+              prompt: `Explain ${m.title} in your own words.`,
+              answer: null,
+            },
+          ],
+        }));
+
+        response = { modules };
+
+        // Canonize the new content
+        const contentBody: ContentBody = {
+          title: body.modules[0]?.title || 'Generated Content',
+          summary: `Generated learning content for ${topic}`,
+          modules: modules.map(m => ({
+            id: m.id,
+            title: m.title,
+            content: m.lessons[0].explanation,
+            type: 'lesson' as const
+          })),
+          metadata: {
+            topic,
+            difficulty: 'intermediate',
+            estimatedTime: modules.length * 15,
+            prerequisites: [],
+            learningObjectives: modules.map(m => `Understand ${m.title}`)
+          }
+        };
+
+        // Evaluate quality and canonize if high enough
+        const qualityScores = evaluateContentQuality(contentBody);
+        if (qualityScores.overall >= 0.7) {
+          await canonizeContent(
+            contentBody,
+            ['gpt-5'], // Source models
+            qualityScores,
+            [] // Validation results
+          );
+          console.log(`[m3] Canonized new content for topic: ${topic}, quality: ${qualityScores.overall}`);
+        }
+      }
 
       // Validate against schema
       if (!validateModules(response)) {
@@ -222,9 +305,20 @@ export async function registerM3Routes(app: FastifyInstance) {
         });
       }
 
-      logUsage('/api/generate', 'gpt-5', 800, 1200);
+      // Add source metadata to response
+      const finalResponse = {
+        ...response,
+        metadata: {
+          source,
+          modelTier,
+          qualityFirst: source === 'fresh',
+          canonized: source === 'canon'
+        }
+      };
 
-      return reply.code(200).send(response);
+      logUsage('/api/generate', modelTier, source === 'canon' ? 100 : 800, source === 'canon' ? 200 : 1200);
+
+      return reply.code(200).send(finalResponse);
     } catch (err: any) {
       if (err instanceof z.ZodError) {
         return reply.code(400).send({

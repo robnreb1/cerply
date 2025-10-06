@@ -1,6 +1,9 @@
 // Microcopy for Learner MVP
 // Concise, encouraging, enterprise-ready
 
+// INTRO_COPY - The only allowed static string per platform principles
+export const INTRO_COPY = "Learn anything. Remember everything.";
+
 export const copy = {
   // Home page (backward compatibility)
   topBarTagline: "Learn anything. Remember everything.",

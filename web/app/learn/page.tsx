@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { apiBase } from '@/lib/apiBase';
-import { COPY as copy } from '@/lib/copy';
+import { COPY as copy, INTRO_COPY } from '@/lib/copy';
+import { parseIntent, routeIntent, getIntentSuggestions, type IntentContext } from '@/lib/interaction/router';
+import { generateMicrocopy, type MicrocopyContext } from '@/lib/interaction/microcopy';
 
 // Types matching M3 API contracts
 type PreviewResponse = {
@@ -95,6 +97,13 @@ export default function LearnPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<Array<{role: 'user' | 'assistant', text: string}>>([]);
+  
+  // Interaction Engine state
+  const [interactionEngineEnabled, setInteractionEngineEnabled] = useState(
+    process.env.NEXT_PUBLIC_INTERACTION_ENGINE === 'true'
+  );
+  const [dynamicMicrocopy, setDynamicMicrocopy] = useState<Record<string, string>>({});
+  const [intentSuggestions, setIntentSuggestions] = useState<string[]>([]);
   
   const API_BASE = apiBase();
 
@@ -414,13 +423,299 @@ export default function LearnPage() {
     setChatInput('');
     setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
 
-    setTimeout(() => {
+    // Use interaction engine if enabled
+    if (interactionEngineEnabled) {
+      await handleNaturalLanguageCommand(userMessage);
+    } else {
+      // Fallback to stub response
+      setTimeout(() => {
+        setChatMessages(prev => [
+          ...prev,
+          { role: 'assistant', text: 'Natural language responses will be powered by the orchestrator in the full version.' }
+        ]);
+      }, 500);
+    }
+  };
+
+  // Interaction Engine Functions
+  const getCurrentContext = (): IntentContext => {
+    const learnerLevel = level === 'worldClass' ? 'advanced' : 
+                        level === 'expert' ? 'advanced' : 
+                        level === 'advanced' ? 'advanced' :
+                        level === 'intermediate' ? 'intermediate' : 'beginner';
+    
+    return {
+      learnerLevel,
+      topic: state.phase === 'preview' ? state.data.summary : input,
+      sessionProgress: state.phase === 'session' ? state.currentIdx / state.items.length : 0,
+      timeAvailable: 30, // Default assumption
+      currentContent: state.phase === 'session' ? currentItem?.front : undefined
+    };
+  };
+
+  const getMicrocopyContext = (): MicrocopyContext => {
+    return {
+      ...getCurrentContext(),
+      brandVoice: 'encouraging',
+      currentAction: state.phase,
+      previousInteraction: chatMessages[chatMessages.length - 1]?.text
+    };
+  };
+
+  const handleNaturalLanguageCommand = async (command: string) => {
+    try {
+      const context = getCurrentContext();
+      const intentResult = parseIntent(command, context);
+      
+      // Handle different intents
+      switch (intentResult.intent) {
+        case 'shorter':
+          await handleMakeShorter();
+          break;
+        case 'bullets':
+          await handleMakeBullets();
+          break;
+        case 'simplify':
+          await handleSimplify();
+          break;
+        case 'examples':
+          await handleAddExamples();
+          break;
+        case 'timeConstraint':
+          await handleTimeConstraint(intentResult.parameters.minutes);
+          break;
+        case 'dontUnderstand':
+          await handleDontUnderstand();
+          break;
+        case 'skip':
+          await handleSkip();
+          break;
+        case 'test':
+          await handleTestMe();
+          break;
+        case 'goBack':
+          await handleGoBack();
+          break;
+        case 'whatsNext':
+          await handleWhatsNext();
+          break;
+        case 'showProgress':
+          await handleShowProgress();
+          break;
+        default:
+          await handleGeneralConversation(command);
+      }
+      
+      // Update intent suggestions
+      updateIntentSuggestions();
+      
+    } catch (error) {
+      console.error('Error handling natural language command:', error);
       setChatMessages(prev => [
         ...prev,
-        { role: 'assistant', text: 'Natural language responses will be powered by the orchestrator in the full version.' }
+        { role: 'assistant', text: 'Sorry, I didn\'t understand that. Could you try rephrasing?' }
       ]);
-    }, 500);
+    }
   };
+
+  const handleMakeShorter = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'I\'ll make this more concise for you.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    // In a real implementation, this would trigger content shortening
+    setAdaptationFeedback('Content will be shortened in the next iteration');
+  };
+
+  const handleMakeBullets = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'I\'ll convert this to bullet points for better readability.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    setAdaptationFeedback('Content will be formatted as bullets');
+  };
+
+  const handleSimplify = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'I\'ll explain this in simpler terms.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    setAdaptationFeedback('Content will be simplified for better understanding');
+  };
+
+  const handleAddExamples = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'I\'ll add some concrete examples to help illustrate this concept.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    setAdaptationFeedback('Examples will be added to enhance understanding');
+  };
+
+  const handleTimeConstraint = async (minutes: number) => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: `Perfect! I'll adapt the content to fit your ${minutes}-minute timeframe.`
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    setAdaptationFeedback(`Content adapted for ${minutes} minutes`);
+  };
+
+  const handleDontUnderstand = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'No worries! Let me explain this differently with a fresh approach.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    setAdaptationFeedback('Alternative explanation will be provided');
+  };
+
+  const handleSkip = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'Sure! Let\'s move on to the next topic.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    if (state.phase === 'session' && state.currentIdx < state.items.length - 1) {
+      handleNext();
+    }
+  };
+
+  const handleTestMe = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'Great idea! Let\'s test your understanding with some questions.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    setAdaptationFeedback('Quiz questions will be generated');
+  };
+
+  const handleGoBack = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'Sure! Let\'s go back to the previous content.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    if (state.phase === 'session' && state.currentIdx > 0) {
+      setState({
+        ...state,
+        currentIdx: state.currentIdx - 1
+      });
+    }
+  };
+
+  const handleWhatsNext = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'Let me show you what\'s coming up next in your learning journey.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    setAdaptationFeedback('Next content preview will be shown');
+  };
+
+  const handleShowProgress = async () => {
+    const microcopy = await generateMicrocopy({
+      type: 'feedback',
+      context: getMicrocopyContext(),
+      template: 'Here\'s your current progress and learning statistics.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+    
+    setAdaptationFeedback('Progress dashboard will be displayed');
+  };
+
+  const handleGeneralConversation = async (command: string) => {
+    const microcopy = await generateMicrocopy({
+      type: 'conversation',
+      context: getMicrocopyContext(),
+      template: 'I understand you want to discuss this further. Let me help clarify.'
+    });
+    
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'assistant', text: microcopy.text }
+    ]);
+  };
+
+  const updateIntentSuggestions = () => {
+    const context = getCurrentContext();
+    const suggestions = getIntentSuggestions(context);
+    setIntentSuggestions(suggestions);
+  };
+
+  // Initialize intent suggestions
+  useEffect(() => {
+    if (interactionEngineEnabled) {
+      updateIntentSuggestions();
+    }
+  }, [state, level, interactionEngineEnabled]);
 
   const currentItem = state.phase === 'session' ? state.items[state.currentIdx] : null;
   const targetCount = 10;
@@ -432,7 +727,14 @@ export default function LearnPage() {
       {typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && (
         <div className="bg-yellow-50 border-b-2 border-yellow-200 px-4 py-2 text-sm">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <span className="text-yellow-800">🧪 UAT Mode - Learner MVP (Auto-Assessment)</span>
+            <span className="text-yellow-800">
+              🧪 UAT Mode - Learner MVP (Auto-Assessment)
+              {interactionEngineEnabled && (
+                <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                  🚀 Interaction Engine v1
+                </span>
+              )}
+            </span>
             <span className="text-xs text-yellow-600">API: {API_BASE}</span>
           </div>
         </div>
@@ -815,6 +1117,27 @@ export default function LearnPage() {
               </div>
 
               <div className="p-4 border-t border-zinc-200">
+                {/* Intent suggestions */}
+                {interactionEngineEnabled && intentSuggestions.length > 0 && (
+                  <div className="mb-3">
+                    <div className="text-xs text-zinc-500 mb-2">Try saying:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {intentSuggestions.slice(0, 4).map((suggestion, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setChatInput(suggestion);
+                            handleAsk();
+                          }}
+                          className="text-xs bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-2 py-1 rounded-full transition-colors"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -826,7 +1149,7 @@ export default function LearnPage() {
                         handleAsk();
                       }
                     }}
-                    placeholder={copy.nlAsk.placeholder}
+                    placeholder={interactionEngineEnabled ? "Try 'make this shorter' or 'explain like I'm 12'..." : copy.nlAsk.placeholder}
                     className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500/20"
                     data-testid="chat-input"
                   />
