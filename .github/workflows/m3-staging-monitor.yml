@@ -10,6 +10,11 @@ on:
         description: 'Monitor duration in hours'
         required: false
         default: '24'
+      force_fail:
+        description: 'Force failure for testing auto-issue creation'
+        required: false
+        default: 'false'
+        type: boolean
 
 permissions:
   contents: write
@@ -45,15 +50,28 @@ jobs:
         id: smoke
         env:
           API_BASE: https://cerply-api-staging-latest.onrender.com
+          FORCE_FAIL: ${{ inputs.force_fail || 'false' }}
         run: |
           set +e  # Don't fail immediately
           chmod +x api/scripts/smoke-m3.sh
           
-          START_TIME=$(date +%s)
-          ./api/scripts/smoke-m3.sh "$API_BASE" > smoke_output.log 2>&1
-          EXIT_CODE=$?
-          END_TIME=$(date +%s)
-          DURATION=$((END_TIME - START_TIME))
+          # Force failure if requested (for testing alerting)
+          if [ "$FORCE_FAIL" = "true" ]; then
+            echo "🧪 FORCED FAILURE for testing" > smoke_output.log
+            echo "This is an intentional failure to test auto-issue creation" >> smoke_output.log
+            echo "" >> smoke_output.log
+            ./api/scripts/smoke-m3.sh "$API_BASE" >> smoke_output.log 2>&1 || true
+            echo "" >> smoke_output.log
+            echo "--- FORCED FAILURE MARKER ---" >> smoke_output.log
+            EXIT_CODE=2
+            DURATION=1
+          else
+            START_TIME=$(date +%s)
+            ./api/scripts/smoke-m3.sh "$API_BASE" > smoke_output.log 2>&1
+            EXIT_CODE=$?
+            END_TIME=$(date +%s)
+            DURATION=$((END_TIME - START_TIME))
+          fi
           
           echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
           echo "duration=$DURATION" >> $GITHUB_OUTPUT

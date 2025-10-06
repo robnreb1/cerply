@@ -224,6 +224,45 @@ All M3 acceptance criteria met:
 
 ---
 
+## 📊 Monitor: Activation
+
+**Status:** ✅ **ACTIVE**  
+**Activated:** 2025-10-06T09:23:50Z  
+**First Run:** [#18276275547](https://github.com/robnreb1/cerply/actions/runs/18276275547)  
+**Commit SHA:** f9cd9f7  
+**Schedule:** Every 15 minutes (cron: `*/15 * * * *`)
+
+### First Run Results
+
+| Metric | Value |
+|--------|-------|
+| **Status** | ✅ PASSED |
+| **Duration** | 6s |
+| **Smoke Tests** | 31/31 passed |
+| **Timestamp** | 2025-10-06T09:27:33Z |
+| **Run Number** | 2 |
+
+### Monitoring Status
+
+- ✅ Workflow scheduled and active
+- ✅ Smoke tests running successfully
+- ✅ Reporter generating metrics
+- ⚠️ Auto-commit to staging blocked by branch protection (acceptable - reports available in artifacts)
+- ✅ Failure detection ready (will create GitHub issues)
+
+### Next Scheduled Runs
+
+- Run #3: 2025-10-06T09:30:00Z (estimated)
+- Run #4: 2025-10-06T09:45:00Z (estimated)
+- Continues every 15 minutes...
+
+### Artifacts
+
+- **Smoke Logs:** Available in [run artifacts](https://github.com/robnreb1/cerply/actions/runs/18276275547)
+- **Monitor Report:** Generated successfully (see artifacts)
+
+---
+
 ## 🎯 Next Steps
 
 1. **Monitor staging for 24 hours** - Watch for any errors in logs
