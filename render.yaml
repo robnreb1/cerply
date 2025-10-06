@@ -21,3 +21,7 @@ services:
         value: gpt-4o-mini
       - key: LLM_PLANNER_PROVIDER
         value: openai
+      - key: CERTIFIED_ENABLED
+        value: "true"
+      - key: RETENTION_ENABLED
+        value: "true"
