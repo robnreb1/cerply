@@ -126,11 +126,11 @@ export interface CanonStore {
  * In production, this would be backed by a persistent database
  */
 class InMemoryCanonStore implements CanonStore {
-  private store = new Map<string, CanonicalContent>();
+  private contentStore = new Map<string, CanonicalContent>();
   private index = new Map<string, Set<string>>(); // topic -> content IDs
 
   async store(content: CanonicalContent): Promise<void> {
-    this.store.set(content.sha, content);
+    this.contentStore.set(content.sha, content);
     
     // Update index
     const topic = content.metadata.topic.toLowerCase();
@@ -141,7 +141,7 @@ class InMemoryCanonStore implements CanonStore {
   }
 
   async retrieve(sha: string): Promise<CanonicalContent | null> {
-    return this.store.get(sha) || null;
+    return this.contentStore.get(sha) || null;
   }
 
   async search(query: {
@@ -159,14 +159,14 @@ class InMemoryCanonStore implements CanonStore {
       const contentIds = this.index.get(topicKey) || new Set();
       
       for (const id of contentIds) {
-        const content = this.store.get(id);
+        const content = this.contentStore.get(id);
         if (content) {
           results.push(content);
         }
       }
     } else {
       // Search all content
-      results = Array.from(this.store.values());
+      results = Array.from(this.contentStore.values());
     }
 
     // Filter by difficulty
@@ -202,7 +202,7 @@ class InMemoryCanonStore implements CanonStore {
   }
 
   async update(id: string, updates: Partial<CanonicalContent>): Promise<void> {
-    const existing = this.store.get(id);
+    const existing = this.contentStore.get(id);
     if (!existing) {
       throw new Error(`Content with ID ${id} not found`);
     }
@@ -213,11 +213,11 @@ class InMemoryCanonStore implements CanonStore {
       updatedAt: new Date().toISOString()
     };
 
-    this.store.set(id, updated);
+    this.contentStore.set(id, updated);
   }
 
   async delete(id: string): Promise<void> {
-    const content = this.store.get(id);
+    const content = this.contentStore.get(id);
     if (content) {
       // Remove from index
       const topic = content.metadata.topic.toLowerCase();
@@ -230,7 +230,7 @@ class InMemoryCanonStore implements CanonStore {
       }
     }
 
-    this.store.delete(id);
+    this.contentStore.delete(id);
   }
 }
 
@@ -352,7 +352,7 @@ export async function getCanonStats(): Promise<{
   byDifficulty: Record<string, number>;
   averageQuality: number;
 }> {
-  const allContent = Array.from(canonStore['store'].values());
+  const allContent = Array.from(canonStore['contentStore'].values());
   
   const stats = {
     totalContent: allContent.length,
