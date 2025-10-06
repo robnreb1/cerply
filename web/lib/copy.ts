@@ -2,6 +2,27 @@
 // Concise, encouraging, enterprise-ready
 
 export const copy = {
+  // Home page (backward compatibility)
+  topBarTagline: "Turn information into knowledge",
+  processing: "Building your learning plan...",
+  reassurance: "Your content stays private · Adaptive to your pace",
+  trustBadges: "Audit-ready · Expert-reviewed · Adaptive · Private by default",
+  
+  // Icon labels (backward compatibility)
+  iconLabels: {
+    certified: "Certified",
+    curate: "Curate",
+    guild: "Guild",
+    account: "Account",
+    upload: "Upload",
+  },
+  
+  // Button labels (backward compatibility)
+  buttons: {
+    upload: "Upload",
+    createModules: "Create modules",
+  },
+  
   // Pane A: Topic & Preview
   topic: {
     heading: "What would you like to master?",
@@ -98,4 +119,16 @@ export const copy = {
     expandChat: "Expand chat panel",
     collapseChat: "Collapse chat panel",
   },
+  
+  // Existing placeholders for InputAction (backward compatibility)
+  placeholders: [
+    'What do I need to know about ISO27001?',
+    'Teach me the fundamentals of quantum mechanics',
+    'I need to understand GDPR compliance',
+    'How do I write better SQL queries?',
+    'Explain React hooks with examples',
+  ],
 } as const;
+
+// Also export as COPY (uppercase) for existing imports
+export const COPY = copy;
