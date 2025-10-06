@@ -261,6 +261,30 @@ All M3 acceptance criteria met:
 - **Smoke Logs:** Available in [run artifacts](https://github.com/robnreb1/cerply/actions/runs/18276275547)
 - **Monitor Report:** Generated successfully (see artifacts)
 
+### Failure Drill (Step 2)
+
+**Purpose:** Prove auto-issue creation works on failures
+
+**Test Run:** [#18276545597](https://github.com/robnreb1/cerply/actions/runs/18276545597)  
+**Timestamp:** 2025-10-06T09:37:19Z  
+**Method:** Dispatched with `force_fail=true`  
+**Result:** ✅ **SUCCESS**
+
+| Metric | Value |
+|--------|-------|
+| **Exit Code** | 2 (forced) |
+| **Duration** | 38s |
+| **Issue Created** | ✅ [#197](https://github.com/robnreb1/cerply/issues/197) |
+| **Issue Title** | "M3: Staging monitor failure (2025-10-06T09:37:57Z)" |
+| **Issue Labels** | bug, m3-monitor, staging |
+| **Logs Attached** | ✅ Last 50 lines included |
+
+**Verification:**
+- ✅ Workflow failed as expected
+- ✅ GitHub issue auto-created within 2 seconds
+- ✅ Issue contains run URL and log excerpt
+- ✅ Alerting mechanism confirmed functional
+
 ---
 
 ## 🎯 Next Steps
