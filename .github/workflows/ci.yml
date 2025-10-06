@@ -502,6 +502,7 @@ jobs:
     if: github.event_name == 'pull_request'
     name: Web E2E (Playwright)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [pr-typecheck]
     steps:
       - name: Checkout
