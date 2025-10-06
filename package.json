@@ -18,7 +18,8 @@
     "smoke:stg": "bash scripts/smoke-stg.sh",
     "smoke:prod": "bash scripts/smoke-prod.sh",
     "traceability:check": "tsx scripts/traceability_check.ts",
-    "traceability:report": "tsx scripts/traceability_check.ts --report docs/status/traceability-dashboard.md"
+    "traceability:report": "tsx scripts/traceability_check.ts --report docs/status/traceability-dashboard.md",
+    "lint:conversational-copy": "ts-node scripts/lint-conversational-copy.ts"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
