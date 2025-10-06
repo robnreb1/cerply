@@ -96,7 +96,7 @@ export default function CertifiedStudyPage() {
         body: JSON.stringify({
           session_id: sessionId,
           plan_id: 'demo-plan',
-          items: cards.map(c => ({ id: c.id, difficulty: 0.5 })),
+          items: cards.map(c => ({ id: c.id, front: c.front, back: c.back })),
           algo: 'sm2-lite',
         }),
       });
@@ -130,6 +130,7 @@ export default function CertifiedStudyPage() {
             session_id: sessionId,
             card_id: cards[currentIdx].id,
             action: 'flip',
+            at: new Date().toISOString(),
           }),
         });
       } catch (err) {
@@ -149,6 +150,7 @@ export default function CertifiedStudyPage() {
           card_id: cards[currentIdx].id,
           action: 'grade',
           grade,
+          at: new Date().toISOString(),
         }),
       });
       
