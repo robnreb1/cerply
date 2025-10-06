@@ -156,7 +156,7 @@ class MicrocopyService {
 }
 
 // Singleton instance
-export const microcopyService = new MicrocopyService();
+const microcopyService = new MicrocopyService();
 
 /**
  * Convenience functions for common scenarios

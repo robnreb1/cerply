@@ -193,7 +193,13 @@ export async function generateMicrocopy(request: MicrocopyRequest): Promise<Micr
   // Select appropriate template based on context
   let selectedTemplate = template;
   if (!selectedTemplate) {
-    selectedTemplate = selectTemplate(templateOptions, context);
+    // templateOptions is a nested object, we need to get the appropriate array
+    const templates = templateOptions[type as keyof typeof templateOptions] as string[];
+    if (Array.isArray(templates)) {
+      selectedTemplate = selectTemplate(templates, context);
+    } else {
+      selectedTemplate = 'Ready to continue?';
+    }
   }
   
   // Apply brand voice and context adaptation

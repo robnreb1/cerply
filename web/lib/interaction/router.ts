@@ -302,7 +302,7 @@ export function getIntentSuggestions(context: IntentContext): string[] {
  * Validate intent result
  */
 export function validateIntentResult(result: IntentResult): boolean {
-  return (
+  return Boolean(
     result.intent &&
     result.confidence > 0 &&
     result.handler &&

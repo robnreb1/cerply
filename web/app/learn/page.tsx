@@ -622,7 +622,11 @@ export default function LearnPage() {
     ]);
     
     if (state.phase === 'session' && state.currentIdx < state.items.length - 1) {
-      handleNext();
+      // Move to next item
+      setState({
+        ...state,
+        currentIdx: state.currentIdx + 1
+      });
     }
   };
 
@@ -693,7 +697,7 @@ export default function LearnPage() {
 
   const handleGeneralConversation = async (command: string) => {
     const microcopy = await generateMicrocopy({
-      type: 'conversation',
+      type: 'prompt',
       context: getMicrocopyContext(),
       template: 'I understand you want to discuss this further. Let me help clarify.'
     });
