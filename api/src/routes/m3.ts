@@ -143,12 +143,11 @@ export async function registerM3Routes(app: FastifyInstance) {
 
       // Validate against schema
       if (!validateModules(response)) {
-        console.error('[m3] Schema validation failed:', validateModules.errors);
+        console.error('[m3] Schema validation failed');
         return reply.code(500).send({
           error: {
             code: 'SCHEMA_VALIDATION_FAILED',
             message: 'Generated modules do not match schema',
-            details: validateModules.errors,
           },
         });
       }
@@ -193,12 +192,11 @@ export async function registerM3Routes(app: FastifyInstance) {
 
       // Validate against schema
       if (!validateScore(result)) {
-        console.error('[m3] Score schema validation failed:', validateScore.errors);
+        console.error('[m3] Score schema validation failed');
         return reply.code(500).send({
           error: {
             code: 'SCHEMA_VALIDATION_FAILED',
             message: 'Score result does not match schema',
-            details: validateScore.errors,
           },
         });
       }
