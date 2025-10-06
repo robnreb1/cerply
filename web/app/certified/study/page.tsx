@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { apiBase } from '@/lib/apiBase';
 
 type Card = {
   id: string;
@@ -35,7 +36,7 @@ export default function CertifiedStudyPage() {
   const [message, setMessage] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+  const API_BASE = apiBase();
 
   // Load progress snapshot on mount
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function CertifiedStudyPage() {
 
   const loadProgress = async () => {
     try {
-      const res = await fetch(`${apiBase}/api/certified/progress?sid=${sessionId}`);
+      const res = await fetch(`${API_BASE}/api/certified/progress?sid=${sessionId}`);
       if (res.ok) {
         const data = await res.json();
         setProgress(data);
@@ -59,7 +60,7 @@ export default function CertifiedStudyPage() {
     setLoading(true);
     setMessage('Scheduling cards...');
     try {
-      const res = await fetch(`${apiBase}/api/certified/schedule`, {
+      const res = await fetch(`${API_BASE}/api/certified/schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -92,7 +93,7 @@ export default function CertifiedStudyPage() {
     if (!flipped) {
       // Record flip action
       try {
-        await fetch(`${apiBase}/api/certified/progress`, {
+        await fetch(`${API_BASE}/api/certified/progress`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -110,7 +111,7 @@ export default function CertifiedStudyPage() {
   const handleGrade = async (grade: number) => {
     setLoading(true);
     try {
-      await fetch(`${apiBase}/api/certified/progress`, {
+      await fetch(`${API_BASE}/api/certified/progress`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
