@@ -17,6 +17,8 @@ Persistence: localStorage key `cert:plan:{hash(topic,level,goals)}`
 
 # Cerply v4.1 — Curator + Adaptive + Trust Labels + Analytics
 
+[![MVP Traceability](https://img.shields.io/badge/MVP_Traceability-View-blue)](docs/status/traceability-dashboard.md)
+
 ## Run
 ```bash
 docker compose up -d db

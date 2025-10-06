@@ -1,0 +1,159 @@
+name: Quality Floor CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  ux-no-templates-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          cd web && npm ci
+          cd ../api && npm ci
+          
+      - name: Lint conversational copy
+        run: |
+          cd scripts && npm run lint:conversational-copy
+          
+  nl-commands-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          cd web && npm ci
+          cd ../api && npm ci
+          
+      - name: Start API server
+        run: |
+          cd api && npm run dev &
+          sleep 10
+          
+      - name: Test natural language commands
+        run: |
+          cd web && npm run test:e2e:natural-interactions
+          
+  conv-variance-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          cd web && npm ci
+          cd ../api && npm ci
+          
+      - name: Start API server
+        run: |
+          cd api && npm run dev &
+          sleep 10
+          
+      - name: Test content variance
+        run: |
+          cd web && npm run test:e2e:variance
+          
+  adaptive-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          cd web && npm ci
+          cd ../api && npm ci
+          
+      - name: Start API server
+        run: |
+          cd api && npm run dev &
+          sleep 10
+          
+      - name: Test adaptive behavior
+        run: |
+          cd api && npm run test:adaptive
+          
+  quality-floor-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          cd web && npm ci
+          cd ../api && npm ci
+          
+      - name: Start API server
+        run: |
+          cd api && npm run dev &
+          sleep 10
+          
+      - name: Evaluate quality floor
+        run: |
+          cd api && npm run test:quality-floor
+          
+  cost-graph-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          cd web && npm ci
+          cd ../api && npm ci
+          
+      - name: Start API server
+        run: |
+          cd api && npm run dev &
+          sleep 10
+          
+      - name: Test cost optimization
+        run: |
+          cd api && npm run test:cost-graph

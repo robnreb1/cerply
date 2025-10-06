@@ -28,7 +28,11 @@
     "planner:eval": "tsx scripts/planner-eval.ts",
     "planner:eval:adaptive": "tsx scripts/planner-eval.adaptive.ts",
     "planner:eval:openai": "tsx scripts/planner-eval.openai.ts",
-    "planner:eval:multi": "tsx scripts/planner-eval.multiphase.ts"
+    "planner:eval:multi": "tsx scripts/planner-eval.multiphase.ts",
+    "test:adaptive": "vitest tests/adaptive.test.ts --run",
+    "test:quality-floor": "vitest tests/quality-floor.test.ts --run",
+    "test:cost-graph": "vitest tests/cost-graph.test.ts --run",
+    "test:canon-reuse": "vitest tests/canon-reuse.test.ts --run"
   },
   "dependencies": {
     "@fastify/cookie": "^9.4.0",
