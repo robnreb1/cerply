@@ -132,6 +132,9 @@ export async function createApp() {
   // Version route (for Docker image metadata headers)
   await safeRegister('./routes/version', ['registerVersionRoutes']);
 
+  // M3 API Surface routes (preview, generate, score, daily, schedule, progress)
+  await safeRegister('./routes/m3', ['registerM3Routes']);
+
   // TEMP: expose route tree + commit for staging debug
   app.get('/__debug/routes', { config: { public: true } }, async (_req, reply) => {
     const commit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
