@@ -41,7 +41,7 @@ const GenerateRequestZ = z.object({
   modules: z.array(z.object({
     title: z.string(),
     topics: z.array(z.string()).optional(),
-  })),
+  })).min(1, 'At least one module is required'),
   level: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
 });
 
