@@ -1,0 +1,175 @@
+name: M3 Staging Monitor (24h)
+
+on:
+  schedule:
+    # Run every 15 minutes for 24h monitoring
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      duration_hours:
+        description: 'Monitor duration in hours'
+        required: false
+        default: '24'
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: m3-staging-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    name: M3 API Monitor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm ci -w api
+        
+      - name: Run M3 smoke tests against staging
+        id: smoke
+        env:
+          API_BASE: https://cerply-api-staging-latest.onrender.com
+        run: |
+          set +e  # Don't fail immediately
+          chmod +x api/scripts/smoke-m3.sh
+          
+          START_TIME=$(date +%s)
+          ./api/scripts/smoke-m3.sh "$API_BASE" > smoke_output.log 2>&1
+          EXIT_CODE=$?
+          END_TIME=$(date +%s)
+          DURATION=$((END_TIME - START_TIME))
+          
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+          echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "status=FAILED" >> $GITHUB_OUTPUT
+            echo "## ❌ M3 Smoke Tests Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Exit Code:** $EXIT_CODE" >> $GITHUB_STEP_SUMMARY
+            echo "**Duration:** ${DURATION}s" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Last 50 lines of output:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 smoke_output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "status=PASSED" >> $GITHUB_OUTPUT
+            echo "## ✅ M3 Smoke Tests Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Duration:** ${DURATION}s" >> $GITHUB_STEP_SUMMARY
+            echo "**Timestamp:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          cat smoke_output.log
+          exit $EXIT_CODE
+          
+      - name: Generate monitor report
+        if: always()
+        run: |
+          npx tsx api/scripts/m3-monitor-report.ts \
+            --status "${{ steps.smoke.outputs.status }}" \
+            --duration "${{ steps.smoke.outputs.duration }}" \
+            --timestamp "${{ steps.smoke.outputs.timestamp }}" \
+            --run-id "${{ github.run_id }}" \
+            --run-number "${{ github.run_number }}"
+            
+      - name: Upload smoke test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logs-${{ github.run_number }}
+          path: |
+            smoke_output.log
+            STAGING_TEST_REPORT.md
+          retention-days: 7
+          
+      - name: Commit updated report to staging
+        if: success() && steps.smoke.outputs.status == 'PASSED'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add STAGING_TEST_REPORT.md
+          git diff --staged --quiet || git commit -m "chore(monitor): M3 staging monitor rollup [skip ci]
+
+          Run: ${{ github.run_number }}
+          Status: PASSED
+          Duration: ${{ steps.smoke.outputs.duration }}s
+          Timestamp: ${{ steps.smoke.outputs.timestamp }}"
+          git push origin staging
+          
+      - name: Create failure issue
+        if: failure() && steps.smoke.outputs.status == 'FAILED'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const timestamp = '${{ steps.smoke.outputs.timestamp }}';
+            const runId = '${{ github.run_id }}';
+            const duration = '${{ steps.smoke.outputs.duration }}';
+            
+            // Read last 50 lines of smoke output
+            let logTail = '';
+            try {
+              const fullLog = fs.readFileSync('smoke_output.log', 'utf8');
+              const lines = fullLog.split('\n');
+              logTail = lines.slice(-50).join('\n');
+            } catch (e) {
+              logTail = 'Could not read smoke_output.log';
+            }
+            
+            // Extract failed endpoint from logs
+            const failedEndpointMatch = logTail.match(/Testing (POST|GET) (\/api\/[^\s]+) \.\.\. ✗/);
+            const failedEndpoint = failedEndpointMatch ? `${failedEndpointMatch[1]} ${failedEndpointMatch[2]}` : 'Unknown endpoint';
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `M3: Staging monitor failure (${timestamp})`,
+              labels: ['bug', 'm3-monitor', 'staging'],
+              body: `## 🚨 M3 Staging Monitor Failure
+            
+            **Timestamp:** ${timestamp}  
+            **Run:** [#${context.runNumber}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId})  
+            **Duration:** ${duration}s  
+            **Failed Endpoint:** ${failedEndpoint}
+            
+            ### Last 50 Lines of Logs
+            
+            \`\`\`
+            ${logTail}
+            \`\`\`
+            
+            ### Action Required
+            
+            1. Review the [full logs](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId})
+            2. Verify staging API health: https://cerply-api-staging-latest.onrender.com/api/health
+            3. Check for any infrastructure issues on Render dashboard
+            4. If transient, re-run the workflow
+            5. If persistent, investigate and fix the failing endpoint
+            
+            ### Related
+            
+            - Epic: EPIC_M3_API_SURFACE.md
+            - Staging Report: STAGING_TEST_REPORT.md
+            - Smoke Script: api/scripts/smoke-m3.sh
+            `
+            });
+            
+            console.log(`Created issue #${issue.data.number}`);
+

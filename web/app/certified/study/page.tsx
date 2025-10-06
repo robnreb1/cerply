@@ -3,6 +3,36 @@
 import { useState, useEffect } from 'react';
 import { apiBase } from '@/lib/apiBase';
 
+// UAT Banner Component (non-prod only)
+function UATBanner({ apiBaseUrl }: { apiBaseUrl: string }) {
+  const buildHash = process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'dev';
+  const isProd = process.env.NODE_ENV === 'production' && !apiBaseUrl.includes('staging');
+  
+  if (isProd) return null;
+  
+  return (
+    <div className="bg-yellow-50 border-b-2 border-yellow-200 px-4 py-2 text-sm">
+      <div className="max-w-2xl mx-auto flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 text-yellow-800">
+          <span className="font-semibold">🧪 UAT Mode</span>
+          <span className="text-xs">|</span>
+          <span className="text-xs">API: <code className="bg-yellow-100 px-1 py-0.5 rounded">{apiBaseUrl}</code></span>
+          <span className="text-xs">|</span>
+          <span className="text-xs">Build: <code className="bg-yellow-100 px-1 py-0.5 rounded">{buildHash}</code></span>
+        </div>
+        <a 
+          href="https://github.com/robnreb1/cerply/blob/staging/docs/uat/M3_UAT_SCRIPT.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-yellow-700 hover:text-yellow-900 underline"
+        >
+          📋 UAT Script
+        </a>
+      </div>
+    </div>
+  );
+}
+
 type Card = {
   id: string;
   front: string;
@@ -151,8 +181,10 @@ export default function CertifiedStudyPage() {
   const currentCard = cards[currentIdx];
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 px-4 py-12">
-      <div className="mx-auto max-w-2xl">
+    <>
+      <UATBanner apiBaseUrl={API_BASE} />
+      <main className="min-h-screen bg-gradient-to-br from-zinc-50 to-zinc-100 px-4 py-12">
+        <div className="mx-auto max-w-2xl">
         <h1 className="text-3xl font-bold text-zinc-900 mb-2">Certified Study (Preview)</h1>
         <p className="text-sm text-zinc-600 mb-8">
           Session: {sessionId.slice(0, 16)}... | Card {currentIdx + 1} of {cards.length}
@@ -264,8 +296,9 @@ export default function CertifiedStudyPage() {
               <span>Console/alert feedback (preview mode)</span>
             </li>
           </ul>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }
