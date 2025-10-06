@@ -21,12 +21,13 @@ jobs:
           
       - name: Install dependencies
         run: |
+          npm ci
           cd web && npm ci
           cd ../api && npm ci
           
       - name: Lint conversational copy
         run: |
-          cd scripts && npm run lint:conversational-copy
+          npm run lint:conversational-copy
           
   nl-commands-e2e:
     runs-on: ubuntu-latest
@@ -97,14 +98,9 @@ jobs:
           cd web && npm ci
           cd ../api && npm ci
           
-      - name: Start API server
-        run: |
-          cd api && npm run dev &
-          sleep 10
-          
       - name: Test adaptive behavior
         run: |
-          cd api && npm run test:adaptive
+          cd api && CERTIFIED_ENABLED=true RETENTION_ENABLED=true npm run test:adaptive
           
   quality-floor-eval:
     runs-on: ubuntu-latest

@@ -5,12 +5,18 @@
  * Tests difficulty adjustment, auto-assessment, and spaced repetition.
  */
 
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect, beforeEach, beforeAll } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { build } from '../src/app';
 
 describe('Adaptive Behavior Tests', () => {
   let app: FastifyInstance;
+  
+  beforeAll(() => {
+    // Enable certified retention endpoints for tests
+    process.env.CERTIFIED_ENABLED = 'true';
+    process.env.RETENTION_ENABLED = 'true';
+  });
   
   beforeEach(async () => {
     app = await build();
