@@ -330,8 +330,8 @@ test.describe('Learner Auto-Assessment E2E', () => {
     expect(progressPayload).toBeTruthy();
     expect(progressPayload.action).toBe('submit'); // NOT 'grade'
     expect(progressPayload.result).toBeTruthy();
-    expect(progressPayload.result.correct).toBeTypeOf('boolean');
-    expect(progressPayload.result.latency_ms).toBeTypeOf('number');
+    expect(typeof progressPayload.result.correct).toBe('boolean');
+    expect(typeof progressPayload.result.latency_ms).toBe('number');
     expect(progressPayload.result.item_difficulty).toMatch(/easy|medium|hard/);
   });
 
