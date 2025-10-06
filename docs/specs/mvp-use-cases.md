@@ -1,5 +1,15 @@
 ***This document is the single source of truth for MVP use cases.***
 
+## Platform Foundations
+
+All MVP use cases are implemented following the platform foundations:
+
+- **Engineering Principles:** [docs/platform/principles.md](../platform/principles.md) - Quality-first, adaptive-by-default, AI-first, cost-aware, natural interactions
+- **Interaction Contract:** [docs/platform/interaction-contract.md](../platform/interaction-contract.md) - Natural language patterns and UX rules
+- **Quality-First Pipeline:** [docs/platform/quality-first-pipeline.md](../platform/quality-first-pipeline.md) - Content generation and canonization
+- **Cost Orchestration:** [docs/platform/cost-orchestration.md](../platform/cost-orchestration.md) - Model tiers and budget optimization
+- **CI Guardrails:** [docs/platform/ci-guardrails.md](../platform/ci-guardrails.md) - Automated enforcement
+
 ## All users
 AU-1. Web only
 AU-2. Landing page is impactful and clear about what we offer
@@ -23,8 +33,11 @@ L-10. Learners can view their topics and levels at any point; they can turn them
 L-11. Sessions and topics will adapt to the user's level and learning patterns, more time spent on weaker subjects, but always maintaining content for even long-running, elite level topics
 L-12. Learner is always provided with an explainer, more detail if they got it wrong, query the answer, or state that they don't understand
 L-13. Learner can interact with Cerply using natural language at all times, even though some questions may be multiple-choice, or more fixed by nature.
+*Supported by:* [Interaction Contract](../platform/interaction-contract.md) - Natural language router and dynamic microcopy
 L-14. If a time-limit has been set to reach a certain level of a topic - e.g. 1 month for corporate compliance training, or 6 weeks to prepare for an exam - extra weighting will be given to the topic, appropriate to the knowledge gap in relation to time remaining.
+*Supported by:* [Quality-First Pipeline](../platform/quality-first-pipeline.md) - Adaptive content generation
 L-15. Learner never experiences exactly the same content twice - nothing is fully templated.
+*Supported by:* [CI Guardrails](../platform/ci-guardrails.md) - No templates enforcement and variance testing
 L-16. Learner can set their own time-limits on topics. If the Learner has been assigned a topic by a manager, they can not adjust the associated timer.
 L-17. Learner can pay for premium features through subscription (£10pm) or one-off access to specific topics (£5 per topic).
 L-18. The fee includes all subsequent updates to topics registered for; the topic is kept fresh for life, even if the subscription is halted.

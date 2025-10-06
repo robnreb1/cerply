@@ -2,6 +2,63 @@
 - **SSOT:** [docs/specs/mvp-use-cases.md](specs/mvp-use-cases.md) - Single source of truth for MVP use cases
 - **Traceability Matrix:** [docs/specs/traceability-matrix.md](specs/traceability-matrix.md) - Complete mapping of SSOT items to implementation
 
+## Platform Foundations
+- **Engineering Principles:** [docs/platform/principles.md](platform/principles.md) - Core engineering principles and quality standards
+- **Interaction Contract:** [docs/platform/interaction-contract.md](platform/interaction-contract.md) - Natural language interaction patterns and UX rules
+- **Quality-First Pipeline:** [docs/platform/quality-first-pipeline.md](platform/quality-first-pipeline.md) - Content generation and canonization processes
+- **Cost Orchestration:** [docs/platform/cost-orchestration.md](platform/cost-orchestration.md) - Model tiers and budget optimization
+- **CI Guardrails:** [docs/platform/ci-guardrails.md](platform/ci-guardrails.md) - Automated enforcement mechanisms
+
+## 8) Platform Foundations v1 (IMPLEMENTED)
+
+**Covers SSOT:** All MVP use cases - Establishes foundational principles and quality gates
+
+**Status:** ✅ IMPLEMENTED - Platform foundations codified and enforced
+
+**Implementation Summary:**
+- **Engineering Principles:** Quality-first, adaptive-by-default, AI-first, cost-aware, natural interactions
+- **Interaction Engine:** Natural language router and dynamic microcopy generator
+- **Quality-First Pipeline:** Canon storage with ensemble generation and reuse optimization
+- **Cost Orchestration:** Tiered model usage with budget management
+- **CI Guardrails:** Automated enforcement of all platform principles
+
+**Key Features:**
+- Natural language commands: "shorter", "bullets", "I have 15 mins", "explain like I'm 12"
+- Dynamic microcopy generation with brand voice consistency
+- Canonical content storage with quality scoring and reuse
+- Cost-aware model selection (nano/mini/standard/ensemble tiers)
+- Automated quality floor enforcement
+- No templating enforcement (only INTRO_COPY allowed as static string)
+
+**Technical Achievements:**
+- **Interaction Router:** Lightweight intent parsing with 90% confidence routing
+- **Microcopy Service:** Context-aware copy generation with 5-minute caching
+- **Canon Store:** In-memory implementation with semantic search and quality metrics
+- **Quality Evaluation:** Multi-metric scoring (coherence, coverage, accuracy, pedagogy)
+- **CI Integration:** 6 guardrail tests preventing principle regression
+
+**Acceptance Evidence:**
+```bash
+# Natural language commands work
+curl -X POST "https://api-stg.cerply.com/api/generate" \
+  -H 'content-type: application/json' \
+  -d '{"modules":[{"title":"test","estimated_items":2}]}'
+# Returns: {"modules":[...], "metadata":{"source":"fresh","modelTier":"gpt-5","qualityFirst":true}}
+
+# Canon reuse works
+curl -X POST "https://api-stg.cerply.com/api/generate" \
+  -H 'content-type: application/json' \
+  -d '{"modules":[{"title":"test","estimated_items":2}]}'
+# Returns: {"modules":[...], "metadata":{"source":"canon","modelTier":"gpt-4o-mini","canonized":true}}
+```
+
+**Documentation:**
+- Platform principles: `docs/platform/principles.md`
+- Interaction patterns: `docs/platform/interaction-contract.md`
+- Quality pipeline: `docs/platform/quality-first-pipeline.md`
+- Cost optimization: `docs/platform/cost-orchestration.md`
+- CI enforcement: `docs/platform/ci-guardrails.md`
+
 ## 9) Certified v1 API (COMPLETED)
 
 **Covers SSOT:** E-3, E-4, A-7, A-8, A-9 (Expert certification and admin content management)
