@@ -96,7 +96,7 @@ export default function CertifiedStudyPage() {
         body: JSON.stringify({
           session_id: sessionId,
           plan_id: 'demo-plan',
-          items: cards.map(c => ({ id: c.id, difficulty: 0.5 })),
+          items: cards.map(c => ({ id: c.id, front: c.question, back: c.answer })),
           algo: 'sm2-lite',
         }),
       });
