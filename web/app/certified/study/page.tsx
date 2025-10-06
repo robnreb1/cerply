@@ -281,7 +281,7 @@ export default function CertifiedStudyPage() {
 
             <div className="flex gap-3 justify-center">
               <button
-                onClick={resetSession}
+                onClick={onReset}
                 className="rounded-lg bg-zinc-200 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-300"
               >
                 Reset
@@ -291,6 +291,12 @@ export default function CertifiedStudyPage() {
                 className="rounded-lg bg-zinc-200 px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-300"
               >
                 Load Progress
+              </button>
+              <button
+                onClick={resetSession}
+                className="rounded-lg bg-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-300"
+              >
+                New Session
               </button>
             </div>
 
