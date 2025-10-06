@@ -3,9 +3,9 @@
 
 export const copy = {
   // Home page (backward compatibility)
-  topBarTagline: "Turn information into knowledge",
-  processing: "Building your learning plan...",
-  reassurance: "Your content stays private · Adaptive to your pace",
+  topBarTagline: "Learn anything. Remember everything.",
+  processing: "Thinking...",
+  reassurance: "", // Removed per user feedback
   trustBadges: "Audit-ready · Expert-reviewed · Adaptive · Private by default",
   
   // Icon labels (backward compatibility)
