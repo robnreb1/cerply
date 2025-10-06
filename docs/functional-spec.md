@@ -491,24 +491,33 @@ export default function Home() {
 - **Retries**: one fast retry on transient 5xx; then degrade with typed JSON error.
 - **Budgets/guardrails**: per-org daily token caps; per-request max_tokens per task.
 
-## 22) API Surface for M3 (Preview, Generate, Score, Daily)
+## 22) API Surface for M3 (Preview, Generate, Score, Daily) — ✅ IMPLEMENTED (Preview)
 
-- `POST /api/preview` (mini): Accepts text/url/file ref; returns `{ summary, proposed_modules[], clarifying_questions[] }`.
-- `POST /api/generate` (gpt-5 → mini): Accepts confirmed plan; returns **schema-valid** modules/items JSON.
-- `POST /api/score` (nano): Accepts answers; returns rubric scores with difficulty & misconceptions (schema-valid).
-- `GET  /api/daily/next` (selector): Returns prioritized queue based on recency/struggle/spaced repetition.
-### 21.1 Retention v0 (Preview)
+**Status:** Implemented 2025-01-05 | See `EPIC_M3_API_SURFACE.md` | Smoke: `api/scripts/smoke-m3.sh`
 
-- `POST /api/certified/schedule` (sm2-lite): Accepts `{ session_id, plan_id, items[], prior?, algo?, now? }` and returns `{ order[], due, meta }`.
-- `POST /api/certified/progress` (events): Accepts `{ session_id, card_id, action, grade?, at }` and upserts preview snapshot.
-- `GET  /api/certified/progress?sid=`: Returns `{ session_id, items[] }` snapshot for resume.
+- `POST /api/preview` (mini): Accepts text/url/file ref; returns `{ summary, proposed_modules[], clarifying_questions[] }`. ✓
+- `POST /api/generate` (gpt-5 → mini): Accepts confirmed plan; returns **schema-valid** modules/items JSON. ✓
+- `POST /api/score` (nano): Accepts answers; returns rubric scores with difficulty & misconceptions (schema-valid). ✓
+- `GET  /api/daily/next` (selector): Returns prioritized queue based on recency/struggle/spaced repetition. ✓
+- `GET /api/ops/usage/daily`: Returns per-route token/cost aggregates (today, yesterday). ✓
 
-Web integration (preview): `/certified/study` calls schedule on start/reset, posts progress on flip/grade, and resumes from server snapshot when local is empty. Settings drawer exposes algo label and a local daily-target value.
+### 21.1 Retention v0 (Preview) — ✅ IMPLEMENTED
+
+**Status:** Implemented 2025-01-05 | Web: `/certified/study` | Tests: `api/tests/m3.test.ts`
+
+- `POST /api/certified/schedule` (sm2-lite): Accepts `{ session_id, plan_id, items[], prior?, algo?, now? }` and returns `{ order[], due, meta }`. ✓
+- `POST /api/certified/progress` (events): Accepts `{ session_id, card_id, action, grade?, at }` and upserts preview snapshot. ✓
+- `GET  /api/certified/progress?sid=`: Returns `{ session_id, items[] }` snapshot for resume. ✓
+
+Web integration (preview): `/certified/study` calls schedule on start/reset, posts progress on flip/grade, and resumes from server snapshot when local is empty. ✓
 
 
-### Acceptance
-- Each endpoint returns 200 on valid input; JSON matches the corresponding schema.
-- Token usage and model name are logged per request; daily aggregates exposed to ops.
+### Acceptance ✓
+- Each endpoint returns 200 on valid input; JSON matches the corresponding schema. ✓
+- Token usage and model name are logged per request; daily aggregates exposed to ops via `/api/ops/usage/daily`. ✓
+- 4xx validation covered (no 404s for defined routes). ✓
+- Smoke tests pass (31/31 assertions). ✓
+- `/certified/study` can run preview flow end-to-end. ✓
 
 ### 21.2 Adaptive Planner Engine v1 (Preview)
 
