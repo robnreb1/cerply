@@ -19,7 +19,10 @@
     "test": "vitest --run",
     "test:watch": "vitest",
     "test:e2e": "node ./lib/presenter/certifiedPlan.test.mjs && cross-env NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true npm run -s build && cross-env NEXT_PUBLIC_PREVIEW_CERTIFIED_UI=true playwright test e2e/certified.plan.spec.ts e2e/certified.study.resume.spec.ts --config=playwright.config.ts",
-    "test:e2e:home": "playwright test e2e/home.spec.ts --config=playwright.config.ts"
+    "test:e2e:home": "playwright test e2e/home.spec.ts --config=playwright.config.ts",
+    "test:e2e:natural-interactions": "cross-env NEXT_PUBLIC_INTERACTION_ENGINE=true playwright test e2e/natural-interactions.spec.ts --config=playwright.config.ts",
+    "test:e2e:variance": "cross-env NEXT_PUBLIC_INTERACTION_ENGINE=true playwright test e2e/variance.spec.ts --config=playwright.config.ts",
+    "lint:conversational-copy": "tsx ../../scripts/lint-conversational-copy.ts ./src"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

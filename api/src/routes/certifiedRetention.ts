@@ -79,7 +79,7 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Invalid progress event' } });
     }
-    const { session_id, card_id, action, grade, at } = parsed.data;
+    const { session_id, card_id, action, grade, at, result } = parsed.data;
     const nowISO = at;
     const snap = SNAPSHOTS.get(session_id);
     if (!snap) {
@@ -91,12 +91,37 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
     const entry = idx >= 0 ? current.items[idx] : { card_id, reps: 0, ef: 2.5, intervalDays: 0, lastGrade: undefined as any, dueISO: nowISO };
 
     let next = entry;
-    if (action === 'reset') {
+    
+    // Auto-assessment mode: use result telemetry
+    if (action === 'submit' && result) {
+      // Convert auto-assessment result to SM2 grade (0-5 scale)
+      // correct=true + fast (latency < 10s) + no hints = 5
+      // correct=true + normal = 4
+      // correct=true + slow = 3
+      // correct=false + hints = 1
+      // correct=false + no hints = 2
+      let inferredGrade = 3;
+      if (result.correct) {
+        if (result.latency_ms < 10000 && result.hint_count === 0) {
+          inferredGrade = 5;
+        } else if (result.latency_ms < 20000) {
+          inferredGrade = 4;
+        }
+      } else {
+        inferredGrade = result.hint_count > 0 ? 1 : 2;
+      }
+      
+      const updated = sm2Update(entry, inferredGrade);
+      next = { card_id, reps: updated.reps, ef: updated.ef, intervalDays: updated.intervalDays, lastGrade: updated.lastGrade, dueISO: nextDue(nowISO, updated.intervalDays) };
+      console.log(`[retention] Auto-assessment: card=${card_id}, correct=${result.correct}, latency=${result.latency_ms}ms, inferred_grade=${inferredGrade}`);
+    } else if (action === 'reset') {
       next = { card_id, reps: 0, ef: 2.5, intervalDays: 0, lastGrade: undefined, dueISO: nowISO };
     } else if (action === 'flip') {
       // No state change except ensure due not in the past
       next = { ...entry, dueISO: new Date(entry.dueISO).getTime() <= new Date(nowISO).getTime() ? nowISO : entry.dueISO };
     } else if (action === 'grade') {
+      // Legacy self-grading mode (kept for backward compat, but logged as deprecated)
+      console.log(`[retention] DEPRECATED: Self-grading mode used. Consider migrating to auto-assessment (action='submit').`);
       if (typeof grade !== 'number' || !Number.isFinite(grade)) {
         return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'grade required (0..5) for action=grade' } });
       }

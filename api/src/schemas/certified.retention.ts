@@ -40,9 +40,19 @@ export type ScheduleResponse = z.infer<typeof ScheduleResponseZ>;
 export const ProgressEventZ = z.object({
   session_id: z.string().min(1),
   card_id: z.string().min(1),
-  action: z.enum(['grade','flip','reset']),
+  action: z.enum(['grade','flip','reset','submit']), // 'submit' for auto-assessment
+  // Legacy field (ignored in auto-assessment mode, kept for backward compat)
   grade: z.number().int().min(0).max(5).optional(),
   at: z.string().datetime(),
+  // New: telemetry for auto-assessment
+  result: z.object({
+    correct: z.boolean(),
+    latency_ms: z.number().int().min(0),
+    item_difficulty: z.enum(['easy', 'medium', 'hard']),
+    item_type: z.enum(['mcq', 'free', 'card']).optional(),
+    hint_count: z.number().int().min(0).default(0),
+    retry_count: z.number().int().min(0).default(0),
+  }).optional(),
 });
 export type ProgressEvent = z.infer<typeof ProgressEventZ>;
 

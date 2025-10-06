@@ -4,6 +4,9 @@ Status: AUTHORITATIVE — single source of truth for business requirements
 Owner: Product (Robert Ford)
 Changelog: see History section at bottom
 
+## Scope Source
+MVP scope is defined by [docs/specs/mvp-use-cases.md](../specs/mvp-use-cases.md). All MVP use cases must be satisfied before client outreach.
+
 SSOT: This document is the authoritative source for business requirements. Every technical delivery must reference a BRD requirement ID.
 
 ## 1) Elevator Pitch
