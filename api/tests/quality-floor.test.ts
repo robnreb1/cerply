@@ -7,13 +7,13 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { build } from '../app';
+import { build } from '../src/app';
 import { 
   evaluateContentQuality,
   searchCanonicalContent,
   type ContentBody,
   type QualityMetrics
-} from '../lib/canon';
+} from '../src/lib/canon';
 
 describe('Quality Floor Evaluation Tests', () => {
   let app: FastifyInstance;

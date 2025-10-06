@@ -7,7 +7,7 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { build } from '../app';
+import { build } from '../src/app';
 import { 
   canonizeContent, 
   searchCanonicalContent, 
@@ -17,7 +17,7 @@ import {
   getCanonStats,
   type ContentBody,
   type QualityMetrics
-} from '../lib/canon';
+} from '../src/lib/canon';
 
 describe('Canon Reuse Tests', () => {
   let app: FastifyInstance;

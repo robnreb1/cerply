@@ -7,7 +7,7 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { build } from '../app';
+import { build } from '../src/app';
 
 describe('Cost Graph Tests', () => {
   let app: FastifyInstance;
