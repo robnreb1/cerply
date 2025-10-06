@@ -426,6 +426,90 @@ cerply-api-staging
 ---
 
 **Created:** 2025-10-06  
+**Executed:** 2025-10-06  
 **Author:** Engineering Team  
-**Status:** Draft - Awaiting approval for execution
+**Status:** ✅ COMPLETE
+
+---
+
+## ✅ Cleanup Execution Summary
+
+**Date Completed:** 2025-10-06  
+**Duration:** ~15 minutes  
+
+### Actions Taken
+
+1. **✅ Deleted `cerply-staging` Blueprint**
+   - Blueprint removed from Render dashboard
+   - Existing services preserved
+   - No more auto-creation of duplicate services
+
+2. **✅ Consolidated Staging Services**
+   - Kept: `cerply-api:staging-latest` (image-based)
+   - Renamed: `cerply-api-staging` (clearer name)
+   - Deleted: `cerply-api` (duplicate)
+
+3. **✅ Removed `render.yaml`**
+   - Deleted from repository
+   - Committed with explanation
+   - No longer needed without blueprint
+
+4. **✅ Created Documentation**
+   - `docs/deploy/RENDER_SETUP.md` (376 lines)
+   - Complete deployment guide
+   - Environment variables reference
+   - Troubleshooting procedures
+
+### Verification Results
+
+**Production API (`cerply-api-prod`):**
+```bash
+✅ Health: https://api.cerply.com/api/health → {"ok":true}
+✅ Retention: POST /api/certified/schedule → 200 OK
+✅ Environment variables: CERTIFIED_ENABLED=true, RETENTION_ENABLED=true
+```
+
+**Staging API (`cerply-api-staging`):**
+```bash
+✅ Service renamed successfully
+✅ Auto-deploy configured (staging branch)
+✅ Environment variables verified
+```
+
+**Web Application:**
+```bash
+✅ URL: https://cerply-web.vercel.app/certified/study
+✅ Expected: No "Retention preview disabled" error
+✅ Expected: "Start Study Session" button functional
+```
+
+### Final Infrastructure
+
+**Services (2):**
+- `cerply-api-prod` (production, main branch)
+- `cerply-api-staging` (staging, staging branch)
+
+**Blueprints (0):**
+- All deleted (manual management only)
+
+**Documentation:**
+- ✅ RENDER_SETUP.md (deployment guide)
+- ✅ RENDER_INFRASTRUCTURE_CLEANUP.md (this file)
+- ✅ M3_RETENTION_FIX_SUMMARY.md (API fixes)
+
+### Benefits Achieved
+
+- ✅ No duplicate services
+- ✅ Clear naming (prod vs staging)
+- ✅ Simple manual management
+- ✅ No unexpected service creation
+- ✅ Comprehensive documentation
+- ✅ Working retention API on production
+
+---
+
+**Original Status:** Draft - Awaiting approval for execution  
+**Updated:** 2025-10-06  
+**Author:** Engineering Team  
+**Status:** ✅ COMPLETE
 
