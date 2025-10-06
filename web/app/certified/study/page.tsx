@@ -130,6 +130,7 @@ export default function CertifiedStudyPage() {
             session_id: sessionId,
             card_id: cards[currentIdx].id,
             action: 'flip',
+            at: new Date().toISOString(),
           }),
         });
       } catch (err) {
@@ -149,6 +150,7 @@ export default function CertifiedStudyPage() {
           card_id: cards[currentIdx].id,
           action: 'grade',
           grade,
+          at: new Date().toISOString(),
         }),
       });
       
