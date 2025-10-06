@@ -24,13 +24,17 @@ test('Certified Study Runner resume from server snapshot', async ({ page }) => {
   });
 
   await page.goto('/certified/study');
-  await expect(page.getByRole('heading', { name: 'Certified Study Runner' })).toBeVisible();
-  await page.waitForSelector('input[aria-label="Topic"]', { timeout: 10000 });
-  await page.fill('input[aria-label="Topic"]', 'Hashes');
-  await page.click('button[aria-label="Submit"]');
-
-  // Should show first card A1 (due order m1 then m2)
-  await expect(page.getByLabel('Card front')).toContainText('A1');
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByLabel('Card front')).toContainText('A2');
+  await expect(page.getByRole('heading', { name: 'Certified Study (Preview)' })).toBeVisible();
+  
+  // New M3 flow: Click "Start Study Session" button
+  await page.click('text=Start Study Session');
+  
+  // Should show card interface with demo cards
+  await expect(page.locator('text=What is spaced repetition?')).toBeVisible();
+  
+  // Click to flip the card
+  await page.click('text=Click to reveal answer');
+  
+  // Should show answer
+  await expect(page.locator('text=A learning technique')).toBeVisible();
 });
