@@ -3,8 +3,9 @@ import { z } from 'zod';
 export const CardZ = z.object({
   id: z.string(),
   type: z.literal('card').optional().default('card'),
-  front: z.string().min(1),
-  back: z.string().min(1),
+  front: z.string().min(1).optional(),
+  back: z.string().min(1).optional(),
+  difficulty: z.enum(['easy', 'medium', 'hard']).optional(),
 });
 export type Card = z.infer<typeof CardZ>;
 

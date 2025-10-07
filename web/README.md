@@ -39,6 +39,27 @@ Optional:
 - `NEXT_PUBLIC_ENTERPRISE_MODE` - `'true'|'false'` for enterprise UI prominence
 - `NEXT_PUBLIC_FF_*` - Feature flags (e.g. `NEXT_PUBLIC_FF_CURATOR_DASHBOARD_V1`)
 
+## Interaction Engine (Non-Templated Chat)
+
+See [docs/PLATFORM_FOUNDATIONS_v1.md](../docs/PLATFORM_FOUNDATIONS_v1.md) for complete documentation.
+
+**Key Features:**
+- **Non-templated responses:** Paraphrase pools (6-8 variants) ensure variation
+- **Intent recognition:** upload, start_study, show_progress, help, about_cerply
+- **Dynamic microcopy:** Input placeholders, buttons, hints vary naturally
+- **No fixed blocks:** Never serves "Getting started / Key principles / Practical applications"
+
+**Usage:**
+```typescript
+import { parseIntent, routeIntent, generateMicrocopy } from '@/lib/ie/router';
+
+const intent = parseIntent(userInput);
+const response = routeIntent(intent, context);
+```
+
+**Env Flags:**
+- `NEXT_PUBLIC_INTERACTION_ENGINE=true` - Enable IE features
+
 ## Learner MVP (`/learn`)
 
 **Purpose:** Unified learner interface (replaces `/certified/study`)

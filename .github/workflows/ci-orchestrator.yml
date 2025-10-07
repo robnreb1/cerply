@@ -14,7 +14,7 @@ jobs:
         with: { node-version: '20' }
       - run: npm ci
       - run: npm -w api run build
-      - run: npm -w api run test
+      - run: CANON_ENABLED=true npm -w api run test
 
   web-e2e:
     runs-on: ubuntu-latest

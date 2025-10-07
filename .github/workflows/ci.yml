@@ -307,6 +307,7 @@ jobs:
           RATE_LIMIT_ENABLED: 'false'
           ROLLUP_USE_NODE_JS: 'true'
           ROLLUP_SKIP_NODEJS_NATIVE: '1'
+          CANON_ENABLED: 'true'
         run: npm --workspace ./api test -- --reporter=verbose --coverage --coverage.reporter=text-summary --coverage.reporter=lcov
 
       - name: Upload API coverage
