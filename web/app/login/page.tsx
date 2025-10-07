@@ -39,9 +39,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-neutral-50">
       <div className="w-full max-w-md rounded-lg border bg-white p-8 shadow-sm">
-        <h1 className="mb-6 text-center text-2xl font-medium">Log in to Cerply</h1>
+        <h1 className="mb-6 text-center text-2xl font-medium">Enterprise Login</h1>
         <p className="mb-4 text-sm text-neutral-600">
-          Enter your email. We’ll open a secure link to set your session and bring you back here.
+          Enter your organization email address to continue. Your administrator should have provided access.
         </p>
         <form onSubmit={onSubmit} className="space-y-4">
           <input
@@ -49,11 +49,11 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
+            placeholder="your.name@organization.com"
             className="w-full border rounded px-3 py-2"
           />
-          <button type="submit" className="border rounded px-3 py-2 w-full bg-blue-600 text-white">
-            Send magic link
+          <button type="submit" className="border rounded px-3 py-2 w-full bg-blue-600 text-white hover:bg-blue-700 transition">
+            Continue with Enterprise Login
           </button>
         </form>
         {status && <div className="mt-4 text-sm text-neutral-700">{status}</div>}

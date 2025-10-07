@@ -3,11 +3,6 @@
 import { useState } from 'react';
 import WaitlistModal from './WaitlistModal';
 
-<<<<<<< HEAD
-const calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL;
-
-=======
->>>>>>> chore/prod-monitoring-and-closeout
 export default function Hero() {
   const [showModal, setShowModal] = useState(false);
 
@@ -15,34 +10,21 @@ export default function Hero() {
     <>
       <section className="container py-20 md:py-28 text-center">
         <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-          Learn anything.
+          Your Team's
           <br />
-          Remember everything.
+          Institutional Memory
         </h1>
         <p className="text-xl md:text-2xl text-brand-subtle max-w-3xl mx-auto mb-10">
-          Turn policies, regs, notes and transcripts into bite-size, spaced, adaptive learning.
-          Quality first; certified by experts when it matters.
+          Transform your organization's knowledge into adaptive learning experiences. 
+          Enterprise-grade security, expert-certified content, proven retention outcomes.
         </p>
-<<<<<<< HEAD
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <button onClick={() => setShowModal(true)} className="btn text-lg">
-            Join the waitlist
-          </button>
-          {calendlyUrl && (
-            <a href={calendlyUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary text-lg">
-              Book a 15-min chat
-            </a>
-          )}
-=======
         <div className="flex justify-center">
           <button onClick={() => setShowModal(true)} className="btn text-lg">
-            Join the waitlist
+            Request a Demo
           </button>
->>>>>>> chore/prod-monitoring-and-closeout
         </div>
       </section>
       {showModal && <WaitlistModal onClose={() => setShowModal(false)} />}
     </>
   );
 }
-

@@ -4,8 +4,9 @@ import type { NextRequest } from 'next/server';
 const MARKETING_BASE_URL = process.env.MARKETING_BASE_URL || 'https://www.cerply.com';
 
 // Parse comma-separated allowlist routes from env
+// Default includes login, unauthorized, and health endpoints
 const ALLOWLIST_ROUTES_RAW =
-  process.env.APP_ALLOWLIST_ROUTES || '/$,/api/health,/auth,/debug/env';
+  process.env.APP_ALLOWLIST_ROUTES || '/login,/unauthorized,/api/health,/api/auth,/debug/env';
 const ALLOWLIST_ROUTES = ALLOWLIST_ROUTES_RAW.split(',')
   .map((r) => r.trim())
   .filter(Boolean);
@@ -59,10 +60,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Redirect to marketing site
-  const redirectUrl = new URL(MARKETING_BASE_URL);
-  redirectUrl.searchParams.set('from', 'app');
-  return NextResponse.redirect(redirectUrl);
+  // Redirect unauthorized users to login page
+  // Marketing site handles lead generation; app requires enterprise auth
+  const loginUrl = new URL('/login', request.url);
+  loginUrl.searchParams.set('from', pathname);
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
