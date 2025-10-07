@@ -85,11 +85,13 @@ export async function createApp() {
 
   // Admin routes (from your repo; restored in step A)
   const adminCertifiedModule = await import('./routes/admin.certified');
+  const adminUsersModule = await import('./routes/admin.users');
   await app.register(async (adminApp) => {
     // Register security admin plugin only for admin routes
     const securityAdminPlugin = await import('./plugins/security.admin');
     await adminApp.register(securityAdminPlugin.default);
     await adminApp.register(adminCertifiedModule.registerAdminCertifiedRoutes);
+    await adminApp.register(adminUsersModule.registerAdminUserRoutes);
   }, { prefix: '/api/admin' });
 
   // Public certified routes (artifacts, verify, legacy aliases)
