@@ -22,10 +22,12 @@ describe('M3 API Surface (preview, generate, score, daily/next, ops/usage)', () 
       });
       expect(r.statusCode).toBe(200);
       const j = r.json();
-      expect(j.summary).toBeDefined();
-      expect(Array.isArray(j.proposed_modules)).toBe(true);
-      expect(j.proposed_modules.length).toBeGreaterThan(0);
-      expect(Array.isArray(j.clarifying_questions)).toBe(true);
+      expect(j.data).toBeDefined();
+      expect(j.data.summary).toBeDefined();
+      expect(Array.isArray(j.data.proposed_modules)).toBe(true);
+      expect(j.data.proposed_modules.length).toBeGreaterThan(0);
+      expect(Array.isArray(j.data.clarifying_questions)).toBe(true);
+      expect(j.meta).toBeDefined();
     });
 
     it('returns 400 when content is missing', async () => {
@@ -171,10 +173,13 @@ describe('M3 API Surface (preview, generate, score, daily/next, ops/usage)', () 
       });
       expect(r.statusCode).toBe(200);
       const j = r.json();
-      expect(Array.isArray(j.queue)).toBe(true);
-      expect(j.queue.length).toBeGreaterThan(0);
+      expect(j.data).toBeDefined();
+      expect(Array.isArray(j.data.queue)).toBe(true);
+      expect(j.data.queue.length).toBeGreaterThan(0);
+      expect(j.meta).toBeDefined();
+      expect(j.meta.adaptation_reason).toBeDefined();
       
-      const item = j.queue[0];
+      const item = j.data.queue[0];
       expect(item.item_id).toBeDefined();
       expect(typeof item.priority).toBe('number');
       expect(item.reason).toBeDefined();
@@ -197,10 +202,13 @@ describe('M3 API Surface (preview, generate, score, daily/next, ops/usage)', () 
       });
       expect(r.statusCode).toBe(200);
       const j = r.json();
-      expect(j.generated_at).toBeDefined();
-      expect(j.today).toBeDefined();
-      expect(j.yesterday).toBeDefined();
-      expect(Array.isArray(j.aggregates)).toBe(true);
+      expect(j.data).toBeDefined();
+      expect(j.data.generated_at).toBeDefined();
+      expect(j.data.today).toBeDefined();
+      expect(j.data.yesterday).toBeDefined();
+      expect(Array.isArray(j.data.routes)).toBe(true);
+      expect(j.meta).toBeDefined();
+      expect(Array.isArray(j.meta.cost_graph)).toBe(true);
     });
 
     it('shows token usage in aggregates', async () => {
@@ -219,8 +227,8 @@ describe('M3 API Surface (preview, generate, score, daily/next, ops/usage)', () 
       expect(r.statusCode).toBe(200);
       const j = r.json();
       
-      if (j.aggregates.length > 0) {
-        const agg = j.aggregates[0];
+      if (j.data.routes && j.data.routes.length > 0) {
+        const agg = j.data.routes[0];
         expect(agg.route).toBeDefined();
         expect(typeof agg.requests).toBe('number');
         expect(typeof agg.total_tokens_in).toBe('number');

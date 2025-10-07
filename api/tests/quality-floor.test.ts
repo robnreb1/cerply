@@ -110,7 +110,8 @@ describe('Quality Floor Evaluation Tests', () => {
     const body = JSON.parse(response.body);
     
     // Content should be canonized if it meets quality standards
-    expect(body.metadata.canonized).toBe(true);
+    expect(body.meta).toBeDefined();
+    expect(body.meta.canonized).toBe(true);
     
     // Search for canon content
     const canonResults = await searchCanonicalContent({
@@ -143,11 +144,12 @@ describe('Quality Floor Evaluation Tests', () => {
     const body = JSON.parse(response.body);
     
     // Generated content should meet quality standards
-    expect(body.modules).toBeDefined();
-    expect(body.modules.length).toBeGreaterThan(0);
+    expect(body.data).toBeDefined();
+    expect(body.data.modules).toBeDefined();
+    expect(body.data.modules.length).toBeGreaterThan(0);
     
     // Each module should have quality content
-    for (const module of body.modules) {
+    for (const module of body.data.modules) {
       expect(module.title).toBeTruthy();
       expect(module.lessons).toBeDefined();
       expect(module.lessons.length).toBeGreaterThan(0);
@@ -356,11 +358,13 @@ describe('Quality Floor Evaluation Tests', () => {
     const canonBody = JSON.parse(canonResponse.body);
     
     // Canon content should be served regardless of quality floor
-    expect(canonBody.metadata.source).toBe('canon');
-    expect(canonBody.metadata.canonized).toBe(true);
+    expect(canonBody.meta).toBeDefined();
+    expect(canonBody.meta.source).toBe('canon');
+    expect(canonBody.meta.canonized).toBe(true);
     
     // Canon content should have quality metadata
-    expect(canonBody.modules).toBeDefined();
-    expect(canonBody.modules.length).toBeGreaterThan(0);
+    expect(canonBody.data).toBeDefined();
+    expect(canonBody.data.modules).toBeDefined();
+    expect(canonBody.data.modules.length).toBeGreaterThan(0);
   });
 });
