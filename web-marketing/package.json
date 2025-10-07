@@ -1,0 +1,35 @@
+{
+  "name": "@cerply/web-marketing",
+  "version": "1.0.0",
+  "description": "Cerply marketing landing site",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3002",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "smoke:www": "bash ./scripts/smoke-www.sh",
+    "lighthouse": "node ./scripts/lighthouse-www.mjs"
+  },
+  "dependencies": {
+    "chrome-launcher": "^1.2.1",
+    "next": "^14.2.31",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.11",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "autoprefixer": "^10.4.21",
+    "lighthouse": "^11.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.2"
+  }
+}

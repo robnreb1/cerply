@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- Brand Tokens (CSS variables) ---------- */
+:root {
+  /* Core brand palette */
+  --brand-coral-700: #C7463C;
+  --brand-coral-600: #E35A4A;
+  --brand-coral-500: #F06B54;
+  --brand-coral-400: #F58A76;
+  --brand-coral-50: #FFF3F0;
+
+  /* Neutrals */
+  --brand-bg: #FAF7F2;
+  --brand-surface: #FFFFFF;
+  --brand-surface2: #F3EFE9;
+  --brand-border: #E6E0D9;
+  --brand-ink: #1E1B16;
+  --brand-subtle: #5F574D;
+
+  /* Roles */
+  --on-primary: #FFFFFF;
+
+  /* Shape & shadow */
+  --radius-8: 8px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --shadow-sm: 0 1px 2px rgba(14, 10, 8, 0.06);
+  --shadow-md: 0 8px 24px rgba(14, 10, 8, 0.10);
+  --shadow-lg: 0 16px 40px rgba(14, 10, 8, 0.14);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand-bg: #12100E;
+    --brand-surface: #1B1916;
+    --brand-surface2: #23201C;
+    --brand-border: #3A352F;
+    --brand-ink: #F7F3EE;
+    --brand-subtle: #C9C1B7;
+  }
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  html,
+  body {
+    @apply h-full;
+  }
+
+  body {
+    background: var(--brand-bg);
+    color: var(--brand-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  a {
+    @apply underline underline-offset-2;
+    color: var(--brand-coral-600);
+  }
+
+  a:hover {
+    color: var(--brand-coral-700);
+  }
+
+  * {
+    @apply border-brand-border;
+  }
+}
+
+/* ---------- Components ---------- */
+@layer components {
+  .container {
+    @apply max-w-5xl mx-auto px-6;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 font-medium px-6 py-3 transition rounded-12;
+    background: var(--brand-coral-500);
+    color: var(--on-primary);
+    box-shadow: var(--shadow-md);
+    text-decoration: none;
+  }
+
+  .btn:hover {
+    background: var(--brand-coral-600);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+  }
+
+  .btn-secondary {
+    @apply btn;
+    background: var(--brand-ink);
+    color: #fff;
+  }
+
+  .btn-secondary:hover {
+    background: var(--brand-subtle);
+  }
+
+  .card {
+    @apply p-6;
+    background: var(--brand-surface);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--radius-16);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
