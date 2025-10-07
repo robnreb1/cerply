@@ -440,10 +440,12 @@ export async function registerM3Routes(app: FastifyInstance) {
         correct = true;
       } else if (body.variants?.some(v => v.toLowerCase().trim() === responseText)) {
         correct = true;
-      } else if (responseText.length > 10) {
-        // Stub: longer answers assumed valid (placeholder for LLM scoring)
+      } else if (!expectedStr && responseText.length > 10) {
+        // Stub: If no expected answer provided, assume longer answers are valid
+        // This is a placeholder for future LLM-based scoring
         correct = true;
       }
+      // If expectedStr is provided but doesn't match, correct remains false
       
       // Latency bucket
       const latency = body.latency_ms;
