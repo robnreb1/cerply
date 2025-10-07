@@ -222,11 +222,12 @@ export default function LearnPage() {
       const genData: GenerateResponse = await genRes.json();
       
       // Extract items (not lessons) from modules and map to card format
-      const allItems: Array<{id: string; front: string; back: string}> = [];
+      const allItems: CardItem[] = [];
       genData.modules.forEach(mod => {
         (mod.items || []).forEach(item => {
           allItems.push({
             id: item.id,
+            type: item.type || 'free',
             front: item.prompt || item.front || '',
             back: item.answer?.toString() || item.back || 'Answer to be revealed',
           });
