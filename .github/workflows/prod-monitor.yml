@@ -8,6 +8,10 @@ on:
     - cron: '*/15 * * * *'  # Every 15 minutes
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: read
+  issues: write  # Required to create GitHub issues on production failures
+
 jobs:
   prod-health-check:
     runs-on: ubuntu-latest
@@ -23,7 +27,8 @@ jobs:
         id: smoke
         continue-on-error: true
         run: |
-          API_BASE="https://cerply-api-prod.onrender.com"
+          API_BASE="https://api.cerply.com"
+
           
           echo "🔍 Testing Production API: $API_BASE"
           echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -141,4 +146,12 @@ jobs:
                 labels: ['production', 'monitor', 'automated', 'priority:high']
               });
             }
-
+      
+      - name: Fail workflow if smoke tests failed
+        if: always()
+        run: |
+          if [ "${{ steps.smoke.outcome }}" = "failure" ]; then
+            echo "❌ Production smoke tests failed - failing workflow"
+            exit 1
+          fi
+          echo "✅ Production smoke tests passed"

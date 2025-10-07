@@ -20,7 +20,8 @@ Both staging and production Render services are returning:
 
 ```bash
 # Set production API URL
-API=https://cerply-api-prod.onrender.com
+API=https://api.cerply.com
+
 
 # 1. Health check
 curl -sS $API/api/health
