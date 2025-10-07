@@ -71,7 +71,7 @@ export default function WaitlistModal({ onClose }: WaitlistModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">Join the waitlist</h2>
+          <h2 className="text-2xl font-bold">Request a Demo</h2>
           <button
             onClick={onClose}
             className="text-brand-subtle hover:text-brand-ink text-2xl leading-none"
@@ -130,7 +130,7 @@ export default function WaitlistModal({ onClose }: WaitlistModalProps) {
           )}
 
           <button type="submit" disabled={loading} className="btn w-full">
-            {loading ? 'Submitting...' : 'Join waitlist'}
+            {loading ? 'Submitting...' : 'Request Demo'}
           </button>
         </form>
       </div>

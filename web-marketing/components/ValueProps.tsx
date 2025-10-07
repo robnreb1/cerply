@@ -8,7 +8,7 @@ export default function ValueProps() {
     {
       title: 'Adaptive by default',
       description:
-        "Learners don't self-grade; we auto-assess and schedule so knowledge sticks.",
+        "Your teams don't self-grade; we auto-assess and schedule so knowledge sticks.",
     },
     {
       title: 'Enterprise-ready',

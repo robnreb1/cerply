@@ -4,9 +4,9 @@ export default function HowItWorks() {
     {
       step: 2,
       title: 'We certify/adapt',
-      description: 'Experts verify critical topics; we auto-assess learners.',
+      description: 'Expert panels verify critical topics; we auto-assess your teams.',
     },
-    { step: 3, title: 'Your team retains', description: 'Spaced repetition keeps knowledge fresh.' },
+    { step: 3, title: 'Your teams retain', description: 'Spaced repetition keeps knowledge fresh across your organization.' },
   ];
 
   return (
