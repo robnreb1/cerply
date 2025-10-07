@@ -204,6 +204,13 @@ export async function registerM3Routes(app: FastifyInstance) {
           modules: cached.artifact.modules?.map(m => ({
             id: m.id,
             title: m.title,
+            lessons: [
+              {
+                id: `${m.id}-lesson-1`,
+                title: m.title,
+                explanation: m.content || m.description || 'Lesson content',
+              },
+            ],
             items: m.items || [],
           })) || [],
           metadata: {

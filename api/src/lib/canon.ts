@@ -287,6 +287,9 @@ export function evaluateContentQuality(artifact: ContentBody): QualityMetrics {
     coherence -= 0.2;
   } else if (artifact.title.length < 10) {
     coverage -= 0.15;
+  } else if (artifact.title.length > 20) {
+    coverage += 0.08;
+    coherence += 0.03;
   } else {
     coverage += 0.05;
   }
@@ -296,6 +299,9 @@ export function evaluateContentQuality(artifact: ContentBody): QualityMetrics {
     pedagogicalSoundness -= 0.2;
   } else if (artifact.summary.length < 50) {
     coverage -= 0.1;
+  } else if (artifact.summary.length > 100) {
+    coverage += 0.08;
+    pedagogicalSoundness += 0.03;
   } else if (artifact.summary.length > 80) {
     coverage += 0.05;
   }
@@ -305,6 +311,9 @@ export function evaluateContentQuality(artifact: ContentBody): QualityMetrics {
     pedagogicalSoundness -= 0.3;
   } else if (artifact.modules.length < 3) {
     coverage -= 0.1;
+  } else if (artifact.modules.length >= 4) {
+    coverage += 0.08;
+    pedagogicalSoundness += 0.03;
   } else {
     coverage += 0.05;
   }
