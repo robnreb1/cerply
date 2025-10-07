@@ -28,7 +28,8 @@ type GenerateResponse = {
   modules: Array<{
     id: string;
     title: string;
-    lessons: CardItem[];
+    lessons?: Array<{id: string; title: string; explanation: string}>;
+    items?: Array<{id: string; prompt?: string; front?: string; back?: string; answer?: string | string[]; type?: string}>;
   }>;
 };
 
@@ -220,10 +221,16 @@ export default function LearnPage() {
 
       const genData: GenerateResponse = await genRes.json();
       
+      // Extract items (not lessons) from modules and map to card format
       const allItems: CardItem[] = [];
       genData.modules.forEach(mod => {
-        mod.lessons.forEach(lesson => {
-          allItems.push(lesson);
+        (mod.items || []).forEach(item => {
+          allItems.push({
+            id: item.id,
+            type: item.type || 'free',
+            front: item.prompt || item.front || '',
+            back: item.answer?.toString() || item.back || 'Answer to be revealed',
+          });
         });
       });
 
@@ -236,11 +243,7 @@ export default function LearnPage() {
         body: JSON.stringify({
           session_id: sessionId,
           plan_id: 'generated',
-          items: allItems.map(item => ({
-            id: item.id,
-            front: item.front,
-            back: item.back,
-          })),
+          items: allItems,
           algo: 'sm2-lite',
         }),
       });

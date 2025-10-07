@@ -489,6 +489,20 @@ export async function registerM3Routes(app: FastifyInstance) {
       else if (difficulty_delta === 1) xAdapt = 'hard';
       else if (!correct) xAdapt = 'review';
       
+      // Record attempt for adaptive queue (CRITICAL FIX)
+      const query = req.query as { sid?: string };
+      const sid = query.sid || body.item_id.split('-')[0] || 'anon';
+      const difficulty = body.expected_answer ? 'medium' : 'easy'; // Stub difficulty
+      
+      recordAttempt(sid, {
+        item_id: body.item_id,
+        correct,
+        latency_ms: latency,
+        difficulty,
+        hint_count: 0, // Could be passed in request in future
+        ts: new Date().toISOString(),
+      });
+      
       // Set headers
       reply.header('x-canon', 'bypass');
       reply.header('x-quality', '1.00');
