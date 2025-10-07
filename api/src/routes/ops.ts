@@ -8,14 +8,26 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { sql } from 'drizzle-orm';
 import { db } from '../db';
 import { teams, teamMembers, teamTrackSubscriptions } from '../db/schema';
+import { requireManager, getSession } from '../middleware/rbac';
 
 export async function registerOpsRoutes(app: FastifyInstance) {
   /**
    * GET /api/ops/kpis
    * Get operational KPIs for OKR tracking
    * Includes O3 counters: teams_total, members_total, active_subscriptions
+   * RBAC: admin or manager (prevents leaking cross-org data)
    */
   app.get('/api/ops/kpis', async (req: FastifyRequest, reply: FastifyReply) => {
+    // Check RBAC - prevent unauthenticated access to org-wide KPIs
+    if (!requireManager(req, reply)) return;
+
+    const session = getSession(req);
+    if (!session) {
+      return reply.status(401).send({
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      });
+    }
+
     try {
       // O3: Team Management KPIs
       const [teamsResult] = await db

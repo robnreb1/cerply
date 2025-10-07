@@ -48,6 +48,10 @@ export async function createApp() {
     done(null, body);
   });
 
+  // Idempotency middleware (Epic 3: X-Idempotency-Key support for team creation)
+  const { idempotencyService } = await import('./services/idempotency');
+  app.addHook('onRequest', idempotencyService.middleware());
+
   // Admin token guard for /certified/** (excluding public artifact routes)
   app.addHook('onRequest', async (req, reply) => {
     if (req.method === 'OPTIONS') return;
