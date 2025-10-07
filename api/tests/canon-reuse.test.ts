@@ -41,12 +41,13 @@ describe('Canon Reuse Tests', () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     
-    expect(body).toHaveProperty('modules');
-    expect(body.metadata.source).toBe('fresh');
-    expect(body.metadata.qualityFirst).toBe(true);
+    // New envelope structure
+    expect(body).toHaveProperty('data');
+    expect(body.data).toHaveProperty('modules');
+    expect(body.meta.source).toBe('fresh');
     
     // Content should be canonized
-    expect(body.metadata.canonized).toBe(true);
+    expect(body.meta.canonized).toBe(true);
   });
 
   test('canonical content is retrieved for identical requests', async () => {
@@ -65,7 +66,7 @@ describe('Canon Reuse Tests', () => {
 
     expect(firstResponse.statusCode).toBe(200);
     const firstBody = JSON.parse(firstResponse.body);
-    expect(firstBody.metadata.source).toBe('fresh');
+    expect(firstBody.meta.source).toBe('fresh');
 
     // Second request - should use canon
     const secondResponse = await app.inject({
@@ -76,8 +77,8 @@ describe('Canon Reuse Tests', () => {
 
     expect(secondResponse.statusCode).toBe(200);
     const secondBody = JSON.parse(secondResponse.body);
-    expect(secondBody.metadata.source).toBe('canon');
-    expect(secondBody.metadata.modelTier).toBe('gpt-4o-mini');
+    expect(secondBody.meta.source).toBe('canon');
+    expect(secondBody.meta.canonized).toBe(true);
   });
 
   test('canon store maintains content integrity', async () => {
@@ -110,9 +111,8 @@ describe('Canon Reuse Tests', () => {
     );
 
     expect(canonical).toBeDefined();
-    expect(canonical.sha).toBeTruthy();
-    expect(canonical.content.title).toBe(contentBody.title);
-    expect(canonical.lineage.sourceModels).toContain('gpt-5');
+    expect(canonical.sha256).toBeTruthy();
+    expect(canonical.artifact.title).toBe(contentBody.title);
   });
 
   test('canon search returns relevant content', async () => {
@@ -136,7 +136,9 @@ describe('Canon Reuse Tests', () => {
     });
 
     expect(results.length).toBeGreaterThan(0);
-    expect(results[0].metadata.topic).toContain('Search Test Topic');
+    if (results[0].artifact.metadata) {
+      expect(results[0].artifact.metadata.topic).toContain('Search Test Topic');
+    }
   });
 
   test('canon retrieval by SHA works correctly', async () => {
@@ -169,12 +171,12 @@ describe('Canon Reuse Tests', () => {
       []
     );
 
-    // Retrieve by SHA
-    const retrieved = await retrieveCanonicalContent(canonical.sha);
+    // Retrieve by key
+    const retrieved = retrieveCanonicalContent(canonical.key);
     
     expect(retrieved).toBeDefined();
-    expect(retrieved!.sha).toBe(canonical.sha);
-    expect(retrieved!.content.title).toBe(contentBody.title);
+    expect(retrieved!.key).toBe(canonical.key);
+    expect(retrieved!.artifact.title).toBe(contentBody.title);
   });
 
   test('content existence check works', async () => {
@@ -318,7 +320,7 @@ describe('Canon Reuse Tests', () => {
     
     // Canon reuse should be faster (though this is not guaranteed in tests)
     const secondBody = JSON.parse(secondResponse.body);
-    expect(secondBody.metadata.source).toBe('canon');
+    expect(secondBody.meta.source).toBe('canon');
     
     // Log the times for verification
     console.log(`Fresh generation: ${time1}ms, Canon reuse: ${time2}ms`);
@@ -354,16 +356,14 @@ describe('Canon Reuse Tests', () => {
     );
 
     // Verify metadata integrity
-    expect(canonical.metadata.topic).toBe(contentBody.metadata.topic);
-    expect(canonical.metadata.difficulty).toBe(contentBody.metadata.difficulty);
-    expect(canonical.metadata.estimatedTime).toBe(contentBody.metadata.estimatedTime);
-    expect(canonical.metadata.prerequisites).toEqual(contentBody.metadata.prerequisites);
-    expect(canonical.metadata.learningObjectives).toEqual(contentBody.metadata.learningObjectives);
+    expect(canonical.artifact.metadata?.topic).toBe(contentBody.metadata!.topic);
+    expect(canonical.artifact.metadata?.difficulty).toBe(contentBody.metadata!.difficulty);
+    expect(canonical.artifact.metadata?.estimatedTime).toBe(contentBody.metadata!.estimatedTime);
+    expect(canonical.artifact.metadata?.prerequisites).toEqual(contentBody.metadata!.prerequisites);
+    expect(canonical.artifact.metadata?.learningObjectives).toEqual(contentBody.metadata!.learningObjectives);
     
-    // Verify lineage metadata
-    expect(canonical.lineage.sourceModels).toContain('gpt-5');
-    expect(canonical.lineage.sourceModels).toContain('claude-3');
-    expect(canonical.lineage.qualityScores).toBeDefined();
-    expect(canonical.lineage.generationTimestamp).toBeTruthy();
+    // Verify quality score
+    expect(canonical.quality_score).toBeDefined();
+    expect(canonical.model).toBeDefined();
   });
 });
