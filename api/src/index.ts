@@ -43,6 +43,11 @@ export async function createApp() {
     }
   });
 
+  // Accept CSV content for team member bulk import
+  app.addContentTypeParser('text/csv', { parseAs: 'string' }, (req, body, done) => {
+    done(null, body);
+  });
+
   // Admin token guard for /certified/** (excluding public artifact routes)
   app.addHook('onRequest', async (req, reply) => {
     if (req.method === 'OPTIONS') return;
@@ -111,6 +116,12 @@ export async function createApp() {
 
   // SSO routes for enterprise authentication
   await safeRegister('./routes/sso', ['registerSSORoutes']);
+
+  // Team Management routes (Epic 3: B2B Team Management & Learner Assignment)
+  await safeRegister('./routes/teams', ['registerTeamRoutes']);
+
+  // Operations & KPI routes (Epic 3: OKR tracking)
+  await safeRegister('./routes/ops', ['registerOpsRoutes']);
 
   // Analytics routes for smoke tests and event tracking
   await safeRegister('./routes/analytics', ['registerAnalyticsRoutes']);

@@ -830,7 +830,342 @@ Enable the adaptive coach to deliver and receive lessons through multiple user c
 - Staging: `curl -sS "$STG/api/coach/next" -H "x-channel: teams" | jq`
 - CI: `bash scripts/smoke-channels.sh`
 
-## 23) Backlog (Next 10)
+## 23) Team Management & Assignments v1 — ✅ IMPLEMENTED
+
+**Covers BRD:** B3 Group Learning (Manager assigns learners to tracks)
+
+**Status:** Implemented 2025-10-07 | Epic: `EPIC3_PROGRESS_SUMMARY` | Tests: `api/tests/team-mgmt.test.ts`
+
+**Summary:**
+Complete API surface for B2B Enterprise team management: create teams, bulk import learners (JSON/CSV), assign tracks with cadence (daily/weekly/monthly), view team metrics, and track via operational KPIs. All routes support RBAC (admin/manager), idempotency, and event logging.
+
+**Key Features:**
+- **POST /api/teams**: Create teams within an organization (manager or admin)
+- **POST /api/teams/:id/members**: Bulk import learners via JSON array or CSV upload (auto-creates users with learner role)
+- **POST /api/teams/:id/subscriptions**: Assign a track to a team with cadence (daily/weekly/monthly)
+- **GET /api/teams/:id/overview**: Team metrics (members count, active tracks, due today, at-risk learners)
+- **GET /api/tracks**: List canonical (org_id=NULL) and organization-specific tracks
+- **GET /api/ops/kpis**: Operational KPIs for OKR tracking (O3: teams_total, members_total, active_subscriptions)
+
+**Database Schema:**
+```sql
+-- Tracks table (canonical + org-specific)
+tracks (
+  id UUID PRIMARY KEY,
+  organization_id UUID, -- NULL = canonical/shared
+  title TEXT,
+  plan_ref TEXT, -- e.g. 'canon:arch-std-v1'
+  certified_artifact_id UUID,
+  created_at, updated_at
+)
+
+-- Team track subscriptions
+team_track_subscriptions (
+  id UUID PRIMARY KEY,
+  team_id UUID,
+  track_id UUID,
+  cadence TEXT CHECK (cadence IN ('daily', 'weekly', 'monthly')),
+  start_at TIMESTAMPTZ,
+  active BOOLEAN DEFAULT true,
+  UNIQUE(team_id, track_id)
+)
+```
+
+**API Contracts:**
+
+### POST /api/teams
+Create a new team.
+
+**RBAC:** admin or manager  
+**Idempotency:** X-Idempotency-Key supported
+
+**Request:**
+```json
+{
+  "name": "Engineering Team"
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Engineering Team",
+  "org_id": "550e8400-e29b-41d4-a716-446655440001",
+  "manager_id": "550e8400-e29b-41d4-a716-446655440002",
+  "created_at": "2025-10-07T12:00:00Z"
+}
+```
+
+**Errors:**
+- 400 INVALID_INPUT: name is required
+- 401 UNAUTHORIZED: authentication required
+- 403 FORBIDDEN: requires manager or admin role
+- 500 INTERNAL_ERROR: failed to create team
+
+### POST /api/teams/:id/members
+Add members to a team (JSON or CSV bulk import).
+
+**RBAC:** admin or team manager  
+**Content-Type:** application/json OR text/csv  
+**Idempotency:** Per-email (won't add duplicates)
+
+**Request (JSON):**
+```json
+{
+  "emails": ["alice@example.com", "bob@example.com"]
+}
+```
+
+**Request (CSV):**
+```csv
+alice@example.com
+bob@example.com
+charlie@example.com
+```
+
+**Response (200):**
+```json
+{
+  "added": ["alice@example.com", "bob@example.com"],
+  "skipped": ["charlie@example.com"],
+  "errors": [
+    {
+      "email": "invalid@",
+      "reason": "Invalid email format"
+    }
+  ]
+}
+```
+
+**Behavior:**
+- Creates users with learner role if they don't exist
+- Skips users already in the team (idempotent)
+- Emits `member.added` event for each success
+
+**Errors:**
+- 400 INVALID_CONTENT_TYPE: must be application/json or text/csv
+- 400 INVALID_INPUT: no emails provided
+- 404 NOT_FOUND: team not found
+- 403 FORBIDDEN: can only manage your own teams
+- 500 INTERNAL_ERROR: failed to add members
+
+### POST /api/teams/:id/subscriptions
+Subscribe a team to a track with cadence.
+
+**RBAC:** admin or team manager
+
+**Request:**
+```json
+{
+  "track_id": "00000000-0000-0000-0000-000000000100",
+  "cadence": "daily",
+  "start_at": "2025-10-07T00:00:00Z"
+}
+```
+
+**Response (200):**
+```json
+{
+  "subscription_id": "550e8400-e29b-41d4-a716-446655440003",
+  "next_due_at": "2025-10-08T00:00:00Z"
+}
+```
+
+**Cadence Values:**
+- `daily`: next_due_at = start_at + 1 day
+- `weekly`: next_due_at = start_at + 7 days
+- `monthly`: next_due_at = start_at + 1 month
+
+**Errors:**
+- 400 INVALID_INPUT: track_id and cadence required; cadence must be daily/weekly/monthly
+- 404 NOT_FOUND: team or track not found
+- 403 FORBIDDEN: can only manage your own teams
+- 409 ALREADY_SUBSCRIBED: team already subscribed to this track
+- 500 INTERNAL_ERROR: failed to create subscription
+
+### GET /api/teams/:id/overview
+Get team metrics and overview.
+
+**RBAC:** admin or team manager
+
+**Response (200):**
+```json
+{
+  "members_count": 25,
+  "active_tracks": 3,
+  "due_today": 8,
+  "at_risk": 2
+}
+```
+
+**Headers:**
+- `x-overview-latency-ms`: query latency in milliseconds
+
+**Errors:**
+- 404 NOT_FOUND: team not found
+- 403 FORBIDDEN: can only view your own teams
+- 500 INTERNAL_ERROR: failed to get overview
+
+### GET /api/tracks
+List canonical and organization-specific tracks.
+
+**RBAC:** admin or manager
+
+**Response (200):**
+```json
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000100",
+    "title": "Architecture Standards – Starter",
+    "source": "canon",
+    "plan_ref": "canon:arch-std-v1"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440010",
+    "title": "Onboarding Q4 2025",
+    "source": "org",
+    "plan_ref": "plan:550e8400-e29b-41d4-a716-446655440011"
+  }
+]
+```
+
+**Source Types:**
+- `canon`: Canonical track (organization_id = NULL) shared across all orgs
+- `org`: Organization-specific track
+
+**Errors:**
+- 401 UNAUTHORIZED: authentication required
+- 403 FORBIDDEN: requires manager or admin role
+- 500 INTERNAL_ERROR: failed to list tracks
+
+### GET /api/ops/kpis
+Get operational KPIs for OKR tracking (see §22A).
+
+**Response (200):**
+```json
+{
+  "o3": {
+    "teams_total": 12,
+    "members_total": 150,
+    "active_subscriptions": 28
+  },
+  "generated_at": "2025-10-07T12:00:00Z"
+}
+```
+
+**KPI Definitions (O3 - Enterprise Adoption):**
+- `teams_total`: Total teams created across all organizations
+- `members_total`: Total learners assigned to teams
+- `active_subscriptions`: Total active team-track subscriptions (active=true)
+
+**Technical Implementation:**
+
+**Services:**
+- `api/src/services/events.ts`: Event emission to append-only NDJSON log (team.created, member.added, subscription.created)
+- `api/src/services/idempotency.ts`: In-memory idempotency cache (24hr TTL) for X-Idempotency-Key header
+
+**Event Schema:**
+```typescript
+interface TeamEvent {
+  type: 'team.created' | 'member.added' | 'subscription.created';
+  timestamp: string; // ISO 8601
+  payload: {
+    // type-specific fields
+  };
+}
+```
+
+**Event Log:**
+- Default path: `./events.ndjson` (append-only)
+- Configurable via `EVENTS_LOG_PATH` environment variable
+- Enable/disable via `EVENTS_ENABLED` (default: true)
+
+**RBAC:**
+- Uses Epic 2 middleware: `requireManager()`, `getSession()`
+- Admin token bypass: `X-Admin-Token` header or `Authorization: Bearer <ADMIN_TOKEN>`
+- Default admin token (dev): `dev-admin-token-12345`
+
+**Feature Flags:**
+- `FF_TEAM_MGMT=true`: Gates team management routes (optional; routes active by default)
+- `AUTH_REQUIRE_SESSION=true`: Enforces session authentication (Epic 2)
+
+**CSV Upload Details:**
+- Content-Type: `text/csv`
+- Format: One email per line
+- Empty lines and lines without `@` are ignored
+- Creates users automatically with learner role
+- Idempotent: skips existing team members
+
+**Test Coverage:**
+- **Unit Tests:** `api/tests/team-mgmt.test.ts` (15+ scenarios covering CRUD, RBAC, CSV upload, idempotency, error cases)
+- **Smoke Test:** `api/scripts/smoke-team-mgmt.sh` (8 scenarios: create team, add members JSON/CSV, subscribe track, overview, tracks list, KPIs, unauthorized access)
+- **UAT Guide:** `docs/uat/EPIC3_UAT.md` (9 manual test scenarios with step-by-step instructions)
+
+**Acceptance Evidence:**
+
+```bash
+# Create team
+curl -sS -X POST http://localhost:8080/api/teams \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"name":"Engineering Team"}' | jq
+# Returns: {"id":"...", "name":"Engineering Team", "org_id":"...", "manager_id":"...", "created_at":"..."}
+
+# Add members (JSON)
+curl -sS -X POST http://localhost:8080/api/teams/<TEAM_ID>/members \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"emails":["alice@example.com","bob@example.com"]}' | jq
+# Returns: {"added":["alice@example.com","bob@example.com"], "skipped":[], "errors":null}
+
+# Add members (CSV)
+curl -sS -X POST http://localhost:8080/api/teams/<TEAM_ID>/members \
+  -H 'content-type: text/csv' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  --data-binary $'charlie@example.com\ndave@example.com' | jq
+# Returns: {"added":["charlie@example.com","dave@example.com"], "skipped":[], "errors":null}
+
+# Assign track to team
+curl -sS -X POST http://localhost:8080/api/teams/<TEAM_ID>/subscriptions \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"track_id":"00000000-0000-0000-0000-000000000100","cadence":"daily"}' | jq
+# Returns: {"subscription_id":"...", "next_due_at":"2025-10-08T...Z"}
+
+# Get team overview
+curl -sS http://localhost:8080/api/teams/<TEAM_ID>/overview \
+  -H 'x-admin-token: dev-admin-token-12345' | jq
+# Returns: {"members_count":4, "active_tracks":1, "due_today":0, "at_risk":0}
+
+# List tracks
+curl -sS http://localhost:8080/api/tracks \
+  -H 'x-admin-token: dev-admin-token-12345' | jq
+# Returns: [{"id":"...", "title":"Architecture Standards – Starter", "source":"canon", "plan_ref":"canon:arch-std-v1"}]
+
+# Get KPIs
+curl -sS http://localhost:8080/api/ops/kpis | jq
+# Returns: {"o3":{"teams_total":1,"members_total":4,"active_subscriptions":1},"generated_at":"..."}
+```
+
+**Documentation:**
+- **BRD:** `docs/brd/cerply-brd.md` (B3 marked DELIVERED, changelog added)
+- **Runbook:** `RUNBOOK_team_mgmt.md` (migrations, CSV import tips, troubleshooting)
+- **UAT Guide:** `docs/uat/EPIC3_UAT.md` (9 manual test scenarios)
+- **Progress Summary:** `EPIC3_PROGRESS_SUMMARY.md` (implementation log)
+
+**Next Steps (Future Epics):**
+1. **Manager UI:** `/admin/teams` pages for team creation, member management, track assignment
+2. **Analytics Dashboard:** Team progress tracking, engagement metrics, completion rates
+3. **Email Notifications:** Welcome emails for new members, reminders for due items
+4. **Track Templates:** Reusable track templates for common use cases (onboarding, compliance, skills)
+5. **Batch Operations:** Bulk team creation, multi-team assignments
+6. **Integration with M3:** Wire `due_today` and `at_risk` metrics to M3 daily selector and retention logic
+
+**Changelog:**
+- **2025-10-07:** Epic 3 delivered — Team Management & Learner Assignment API complete with 6 routes, event logging, idempotency, RBAC, CSV import, and operational KPIs (O3).
+
+## 24) Backlog (Next 10)
 
 1. LLM router + runner stubs (`api/src/llm/*`).
 2. JSON schemas: `modules.schema.json`, `score.schema.json`.

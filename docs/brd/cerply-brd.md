@@ -37,6 +37,7 @@ One-liner: What will you master today? Cerply turns any prompt, note, link, or p
 B1. Learning Flow: create project -> ingest brief/source -> plan -> lessons -> quizzes -> spaced review.
 B2. Adaptive Learning: flexible adjustments based on progress, strengths, preferences (topical difficulty, format, cadence).
 B3. Group Learning: users can push topics to a group and track group stats (org teams, parents, friends).
+  - **Status: DELIVERED (Epic 3)** - Team Management API complete. Managers can create teams, add members (JSON/CSV), subscribe teams to tracks with cadence (daily/weekly/monthly), and view team analytics. Includes event emission (NDJSON), OKR tracking (`/api/ops/kpis`), RBAC enforcement, and idempotency support. See `api/src/routes/teams.ts`, `api/src/routes/ops.ts`, and `docs/uat/EPIC3_UAT.md`.
 B4. Certified Pipeline: multi-LLM converge with citations; human ratification for Industry Certified.
   - **Status: COMPLETED** - Certified v1 API endpoints implemented with Ed25519 signing, CDN-ready artifacts, and public verification. See docs/certified/README.md for full API contract and docs/certified/openapi.yaml for OpenAPI specification.
 B5. Exports & Sharing: GitHub Issues exporter (repo/label picker), Markdown export, shareable read-only URL.
@@ -152,3 +153,4 @@ KPIs: waitlist->demo, demo->pilot, content->inbound, pilot NPS, conversion to pa
 
 ## History
 - v1.2 (2025-09-19): Consolidated BRD; added certification flavors; adaptive/group learning; pricing; platforms; GTM as appendix.
+- v1.3 (2025-10-07): Epic 3 delivered (PR #TBD) — B3 Group Learning complete: Team Management API with team creation, member management (CSV support), track subscriptions, team analytics, event emission, and OKR tracking.
