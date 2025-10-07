@@ -67,8 +67,32 @@ export function requireRole(...allowedRoles: Role[]) {
 
 /**
  * Require admin role
+ * Also accepts requests authenticated via ADMIN_TOKEN (security.admin plugin)
  */
 export function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
+  // Check if already authenticated by security.admin plugin (via ADMIN_TOKEN)
+  const adminToken = process.env.ADMIN_TOKEN?.trim();
+  if (adminToken) {
+    const authHeader = req.headers.authorization as string | undefined;
+    const xAdminToken = req.headers['x-admin-token'] as string | undefined;
+    
+    // Check Authorization: Bearer <token>
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7).trim();
+      if (token === adminToken) {
+        // Authenticated via admin token - allow access
+        return true;
+      }
+    }
+    
+    // Check x-admin-token header
+    if (xAdminToken?.trim() === adminToken) {
+      // Authenticated via admin token - allow access
+      return true;
+    }
+  }
+  
+  // Otherwise, check for admin role via SSO session
   return requireRole('admin')(req, reply);
 }
 
