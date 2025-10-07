@@ -56,6 +56,11 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
     }
     SNAPSHOTS.set(session_id, { session_id, items: snapshotItems });
 
+    // Add standard observability headers
+    reply.header('x-canon', 'bypass');
+    reply.header('x-quality', '1.00');
+    reply.header('x-cost', 'fresh');
+    reply.header('x-adapt', 'none');
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');
     reply.header('cache-control', 'no-store');
@@ -132,6 +137,19 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
     if (idx >= 0) current.items[idx] = next; else current.items.push(next);
     SNAPSHOTS.set(session_id, current);
 
+    // Determine adaptive signal
+    let xAdapt = 'none';
+    if (action === 'submit' && result) {
+      if (result.correct && result.latency_ms < 10000) xAdapt = 'hard';
+      else if (!result.correct && result.latency_ms > 30000) xAdapt = 'easy';
+      else if (!result.correct) xAdapt = 'review';
+    }
+
+    // Add standard observability headers
+    reply.header('x-canon', 'bypass');
+    reply.header('x-quality', '1.00');
+    reply.header('x-cost', 'fresh');
+    reply.header('x-adapt', xAdapt);
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');
     reply.header('cache-control', 'no-store');
@@ -152,6 +170,11 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
     try { ProgressSnapshotZ.parse(snap); } catch {
       return reply.code(500).send({ error: { code: 'INTERNAL', message: 'snapshot invalid' } });
     }
+    // Add standard observability headers
+    reply.header('x-canon', 'bypass');
+    reply.header('x-quality', '1.00');
+    reply.header('x-cost', 'fresh');
+    reply.header('x-adapt', 'none');
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');
     reply.header('cache-control', 'no-store');
