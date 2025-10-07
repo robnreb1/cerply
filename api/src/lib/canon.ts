@@ -305,10 +305,24 @@ export function evaluateContentQuality(artifact: ContentBody): QualityMetrics {
   let factualAccuracy = 0.88;
   let pedagogicalSoundness = 0.88;
 
+  // Check for fundamentally broken content (empty title AND no modules)
+  const isFundamentallyBroken = (!artifact.title || artifact.title.length === 0) && 
+                                 (!artifact.modules || artifact.modules.length === 0);
+  
+  if (isFundamentallyBroken) {
+    // Severely penalize completely broken content
+    coherence -= 0.35;
+    coverage -= 0.5;
+    pedagogicalSoundness -= 0.4;
+    factualAccuracy -= 0.2;
+  }
+
   // Title quality checks (reduced penalties for reasonable titles)
   if (!artifact.title || artifact.title.length === 0) {
-    coverage -= 0.3;
-    coherence -= 0.2;
+    if (!isFundamentallyBroken) { // Only apply if not already penalized above
+      coverage -= 0.3;
+      coherence -= 0.2;
+    }
   } else if (artifact.title.length < 10) {
     coverage -= 0.08; // Reduced from 0.15
   } else if (artifact.title.length > 20) {
@@ -329,8 +343,10 @@ export function evaluateContentQuality(artifact: ContentBody): QualityMetrics {
 
   // Module structure checks (reward well-structured content)
   if (!artifact.modules || artifact.modules.length === 0) {
-    coverage -= 0.4;
-    pedagogicalSoundness -= 0.3;
+    if (!isFundamentallyBroken) { // Only apply if not already penalized above
+      coverage -= 0.4;
+      pedagogicalSoundness -= 0.3;
+    }
   } else if (artifact.modules.length < 3) {
     coverage -= 0.05; // Reduced from 0.1
   } else if (artifact.modules.length >= 3) {

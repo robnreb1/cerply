@@ -70,11 +70,12 @@ describe('M3 API Surface (preview, generate, score, daily/next, ops/usage)', () 
       });
       expect(r.statusCode).toBe(200);
       const j = r.json();
-      expect(Array.isArray(j.modules)).toBe(true);
-      expect(j.modules.length).toBeGreaterThan(0);
+      expect(j.data).toBeDefined();
+      expect(Array.isArray(j.data.modules)).toBe(true);
+      expect(j.data.modules.length).toBeGreaterThan(0);
       
       // Validate schema compliance
-      const mod = j.modules[0];
+      const mod = j.data.modules[0];
       expect(mod.id).toBeDefined();
       expect(mod.title).toBeDefined();
       expect(Array.isArray(mod.lessons)).toBe(true);
