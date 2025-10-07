@@ -259,7 +259,7 @@ export function canonizeContent(
     created_at: new Date().toISOString(),
     lineage: {
       sourceModels: Array.isArray(sourceModels) ? sourceModels : [metadata.model],
-      qualityScores: metadata.quality_metrics || evaluateQualityMetrics(artifact),
+      qualityScores: metadata.quality_metrics || evaluateContentQuality(artifact),
       validationResults: [],
     },
   });
