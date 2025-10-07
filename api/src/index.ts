@@ -85,11 +85,13 @@ export async function createApp() {
 
   // Admin routes (from your repo; restored in step A)
   const adminCertifiedModule = await import('./routes/admin.certified');
+  const adminUsersModule = await import('./routes/admin.users');
   await app.register(async (adminApp) => {
     // Register security admin plugin only for admin routes
     const securityAdminPlugin = await import('./plugins/security.admin');
     await adminApp.register(securityAdminPlugin.default);
     await adminApp.register(adminCertifiedModule.registerAdminCertifiedRoutes);
+    await adminApp.register(adminUsersModule.registerAdminUserRoutes);
   }, { prefix: '/api/admin' });
 
   // Public certified routes (artifacts, verify, legacy aliases)
@@ -106,6 +108,9 @@ export async function createApp() {
 
   // Auth routes for session management
   await safeRegister('./routes/auth', ['registerAuthRoutes']);
+
+  // SSO routes for enterprise authentication
+  await safeRegister('./routes/sso', ['registerSSORoutes']);
 
   // Analytics routes for smoke tests and event tracking
   await safeRegister('./routes/analytics', ['registerAnalyticsRoutes']);
@@ -215,6 +220,17 @@ if (require.main === module) {
   (async () => {
     try {
       const app = await createApp();
+      
+      // Initialize SSO providers from database (graceful failure)
+      try {
+        const { ssoService } = await import('./sso/service');
+        await ssoService.loadProvidersFromDB();
+        console.log('[api] SSO providers loaded');
+      } catch (error: any) {
+        console.warn('[api] Failed to load SSO providers (DB might not be ready):', error.message);
+        console.warn('[api] SSO will be unavailable until DB is connected');
+      }
+      
       const port = Number(process.env.PORT ?? 8080);
       await app.listen({ host: '0.0.0.0', port });
       console.log(`[api] listening on http://0.0.0.0:${port}`);
