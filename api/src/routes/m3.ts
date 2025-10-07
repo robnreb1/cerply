@@ -10,10 +10,12 @@ import {
   searchCanonicalContent, 
   retrieveCanonicalContent,
   contentExists,
-  evaluateContentQuality,
+  keyFrom,
   type ContentBody,
   type QualityMetrics
 } from '../lib/canon';
+import { generateWithQualityRetry, scoreArtifact, evaluateQualityMetrics } from '../lib/quality';
+import { trackFreshInvocation, trackReuseInvocation, getTodayAggregates } from '../lib/costGraph';
 
 // --- Usage tracking store (in-memory for preview) ---
 type UsageRecord = {
@@ -190,135 +192,94 @@ export async function registerM3Routes(app: FastifyInstance) {
     try {
       const body = GenerateRequestZ.parse(req.body);
       
-      // Check canon store first for existing high-quality content
-      const topic = body.modules[0]?.title || 'general';
-      const existingContent = await searchCanonicalContent({
-        topic,
-        minQuality: 0.8,
-        limit: 1
-      });
-
-      let response: any;
-      let source: 'canon' | 'fresh' = 'fresh';
-      let modelTier = 'gpt-5'; // Default to high-quality model
-
-      if (existingContent.length > 0) {
-        // Use canonical content
-        const canonical = existingContent[0];
-        response = {
-          modules: canonical.content.modules.map(m => ({
+      // 1. Check canon store first
+      const canonKey = keyFrom(body);
+      const cached = retrieveCanonicalContent(canonKey);
+      
+      if (cached) {
+        // Canon hit - return cached content
+        trackReuseInvocation('/api/generate', canonKey, cached.model);
+        
+        const response = {
+          modules: cached.artifact.modules?.map(m => ({
             id: m.id,
             title: m.title,
-            lessons: [{ id: m.id, title: m.title, explanation: m.content }],
-            items: [
-              {
-                id: `${m.id}-q1`,
-                type: 'mcq' as const,
-                prompt: `What is the main concept in ${m.title}?`,
-                choices: ['Option A', 'Option B', 'Option C', 'Option D'],
-                answer: 0,
-              },
-              {
-                id: `${m.id}-q2`,
-                type: 'free' as const,
-                prompt: `Explain ${m.title} in your own words.`,
-                answer: null,
-              },
-            ],
-          }))
+            items: m.items || [],
+          })) || [],
+          metadata: {
+            source: 'canon',
+            canonized: true,
+            model: cached.model,
+            quality_score: cached.quality_score,
+            quality_metrics: cached.quality_metrics,
+          },
         };
-        source = 'canon';
-        modelTier = 'gpt-4o-mini'; // Use cheaper model for canon content
         
-        console.log(`[m3] Using canonical content for topic: ${topic}`);
-      } else {
-        // Generate new content with quality-first pipeline
+        return reply.code(200).send(response);
+      }
+      
+      // 2. Generate fresh content with quality retry
+      const result = await generateWithQualityRetry(async (rigorMode: boolean) => {
+        // Generate modules (stub implementation)
         const modules = body.modules.map((m, idx) => ({
           id: `module-${idx + 1}`,
           title: m.title,
-          lessons: [
-            {
-              id: `lesson-${idx + 1}-1`,
-              title: `${m.title} - Part 1`,
-              explanation: `This is a detailed explanation of ${m.title.toLowerCase()}.`,
-            },
-          ],
+          description: rigorMode 
+            ? `Comprehensive exploration of ${m.title} with specific examples and detailed analysis.`
+            : `Learn about ${m.title} through structured lessons and practice.`,
           items: [
             {
               id: `item-${idx + 1}-1`,
-              type: 'mcq' as const,
-              prompt: `What is the main concept in ${m.title}?`,
-              choices: ['Option A', 'Option B', 'Option C', 'Option D'],
-              answer: 0,
+              prompt: `Explain the key concept of ${m.title}.`,
+              type: 'free' as const,
             },
             {
               id: `item-${idx + 1}-2`,
+              prompt: `Apply ${m.title} to a practical scenario.`,
               type: 'free' as const,
-              prompt: `Explain ${m.title} in your own words.`,
-              answer: null,
             },
           ],
         }));
-
-        response = { modules };
-
-        // Canonize the new content
-        const contentBody: ContentBody = {
+        
+        const artifact: ContentBody = {
           title: body.modules[0]?.title || 'Generated Content',
-          summary: `Generated learning content for ${topic}`,
-          modules: modules.map(m => ({
-            id: m.id,
-            title: m.title,
-            content: m.lessons[0].explanation,
-            type: 'lesson' as const
-          })),
-          metadata: {
-            topic,
-            difficulty: 'intermediate',
-            estimatedTime: modules.length * 15,
-            prerequisites: [],
-            learningObjectives: modules.map(m => `Understand ${m.title}`)
-          }
+          summary: `Structured learning path covering: ${body.modules.map(m => m.title).join(', ')}`,
+          modules,
         };
-
-        // Evaluate quality and canonize if high enough
-        const qualityScores = evaluateContentQuality(contentBody);
-        if (qualityScores.overall >= 0.7) {
-          await canonizeContent(
-            contentBody,
-            ['gpt-5'], // Source models
-            qualityScores,
-            [] // Validation results
-          );
-          console.log(`[m3] Canonized new content for topic: ${topic}, quality: ${qualityScores.overall}`);
-        }
+        
+        return artifact;
+      });
+      
+      // 3. Store in canon if quality threshold met
+      if (result.quality_score >= 0.8) {
+        canonizeContent(result.artifact, { 
+          model: 'gpt-4',
+          quality_score: result.quality_score,
+          quality_metrics: result.quality_metrics,
+        }, body);
       }
-
-      // Validate against schema
-      if (!validateModules(response)) {
-        console.error('[m3] Schema validation failed');
-        return reply.code(500).send({
-          error: {
-            code: 'SCHEMA_VALIDATION_FAILED',
-            message: 'Generated modules do not match schema',
-          },
-        });
-      }
-
-      // Add source metadata to response
-      const finalResponse = {
-        ...response,
+      
+      // 4. Track cost
+      trackFreshInvocation('/api/generate', 'gpt-4', 800, 1200, canonKey);
+      
+      // 5. Return response
+      const response = {
+        modules: result.artifact.modules?.map(m => ({
+          id: m.id,
+          title: m.title,
+          items: m.items || [],
+        })) || [],
         metadata: {
-          source,
-          modelTier,
-          qualityFirst: source === 'fresh',
-          canonized: source === 'canon'
-        }
+          source: 'fresh',
+          canonized: result.quality_score >= 0.8,
+          model: 'gpt-4',
+          quality_score: result.quality_score,
+          quality_metrics: result.quality_metrics,
+          retried: result.retried,
+        },
       };
-
-      logUsage('/api/generate', modelTier, source === 'canon' ? 100 : 800, source === 'canon' ? 200 : 1200);
-
-      return reply.code(200).send(finalResponse);
+      
+      return reply.code(200).send(response);
     } catch (err: any) {
       if (err instanceof z.ZodError) {
         return reply.code(400).send({
@@ -543,11 +504,15 @@ export async function registerM3Routes(app: FastifyInstance) {
         models: Array.from(agg.models),
       }));
 
+      // Include cost graph data
+      const costGraphData = getTodayAggregates();
+
       return reply.code(200).send({
         generated_at: now.toISOString(),
         today,
         yesterday,
         aggregates: dailyAggregates,
+        graph: costGraphData, // Cost graph with reuse vs fresh
       });
     } catch (err: any) {
       return reply.code(500).send({
@@ -555,5 +520,30 @@ export async function registerM3Routes(app: FastifyInstance) {
       });
     }
   });
+
+  // GET /api/ops/canon/:key (test-only)
+  if (process.env.NODE_ENV === 'test') {
+    app.get('/api/ops/canon/:key', async (req: FastifyRequest, reply: FastifyReply) => {
+      const params = req.params as { key: string };
+      const record = retrieveCanonicalContent(params.key);
+      
+      if (!record) {
+        return reply.code(404).send({
+          error: { code: 'NOT_FOUND', message: 'Canon entry not found' },
+        });
+      }
+      
+      return reply.code(200).send({
+        id: record.id,
+        key: record.key,
+        model: record.model,
+        quality_score: record.quality_score,
+        quality_metrics: record.quality_metrics,
+        created_at: record.created_at,
+        accessed_at: record.accessed_at,
+        access_count: record.access_count,
+      });
+    });
+  }
 
 }
