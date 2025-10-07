@@ -221,10 +221,15 @@ if (require.main === module) {
     try {
       const app = await createApp();
       
-      // Initialize SSO providers from database
-      const { ssoService } = await import('./sso/service');
-      await ssoService.loadProvidersFromDB();
-      console.log('[api] SSO providers loaded');
+      // Initialize SSO providers from database (graceful failure)
+      try {
+        const { ssoService } = await import('./sso/service');
+        await ssoService.loadProvidersFromDB();
+        console.log('[api] SSO providers loaded');
+      } catch (error: any) {
+        console.warn('[api] Failed to load SSO providers (DB might not be ready):', error.message);
+        console.warn('[api] SSO will be unavailable until DB is connected');
+      }
       
       const port = Number(process.env.PORT ?? 8080);
       await app.listen({ host: '0.0.0.0', port });
