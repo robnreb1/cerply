@@ -107,6 +107,9 @@ export async function createApp() {
   // Auth routes for session management
   await safeRegister('./routes/auth', ['registerAuthRoutes']);
 
+  // SSO routes for enterprise authentication
+  await safeRegister('./routes/sso', ['registerSSORoutes']);
+
   // Analytics routes for smoke tests and event tracking
   await safeRegister('./routes/analytics', ['registerAnalyticsRoutes']);
   await safeRegister('./routes/analytics.preview', ['registerAnalyticsPreviewRoutes']);
@@ -215,6 +218,12 @@ if (require.main === module) {
   (async () => {
     try {
       const app = await createApp();
+      
+      // Initialize SSO providers from database
+      const { ssoService } = await import('./sso/service');
+      await ssoService.loadProvidersFromDB();
+      console.log('[api] SSO providers loaded');
+      
       const port = Number(process.env.PORT ?? 8080);
       await app.listen({ host: '0.0.0.0', port });
       console.log(`[api] listening on http://0.0.0.0:${port}`);
