@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiBase } from '@/lib/apiBase';
 import { COPY as copy, INTRO_COPY } from '@/lib/copy';
-import { parseIntent, routeIntent, getIntentSuggestions, type IntentContext } from '@/lib/interaction/router';
-import { generateMicrocopy, type MicrocopyContext } from '@/lib/interaction/microcopy';
+import { parseIntent, routeIntent, getIntentSuggestions, generateMicrocopy } from '@/lib/ie/router';
 
 // Types matching M3 API contracts
 type PreviewResponse = {
