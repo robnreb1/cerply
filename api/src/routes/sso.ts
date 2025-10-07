@@ -191,10 +191,10 @@ export async function registerSSORoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /api/auth/me
-   * Get current user info from session
+   * GET /api/auth/sso/me
+   * Get current SSO user info from session
    */
-  app.get('/api/auth/me', async (req, reply) => {
+  app.get('/api/auth/sso/me', async (req, reply) => {
     const session = readSSOSession(req);
 
     if (!session) {
@@ -215,10 +215,10 @@ export async function registerSSORoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /api/auth/logout
-   * Clear session
+   * POST /api/auth/sso/logout
+   * Clear SSO session
    */
-  app.post('/api/auth/logout', async (req, reply) => {
+  app.post('/api/auth/sso/logout', async (req, reply) => {
     const raw = (req.headers?.cookie as string | undefined) || '';
     const sessionId = raw
       .split(';')

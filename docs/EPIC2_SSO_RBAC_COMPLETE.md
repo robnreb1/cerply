@@ -57,8 +57,10 @@ Epic 2 establishes enterprise-grade authentication and role-based access control
 - `POST /api/auth/sso/login` - Initiate SSO flow
 - `GET /api/auth/sso/callback` - Handle provider callback
 - `GET /api/auth/sso/mock/callback` - Dev mock callback
-- `GET /api/auth/me` - Get current user session
-- `POST /api/auth/logout` - Clear session
+- `GET /api/auth/sso/me` - Get current SSO user session
+- `POST /api/auth/sso/logout` - Clear SSO session
+
+**Note:** Legacy `/api/auth/me` and `/api/auth/logout` still exist for backwards compatibility with DEV login.
 
 #### Admin User Management (`api/src/routes/admin.users.ts`)
 - `GET /api/admin/users` - List org users
@@ -121,7 +123,7 @@ curl -X POST http://localhost:8080/api/auth/sso/login \
 ### Test 2: Check Current User
 ```bash
 # With session cookie from login
-curl http://localhost:8080/api/auth/me \
+curl http://localhost:8080/api/auth/sso/me \
   -H "Cookie: cerply.sid=<session_id>"
 
 # Expected: {

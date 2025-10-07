@@ -55,10 +55,10 @@ else
   SESSION_COOKIE=""
 fi
 
-# Test 3: Get current user (/api/auth/me)
+# Test 3: Get current user (/api/auth/sso/me)
 echo "✓ Test 3: Get current user info"
 if [ -n "$SESSION_COOKIE" ]; then
-  ME_RESPONSE=$(curl -s "$BASE/api/auth/me" \
+  ME_RESPONSE=$(curl -s "$BASE/api/auth/sso/me" \
     -H "Cookie: cerply.sid=$SESSION_COOKIE")
 
   if echo "$ME_RESPONSE" | grep -q '"ok":true'; then
