@@ -5,22 +5,39 @@
 
 ## Discovery
 
-Both staging and production Render services are returning:
-- HTTP 404 with `x-render-routing: no-server`
-- This indicates services are not currently running or deployed
+**Production URL:** `https://api.cerply.com` ✅
+
+**Current State (2025-10-07):**
+- ✅ Health and version endpoints responding
+- ⚠️ Running **old code**: SHA `39165b5` (Oct 5, 2025)
+- ❌ M3 API endpoints return 404 (not yet deployed)
+- ❌ PLATFORM_FOUNDATIONS_v1 features not present
+
+**Root Cause:** Production has not been updated since `main` branch merged PLATFORM_FOUNDATIONS_v1
 
 ## Required Action
 
-**Before production verification can proceed:**
-1. Deploy `main` branch to production Render service
-2. Ensure staging service is also running
-3. Verify services are responding to root endpoint
+**To deploy PLATFORM_FOUNDATIONS_v1 to production:**
+
+1. **Trigger Production Deployment**
+   - Merge latest `main` branch to production
+   - Or manually trigger deploy from Render dashboard
+   - Target SHA should be latest from `main` (includes PR #205)
+
+2. **Verify Deployment**
+   ```bash
+   # Check version matches main
+   curl -sS https://api.cerply.com/api/version | jq '.gitSha'
+   # Expected: Latest main branch SHA (not 39165b5)
+   ```
+
+3. **Run Sanity Checks** (see below)
 
 ## Sanity Check Commands (Run Once Deployed)
 
 ```bash
 # Set production API URL
-API=https://cerply-api-prod.onrender.com
+API=https://api.cerply.com
 
 # 1. Health check
 curl -sS $API/api/health
