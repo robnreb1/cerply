@@ -60,8 +60,21 @@ export type CanonRecord = {
  * Generate stable key from request payload
  */
 export function keyFrom(payload: any): string {
+  // Handle different payload shapes: /api/preview (content) vs /api/generate (modules)
+  let promptText = '';
+  if (payload.content) {
+    promptText = String(payload.content).trim().toLowerCase();
+  } else if (payload.topic) {
+    promptText = String(payload.topic).trim().toLowerCase();
+  } else if (payload.brief) {
+    promptText = String(payload.brief).trim().toLowerCase();
+  } else if (payload.modules && Array.isArray(payload.modules)) {
+    // For /api/generate: hash the module titles
+    promptText = payload.modules.map((m: any) => String(m.title || '')).join('|').trim().toLowerCase();
+  }
+  
   const normalized = {
-    prompt: String(payload.content || payload.topic || payload.brief || '').trim().toLowerCase(),
+    prompt: promptText,
     policy_id: payload.policy_id || 'default',
     type: payload.type || 'module',
   };
