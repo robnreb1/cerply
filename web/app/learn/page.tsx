@@ -424,7 +424,12 @@ export default function LearnPage() {
 
     // Use interaction engine if enabled
     if (interactionEngineEnabled) {
-      await handleNaturalLanguageCommand(userMessage);
+      const intent = parseIntent(userMessage);
+      const response = routeIntent(intent, { hasContent: true, hasProgress: state.phase === 'session' });
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'assistant', text: response }
+      ]);
     } else {
       // Fallback to stub response
       setTimeout(() => {
