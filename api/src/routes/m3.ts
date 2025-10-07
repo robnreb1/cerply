@@ -254,9 +254,15 @@ export async function registerM3Routes(app: FastifyInstance) {
       
       // 1. Check canon store first
       const canonKey = keyFrom(body);
+      if (process.env.NODE_ENV === 'test') {
+        console.log(`[DEBUG] /api/generate canon lookup: key=${canonKey}`);
+      }
       const cached = retrieveCanonicalContent(canonKey);
       
       if (cached) {
+        if (process.env.NODE_ENV === 'test') {
+          console.log(`[DEBUG] Canon hit! quality=${cached.quality_score}`);
+        }
         // Canon hit - return cached content
         trackReuseInvocation('/api/generate', canonKey, cached.model);
         
@@ -361,6 +367,9 @@ export async function registerM3Routes(app: FastifyInstance) {
       }
       
       // 4. Store in canon (quality threshold met)
+      if (process.env.NODE_ENV === 'test') {
+        console.log(`[DEBUG] Storing in canon: quality=${result.quality_score}, key=${canonKey}`);
+      }
       canonizeContent(result.artifact, { 
         model: 'gpt-4',
         quality_score: result.quality_score,

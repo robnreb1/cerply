@@ -148,10 +148,18 @@ class CanonStore {
   }
 
   getByKey(key: string): CanonRecord | null {
+    if (process.env.NODE_ENV === 'test') {
+      console.log(`[CANON] getByKey(${key}): enabled=${this.enabled}, store.size=${this.store.size}`);
+    }
     if (!this.enabled) return null;
     
     const record = this.store.get(key);
-    if (!record) return null;
+    if (!record) {
+      if (process.env.NODE_ENV === 'test') {
+        console.log(`[CANON] getByKey(${key}): NOT FOUND in store`);
+      }
+      return null;
+    }
     
     // Integrity check: recompute SHA256 and validate
     const currentSha = crypto.createHash('sha256').update(JSON.stringify(record.artifact)).digest('hex');

@@ -18,8 +18,8 @@
     "seed:demo": "node scripts/seed_demo.js",
     "test": "node scripts/test-runner.mjs",
     "test:adaptive": "vitest run tests/adaptive.test.ts",
-    "test:quality-floor": "vitest run tests/quality-floor.test.ts",
-    "test:cost-graph": "vitest run tests/cost-graph.test.ts tests/canon-reuse.test.ts",
+    "test:quality-floor": "CANON_ENABLED=true vitest run tests/quality-floor.test.ts",
+    "test:cost-graph": "CANON_ENABLED=true vitest run tests/cost-graph.test.ts tests/canon-reuse.test.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
     "db:push": "drizzle-kit push --config=drizzle.config.ts",
@@ -31,11 +31,7 @@
     "planner:eval": "tsx scripts/planner-eval.ts",
     "planner:eval:adaptive": "tsx scripts/planner-eval.adaptive.ts",
     "planner:eval:openai": "tsx scripts/planner-eval.openai.ts",
-    "planner:eval:multi": "tsx scripts/planner-eval.multiphase.ts",
-    "test:adaptive": "vitest tests/adaptive.test.ts --run",
-    "test:quality-floor": "vitest tests/quality-floor.test.ts --run",
-    "test:cost-graph": "vitest tests/cost-graph.test.ts --run",
-    "test:canon-reuse": "vitest tests/canon-reuse.test.ts --run"
+    "planner:eval:multi": "tsx scripts/planner-eval.multiphase.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^9.4.0",
