@@ -226,6 +226,12 @@ export async function registerM3Routes(app: FastifyInstance) {
         },
       });
     } catch (err: any) {
+      // Set headers on all error responses
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
+      
       if (err instanceof z.ZodError) {
         return reply.code(400).send({
           error: {
@@ -398,6 +404,12 @@ export async function registerM3Routes(app: FastifyInstance) {
       
       return reply.code(200).send(response);
     } catch (err: any) {
+      // Set headers on all error responses
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
+      
       if (err instanceof z.ZodError) {
         return reply.code(400).send({
           error: {
@@ -494,6 +506,12 @@ export async function registerM3Routes(app: FastifyInstance) {
         },
       });
     } catch (err: any) {
+      // Set headers on all error responses
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
+      
       if (err instanceof z.ZodError) {
         return reply.code(400).send({
           error: {
@@ -614,6 +632,12 @@ export async function registerM3Routes(app: FastifyInstance) {
         },
       });
     } catch (err: any) {
+      // Set headers on all error responses
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
+      
       return reply.code(500).send({
         error: { code: 'INTERNAL_ERROR', message: 'Queue generation failed' },
       });
@@ -680,6 +704,12 @@ export async function registerM3Routes(app: FastifyInstance) {
         },
       });
     } catch (err: any) {
+      // Set headers on all error responses
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
+      
       return reply.code(500).send({
         error: { code: 'INTERNAL_ERROR', message: 'Usage aggregation failed' },
       });
@@ -717,10 +747,22 @@ export async function registerM3Routes(app: FastifyInstance) {
       const record = retrieveCanonicalContent(params.key);
       
       if (!record) {
+        // Set headers on error responses
+        reply.header('x-canon', 'bypass');
+        reply.header('x-quality', '0.00');
+        reply.header('x-cost', 'fresh');
+        reply.header('x-adapt', 'none');
+        
         return reply.code(404).send({
           error: { code: 'NOT_FOUND', message: 'Canon entry not found' },
         });
       }
+      
+      // Set headers on success
+      reply.header('x-canon', 'hit');
+      reply.header('x-quality', record.quality_score.toFixed(2));
+      reply.header('x-cost', 'reuse');
+      reply.header('x-adapt', 'none');
       
       return reply.code(200).send({
         id: record.id,
