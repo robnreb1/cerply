@@ -114,42 +114,45 @@ describe('M3 API Surface (preview, generate, score, daily/next, ops/usage)', () 
   });
 
   describe('POST /api/score', () => {
-    it('returns 200 with schema-valid score', async () => {
+    it('returns 200 with auto-assessment result', async () => {
       const r = await app.inject({
         method: 'POST',
         url: '/api/score',
         headers: { 'content-type': 'application/json' },
         payload: {
           item_id: 'item-123',
-          user_answer: 'correct answer',
-          expected_answer: 'correct answer',
+          response_text: 'the determinant measures volume scaling',
+          latency_ms: 8500,
+          expected_answer: 'determinant measures volume',
         },
       });
       expect(r.statusCode).toBe(200);
       const j = r.json();
-      expect(typeof j.score).toBe('number');
-      expect(j.score).toBeGreaterThanOrEqual(0);
-      expect(j.score).toBeLessThanOrEqual(1);
-      expect(['easy', 'medium', 'hard']).toContain(j.difficulty);
-      expect(Array.isArray(j.misconceptions)).toBe(true);
-      expect(typeof j.next_review_days).toBe('number');
-      expect(j.next_review_days).toBeGreaterThanOrEqual(0);
+      expect(j.data).toBeDefined();
+      expect(typeof j.data.correct).toBe('boolean');
+      expect(j.data.rationale).toBeDefined();
+      expect(j.data.signals).toBeDefined();
+      expect(j.data.signals.latency_bucket).toBeDefined();
+      expect(j.data.signals.difficulty_delta).toBeDefined();
+      expect(j.meta).toBeDefined();
     });
 
-    it('returns lower score for incorrect answer', async () => {
+    it('returns correct=false for incorrect answer', async () => {
       const r = await app.inject({
         method: 'POST',
         url: '/api/score',
         headers: { 'content-type': 'application/json' },
         payload: {
-          item_id: 'item-123',
-          user_answer: 'wrong answer',
+          item_id: 'item-124',
+          response_text: 'wrong answer',
+          latency_ms: 12000,
           expected_answer: 'correct answer',
         },
       });
       expect(r.statusCode).toBe(200);
       const j = r.json();
-      expect(j.score).toBeLessThan(0.8);
+      expect(j.data.correct).toBe(false);
+      expect(j.data.rationale).toBeDefined();
     });
 
     it('returns 400 when item_id is missing', async () => {
