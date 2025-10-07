@@ -680,9 +680,9 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/cerply-api
           tags: |
             type=sha,format=long
-            # Tag staging and staging-latest on both staging and main to keep Render staging current
-            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
-            type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main' }}
+            # Tag staging and staging-latest ONLY from staging branch
+            type=raw,value=staging,enable=${{ github.ref == 'refs/heads/staging' }}
+            type=raw,value=staging-latest,enable=${{ github.ref == 'refs/heads/staging' }}
             # On main, publish prod-candidate and a short sha tag for promotion
             type=raw,value=prod-candidate,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=short,prefix=sha-,enable=${{ github.ref == 'refs/heads/main' }}
