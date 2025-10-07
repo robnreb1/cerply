@@ -24,6 +24,7 @@ jobs:
         continue-on-error: true
         run: |
           API_BASE="https://api.cerply.com"
+
           
           echo "🔍 Testing Production API: $API_BASE"
           echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
