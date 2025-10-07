@@ -11,10 +11,11 @@ import { requireAdmin, getSession } from '../middleware/rbac';
 
 export async function registerAdminUserRoutes(app: FastifyInstance) {
   /**
-   * GET /api/admin/users
+   * GET /users
    * List all users in the admin's organization
+   * (Mounted at /api/admin/users via prefix)
    */
-  app.get('/api/admin/users', async (req, reply) => {
+  app.get('/users', async (req, reply) => {
     if (!requireAdmin(req, reply)) return;
 
     const session = getSession(req);
@@ -58,10 +59,11 @@ export async function registerAdminUserRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /api/admin/users/:userId
+   * GET /users/:userId
    * Get a specific user's details
+   * (Mounted at /api/admin/users/:userId via prefix)
    */
-  app.get('/api/admin/users/:userId', async (req, reply) => {
+  app.get('/users/:userId', async (req, reply) => {
     if (!requireAdmin(req, reply)) return;
 
     const session = getSession(req);
@@ -109,11 +111,12 @@ export async function registerAdminUserRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /api/admin/users
+   * POST /users
    * Create a new user in the organization
    * Body: { email: string, roles?: string[] }
+   * (Mounted at /api/admin/users via prefix)
    */
-  app.post('/api/admin/users', async (req, reply) => {
+  app.post('/users', async (req, reply) => {
     if (!requireAdmin(req, reply)) return;
 
     const session = getSession(req);
@@ -181,11 +184,12 @@ export async function registerAdminUserRoutes(app: FastifyInstance) {
   });
 
   /**
-   * POST /api/admin/users/:userId/roles
+   * POST /users/:userId/roles
    * Assign a role to a user
    * Body: { role: 'admin' | 'manager' | 'learner' }
+   * (Mounted at /api/admin/users/:userId/roles via prefix)
    */
-  app.post('/api/admin/users/:userId/roles', async (req, reply) => {
+  app.post('/users/:userId/roles', async (req, reply) => {
     if (!requireAdmin(req, reply)) return;
 
     const session = getSession(req);
@@ -255,10 +259,11 @@ export async function registerAdminUserRoutes(app: FastifyInstance) {
   });
 
   /**
-   * DELETE /api/admin/users/:userId/roles/:role
+   * DELETE /users/:userId/roles/:role
    * Remove a role from a user
+   * (Mounted at /api/admin/users/:userId/roles/:role via prefix)
    */
-  app.delete('/api/admin/users/:userId/roles/:role', async (req, reply) => {
+  app.delete('/users/:userId/roles/:role', async (req, reply) => {
     if (!requireAdmin(req, reply)) return;
 
     const session = getSession(req);
@@ -296,10 +301,11 @@ export async function registerAdminUserRoutes(app: FastifyInstance) {
   });
 
   /**
-   * GET /api/admin/organization
+   * GET /organization
    * Get current organization details
+   * (Mounted at /api/admin/organization via prefix)
    */
-  app.get('/api/admin/organization', async (req, reply) => {
+  app.get('/organization', async (req, reply) => {
     if (!requireAdmin(req, reply)) return;
 
     const session = getSession(req);

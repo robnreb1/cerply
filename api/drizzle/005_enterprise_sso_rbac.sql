@@ -70,10 +70,10 @@ CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members(user_id);
 -- Seed data: Create a default organization and admin user for development
 ------------------------------------------------------------------------------
 
--- Default organization
+-- Default organization (using real UUID)
 INSERT INTO organizations (id, name, domain, sso_config)
 VALUES (
-  'org_default_dev_00000000000000000000'::UUID,
+  '00000000-0000-0000-0000-000000000001'::UUID,
   'Cerply Dev Org',
   'cerply-dev.local',
   '{
@@ -85,17 +85,17 @@ VALUES (
 -- Default admin user (email: admin@cerply-dev.local)
 INSERT INTO users (id, email, organization_id, created_at)
 VALUES (
-  'user_admin_dev_00000000000000000001'::UUID,
+  '00000000-0000-0000-0000-000000000010'::UUID,
   'admin@cerply-dev.local',
-  'org_default_dev_00000000000000000000'::UUID,
+  '00000000-0000-0000-0000-000000000001'::UUID,
   now()
 ) ON CONFLICT (email) DO UPDATE SET organization_id = EXCLUDED.organization_id;
 
 -- Grant admin role to default user
 INSERT INTO user_roles (user_id, organization_id, role, granted_at)
 VALUES (
-  'user_admin_dev_00000000000000000001'::UUID,
-  'org_default_dev_00000000000000000000'::UUID,
+  '00000000-0000-0000-0000-000000000010'::UUID,
+  '00000000-0000-0000-0000-000000000001'::UUID,
   'admin',
   now()
 ) ON CONFLICT (user_id, organization_id, role) DO NOTHING;
@@ -103,17 +103,17 @@ VALUES (
 -- Default manager user (email: manager@cerply-dev.local)
 INSERT INTO users (id, email, organization_id, created_at)
 VALUES (
-  'user_manager_dev_0000000000000000002'::UUID,
+  '00000000-0000-0000-0000-000000000020'::UUID,
   'manager@cerply-dev.local',
-  'org_default_dev_00000000000000000000'::UUID,
+  '00000000-0000-0000-0000-000000000001'::UUID,
   now()
 ) ON CONFLICT (email) DO UPDATE SET organization_id = EXCLUDED.organization_id;
 
 -- Grant manager role
 INSERT INTO user_roles (user_id, organization_id, role, granted_at)
 VALUES (
-  'user_manager_dev_0000000000000000002'::UUID,
-  'org_default_dev_00000000000000000000'::UUID,
+  '00000000-0000-0000-0000-000000000020'::UUID,
+  '00000000-0000-0000-0000-000000000001'::UUID,
   'manager',
   now()
 ) ON CONFLICT (user_id, organization_id, role) DO NOTHING;
@@ -121,17 +121,17 @@ VALUES (
 -- Default learner user (email: learner@cerply-dev.local)
 INSERT INTO users (id, email, organization_id, created_at)
 VALUES (
-  'user_learner_dev_0000000000000000003'::UUID,
+  '00000000-0000-0000-0000-000000000030'::UUID,
   'learner@cerply-dev.local',
-  'org_default_dev_00000000000000000000'::UUID,
+  '00000000-0000-0000-0000-000000000001'::UUID,
   now()
 ) ON CONFLICT (email) DO UPDATE SET organization_id = EXCLUDED.organization_id;
 
 -- Grant learner role
 INSERT INTO user_roles (user_id, organization_id, role, granted_at)
 VALUES (
-  'user_learner_dev_0000000000000000003'::UUID,
-  'org_default_dev_00000000000000000000'::UUID,
+  '00000000-0000-0000-0000-000000000030'::UUID,
+  '00000000-0000-0000-0000-000000000001'::UUID,
   'learner',
   now()
 ) ON CONFLICT (user_id, organization_id, role) DO NOTHING;

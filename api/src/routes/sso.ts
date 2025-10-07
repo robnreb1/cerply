@@ -149,8 +149,18 @@ export async function registerSSORoutes(app: FastifyInstance) {
    * GET /api/auth/sso/mock/callback
    * Mock SSO callback for development
    * Query: { state: string, mock: 'true' }
+   * 
+   * SECURITY: Only enabled in development/test environments
    */
   app.get('/api/auth/sso/mock/callback', async (req, reply) => {
+    // Guard: Only allow in development/test environments
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    if (nodeEnv === 'production') {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Endpoint not available in production' }
+      });
+    }
+
     const query = req.query as any;
     const { state, mock } = query;
 
