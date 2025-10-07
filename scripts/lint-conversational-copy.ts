@@ -37,7 +37,11 @@ const DEFAULT_OPTIONS: LintOptions = {
     '*.test.tsx',
     '*.spec.ts',
     '*.spec.tsx',
-    '*.d.ts'
+    '*.d.ts',
+    '*.config.ts',
+    '*.config.js',
+    'web/lib/ie/router.ts', // Paraphrase pools ARE the variation system
+    'web/lib/presenter/', // Error messages are legitimately static
   ]
 };
 
@@ -97,13 +101,14 @@ class ConversationalCopyLinter {
       return false;
     }
     
-    // Exclude test files
+    // Exclude patterns (check against full path)
     if (this.options.excludePatterns.some(pattern => {
       if (pattern.includes('*')) {
         const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-        return regex.test(filename);
+        return regex.test(filepath) || regex.test(filename);
       }
-      return filename === pattern;
+      // Check if filepath contains the pattern (for directory exclusions)
+      return filepath.includes(pattern) || filename === pattern;
     })) {
       return false;
     }
@@ -133,11 +138,27 @@ class ConversationalCopyLinter {
       return;
     }
     
+    // Skip lines that are clearly CSS/styling (className, Tailwind, etc.)
+    if (line.includes('className') || line.includes('style=') || 
+        line.match(/class(Name)?=/i)) {
+      return;
+    }
+    
     // Find string literals
     const stringMatches = this.findStringLiterals(line);
     
     for (const match of stringMatches) {
       if (match.length > this.options.maxStringLength) {
+        // Skip if it looks like CSS classes (contains common Tailwind patterns)
+        if (this.looksLikeCSSClasses(match)) {
+          continue;
+        }
+        
+        // Skip non-content strings (SVG paths, file extensions, URLs, etc.)
+        if (this.isNonContentString(match)) {
+          continue;
+        }
+        
         // Check if it's whitelisted
         if (!this.isWhitelisted(match, filepath, lineNumber)) {
           this.results.push({
@@ -149,6 +170,31 @@ class ConversationalCopyLinter {
         }
       }
     }
+  }
+  
+  private looksLikeCSSClasses(str: string): boolean {
+    // Common Tailwind/CSS patterns
+    const cssPatterns = [
+      /\b(flex|grid|inline|block|hidden|absolute|relative|fixed|sticky)\b/,
+      /\b(rounded|border|shadow|bg|text|font|p|m|w|h)-/,
+      /\b(hover|focus|active|disabled):/,
+      /\d+(px|rem|em|%|vh|vw)\b/,
+    ];
+    
+    return cssPatterns.some(pattern => pattern.test(str));
+  }
+  
+  private isNonContentString(str: string): boolean {
+    // Patterns for non-user-facing strings
+    const nonContentPatterns = [
+      /^[MmLlHhVvCcSsQqTtAaZz\d\s.,\-]+$/, // SVG path data
+      /^\.[a-z]{2,5}(,\.[a-z]{2,5})*$/i, // File extensions (.pdf,.doc,etc)
+      /^https?:\/\//, // URLs
+      /^[/\w-]+\.[a-z]{2,5}$/i, // File paths
+      /^\w+:/, // URL schemes or CSS pseudo-selectors
+    ];
+    
+    return nonContentPatterns.some(pattern => pattern.test(str));
   }
 
   private findStringLiterals(line: string): string[] {

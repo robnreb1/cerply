@@ -19,7 +19,7 @@
     "smoke:prod": "bash scripts/smoke-prod.sh",
     "traceability:check": "tsx scripts/traceability_check.ts",
     "traceability:report": "tsx scripts/traceability_check.ts --report docs/status/traceability-dashboard.md",
-    "lint:conversational-copy": "ts-node scripts/lint-conversational-copy.ts"
+    "lint:conversational-copy": "tsx scripts/lint-conversational-copy.ts"
   },
   "devDependencies": {
     "@types/node": "^20.19.19",
