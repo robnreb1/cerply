@@ -281,10 +281,33 @@ export function evaluateContentQuality(artifact: ContentBody): QualityMetrics {
   let factualAccuracy = 0.85;
   let pedagogicalSoundness = 0.85;
 
-  // Check for required fields
-  if (artifact.title && artifact.title.length > 10) coverage += 0.05;
-  if (artifact.summary && artifact.summary.length > 50) coverage += 0.05;
-  if (artifact.modules && artifact.modules.length >= 3) coverage += 0.05;
+  // Heavy penalties for missing/poor required fields
+  if (!artifact.title || artifact.title.length === 0) {
+    coverage -= 0.3;
+    coherence -= 0.2;
+  } else if (artifact.title.length < 10) {
+    coverage -= 0.15;
+  } else {
+    coverage += 0.05;
+  }
+
+  if (!artifact.summary || artifact.summary.length < 20) {
+    coverage -= 0.3;
+    pedagogicalSoundness -= 0.2;
+  } else if (artifact.summary.length < 50) {
+    coverage -= 0.1;
+  } else if (artifact.summary.length > 80) {
+    coverage += 0.05;
+  }
+
+  if (!artifact.modules || artifact.modules.length === 0) {
+    coverage -= 0.4;
+    pedagogicalSoundness -= 0.3;
+  } else if (artifact.modules.length < 3) {
+    coverage -= 0.1;
+  } else {
+    coverage += 0.05;
+  }
 
   // Penalize forbidden/template phrases
   const forbiddenPhrases = [
@@ -303,15 +326,26 @@ export function evaluateContentQuality(artifact: ContentBody): QualityMetrics {
   }
 
   // Reward specificity (unique tokens)
-  const tokens = fullText.split(/\s+/);
-  const uniqueRatio = new Set(tokens).size / tokens.length;
+  const tokens = fullText.split(/\s+/).filter(t => t.length > 2);
+  const uniqueRatio = tokens.length > 0 ? new Set(tokens).size / tokens.length : 0;
   if (uniqueRatio > 0.6) {
     coherence += 0.05;
     factualAccuracy += 0.05;
+  } else if (uniqueRatio < 0.4) {
+    coherence -= 0.1;
+    factualAccuracy -= 0.1;
   }
 
+  // Check module quality
+  if (artifact.modules && artifact.modules.length > 0) {
+    const modulesWithDesc = artifact.modules.filter(m => m.description && m.description.length > 30);
+    if (modulesWithDesc.length < artifact.modules.length * 0.5) {
+      pedagogicalSoundness -= 0.1;
+    }
+  }
+  
   const overall = (coherence + coverage + factualAccuracy + pedagogicalSoundness) / 4;
-
+  
   return {
     coherence: Math.max(0, Math.min(1, coherence)),
     coverage: Math.max(0, Math.min(1, coverage)),
