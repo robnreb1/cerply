@@ -16,17 +16,29 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
   app.post('/api/certified/schedule', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
     const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
     if (!ct.includes('application/json')) {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
       return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Expected content-type: application/json' } });
     }
     if (!enabled()) {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Retention preview disabled' } });
     }
     const parsed = ScheduleRequestZ.safeParse(((req as any).body ?? {}) as any);
     if (!parsed.success) {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Invalid schedule payload' } });
     }
     const { session_id, plan_id, items, prior, now } = parsed.data;
@@ -52,10 +64,19 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
 
     const resp = { session_id, plan_id, order, due: nowISO, meta: { algo: 'sm2-lite' as const, version: 'v0' as const } };
     try { ScheduleResponseZ.parse(resp); } catch {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
       return reply.code(500).send({ error: { code: 'INTERNAL', message: 'schedule schema validation failed' } });
     }
     SNAPSHOTS.set(session_id, { session_id, items: snapshotItems });
 
+    // Add standard observability headers
+    reply.header('x-canon', 'bypass');
+    reply.header('x-quality', '1.00');
+    reply.header('x-cost', 'fresh');
+    reply.header('x-adapt', 'none');
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');
     reply.header('cache-control', 'no-store');
@@ -66,17 +87,29 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
   app.post('/api/certified/progress', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
     const ct = String((req.headers as any)['content-type'] || '').toLowerCase();
     if (!ct.includes('application/json')) {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
       return reply.code(415).send({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Expected content-type: application/json' } });
     }
     if (!enabled()) {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Retention preview disabled' } });
     }
     const parsed = ProgressEventZ.safeParse(((req as any).body ?? {}) as any);
     if (!parsed.success) {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
       return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'Invalid progress event' } });
     }
     const { session_id, card_id, action, grade, at, result } = parsed.data;
@@ -123,6 +156,10 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
       // Legacy self-grading mode (kept for backward compat, but logged as deprecated)
       console.log(`[retention] DEPRECATED: Self-grading mode used. Consider migrating to auto-assessment (action='submit').`);
       if (typeof grade !== 'number' || !Number.isFinite(grade)) {
+        reply.header('x-canon', 'bypass');
+        reply.header('x-quality', '0.00');
+        reply.header('x-cost', 'fresh');
+        reply.header('x-adapt', 'none');
         return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'grade required (0..5) for action=grade' } });
       }
       const updated = sm2Update({ reps: entry.reps, ef: entry.ef, intervalDays: entry.intervalDays, lastGrade: entry.lastGrade }, Number(grade));
@@ -132,6 +169,19 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
     if (idx >= 0) current.items[idx] = next; else current.items.push(next);
     SNAPSHOTS.set(session_id, current);
 
+    // Determine adaptive signal
+    let xAdapt = 'none';
+    if (action === 'submit' && result) {
+      if (result.correct && result.latency_ms < 10000) xAdapt = 'hard';
+      else if (!result.correct && result.latency_ms > 30000) xAdapt = 'easy';
+      else if (!result.correct) xAdapt = 'review';
+    }
+
+    // Add standard observability headers
+    reply.header('x-canon', 'bypass');
+    reply.header('x-quality', '1.00');
+    reply.header('x-cost', 'fresh');
+    reply.header('x-adapt', xAdapt);
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');
     reply.header('cache-control', 'no-store');
@@ -141,17 +191,36 @@ export async function registerCertifiedRetentionRoutes(app: FastifyInstance) {
   // GET /api/certified/progress?sid=
   app.get('/api/certified/progress', { config: { public: true } }, async (req: FastifyRequest, reply: FastifyReply) => {
     if (!enabled()) {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
       reply.header('access-control-allow-origin', '*');
       reply.removeHeader('access-control-allow-credentials');
       return reply.code(503).send({ error: { code: 'CERTIFIED_DISABLED', message: 'Retention preview disabled' } });
     }
     const q = (req as any).query as { sid?: string };
     const sid = String(q?.sid || '').trim();
-    if (!sid) return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'sid required' } });
+    if (!sid) {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
+      return reply.code(400).send({ error: { code: 'BAD_REQUEST', message: 'sid required' } });
+    }
     const snap = SNAPSHOTS.get(sid) ?? { session_id: sid, items: [] };
     try { ProgressSnapshotZ.parse(snap); } catch {
+      reply.header('x-canon', 'bypass');
+      reply.header('x-quality', '0.00');
+      reply.header('x-cost', 'fresh');
+      reply.header('x-adapt', 'none');
       return reply.code(500).send({ error: { code: 'INTERNAL', message: 'snapshot invalid' } });
     }
+    // Add standard observability headers
+    reply.header('x-canon', 'bypass');
+    reply.header('x-quality', '1.00');
+    reply.header('x-cost', 'fresh');
+    reply.header('x-adapt', 'none');
     reply.header('access-control-allow-origin', '*');
     reply.removeHeader('access-control-allow-credentials');
     reply.header('cache-control', 'no-store');
