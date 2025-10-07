@@ -51,7 +51,7 @@ describe('Adaptive Behavior Tests', () => {
       url: '/api/score',
       payload: {
         item_id: 'item-1',
-        user_answer: 'wrong answer',
+        response_text: 'wrong answer',
         expected_answer: 'correct answer',
         latency_ms: 35000,
         hint_count: 2,
@@ -70,7 +70,7 @@ describe('Adaptive Behavior Tests', () => {
       url: '/api/score',
       payload: {
         item_id: 'item-2',
-        user_answer: 'correct answer',
+        response_text: 'correct answer',
         expected_answer: 'correct answer',
         latency_ms: 5000,
         hint_count: 0,
@@ -102,21 +102,21 @@ describe('Adaptive Behavior Tests', () => {
   test('auto-assessment works without manual grading', async () => {
     const testCases = [
       {
-        user_answer: 'correct answer',
+        response_text: 'correct answer',
         expected_answer: 'correct answer',
         latency_ms: 5000,
         hint_count: 0,
         description: 'correct and fast'
       },
       {
-        user_answer: 'wrong answer',
+        response_text: 'wrong answer',
         expected_answer: 'correct answer',
         latency_ms: 30000,
         hint_count: 2,
         description: 'wrong and slow'
       },
       {
-        user_answer: 'partially correct',
+        response_text: 'partially correct',
         expected_answer: 'correct answer',
         latency_ms: 15000,
         hint_count: 1,
@@ -130,7 +130,7 @@ describe('Adaptive Behavior Tests', () => {
         url: '/api/score',
         payload: {
           item_id: 'test-item',
-          user_answer: testCase.user_answer,
+          response_text: testCase.response_text,
           expected_answer: testCase.expected_answer,
           latency_ms: testCase.latency_ms,
           hint_count: testCase.hint_count
@@ -264,7 +264,7 @@ describe('Adaptive Behavior Tests', () => {
         url: '/api/score',
         payload: {
           item_id: 'item-1',
-          user_answer: attempt.grade > 3 ? 'correct' : 'incorrect',
+          response_text: attempt.grade > 3 ? 'correct' : 'incorrect',
           expected_answer: 'correct',
           latency_ms: attempt.latency,
           hint_count: attempt.grade < 3 ? 1 : 0
@@ -288,11 +288,11 @@ describe('Adaptive Behavior Tests', () => {
   test('difficulty progression follows learning science principles', async () => {
     const testSequence = [
       // Start easy, struggle, then improve
-      { user_answer: 'correct', latency_ms: 5000, expected_difficulty: 'easy' },
-      { user_answer: 'wrong', latency_ms: 35000, expected_difficulty: 'hard' },
-      { user_answer: 'wrong', latency_ms: 30000, expected_difficulty: 'hard' },
-      { user_answer: 'correct', latency_ms: 15000, expected_difficulty: 'medium' },
-      { user_answer: 'correct', latency_ms: 8000, expected_difficulty: 'easy' }
+      { response_text: 'correct', latency_ms: 5000, expected_difficulty: 'easy' },
+      { response_text: 'wrong', latency_ms: 35000, expected_difficulty: 'hard' },
+      { response_text: 'wrong', latency_ms: 30000, expected_difficulty: 'hard' },
+      { response_text: 'correct', latency_ms: 15000, expected_difficulty: 'medium' },
+      { response_text: 'correct', latency_ms: 8000, expected_difficulty: 'easy' }
     ];
 
     for (let i = 0; i < testSequence.length; i++) {
@@ -303,10 +303,10 @@ describe('Adaptive Behavior Tests', () => {
         url: '/api/score',
         payload: {
           item_id: `progression-item-${i}`,
-          user_answer: testCase.user_answer,
+          response_text: testCase.response_text,
           expected_answer: 'correct',
           latency_ms: testCase.latency_ms,
-          hint_count: testCase.user_answer === 'wrong' ? 1 : 0
+          // No hint_count in new schema
         }
       });
 
@@ -316,7 +316,7 @@ describe('Adaptive Behavior Tests', () => {
       expect(body.difficulty).toBe(testCase.expected_difficulty);
       
       // Verify explanation is provided when struggling
-      if (testCase.user_answer === 'wrong' || testCase.latency_ms > 20000) {
+      if (testCase.response_text === 'wrong' || testCase.latency_ms > 20000) {
         expect(body.explain).toBeTruthy();
       }
     }
