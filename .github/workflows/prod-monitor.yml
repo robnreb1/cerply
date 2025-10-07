@@ -8,6 +8,10 @@ on:
     - cron: '*/15 * * * *'  # Every 15 minutes
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  contents: read
+  issues: write  # Required to create GitHub issues on production failures
+
 jobs:
   prod-health-check:
     runs-on: ubuntu-latest
