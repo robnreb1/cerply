@@ -441,9 +441,9 @@ curl -H "Cookie: cerply.sid=admin-session" \
 
 ### Phase 1: Foundation (Week 1)
 **Must-Have for Demo:**
-- ✅ EPIC 1: D2C Removal & Enterprise Foundation (Night 1)
-- ✅ EPIC 2: Enterprise SSO & RBAC (Night 2)
-- ✅ EPIC 3: Team Management & Learner Assignment (Night 3)
+- ✅ EPIC 1: D2C Removal & Enterprise Foundation (Night 1) - COMPLETE
+- ✅ EPIC 2: Enterprise SSO & RBAC (Night 2) - COMPLETE
+- ⭕ EPIC 3: Team Management & Learner Assignment (Night 3) - NEXT
 
 ### Phase 2: Core B2B Value (Week 2)
 **Must-Have for Pilot:**
