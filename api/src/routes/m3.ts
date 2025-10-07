@@ -225,8 +225,12 @@ export async function registerM3Routes(app: FastifyInstance) {
           id: `module-${idx + 1}`,
           title: m.title,
           description: rigorMode 
-            ? `Comprehensive exploration of ${m.title} with specific examples and detailed analysis.`
-            : `Learn about ${m.title} through structured lessons and practice.`,
+            ? `Comprehensive exploration of ${m.title} with specific examples and detailed analysis covering fundamental concepts, advanced techniques, and real-world applications.`
+            : `Structured approach to ${m.title} with clear explanations, practical examples, and progressive skill development.`,
+          content: rigorMode
+            ? `Detailed exposition on ${m.title}: Understanding the core principles, exploring advanced methodologies, and applying knowledge to practical scenarios with real-world case studies.`
+            : `Introduction to ${m.title}: Core concepts explained clearly with examples and practical applications for effective learning.`,
+          type: 'lesson' as const,
           items: [
             {
               id: `item-${idx + 1}-1`,
@@ -243,8 +247,17 @@ export async function registerM3Routes(app: FastifyInstance) {
         
         const artifact: ContentBody = {
           title: body.modules[0]?.title || 'Generated Content',
-          summary: `Structured learning path covering: ${body.modules.map(m => m.title).join(', ')}`,
+          summary: rigorMode
+            ? `Comprehensive structured learning path exploring: ${body.modules.map(m => m.title).join(', ')} with in-depth analysis, practical examples, and progressive skill development across multiple domains.`
+            : `Structured learning path covering: ${body.modules.map(m => m.title).join(', ')} with clear explanations and practice exercises.`,
           modules,
+          metadata: {
+            topic: body.modules[0]?.title || 'generated-content',
+            difficulty: body.level || 'intermediate',
+            estimatedTime: modules.length * 15,
+            prerequisites: [],
+            learningObjectives: body.modules.map(m => `Master ${m.title}`),
+          },
         };
         
         return artifact;
@@ -267,6 +280,13 @@ export async function registerM3Routes(app: FastifyInstance) {
         modules: result.artifact.modules?.map(m => ({
           id: m.id,
           title: m.title,
+          lessons: [
+            {
+              id: `${m.id}-lesson-1`,
+              title: m.title,
+              explanation: m.content || m.description || 'Lesson content',
+            },
+          ],
           items: m.items || [],
         })) || [],
         metadata: {

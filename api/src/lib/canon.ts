@@ -16,9 +16,18 @@ export type ContentBody = {
     id: string;
     title: string;
     description?: string;
+    content?: string;
+    type?: string;
     items?: Array<{ id: string; prompt: string; type?: string }>;
   }>;
   items?: Array<{ id: string; prompt: string; answer?: string }>;
+  metadata?: {
+    topic: string;
+    difficulty: string;
+    estimatedTime: number;
+    prerequisites: string[];
+    learningObjectives: string[];
+  };
 };
 
 export type QualityMetrics = {
@@ -40,6 +49,11 @@ export type CanonRecord = {
   created_at: string;
   accessed_at: string;
   access_count: number;
+  lineage?: {
+    sourceModels: string[];
+    qualityScores: QualityMetrics;
+    validationResults: any[];
+  };
 };
 
 /**
@@ -191,10 +205,35 @@ export function retrieveCanonicalContent(key: string): CanonRecord | null {
 /**
  * Search for canonical content (for now, exact key match; future: semantic search)
  */
-export function searchCanonicalContent(query: string): CanonRecord[] {
-  const key = keyFrom({ content: query });
-  const record = canonStore.getByKey(key);
-  return record ? [record] : [];
+export function searchCanonicalContent(query: string | { topic: string; minQuality?: number; limit?: number }): CanonRecord[] {
+  if (typeof query === 'string') {
+    const key = keyFrom({ content: query });
+    const record = canonStore.getByKey(key);
+    return record ? [record] : [];
+  }
+  
+  // Object query with topic + quality filter
+  const { topic, minQuality = 0, limit = 10 } = query;
+  const allKeys = canonStore.getAllKeys();
+  const results: CanonRecord[] = [];
+  
+  for (const key of allKeys) {
+    const record = canonStore.getByKey(key);
+    if (!record) continue;
+    
+    // Check if topic matches (case-insensitive)
+    const recordTopic = record.artifact.metadata?.topic || record.artifact.title || '';
+    if (recordTopic.toLowerCase().includes(topic.toLowerCase())) {
+      if (record.quality_score >= minQuality) {
+        results.push(record);
+      }
+    }
+  }
+  
+  // Sort by quality score descending
+  results.sort((a, b) => b.quality_score - a.quality_score);
+  
+  return results.slice(0, limit);
 }
 
 /**
@@ -208,14 +247,21 @@ export function canonizeContent(
   const key = keyFrom(payload);
   const sha256 = crypto.createHash('sha256').update(JSON.stringify(artifact)).digest('hex');
   
+  const sourceModels = typeof metadata.model === 'string' ? [metadata.model] : metadata.model as any;
+  
   return canonStore.put({
     key,
     artifact,
     sha256,
-    model: metadata.model,
+    model: Array.isArray(sourceModels) ? sourceModels[0] : metadata.model,
     quality_score: metadata.quality_score,
     quality_metrics: metadata.quality_metrics,
     created_at: new Date().toISOString(),
+    lineage: {
+      sourceModels: Array.isArray(sourceModels) ? sourceModels : [metadata.model],
+      qualityScores: metadata.quality_metrics || evaluateQualityMetrics(artifact),
+      validationResults: [],
+    },
   });
 }
 
