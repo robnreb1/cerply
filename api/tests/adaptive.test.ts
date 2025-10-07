@@ -325,24 +325,21 @@ describe('Adaptive Behavior Tests', () => {
   test('adaptive feedback is contextually appropriate', async () => {
     const scenarios = [
       {
-        user_answer: 'wrong',
+        response_text: 'wrong',
         latency_ms: 45000,
-        hint_count: 3,
-        expected_explanation: 'correct approach',
+        expected_rationale_contains: 'Not quite right',
         description: 'struggling learner'
       },
       {
-        user_answer: 'correct',
+        response_text: 'correct answer text',
         latency_ms: 6000,
-        hint_count: 0,
-        expected_explanation: '',
+        expected_rationale_contains: 'Well done',
         description: 'confident learner'
       },
       {
-        user_answer: 'correct',
+        response_text: 'correct answer text',
         latency_ms: 25000,
-        hint_count: 0,
-        expected_explanation: 'smaller steps',
+        expected_rationale_contains: 'Correct, but took longer',
         description: 'slow but correct'
       }
     ];
@@ -353,26 +350,19 @@ describe('Adaptive Behavior Tests', () => {
         url: '/api/score',
         payload: {
           item_id: 'feedback-item',
-          user_answer: scenario.user_answer,
-          expected_answer: 'correct',
-          latency_ms: scenario.latency_ms,
-          hint_count: scenario.hint_count
+          response_text: scenario.response_text,
+          expected_answer: 'correct answer text',
+          latency_ms: scenario.latency_ms
         }
       });
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       
-      if (scenario.expected_explanation) {
-        expect(body.explain).toContain(scenario.expected_explanation);
-      } else {
-        expect(body.explain).toBe('');
-      }
-      
-      // Next hint should be provided for struggling learners
-      if (scenario.hint_count > 0 && scenario.user_answer === 'wrong') {
-        expect(body.next_hint).toBeTruthy();
-      }
+      expect(body.data).toBeDefined();
+      expect(body.data.rationale).toContain(scenario.expected_rationale_contains);
+      expect(body.data.correct).toBeDefined();
+      expect(body.data.signals).toBeDefined();
     }
   });
 
@@ -395,9 +385,9 @@ describe('Adaptive Behavior Tests', () => {
 
     // Record various performance metrics
     const metrics = [
-      { correct: true, latency: 8000, hints: 0 },
-      { correct: false, latency: 25000, hints: 1 },
-      { correct: true, latency: 12000, hints: 0 }
+      { response: 'correct answer', latency: 8000, expected_latency_bucket: 'fast' },
+      { response: 'wrong', latency: 25000, expected_latency_bucket: 'ok' },
+      { response: 'correct answer', latency: 12000, expected_latency_bucket: 'ok' }
     ];
 
     for (const metric of metrics) {
@@ -406,29 +396,22 @@ describe('Adaptive Behavior Tests', () => {
         url: '/api/score',
         payload: {
           item_id: 'metric-item',
-          user_answer: metric.correct ? 'correct' : 'wrong',
-          expected_answer: 'correct',
-          latency_ms: metric.latency,
-          hint_count: metric.hints
+          response_text: metric.response,
+          expected_answer: 'correct answer',
+          latency_ms: metric.latency
         }
       });
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       
-      // Verify diagnostics are captured
-      expect(body.diagnostics.latency_ms).toBe(metric.latency);
-      expect(body.diagnostics.hint_count).toBe(metric.hints);
-      expect(body.diagnostics.confidence).toBeDefined();
-      
-      // Confidence should correlate with performance
-      if (metric.correct && metric.latency < 15000 && metric.hints === 0) {
-        expect(body.diagnostics.confidence).toBe('high');
-      } else if (metric.correct) {
-        expect(body.diagnostics.confidence).toBe('medium');
-      } else {
-        expect(body.diagnostics.confidence).toBe('low');
-      }
+      // Verify signals are captured
+      expect(body.data).toBeDefined();
+      expect(body.data.signals).toBeDefined();
+      expect(body.data.signals.latency_bucket).toBe(metric.expected_latency_bucket);
+      expect(body.data.signals.difficulty_delta).toBeDefined();
+      expect(body.data.signals.next_review_suggestion_s).toBeDefined();
+      expect(body.data.correct).toBeDefined();
     }
   });
 });
