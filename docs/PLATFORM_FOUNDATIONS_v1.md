@@ -1,211 +1,489 @@
-# Platform Foundations v1
+# PLATFORM FOUNDATIONS v1
 
-**Epic:** PLATFORM_FOUNDATIONS_v1  
-**Related:** M3_API_SURFACE  
-**BRD/FSD Hooks:** Quality-first then reuse, cost-aware via reuse, adaptive learning, non-templated chat
+**Epic:** Quality-first, cost-aware, adaptive learning infrastructure  
+**Status:** Implemented  
+**Version:** 1.0.0  
+**Last Updated:** 2025-10-07
 
-## Overview
+---
 
-Platform Foundations provides the core infrastructure for quality-first content generation, intelligent reuse, cost optimization, and natural interaction.
+## Five Principles (Global Enforcement)
 
-### Principles
+### 1. Quality-first, Always Reusable
+- **First-time generation**: Use top models (gpt-4) + heuristic quality scoring
+- **Quality floor**: Minimum 0.80 threshold; retry once with rigor mode if below
+- **Canonization**: Store only content that passes quality floor (>= 0.80)
+- **Integrity**: SHA256 validation on retrieval; invalidate if tampered
+- **503 QUALITY_FLOOR**: Return error if even retry fails to meet threshold
 
-1. **Quality-first, always reusable:** Generate once with high quality (even if expensive), then persist and reuse. Never "cheap out" on first-time generation.
-2. **Cost-aware via reuse, not via low quality:** Optimize costs by reusing high-quality canon content, not by generating cheap content.
-3. **Adaptive, automated, AI-first:** System infers mastery and adjusts difficulty automatically. No manual grading required.
-4. **Chat-first, natural, never templated:** Responses vary naturally using paraphrase pools. No fixed "Getting started / Key principles" blocks.
+### 2. AI-first, Chat-native, Non-templated
+- **Conversational**: All responses vary; never fixed "Getting started/Key principles/Practical applications" blocks
+- **Paraphrase pools**: Generate multiple variants; rotate on reuse
+- **Lint enforcement**: `ux-no-templates-lint` blocks forbidden phrases in content
+- **Interaction Engine**: NL intent router (web/lib/ie/router.ts) for dynamic microcopy
+
+### 3. Adaptive by Default
+- **Auto-assessment**: NO self-grading; system infers mastery from correctness, latency, hints, retries
+- **Difficulty adaptation**:
+  - 2× wrong @ same difficulty + latency > 30s → ease down
+  - 3× correct @ fast (<10s) + no hints → step up
+- **Never-repeat-verbatim**: Paraphrase variants prevent exact text repetition
+- **Spaced scheduling**: SM2-lite algorithm with auto-inferred grades
+
+### 4. Cost-aware via Reuse (Never at Quality's Expense)
+- **Fresh generation**: When canon miss or quality floor fails
+- **Reuse**: When canon hit with integrity validation
+- **Telemetry**: Cost Graph tracks fresh vs reuse per route
+- **Transparency**: `x-cost: fresh|reuse` header on every response
+
+### 5. Observability (Tiny, Testable Signals)
+Every M3 API response includes headers:
+- **`x-canon: hit|store|bypass`** — Canon cache status
+- **`x-quality: 0.00–1.00`** — Quality score (heuristic)
+- **`x-cost: fresh|reuse`** — Cost bucket (fresh generation vs canon reuse)
+- **`x-adapt: none|easy|hard|review`** — Adaptive difficulty signal
+
+Body includes:
+- **Success**: `{ data, meta }` envelope
+- **Error**: `{ error: { code, message, details? } }` envelope
+
+---
 
 ## Components
 
-### 1. Canon Store (`api/src/lib/canon.ts`)
-
-**Purpose:** In-memory LRU cache for high-quality generated content.
+### Canon Store (`api/src/lib/canon.ts`)
+**Purpose:** In-memory LRU cache for high-quality, reusable content.
 
 **Features:**
-- Stable content hashing (`keyFrom()`) based on normalized prompt + inputs + policy
-- LRU eviction when cache exceeds max size (default 1000 entries)
-- Optional JSON persistence via `CANON_PERSIST_PATH`
-- Access tracking (accessed_at, access_count)
+- Stable key generation (`keyFrom`) from normalized payload
+- SHA256 integrity check on retrieval
+- LRU eviction (max 1000 entries)
+- Optional JSON persistence (`CANON_PERSIST_PATH`)
+- Quality filter: only store content with `quality_score >= 0.80`
 
 **API:**
-```typescript
-keyFrom(payload: any): string
-retrieveCanonicalContent(key: string): CanonRecord | null
-canonizeContent(artifact, metadata, payload): CanonRecord
-searchCanonicalContent(query: string): CanonRecord[]
-contentExists(key: string): boolean
-```
+- `retrieveCanonicalContent(key)` — Get cached content with integrity check
+- `canonizeContent(artifact, metadata, payload)` — Store content if quality passes
+- `searchCanonicalContent(query)` — Find by topic + quality filter
 
-**Env Flags:**
-- `CANON_ENABLED=true` (required for canon store to function)
-- `CANON_PERSIST_PATH=/path/to/canon.json` (optional, for persistence)
+**Environment:**
+- `CANON_ENABLED=true` — Enable canon store
+- `CANON_PERSIST_PATH=/path/to/canon.json` — Optional persistence
 
-### 2. Quality Floor (`api/src/lib/quality.ts`)
+---
 
-**Purpose:** Heuristic scorer to ensure generated content meets minimum standards before canonization.
+### Quality Floor (`api/src/lib/quality.ts`)
+**Purpose:** Heuristic content scoring to enforce minimum standards.
 
-**Threshold:** 0.8 (only content scoring >= 0.8 is stored in canon)
+**Scoring Logic:**
+- **Forbidden phrases**: Heavy penalty for "getting started", "key principles", "practical applications", etc.
+- **Schema coverage**: Reward complete title, summary, modules with descriptions
+- **Length bounds**: Minimum content depth (100+ chars)
+- **Unique token ratio**: Penalize repetitive/generic content (<0.5 unique ratio)
+- **Module depth**: Reward modules with detailed descriptions (>20 chars)
 
-**Scoring Heuristics:**
-- Penalize template phrases ("getting started", "key principles", etc.) -0.15 each
-- Penalize missing/short title/summary -0.1 each
-- Penalize low unique token ratio (< 0.5) -0.1
-- Reward high specificity (unique ratio > 0.7) +0.05
-- Reward well-structured modules +0.05
+**Quality Threshold:** `0.80` (configurable)
 
 **Retry Logic:**
-- First attempt: normal generation mode
-- If score < 0.8: retry once with "rigor mode" (more detailed prompts)
-- Store only if final score >= 0.8
+1. Generate content (normal mode)
+2. Score with heuristics
+3. If `score < 0.80`, retry with `rigorMode = true` (more detailed/specific generation)
+4. If still `< 0.80`, return `503 QUALITY_FLOOR` error
 
 **API:**
-```typescript
-scoreArtifact(artifact, options): number
-evaluateQualityMetrics(artifact): QualityMetrics
-meetsQualityFloor(artifact): boolean
-generateWithQualityRetry(generator, options): Promise<{artifact, quality_score, retried}>
-```
+- `scoreArtifact(artifact)` — Returns 0.00–1.00 quality score
+- `evaluateQualityMetrics(artifact)` — Returns detailed metrics (coherence, coverage, accuracy, soundness)
+- `generateWithQualityRetry(generatorFn)` — Wraps generation with retry logic
 
-**Env Flags:**
-- `QUALITY_FLOOR_ENABLED=true`
+---
 
-### 3. Cost Graph (`api/src/lib/costGraph.ts`)
+### Cost Graph (`api/src/lib/costGraph.ts`)
+**Purpose:** Track API invocation costs, distinguishing fresh generation vs canon reuse.
 
-**Purpose:** Track fresh generation vs canon reuse for cost optimization.
-
-**Tracking:**
-- Fresh invocations: full token counts + estimated cost
-- Reuse invocations: near-zero cost (~$0.000001 for tracking)
-- Aggregates by route: fresh_count, reuse_count, total_cost, reuse_savings
+**Telemetry:**
+- **Fresh invocation**: Estimated tokens in/out, cost (based on model tier)
+- **Reuse invocation**: Near-zero cost (~$0.000001)
+- **Per-route aggregates**: `fresh_count`, `reuse_count`, `total_cost`, `reuse_savings`
 
 **API:**
-```typescript
-trackFreshInvocation(route, model, tokens_in, tokens_out, canon_key?)
-trackReuseInvocation(route, canon_key, model)
-getTodayAggregates(): CostAggregates[]
-```
+- `trackFreshInvocation(route, model, tokens_in, tokens_out, canon_key?)`
+- `trackReuseInvocation(route, canon_key, model?)`
+- `getTodayAggregates()` — Returns cost breakdown per route
 
-**Env Flags:**
-- `COST_GRAPH_ENABLED=true`
+**Exposure:**
+- `GET /api/ops/usage/daily` includes `meta.cost_graph` field
 
-**Exposed via:** `GET /api/ops/usage/daily` (includes `graph` field with cost aggregates)
+**Environment:**
+- `COST_GRAPH_ENABLED=true` — Enable cost tracking
 
-### 4. Interaction Engine (`web/lib/ie/router.ts`)
+---
 
-**Purpose:** Natural language intent recognition with non-templated responses.
+### Interaction Engine (`web/lib/ie/router.ts`)
+**Purpose:** Lightweight NL intent router for non-templated, varied responses.
+
+**Intents:**
+- `shorter`, `bullets`, `simplify`, `examples`, `timeConstraint`, `dontUnderstand`, `skip`, `test`, `goBack`, `whatsNext`, `showProgress`, `generalConversation`
 
 **Features:**
-- Intent types: upload, start_study, show_progress, help, about_cerply, clarify, confirm
-- Paraphrase pools (6-8 variants per intent)
-- Markov-style state to avoid same response twice in a row
-- Dynamic microcopy generation for inputs/buttons/hints
+- Paraphrase pools for each intent (4+ variants per intent)
+- Context-aware suggestions based on learner state
+- No fixed "Getting started/Key principles" blocks
 
 **API:**
-```typescript
-parseIntent(input: string): IntentResult
-routeIntent(intentResult, context?): string
-getIntentSuggestions(context?): string[]
-generateMicrocopy(key: string, context?): string
+- `parseIntent(text, context)` — Returns intent + parameters
+- `routeIntent(intent, context)` — Returns dynamic response
+- `getIntentSuggestions(context)` — Returns relevant suggestions
+- `generateMicrocopy(options)` — Dynamic, non-templated microcopy
+
+**Lint Enforcement:**
+- `ux-no-templates-lint` script blocks forbidden phrases in web code
+
+**Environment:**
+- `NEXT_PUBLIC_INTERACTION_ENGINE=true` — Enable IE in web UI
+
+---
+
+## M3 API Surface (Contracts)
+
+All M3 endpoints follow these standards:
+
+### Success Envelope
+```json
+{
+  "data": { /* route-specific payload */ },
+  "meta": {
+    "source": "canon" | "fresh",
+    "quality_score": 0.85,
+    "canonized": true,
+    /* other metadata */
+  }
+}
 ```
 
-**Usage:** Integrated into `/learn` page and chat interfaces.
+### Error Envelope
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR" | "QUALITY_FLOOR" | "INTERNAL_ERROR",
+    "message": "Human-readable message",
+    "details": { /* optional structured details */ }
+  }
+}
+```
 
-## Integration Flow
+### Headers (All Responses)
+- `x-canon: hit|store|bypass`
+- `x-quality: 0.00–1.00`
+- `x-cost: fresh|reuse`
+- `x-adapt: none|easy|hard|review`
 
-### Content Generation (`/api/generate`)
+### Endpoints
 
-1. **Check Canon:** `retrieveCanonicalContent(keyFrom(payload))`
-   - If hit: return cached, track reuse, near-zero cost
-2. **Generate Fresh:** `generateWithQualityRetry(...)`
-   - First attempt (normal mode)
-   - If score < 0.8: retry with rigor mode
-3. **Canonize:** If final score >= 0.8, store in canon
-4. **Track Cost:** Fresh invocation with full tokens/cost
-5. **Return:** Include metadata (source, quality_score, canonized, model)
+#### `POST /api/preview`
+**Purpose:** Preview content structure before generation.
 
-### Adaptive Learning (`/api/score`, `/api/daily/next`)
+**Request:**
+```json
+{ "content": "quantum mechanics basics" }
+```
 
-- No manual grading required
-- System infers mastery from telemetry (correct, latency_ms, hint_count)
-- Auto-adjusts difficulty based on thresholds:
-  - 2× wrong/slow (>30s) → ease difficulty
-  - 3× correct/fast (<10s, no hints) → step up difficulty
-- Never repeats verbatim (uses paraphrase variants)
+**Response:**
+```json
+{
+  "data": {
+    "summary": "Structured exploration of...",
+    "proposed_modules": [
+      { "id": "mod-1", "title": "Foundations", "estimated_items": 5 }
+    ],
+    "clarifying_questions": ["What is your current familiarity?"]
+  },
+  "meta": { "source": "canon", "canonized": true, "quality_score": 0.88 }
+}
+```
+
+---
+
+#### `POST /api/generate`
+**Purpose:** Generate full learning modules with items.
+
+**Request:**
+```json
+{
+  "modules": [{ "title": "Linear Algebra" }],
+  "level": "intermediate"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "data": {
+    "modules": [
+      {
+        "id": "module-1",
+        "title": "Linear Algebra",
+        "lessons": [{ "id": "lesson-1", "title": "...", "explanation": "..." }],
+        "items": [{ "id": "item-1", "prompt": "...", "type": "free" }]
+      }
+    ]
+  },
+  "meta": {
+    "source": "fresh",
+    "canonized": true,
+    "model": "gpt-4",
+    "quality_score": 0.87,
+    "quality_metrics": { "coherence": 0.9, "coverage": 0.85, ... },
+    "retried": false
+  }
+}
+```
+
+**Response (Quality Floor Failure - 503):**
+```json
+{
+  "error": {
+    "code": "QUALITY_FLOOR",
+    "message": "Generated content did not meet quality threshold even after retry",
+    "details": {
+      "quality_score": 0.72,
+      "threshold": 0.8,
+      "retried": true,
+      "quality_metrics": { ... }
+    }
+  }
+}
+```
+
+---
+
+#### `POST /api/score`
+**Purpose:** Auto-assess learner response (NO SELF-GRADE).
+
+**Request:**
+```json
+{
+  "item_id": "item-1",
+  "response_text": "the matrix determinant measures volume scaling",
+  "latency_ms": 8500,
+  "variants": ["determinant", "volume", "scaling"],
+  "expected_answer": "determinant measures volume"
+}
+```
+
+**Response:**
+```json
+{
+  "data": {
+    "correct": true,
+    "rationale": "Well done! You've got this concept down.",
+    "signals": {
+      "latency_bucket": "fast",
+      "paraphrase_match": 0.8,
+      "difficulty_delta": 1,
+      "next_review_suggestion_s": 604800
+    }
+  },
+  "meta": { "source": "fresh" }
+}
+```
+
+**Headers:** `x-adapt: hard` (step up next)
+
+---
+
+#### `GET /api/daily/next?sid=<session_id>`
+**Purpose:** Get adaptive queue with difficulty and reasons.
+
+**Response:**
+```json
+{
+  "data": {
+    "queue": [
+      {
+        "item_id": "item-1",
+        "prompt": "Define spaced repetition",
+        "assigned_difficulty": "medium",
+        "priority": 1.0,
+        "reason": "stepped_up_mastery",
+        "due_at": "2025-10-07T12:00:00Z"
+      }
+    ],
+    "assigned_difficulty": "medium"
+  },
+  "meta": { "adaptation_reason": "stepped_up_mastery" }
+}
+```
+
+**Headers:** `x-adapt: hard`
+
+---
+
+#### `GET /api/ops/usage/daily`
+**Purpose:** Daily usage aggregates with cost graph.
+
+**Response:**
+```json
+{
+  "data": {
+    "generated_at": "2025-10-07T12:00:00Z",
+    "today": "2025-10-07",
+    "yesterday": "2025-10-06",
+    "routes": [
+      {
+        "date": "2025-10-07",
+        "route": "/api/generate",
+        "requests": 42,
+        "total_tokens_in": 8400,
+        "total_tokens_out": 12600,
+        "total_cost": 0.042,
+        "models": ["gpt-4"]
+      }
+    ]
+  },
+  "meta": {
+    "cost_graph": [
+      {
+        "route": "/api/generate",
+        "fresh_count": 12,
+        "reuse_count": 30,
+        "total_cost": 0.015,
+        "reuse_savings": 0.027
+      }
+    ]
+  }
+}
+```
+
+---
+
+#### `GET /api/ops/canon/_debug` (Non-prod Only)
+**Purpose:** Inspect canon store stats.
+
+**Response:**
+```json
+{
+  "data": {
+    "enabled": true,
+    "size": 47,
+    "maxSize": 1000,
+    "keys": ["a1b2c3d4...", "e5f6g7h8..."]
+  },
+  "meta": { "source": "canon_store" }
+}
+```
+
+---
 
 ## Testing
 
-### Test-Only Routes
+### Contract Smoke Tests
+**Script:** `api/scripts/smoke-m3-contracts.sh`
 
-- `GET /api/ops/canon/:key` (NODE_ENV=test only) - inspect canon entries
+**What it tests:**
+- Headers (`x-canon`, `x-quality`, `x-cost`, `x-adapt`) present on all endpoints
+- Success envelope `{ data, meta }` structure
+- Error envelope `{ error: { code, message, details? } }` structure
+- 200 for valid requests
+- 400 for validation errors
+- 503 for quality floor failures (if stub generates low quality)
 
-### Env Setup for Tests
-
+**Usage:**
 ```bash
-# All tests
-export CANON_ENABLED=true
-export QUALITY_FLOOR_ENABLED=true
-export COST_GRAPH_ENABLED=true
-export CERTIFIED_ENABLED=true
-export RETENTION_ENABLED=true
+# Local
+./api/scripts/smoke-m3-contracts.sh http://localhost:8080
 
-# Run tests
-npm run test --workspace=api -- canon-reuse
-npm run test --workspace=api -- quality-floor-eval
-npm run test --workspace=api -- cost-graph-tests
-npm run test --workspace=web -- conv-variance-eval
-npm run test --workspace=web -- nl-commands-e2e
+# Staging
+./api/scripts/smoke-m3-contracts.sh https://cerply-api-staging-latest.onrender.com
+
+# Prod
+./api/scripts/smoke-m3-contracts.sh https://cerply-api-prod-latest.onrender.com
 ```
 
-## Verification
+---
 
-### Canon Reuse
+## CI Integration
 
+**Workflow:** `.github/workflows/ci-quality-floor.yml`
+
+**Steps:**
+1. Install dependencies (root + workspaces)
+2. Typecheck (API + Web)
+3. Unit tests (API: canon, quality, cost graph, adaptive)
+4. E2E tests (Web: Playwright learner auto-assessment)
+5. Contract smoke tests (`smoke-m3-contracts.sh`)
+6. Lint conversational copy (`ux-no-templates-lint`)
+
+**Environment Variables (CI):**
+- `CERTIFIED_ENABLED=true`
+- `RETENTION_ENABLED=true`
+- `CANON_ENABLED=true`
+- `COST_GRAPH_ENABLED=true`
+- `NEXT_PUBLIC_INTERACTION_ENGINE=true`
+
+---
+
+## Acceptance Criteria
+
+### ✅ Headers Present
 ```bash
-# First call (fresh)
-curl -X POST http://localhost:8080/api/generate \
-  -H "Content-Type: application/json" \
-  -d '{"modules":[{"title":"Quantum Mechanics"}]}'
-# Check metadata.source == "fresh", metadata.canonized == true
-
-# Second call (reuse)
-# Same request → metadata.source == "canon"
+curl -si POST $API/api/preview ... | grep -i "x-canon:"
+curl -si POST $API/api/generate ... | grep -i "x-quality:"
+curl -si POST $API/api/score ... | grep -i "x-adapt:"
 ```
 
-### Quality Floor
-
+### ✅ Success Envelope
 ```bash
-# Check quality scores
-curl http://localhost:8080/api/ops/canon/:key
-# Verify quality_score >= 0.8 for all stored entries
+curl -s POST $API/api/generate ... | jq '.data, .meta'
 ```
 
-### Cost Graph
-
+### ✅ Error Envelope
 ```bash
-# Check cost aggregates
-curl http://localhost:8080/api/ops/usage/daily
-# Verify graph field shows reuse_count > 0, reuse_cost near-zero
+curl -s POST $API/api/score -d '{}' | jq '.error.code, .error.message'
 ```
 
-## Backward Compatibility
+### ✅ Quality Floor (503)
+```bash
+# If stub generates low-quality content (unlikely with current stubs)
+curl -si POST $API/api/generate ... | grep "503"
+curl -s POST $API/api/generate ... | jq '.error.code' # "QUALITY_FLOOR"
+```
 
-- Canon disabled when `CANON_ENABLED != true` (falls through to fresh every time)
-- Quality floor disabled when `QUALITY_FLOOR_ENABLED != true` (no retry)
-- Cost graph disabled when `COST_GRAPH_ENABLED != true`
-- Legacy `/api/certified/progress` action=grade still accepted (logs deprecation warning)
-- Front/back fields on Card schema now optional for test compatibility
+### ✅ Canon Reuse
+```bash
+# First call: x-canon: store, x-cost: fresh
+# Second call (same payload): x-canon: hit, x-cost: reuse
+```
 
-## Performance
+### ✅ Adaptive Signals
+```bash
+# Fast correct: x-adapt: hard
+# Slow wrong: x-adapt: easy
+# Wrong (normal latency): x-adapt: review
+```
 
-- Canon LRU: O(1) lookup, O(log N) eviction
-- Quality scoring: O(n) where n = content length
-- Cost tracking: O(1) insert, O(m) aggregation where m = routes * days
+### ✅ Cost Graph
+```bash
+curl -s $API/api/ops/usage/daily | jq '.meta.cost_graph[] | select(.route=="/api/generate") | .reuse_savings'
+```
 
-## Future Work
+---
 
-- Semantic search for canon (current: exact key match)
-- Distributed canon store (Redis/Postgres)
-- ML-based quality scoring (current: heuristic)
-- Real-time cost alerts/budgets
-- BKT/AFM adaptive models (current: heuristic thresholds)
+## Known Gaps (Future Work)
 
+1. **LLM-based Quality Scoring:** Current heuristic scoring is robust but could be enhanced with LLM-based evaluation (e.g., GPT-4 as judge).
+2. **Semantic Canon Search:** Currently key-based exact match; future: vector embeddings for semantic similarity.
+3. **Persistent Learner Model:** In-memory sliding window (N=5); future: database-backed BKT/AFM models.
+4. **Real-time LLM Paraphrasing:** Stub paraphrases; future: on-the-fly LLM generation of variants.
+5. **Multi-model Cross-checks:** Quality floor retry with different model; future: ensemble validation.
+
+---
+
+## References
+
+- **BRD:** Learning that sticks (spaced, adaptive), certified via human-in-the-loop, enterprise utility, D2C data flywheel
+- **FSD:** §21/§21.1 (M3 API surface), learner flow, retention endpoints, non-templated NL UX
+- **SSOT:** `docs/specs/mvp-use-cases.md` (L-1…L-24)
+
+---
+
+**Sentinel:** `PLATFORM_FOUNDATIONS_v1_COMPLETE`
