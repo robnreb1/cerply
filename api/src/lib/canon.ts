@@ -140,6 +140,14 @@ class CanonStore {
     const record = this.store.get(key);
     if (!record) return null;
     
+    // Integrity check: recompute SHA256 and validate
+    const currentSha = crypto.createHash('sha256').update(JSON.stringify(record.artifact)).digest('hex');
+    if (currentSha !== record.sha256) {
+      console.warn(`[canon] Integrity check failed for key ${key}. Invalidating entry.`);
+      this.store.delete(key);
+      return null;
+    }
+    
     // Update access tracking
     record.accessed_at = new Date().toISOString();
     record.access_count += 1;
