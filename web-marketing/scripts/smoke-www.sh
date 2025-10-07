@@ -37,17 +37,11 @@ fi
 
 # Test 4: Waitlist API endpoint
 echo "✓ Test 4: Waitlist API"
-<<<<<<< HEAD
-RESPONSE=$(curl -s -X POST "$BASE/api/waitlist" \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com"}' \
-=======
 # Generate unique email for idempotency
 UNIQUE_EMAIL="test+$(date +%s)@example.com"
 RESPONSE=$(curl -s -X POST "$BASE/api/waitlist" \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"$UNIQUE_EMAIL\"}" \
->>>>>>> chore/prod-monitoring-and-closeout
   -w "\n%{http_code}")
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -63,11 +57,8 @@ elif [ "$HTTP_CODE" = "501" ]; then
     echo "  Response: $BODY"
     exit 1
   fi
-<<<<<<< HEAD
-=======
 elif [ "$HTTP_CODE" = "409" ]; then
   echo "  ✅ Waitlist API returns 409 (email already exists - test ran previously)"
->>>>>>> chore/prod-monitoring-and-closeout
 else
   echo "  ❌ Waitlist API unexpected response: $HTTP_CODE"
   echo "  Response: $BODY"
