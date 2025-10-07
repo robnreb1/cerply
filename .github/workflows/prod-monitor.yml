@@ -146,4 +146,12 @@ jobs:
                 labels: ['production', 'monitor', 'automated', 'priority:high']
               });
             }
-
+      
+      - name: Fail workflow if smoke tests failed
+        if: always()
+        run: |
+          if [ "${{ steps.smoke.outcome }}" = "failure" ]; then
+            echo "❌ Production smoke tests failed - failing workflow"
+            exit 1
+          fi
+          echo "✅ Production smoke tests passed"
