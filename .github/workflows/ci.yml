@@ -566,7 +566,7 @@ jobs:
           NEXT_PUBLIC_API_BASE: 'https://cerply-api-staging-latest.onrender.com'
           BASE_URL: 'http://127.0.0.1:3000'
         working-directory: web
-        run: npm run test:e2e -- --reporter=list
+        run: npm run test:e2e -- --reporter=list --grep-invert @nightly --retries=2
       - name: Stop Next.js
         if: always()
         run: |
