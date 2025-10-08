@@ -42,12 +42,12 @@ export async function registerTeamRoutes(app: FastifyInstance) {
         .select({
           id: teams.id,
           name: teams.name,
-          org_id: teams.orgId,
+          org_id: teams.organizationId,
           manager_id: teams.managerId,
           created_at: teams.createdAt,
         })
         .from(teams)
-        .where(eq(teams.orgId, session.organizationId));
+        .where(eq(teams.organizationId, session.organizationId));
 
       return reply.status(200).send(orgTeams);
     } catch (error) {
