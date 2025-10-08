@@ -3,11 +3,14 @@
  * 
  * Ensures generated content meets minimum quality standards before canonization.
  * Implements retry logic with stricter generation parameters.
+ * 
+ * STUB MODE: Set QUALITY_STUB=true for deterministic testing (no model calls)
  */
 
 import type { ContentBody, QualityMetrics } from './canon';
 
 const QUALITY_THRESHOLD = 0.8;
+const STUB_MODE = process.env.QUALITY_STUB === 'true';
 
 // Forbidden template phrases that indicate low-quality templated content
 const FORBIDDEN_PHRASES = [
@@ -32,6 +35,11 @@ export function scoreArtifact(
     minLength?: number;
   } = {}
 ): number {
+  // Stub mode: return fixed quality score for fast, deterministic testing
+  if (STUB_MODE) {
+    return 0.85;
+  }
+
   const forbiddenPhrases = options.forbidPhrases || FORBIDDEN_PHRASES;
   const minLength = options.minLength || 100;
 
@@ -98,6 +106,17 @@ export function scoreArtifact(
  * Detailed quality metrics breakdown
  */
 export function evaluateQualityMetrics(artifact: ContentBody): QualityMetrics {
+  // Stub mode: return fixed quality metrics for fast, deterministic testing
+  if (STUB_MODE) {
+    return {
+      coherence: 0.85,
+      coverage: 0.85,
+      factualAccuracy: 0.85,
+      pedagogicalSoundness: 0.85,
+      overall: 0.85,
+    };
+  }
+
   let coherence = 0.85;
   let coverage = 0.85;
   let factualAccuracy = 0.85;

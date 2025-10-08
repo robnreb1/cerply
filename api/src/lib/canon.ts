@@ -3,11 +3,18 @@
  * 
  * Quality-first content generation: Generate once with high quality, then reuse.
  * In-memory LRU cache with optional JSON persistence.
+ * 
+ * STUB MODE: Set CANON_STUB=true for deterministic testing (no actual storage)
  */
 
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+
+const CANON_STUB_MODE = process.env.CANON_STUB === 'true';
+
+// Track stub mode state for deterministic behavior
+const stubModeSeenKeys = new Set<string>();
 
 export type ContentBody = {
   title: string;
@@ -148,6 +155,29 @@ class CanonStore {
   }
 
   getByKey(key: string): CanonRecord | null {
+    // Stub mode: simulate cache hits for repeated keys
+    if (CANON_STUB_MODE) {
+      if (stubModeSeenKeys.has(key)) {
+        // Return a stub "hit" record
+        return {
+          id: crypto.randomUUID(),
+          key,
+          artifact: {
+            title: 'Stub Canon Hit',
+            summary: 'This is a stub canon record for testing',
+            modules: []
+          },
+          sha256: 'stub-sha256',
+          model: 'stub-model',
+          quality_score: 0.85,
+          created_at: new Date().toISOString(),
+          accessed_at: new Date().toISOString(),
+          access_count: 1,
+        };
+      }
+      return null; // First time seeing this key = miss
+    }
+
     if (!this.enabled) return null;
     
     const record = this.store.get(key);
@@ -170,6 +200,17 @@ class CanonStore {
   }
 
   put(record: Omit<CanonRecord, 'id' | 'accessed_at' | 'access_count'>): CanonRecord {
+    // Stub mode: track key for future hits but don't actually store
+    if (CANON_STUB_MODE) {
+      stubModeSeenKeys.add(record.key);
+      return {
+        ...record,
+        id: crypto.randomUUID(),
+        accessed_at: record.created_at,
+        access_count: 0,
+      };
+    }
+
     if (!this.enabled) {
       // Return a mock record even when disabled so callers don't break
       return {
@@ -299,6 +340,17 @@ export function contentExists(key: string): boolean {
  * Current baseline: generous enough to pass 0.80 threshold for good content
  */
 export function evaluateContentQuality(artifact: ContentBody): QualityMetrics {
+  // Stub mode: return fixed quality metrics for fast, deterministic testing
+  if (CANON_STUB_MODE) {
+    return {
+      coherence: 0.85,
+      coverage: 0.85,
+      factualAccuracy: 0.85,
+      pedagogicalSoundness: 0.85,
+      overall: 0.85,
+    };
+  }
+
   // Start with slightly higher baseline to reward good-faith content
   let coherence = 0.88;
   let coverage = 0.88;

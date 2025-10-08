@@ -2,6 +2,9 @@
 
 # Global image metadata (populated via build args)
 ARG IMAGE_TAG=unset
+ARG COMMIT_SHA=unset
+ARG BUILD_TIMESTAMP=unset
+# Legacy names for compatibility
 ARG GIT_SHA=unset
 ARG IMAGE_CREATED=unset
 
@@ -31,9 +34,13 @@ FROM node:20-bullseye-slim AS runtime
 
 # Re-declare build args in THIS stage and expose them as envs the app reads
 ARG IMAGE_TAG
+ARG COMMIT_SHA
+ARG BUILD_TIMESTAMP
 ARG GIT_SHA
 ARG IMAGE_CREATED
 ENV IMAGE_TAG=${IMAGE_TAG} \
+    COMMIT_SHA=${COMMIT_SHA} \
+    BUILD_TIMESTAMP=${BUILD_TIMESTAMP} \
     IMAGE_REVISION=${GIT_SHA} \
     IMAGE_CREATED=${IMAGE_CREATED}
 
