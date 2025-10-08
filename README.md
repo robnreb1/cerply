@@ -71,10 +71,82 @@ open http://localhost:3000
   ```
 
 ## Feature Flags
-Env (API): FF_CURATOR_DASHBOARD_V1, FF_ADAPTIVE_ENGINE_V1, FF_TRUST_LABELS_V1
+Env (API): FF_CURATOR_DASHBOARD_V1, FF_ADAPTIVE_ENGINE_V1, FF_TRUST_LABELS_V1, FF_TEAM_MGMT
 Env (Web): NEXT_PUBLIC_FF_*
 
 See: [Functional Spec](docs/functional-spec.md)
+
+## Team Management (Epic 3) — B2B Enterprise
+
+**Quick Start:**
+
+```bash
+# Create a team
+curl -X POST http://localhost:8080/api/teams \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"name":"Engineering Team"}'
+
+# Add members (JSON)
+TEAM_ID="<team-id-from-above>"
+curl -X POST http://localhost:8080/api/teams/$TEAM_ID/members \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"emails":["alice@example.com","bob@example.com"]}'
+
+# Add members (CSV bulk import)
+curl -X POST http://localhost:8080/api/teams/$TEAM_ID/members \
+  -H 'content-type: text/csv' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  --data-binary $'charlie@example.com\ndave@example.com'
+
+# List available tracks
+curl http://localhost:8080/api/tracks \
+  -H 'x-admin-token: dev-admin-token-12345'
+
+# Assign track to team (daily/weekly/monthly cadence)
+TRACK_ID="00000000-0000-0000-0000-000000000100"
+curl -X POST http://localhost:8080/api/teams/$TEAM_ID/subscriptions \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"track_id":"'$TRACK_ID'","cadence":"daily"}'
+
+# Get team overview
+curl http://localhost:8080/api/teams/$TEAM_ID/overview \
+  -H 'x-admin-token: dev-admin-token-12345'
+
+# Get operational KPIs (teams_total, members_total, active_subscriptions)
+curl http://localhost:8080/api/ops/kpis
+```
+
+**Key Features:**
+- Create teams, bulk import learners (JSON/CSV)
+- Assign tracks with cadence (daily/weekly/monthly)
+- Team metrics (members, active tracks, due today, at-risk)
+- RBAC (admin/manager roles)
+- Event logging (NDJSON append-only)
+- Idempotency support (X-Idempotency-Key)
+
+**Documentation:**
+- **API Docs:** `api/README.md` (routes, examples, troubleshooting)
+- **FSD:** `docs/functional-spec.md` §23 Team Management & Assignments v1
+- **Runbook:** `RUNBOOK_team_mgmt.md` (migrations, CSV import, operations)
+- **UAT Guide:** `docs/uat/EPIC3_UAT.md` (9 manual test scenarios)
+
+**Tests:**
+```bash
+# Unit tests (15+ scenarios)
+npm test --workspace api -- team-mgmt.test.ts
+
+# Smoke test (8 scenarios)
+bash api/scripts/smoke-team-mgmt.sh
+```
+
+**Feature Flags:**
+- `FF_TEAM_MGMT=true` - Enable team management routes (default: enabled)
+- `AUTH_REQUIRE_SESSION=true` - Enforce session authentication (Epic 2)
+- `EVENTS_ENABLED=true` - Enable event logging (default: enabled)
+- `EVENTS_LOG_PATH=./events.ndjson` - Event log file path
 
 ---
 

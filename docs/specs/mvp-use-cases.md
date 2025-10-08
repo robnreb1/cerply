@@ -1,5 +1,7 @@
 ***This document is the single source of truth for MVP use cases.***
 
+> **Pivot Note (2025-10-08):** Cerply is now B2B-only. The D2C/consumer flows are removed from MVP scope. They remain archived below for reference and will not block CI.
+
 ## Platform Foundations
 
 All MVP use cases are implemented following the platform foundations:
@@ -108,3 +110,24 @@ A-9. We should suggest a blend of Certified (paid) and interim-certified topics 
 
 **Beyond MVP:**
 - Integrate sponsored topics rather than advertising e.g. brand xyz could bring awareness to their industry, product, and brand, through a 'Certified' topic that is then proposed as a freebie to Learners.
+
+---
+
+## Out of scope post-pivot (B2B-only)
+
+The following use cases were part of the original D2C/consumer vision but have been removed from MVP scope following the strategic pivot to B2B-only (2025-10-08). They are retained here for historical reference and will not block CI checks:
+
+### Consumer Payments & Billing (Removed)
+- **L-17** — Learner can pay for premium features through subscription (£10pm) or one-off access to specific topics (£5 per topic)
+- **L-18** — The fee includes all subsequent updates to topics registered for; the topic is kept fresh for life, even if the subscription is halted
+- **L-22** — Learner can pay in any currency they wish, inc. crypto, though must cover the exchange fees to GBP (this is not publicised)
+
+### Expert/Consumer Financial Flows (Removed)
+- **E-11** — Expert can be paid in any currency, inc. crypto, with no expiration date to withdraw, and with Cerply making no margin/fee on exchange costs
+
+### Consumer-Facing Business Features (Removed)
+- **B-9** — £100 per user per year will be the standard rate, providing access to the full library of Certified content
+- **B-10** — Access lost when subscription ends
+- **B-11** — Provided with a guarantee that any market changes to certified content will be incorporated within 2 weeks of release (or discounts applied)
+
+**Rationale:** Cerply is now focused exclusively on B2B enterprise (team management, org-wide training, custom content curation) rather than direct-to-consumer subscriptions. Payment features and consumer pricing models are no longer in scope for the current MVP.

@@ -1,5 +1,5 @@
 /* Drizzle schema (CommonJS-friendly) */
-import { pgTable, uuid, text, integer, timestamp, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, timestamp, jsonb, boolean } from 'drizzle-orm/pg-core';
 
 // Organizations: enterprise customers
 export const organizations = pgTable('organizations', {
@@ -57,6 +57,28 @@ export const teamMembers = pgTable('team_members', {
   teamId: uuid('team_id').notNull().references(() => teams.id),
   userId: uuid('user_id').notNull().references(() => users.id),
   joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Tracks: learning tracks (canonical = org_id NULL, org-specific = org_id NOT NULL)
+export const tracks = pgTable('tracks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id),
+  title: text('title').notNull(),
+  planRef: text('plan_ref').notNull(), // e.g., 'canon:arch-std-v1' or 'plan:uuid'
+  certifiedArtifactId: uuid('certified_artifact_id'), // references certified_artifacts if applicable
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Team track subscriptions: teams subscribe to tracks with cadence
+export const teamTrackSubscriptions = pgTable('team_track_subscriptions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamId: uuid('team_id').notNull().references(() => teams.id),
+  trackId: uuid('track_id').notNull().references(() => tracks.id),
+  cadence: text('cadence').notNull(), // 'daily' | 'weekly' | 'monthly'
+  startAt: timestamp('start_at', { withTimezone: true }).defaultNow().notNull(),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const plans = pgTable('plans', {

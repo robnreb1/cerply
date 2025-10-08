@@ -3,8 +3,16 @@
 **Purpose:** Complete mapping of SSOT use cases to implementation evidence across BRD, FSD, and architecture components.
 
 **Generated:** 2025-01-05  
-**Last Updated:** 2025-01-05  
+**Last Updated:** 2025-10-08  
 **Source:** [docs/specs/mvp-use-cases.md](mvp-use-cases.md)
+
+## Status Legend
+
+- **Implemented** → Must have FSD/BRD links and evidence (CI blocks if missing)
+- **In Progress** → Partially implemented, evidence optional (CI warns only)
+- **Planned** → Not yet started, no evidence required (CI warns only)
+- **Deferred** → Intentionally delayed, no evidence required (CI warns only)
+- **Removed (post-pivot)** → Out of scope due to B2B-only pivot (CI warns only, must include rationale + date)
 
 ## Coverage Summary
 
@@ -41,12 +49,12 @@
 | **L-14** | Time-limit weighting for topics | Yes | B2 | §22 M3 API | Adaptive Engine | Planned | - | Time-based prioritization needed |
 | **L-15** | Never same content twice | Yes | B1 | §22 M3 API | M3 API Surface | Done | `POST /api/generate`, deterministic but varied | Content variation implemented |
 | **L-16** | Set own time-limits | Yes | B1 | §15 ER-MUI | User Preferences | Planned | - | Time limit controls needed |
-| **L-17** | Pay for premium features | Yes | B6 | - | Payment System | Planned | - | Stripe integration needed |
-| **L-18** | Fee includes all updates | Yes | B6 | - | Subscription Management | Planned | - | Subscription system needed |
+| **L-17** | Pay for premium features | Yes | B6 | - | Payment System | Removed (post-pivot) | - | D2C payments removed (B2B-only pivot, 2025-10-08) |
+| **L-18** | Fee includes all updates | Yes | B6 | - | Subscription Management | Removed (post-pivot) | - | D2C subscriptions removed (B2B-only pivot, 2025-10-08) |
 | **L-19** | 5 certified topics/month (subscription) | Yes | B6 | §9 Certified v1 | Certified Pipeline | Planned | - | Usage limits needed |
 | **L-20** | 1 certified topic/month (free) | Yes | B6 | §9 Certified v1 | Certified Pipeline | Planned | - | Free tier limits needed |
 | **L-21** | 5 non-certified topics/month (free) | Yes | B6 | §22 M3 API | M3 API Surface | Planned | - | Usage tracking needed |
-| **L-22** | Pay in any currency including crypto | Yes | B6 | - | Payment System | Planned | - | Multi-currency support needed |
+| **L-22** | Pay in any currency including crypto | Yes | B6 | - | Payment System | Removed (post-pivot) | - | D2C crypto payments removed (B2B-only pivot, 2025-10-08) |
 | **L-23** | Wowed by offering for premium tier | Yes | B1 | §15 ER-MUI | User Experience | Planned | - | Premium UX enhancements needed |
 | **L-24** | Never left hanging during creation | Yes | B1 | §15 ER-MUI | Progress Feedback | Planned | - | Progress indicators needed |
 | **E-1** | Understand paid certification | Yes | B4 | §9 Certified v1 | Expert Onboarding | Planned | - | Expert workflow needed |
@@ -59,18 +67,18 @@
 | **E-8** | Remain on hand for queries | Yes | B4 | §9 Certified v1 | Expert Support System | Planned | - | Expert query system needed |
 | **E-9** | Incremental topic refresh | Yes | B4 | §9 Certified v1 | Content Maintenance | Planned | - | Content update system needed |
 | **E-10** | Access profile and statistics | Yes | B4 | §9 Certified v1 | Expert Dashboard | Planned | - | Expert analytics needed |
-| **E-11** | Pay in any currency, no margin | Yes | B6 | - | Payment System | Planned | - | Expert payment system needed |
+| **E-11** | Pay in any currency, no margin | Yes | B6 | - | Payment System | Removed (post-pivot) | - | D2C expert payments removed (B2B-only pivot, 2025-10-08) |
 | **B-1** | Business owner, COO, L&D manager | Yes | B3 | §15 ER-MUI | Business User Interface | Planned | - | Business dashboard needed |
-| **B-2** | Build team within portal | Yes | B3 | - | Team Management | Planned | - | Team creation system needed |
+| **B-2** | Build team within portal | Yes | B3 | §23 Team Mgmt | Team Management | Done | `POST /api/teams`, `api/tests/team-mgmt.test.ts`, `EPIC3_UAT_RESULTS.md` | Team creation implemented (Epic 3) |
 | **B-3** | Build topics like Learner, validate like Expert | Yes | B3 | §22 M3 API | Business Content Creation | Planned | - | Business content workflow needed |
 | **B-4** | Cursor-type interface for content refinement | Yes | B3 | §15 ER-MUI | Business Content Editor | Planned | - | Business content editor needed |
 | **B-5** | Guardrails around adaptive learning | Yes | B3 | §22 M3 API | Business Policy Engine | Planned | - | Business policy controls needed |
-| **B-6** | Push topics to teams with timeframes | Yes | B3 | - | Team Assignment System | Planned | - | Team assignment system needed |
+| **B-6** | Push topics to teams with timeframes | Yes | B3 | §23 Team Mgmt | Team Assignment System | Done | `POST /api/teams/:id/subscriptions`, `api/tests/team-mgmt.test.ts`, `EPIC3_UAT_RESULTS.md` | Team track subscriptions with cadence (Epic 3) |
 | **B-7** | Establish reminder channels | Yes | B3 | - | Notification System | Planned | - | Notification system needed |
-| **B-8** | Review team statistics | Yes | B3 | - | Business Analytics | Planned | - | Business reporting needed |
-| **B-9** | £100 per user per year | Yes | B6 | - | Pricing System | Planned | - | Business pricing model needed |
-| **B-10** | Access lost when subscription ends | Yes | B6 | - | Subscription Management | Planned | - | Subscription enforcement needed |
-| **B-11** | 2-week guarantee for market changes | Yes | B6 | - | Content Update SLA | Planned | - | Content update guarantee needed |
+| **B-8** | Review team statistics | Yes | B3 | §23 Team Mgmt | Business Analytics | Done | `GET /api/teams/:id/overview`, `GET /api/ops/kpis`, `EPIC3_UAT_RESULTS.md` | Team overview and KPIs (Epic 3) |
+| **B-9** | £100 per user per year | Yes | B6 | - | Pricing System | Removed (post-pivot) | - | D2C pricing model removed (B2B-only pivot, 2025-10-08) |
+| **B-10** | Access lost when subscription ends | Yes | B6 | - | Subscription Management | Removed (post-pivot) | - | D2C subscription enforcement removed (B2B-only pivot, 2025-10-08) |
+| **B-11** | 2-week guarantee for market changes | Yes | B6 | - | Content Update SLA | Removed (post-pivot) | - | D2C content SLA removed (B2B-only pivot, 2025-10-08) |
 | **B-12** | Request accelerated certified topics | Yes | B6 | §9 Certified v1 | Certified Pipeline | Planned | - | Priority certification needed |
 | **A-1** | Full write access to all areas | Yes | B8 | §9 Certified v1 | Admin Access Control | Done | `POST /api/certified/items/:itemId/publish` | Admin endpoints implemented |
 | **A-2** | View all logs of changes (immutable) | Yes | B8 | - | Audit System | Planned | - | Audit logging needed |

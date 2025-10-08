@@ -19,8 +19,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect docs-only changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs_only:
+              - 'docs/**'
+              - '**/*.md'
+              - '.github/workflows/**'
+              - 'scripts/traceability_check.ts'
+              - 'scripts/validate-*.ts'
+
   evaluator-multiphase:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -500,11 +520,11 @@ jobs:
         run: npm run -w web typecheck
 
   web-e2e:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.docs_only != 'true'
     name: Web E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [pr-typecheck]
+    needs: [changes, pr-typecheck]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
