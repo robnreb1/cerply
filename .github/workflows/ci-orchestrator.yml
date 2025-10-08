@@ -1,7 +1,8 @@
 name: CI Orchestrator Preview
 on:
-  pull_request:
-    branches: [ main ]
+  # Quarantined: orchestrator E2E is @nightly only (flaky)
+  # pull_request:
+  #   branches: [ main ]
   push:
     branches: [ feat/orchestrator-v0-preview, feat/orchestrator-v0-lifecycle ]
 
