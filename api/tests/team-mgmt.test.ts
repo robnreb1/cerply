@@ -447,6 +447,9 @@ describe('Epic 3: Team Management API', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/ops/kpis',
+        headers: {
+          'x-admin-token': 'dev-admin-token-12345',
+        },
       });
 
       expect(response.statusCode).toBe(200);
@@ -456,6 +459,17 @@ describe('Epic 3: Team Management API', () => {
       expect(body.o3).toHaveProperty('members_total');
       expect(body.o3).toHaveProperty('active_subscriptions');
       expect(body).toHaveProperty('generated_at');
+    });
+
+    it('should reject unauthorized access', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/ops/kpis',
+      });
+
+      expect(response.statusCode).toBe(401);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe('UNAUTHORIZED');
     });
   });
 
