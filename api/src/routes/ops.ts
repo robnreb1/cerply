@@ -21,13 +21,6 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     // Check RBAC - prevent unauthenticated access to org-wide KPIs
     if (!requireManager(req, reply)) return;
 
-    const session = getSession(req);
-    if (!session) {
-      return reply.status(401).send({
-        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
-      });
-    }
-
     try {
       // O3: Team Management KPIs
       const [teamsResult] = await db

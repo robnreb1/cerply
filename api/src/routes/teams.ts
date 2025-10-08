@@ -28,15 +28,11 @@ export async function registerTeamRoutes(app: FastifyInstance) {
    * Idempotency: X-Idempotency-Key supported
    */
   app.post('/api/teams', async (req: FastifyRequest, reply: FastifyReply) => {
-    // Check RBAC
+    // Check RBAC (handles both admin token and session-based auth)
     if (!requireManager(req, reply)) return;
 
-    const session = getSession(req);
-    if (!session) {
-      return reply.status(401).send({
-        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
-      });
-    }
+    // Get session (may be null if using admin token)
+    const session = getSession(req) || { userId: 'admin', organizationId: 'default-org', role: 'admin' };
 
     const { name } = req.body as { name: string };
 
@@ -103,15 +99,10 @@ export async function registerTeamRoutes(app: FastifyInstance) {
    * Idempotency: Per-email (won't add duplicates)
    */
   app.post('/api/teams/:id/members', async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
-    // Check RBAC
+    // Check RBAC (handles both admin token and session-based auth)
     if (!requireManager(req, reply)) return;
 
-    const session = getSession(req);
-    if (!session) {
-      return reply.status(401).send({
-        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
-      });
-    }
+    const session = getSession(req) || { userId: 'admin', organizationId: 'default-org', role: 'admin' };
 
     const { id: teamId } = req.params;
 
