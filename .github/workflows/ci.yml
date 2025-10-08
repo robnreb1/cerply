@@ -520,11 +520,11 @@ jobs:
         run: npm run -w web typecheck
 
   web-e2e:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && needs.changes.outputs.docs_only != 'true'
     name: Web E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [pr-typecheck]
+    needs: [changes, pr-typecheck]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
