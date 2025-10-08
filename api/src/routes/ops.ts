@@ -19,7 +19,7 @@ export async function registerOpsRoutes(app: FastifyInstance) {
    */
   app.get('/api/ops/kpis', async (req: FastifyRequest, reply: FastifyReply) => {
     // Check RBAC - prevent unauthenticated access to org-wide KPIs
-    if (!requireManager(req, reply)) return;
+    if (!requireManager(req, reply)) return reply;
 
     try {
       // O3: Team Management KPIs

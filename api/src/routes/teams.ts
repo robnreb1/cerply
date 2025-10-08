@@ -22,6 +22,43 @@ import { idempotencyService } from '../services/idempotency';
 
 export async function registerTeamRoutes(app: FastifyInstance) {
   /**
+   * GET /api/teams
+   * List all teams in the organization
+   * RBAC: admin or manager
+   */
+  app.get('/api/teams', async (req: FastifyRequest, reply: FastifyReply) => {
+    // Check RBAC (handles both admin token and session-based auth)
+    if (!requireManager(req, reply)) return reply;
+
+    // Get session (may be null if using admin token, fallback to default admin)
+    const session = getSession(req) || {
+      userId: '00000000-0000-0000-0000-000000000002',
+      organizationId: '00000000-0000-0000-0000-000000000001',
+      role: 'admin'
+    };
+
+    try {
+      const orgTeams = await db
+        .select({
+          id: teams.id,
+          name: teams.name,
+          org_id: teams.orgId,
+          manager_id: teams.managerId,
+          created_at: teams.createdAt,
+        })
+        .from(teams)
+        .where(eq(teams.orgId, session.organizationId));
+
+      return reply.status(200).send(orgTeams);
+    } catch (error) {
+      console.error('[teams] Error listing teams:', error);
+      return reply.status(500).send({
+        error: { code: 'INTERNAL_ERROR', message: 'Failed to list teams' },
+      });
+    }
+  });
+
+  /**
    * POST /api/teams
    * Create a new team
    * RBAC: admin or manager
@@ -29,10 +66,14 @@ export async function registerTeamRoutes(app: FastifyInstance) {
    */
   app.post('/api/teams', async (req: FastifyRequest, reply: FastifyReply) => {
     // Check RBAC (handles both admin token and session-based auth)
-    if (!requireManager(req, reply)) return;
+    if (!requireManager(req, reply)) return reply;
 
-    // Get session (may be null if using admin token)
-    const session = getSession(req) || { userId: 'admin', organizationId: 'default-org', role: 'admin' };
+    // Get session (may be null if using admin token, fallback to default admin)
+    const session = getSession(req) || { 
+      userId: '00000000-0000-0000-0000-000000000002', 
+      organizationId: '00000000-0000-0000-0000-000000000001', 
+      role: 'admin' 
+    };
 
     const { name } = req.body as { name: string };
 
@@ -100,9 +141,13 @@ export async function registerTeamRoutes(app: FastifyInstance) {
    */
   app.post('/api/teams/:id/members', async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     // Check RBAC (handles both admin token and session-based auth)
-    if (!requireManager(req, reply)) return;
+    if (!requireManager(req, reply)) return reply;
 
-    const session = getSession(req) || { userId: 'admin', organizationId: 'default-org', role: 'admin' };
+    const session = getSession(req) || { 
+      userId: '00000000-0000-0000-0000-000000000002', 
+      organizationId: '00000000-0000-0000-0000-000000000001', 
+      role: 'admin' 
+    };
 
     const { id: teamId } = req.params;
 
@@ -232,14 +277,14 @@ export async function registerTeamRoutes(app: FastifyInstance) {
     '/api/teams/:id/subscriptions',
     async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
       // Check RBAC
-      if (!requireManager(req, reply)) return;
+      if (!requireManager(req, reply)) return reply;
 
-      const session = getSession(req);
-      if (!session) {
-        return reply.status(401).send({
-          error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
-        });
-      }
+      // Get session (may be null if using admin token, fallback to default admin)
+      const session = getSession(req) || {
+        userId: '00000000-0000-0000-0000-000000000002',
+        organizationId: '00000000-0000-0000-0000-000000000001',
+        role: 'admin'
+      };
 
       const { id: teamId } = req.params;
       const { track_id, cadence, start_at } = req.body as {
@@ -351,14 +396,14 @@ export async function registerTeamRoutes(app: FastifyInstance) {
     const startTime = Date.now();
 
     // Check RBAC
-    if (!requireManager(req, reply)) return;
+    if (!requireManager(req, reply)) return reply;
 
-    const session = getSession(req);
-    if (!session) {
-      return reply.status(401).send({
-        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
-      });
-    }
+    // Get session (may be null if using admin token, fallback to default admin)
+    const session = getSession(req) || {
+      userId: '00000000-0000-0000-0000-000000000002',
+      organizationId: '00000000-0000-0000-0000-000000000001',
+      role: 'admin'
+    };
 
     const { id: teamId } = req.params;
 
@@ -422,14 +467,14 @@ export async function registerTeamRoutes(app: FastifyInstance) {
    */
   app.get('/api/tracks', async (req: FastifyRequest, reply: FastifyReply) => {
     // Check RBAC
-    if (!requireManager(req, reply)) return;
+    if (!requireManager(req, reply)) return reply;
 
-    const session = getSession(req);
-    if (!session) {
-      return reply.status(401).send({
-        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
-      });
-    }
+    // Get session (may be null if using admin token, fallback to default admin)
+    const session = getSession(req) || {
+      userId: '00000000-0000-0000-0000-000000000002',
+      organizationId: '00000000-0000-0000-0000-000000000001',
+      role: 'admin'
+    };
 
     try {
       // Get canonical tracks (org_id IS NULL) and org tracks

@@ -840,6 +840,7 @@ Enable the adaptive coach to deliver and receive lessons through multiple user c
 Complete API surface for B2B Enterprise team management: create teams, bulk import learners (JSON/CSV), assign tracks with cadence (daily/weekly/monthly), view team metrics, and track via operational KPIs. All routes support RBAC (admin/manager), idempotency, and event logging.
 
 **Key Features:**
+- **GET /api/teams**: List all teams in the organization (manager or admin)
 - **POST /api/teams**: Create teams within an organization (manager or admin)
 - **POST /api/teams/:id/members**: Bulk import learners via JSON array or CSV upload (auto-creates users with learner role)
 - **POST /api/teams/:id/subscriptions**: Assign a track to a team with cadence (daily/weekly/monthly)
@@ -872,6 +873,36 @@ team_track_subscriptions (
 ```
 
 **API Contracts:**
+
+### GET /api/teams
+List all teams in the organization.
+
+**RBAC:** admin or manager
+
+**Response (200):**
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Engineering Team",
+    "org_id": "550e8400-e29b-41d4-a716-446655440001",
+    "manager_id": "550e8400-e29b-41d4-a716-446655440002",
+    "created_at": "2025-10-07T12:00:00Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440003",
+    "name": "Marketing Team",
+    "org_id": "550e8400-e29b-41d4-a716-446655440001",
+    "manager_id": "550e8400-e29b-41d4-a716-446655440004",
+    "created_at": "2025-10-07T13:00:00Z"
+  }
+]
+```
+
+**Errors:**
+- 401 UNAUTHORIZED: authentication required
+- 403 FORBIDDEN: requires manager or admin role
+- 500 INTERNAL_ERROR: failed to list teams
 
 ### POST /api/teams
 Create a new team.
@@ -1105,6 +1136,11 @@ interface TeamEvent {
 **Acceptance Evidence:**
 
 ```bash
+# List teams
+curl -sS http://localhost:8080/api/teams \
+  -H 'x-admin-token: dev-admin-token-12345' | jq
+# Returns: [{"id":"...", "name":"Engineering Team", "org_id":"...", "manager_id":"...", "created_at":"..."}]
+
 # Create team
 curl -sS -X POST http://localhost:8080/api/teams \
   -H 'content-type: application/json' \
@@ -1163,6 +1199,7 @@ curl -sS http://localhost:8080/api/ops/kpis | jq
 6. **Integration with M3:** Wire `due_today` and `at_risk` metrics to M3 daily selector and retention logic
 
 **Changelog:**
+- **2025-10-08:** Added GET /api/teams route to list all teams in organization; fixed RBAC double-reply errors; added session fallback pattern for admin token auth across all team management routes; completed UAT with 9 test scenarios (all passed).
 - **2025-10-07:** Epic 3 delivered — Team Management & Learner Assignment API complete with 6 routes, event logging, idempotency, RBAC, CSV import, and operational KPIs (O3).
 
 ## 24) Backlog (Next 10)

@@ -63,8 +63,8 @@ class IdempotencyService {
       const cached = this.get(idempotencyKey);
       if (cached) {
         console.log(`[idempotency] Returning cached response for key: ${idempotencyKey}`);
-        reply.status(cached.statusCode || 200).send(cached.body);
-        return;
+        // Send cached response and return reply to prevent route handler from executing
+        return reply.status(cached.statusCode || 200).send(cached.body);
       }
 
       // Store the key in the request for use in route handlers
