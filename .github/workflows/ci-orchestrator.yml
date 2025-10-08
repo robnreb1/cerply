@@ -30,7 +30,7 @@ jobs:
       - name: Install Playwright Browsers
         run: npx -w web playwright install --with-deps chromium
       - name: Run Orchestrator E2E
-        run: npx -w web playwright test e2e/orchestrator.spec.ts --config=playwright.config.ts
+        run: npx -w web playwright test e2e/orchestrator.spec.ts --config=playwright.config.ts --grep-invert @nightly
 
   stg-canary:
     if: github.event_name == 'push'
