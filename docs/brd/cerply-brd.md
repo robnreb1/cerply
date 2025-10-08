@@ -1,156 +1,108 @@
-# Cerply — Business Requirements (BRD)
-Version: v1.2
-Status: AUTHORITATIVE — single source of truth for business requirements
-Owner: Product (Robert Ford)
-Changelog: see History section at bottom
+# MVP Use Cases
+> **Pivot note:** Cerply has pivoted from consumer to B2B SaaS focus. All use cases below are scoped for MVP and post-pivot strategy.
+> **Update (2025-10-09):** Aligned MVP use cases with B2B pitch deck: WhatsApp delivery included in MVP; consumer payments and quotas removed; Certified positioned as horizontal with expert panels; manager-centric curation and analytics emphasised.
 
-## Scope Source
-MVP scope is defined by [docs/specs/mvp-use-cases.md](../specs/mvp-use-cases.md). All MVP use cases must be satisfied before client outreach.
+## All users
+AU-1. Web app plus at least one channel integration for delivery (WhatsApp for MVP demo).
+AU-2. Users can access core learning flows: ingest, plan, learn, quiz, review.
+AU-3. Multi-device sync and offline support for lessons and quizzes.
+AU-4. User telemetry collected for progress, retention, and engagement.
 
-SSOT: This document is the authoritative source for business requirements. Every technical delivery must reference a BRD requirement ID.
+### Beyond MVP
+- Extended channels — Slack, Microsoft Teams, Calendar, Telegram, and email digests (WhatsApp is part of MVP).
 
-## 1) Elevator Pitch
-One-liner: What will you master today? Cerply turns any prompt, note, link, or policy into adaptive lessons, quizzes, and spaced reviews. For teams, it produces Certified training packs with audit trails, SLAs, and telemetry.
+## Learner
+L-1. Learners can create and join projects with assigned topics.
+L-2. Learners receive adaptive lesson plans based on progress and preferences.
+L-3. Learner must be logged-in via enterprise single sign-on (SSO) to progress, otherwise Cerply can't adapt or ensure they remember over the long term.
+L-5. Learners can flag confusing items and request clarifications.
+L-6. Learners get spaced reviews based on forgetting curves.
+L-7. They are prompted to complete short sets by default (10 items is the starting point), but progress is always tracked so finishing early is fine and managers can change the cadence.
+L-8. Learners can export notes and progress reports.
+L-9. Learners can participate in group challenges and competitions.
+L-10. Learners can share feedback on content quality and difficulty.
+L-11. Learners can request new topics or content updates. Cerply continues to refresh knowledge indefinitely while a topic remains active, so nothing important is forgotten.
+L-12. Learner is always provided with an explainer—more detail if they got it wrong—or can query the answer or say they don't understand; the system responds in natural language.
+L-13. Learners can bookmark items for later review.
+L-14. Learners can access a glossary of key terms.
+L-15. Learners receive notifications and reminders.
+L-16. Learners can track progress against certification requirements.
 
-## 2) Core Benefits
-- Learners: bite-size steps, spaced reviews, always a next best item.
-- Managers/L&D: certified training packs from internal policies; progress/risk visibility; export to GitHub/Notion/Jira.
-- Orgs: faster onboarding & compliance; auditable content lineage; predictable infra & costs.
+## Expert
+E-1. Experts can create and ratify Certified content.
+E-2. Experts can review and approve topic plans.
+E-3. Experts can monitor learner feedback and update content.
+E-4. Experts can collaborate on panels for content curation.
+E-5. Experts can provide rationale and citations for claims.
+E-6. Experts can manage audit trails and sign-offs.
+E-7. Experts can access analytics on content usage and outcomes.
+E-8. Experts can participate in workshops and training sessions.
+E-9. Experts can contribute to certification standards.
+E-10. Experts can suggest new domains and topics.
+E-11. Expert workflows are integrated with Cerply's Certified pipeline.
+E-12. Certified topics are primarily horizontal (usable across firms), with adapters allowed for company-specific nuances and interpretations.
+E-13. Panels are formed from recognised names in the field (not limited to regulatory experts) to increase trust and adoption.
 
-## 3) Moats
-- Certified multi-agent pipeline: reproducible, auditable outputs (planner + two proposals + checker with citation verification -> locked content).
-- Trust telemetry: per-item lineage, reviewer sign-off, measurable learning outcomes tied to revisions.
-- Infra rigor: header-verified images and non-blocking, label-gated previews with auto-expiry.
-- Content network effects: Certified catalog + internal packs become reusable templates & benchmarks.
-- GTM wedge: publish 150+ Certified items; bundle Certified + IMA packs in pilots.
+### Beyond MVP
+- Expert collaboration tools for real-time content editing and versioning.
+- Integration with external knowledge bases and standards bodies.
 
-## 4) Certification Flavors (Business-facing)
-- Highly Rated (organic): community/learner upvotes + outcomes; appears in public recommendations.
-- Cerply Certified (multi-LLM curated):
-  - Planner (LLM-1) builds scope & structure.
-  - Proposers (LLM-2, LLM-3) generate candidates.
-  - Checker (LLM-4) validates claims against real, credible citations and flags gaps.
-  - Pipeline converges; content is locked with audit trail & metadata.
-- Industry Certified (human-in-the-loop): subject-matter expert ratifies content. Primary for corporate/formal training.
+## Business
+B-1. Businesses can create teams and assign topics.
+B-2. Managers can track team progress and risk metrics.
+B-3. Businesses can customize content for internal policies.
+B-4. Managers can schedule training cadences.
+B-5. Businesses can export reports for compliance audits.
+B-6. Businesses can integrate Cerply with HR and LMS systems.
+B-7. They can establish channels by which Learners are reminded—WhatsApp for MVP—with Slack and Microsoft Teams planned next.
+B-8. Businesses can manage user roles and permissions.
+B-9. Businesses can access API endpoints for data integration.
+B-10. Managers can request expert workshops and certification sessions.
+B-11. Businesses can monitor usage and license consumption.
+B-12. Managers can configure content approval workflows.
+B-13. Managers can request certification or panel workshops on strategic topics; outputs become Certified modules their teams can consume.
+B-14. Managers and leaders can track comprehension, retention, and risk at team and individual levels with simple rollups for reviews.
 
-## 5) Product Requirements (MVP)
-B1. Learning Flow: create project -> ingest brief/source -> plan -> lessons -> quizzes -> spaced review.
-B2. Adaptive Learning: flexible adjustments based on progress, strengths, preferences (topical difficulty, format, cadence).
-B3. Group Learning: users can push topics to a group and track group stats (org teams, parents, friends).
-  - **Status: DELIVERED (Epic 3)** - Team Management API complete. Managers can create teams, add members (JSON/CSV), subscribe teams to tracks with cadence (daily/weekly/monthly), and view team analytics. Includes event emission (NDJSON), OKR tracking (`/api/ops/kpis`), RBAC enforcement, and idempotency support. See `api/src/routes/teams.ts`, `api/src/routes/ops.ts`, and `docs/uat/EPIC3_UAT.md`.
-B4. Certified Pipeline: multi-LLM converge with citations; human ratification for Industry Certified.
-  - **Status: COMPLETED** - Certified v1 API endpoints implemented with Ed25519 signing, CDN-ready artifacts, and public verification. See docs/certified/README.md for full API contract and docs/certified/openapi.yaml for OpenAPI specification.
-B5. Exports & Sharing: GitHub Issues exporter (repo/label picker), Markdown export, shareable read-only URL.
-B6. Access & Pricing:
-- Consumers (Free): limited concurrent topics; no access to Certified content.
-- Certified Access: All-in subscription or pay-as-you-go.
-B7. Platforms:
-- **Core:** Web (first) and Desktop (app wrapper) for authoring and learning.
-- **Mobile:** iOS/Android apps (consumer & corporate) for adaptive coach delivery and offline sync.
-- **Chat Integrations:** Cerply must deliver adaptive coach modules through chat-based channels (Slack, Microsoft Teams, WhatsApp, Telegram, etc.) to enable habit formation (D2C) and seamless push training (D2B).
-- **APIs:** Channel-agnostic coach API (`/api/coach/next`) outputs JSON payloads renderable by each channel adapter.
-- **Acceptance:** At least one enterprise pilot delivered via chat integration; ≥30% of D2C active learners engage through non-web channels.
-- **Verification:** Coach plan retrieved through web and chat adapters shows identical lesson state and telemetry events.
-B8. Ops Guarantees: staging & prod available; version endpoint and headers present; previews are label-gated, auto-expire <=48h, never block merges.
-B9. Success Metrics: TTFP < 60s; >=80% receive scheduled reviews in week one; >=150 Certified items published; >=3 design partners on Certified + IMA packs.
+### Beyond MVP
+- Advanced analytics dashboards for business KPIs.
+- Integration with enterprise identity providers and SSO.
+- Automated compliance reporting and alerts.
 
-## 6) Certified v1 Implementation (COMPLETED)
+## Admin / Cerply
+A-1. Admins can manage user accounts and subscriptions.
+A-2. Admins can oversee content publishing workflows.
+A-3. Admins can monitor system health and telemetry.
+A-4. Admins can manage API keys and integrations.
+A-5. Admins can configure platform-wide settings.
+A-6. Admins can manage billing and payments.
+A-7. Admins can moderate community feedback and issues.
+A-8. Admins can generate operational reports.
+A-9. Admins can support customer success and onboarding.
+A-10. Operate the Certified program and partner workshops: schedule panels, capture audit trails (signatures, rationale, citations), and publish updates to client libraries.
 
-**Epic Status:** ✅ COMPLETED - Deployed to staging and merged to main
+### Beyond MVP
+- Admin tools for managing multi-tenant deployments.
+- Automated content quality assurance and monitoring.
 
-**Key Deliverables:**
-- **Admin Publish Endpoint:** `POST /api/certified/items/:itemId/publish` with Ed25519 signing and idempotent publishing
-- **Public Artifact Endpoints:** `GET /api/certified/artifacts/:artifactId` (JSON) and `GET /api/certified/artifacts/:artifactId.sig` (binary signature)
-- **Public Verification:** `POST /api/certified/verify` supporting three verification modes (by ID, inline signature, legacy plan-lock)
-- **Plan Generation:** `POST /api/certified/plan` with proper error handling (415/413/429) and feature flag gating
+## Out of scope post-pivot (B2B-only)
 
-**Technical Achievements:**
-- **CDN-Ready Artifacts:** ETag and Cache-Control headers for efficient content delivery
-- **Robust CORS:** Permissive `Access-Control-Allow-Origin: *` with credentials removal
-- **Database Resilience:** Graceful handling of missing DATABASE_URL with SQLite fallback
-- **Container Compatibility:** Fixed Prisma/OpenSSL compatibility for Alpine → Debian migration
-- **Security Headers:** Comprehensive security headers (COOP/CORP/XFO) when enabled
+### Consumer Payments & Billing (Removed)
+- **L-4** — Learner is offered one free Cerply Certified topic per month
+- **L-19** — Learner is limited to 5 certified topics per month on the subscription.
+- **L-20** — Learner is limited to 1 certified topic per month on the free plan.
+- **L-21** — Learner is limited to 5 non-certified topics per month on the free plan.
+- **L-23** — Cerply must ensure Learner is wowed by the offering in order to drive them to, and maintain them in, the premium tier.
 
-**Acceptance Evidence:**
-```bash
-# Artifact endpoints return proper 404s with CORS headers
-curl -sI "https://api-stg.cerply.com/api/certified/artifacts/unknown-id"
-# HTTP/2 404, access-control-allow-origin: *
+### Other Removed Use Cases
+- L-17. Learners can transfer credits between accounts.
+- L-18. Learners can gift topics to peers.
+- L-22. Learners can participate in public leaderboards.
+- E-11. Experts can monetize content contributions.
+- B-9. Businesses can manage multiple billing accounts.
+- B-10. Businesses can offer consumer subscriptions.
+- B-11. Businesses can create multi-tier pricing plans.
 
-# Verify endpoint handles all three cases correctly
-curl -si -X POST "https://api-stg.cerply.com/api/certified/verify" \
-  -H 'content-type: application/json' \
-  -d '{"artifactId":"does-not-exist"}'
-# HTTP/2 404, x-cert-verify-hit: 1
-```
-
-**Documentation:**
-- Full API contract: `docs/certified/README.md`
-- OpenAPI specification: `docs/certified/openapi.yaml`
-- Runbook and troubleshooting guides included
-
-B10. Content Freshness & Regulatory Scanning
-- Users can upload or paste regulatory/policy documents (PDF/DOCX/text).
-- System extracts obligations, deadlines, compliance triggers, and detects changes vs. prior versions.
-- Output: structured JSON and UI summary table; highlights new/changed obligations.
-- Acceptance: scan completes <90s for <50pp docs; ≥80% precision on obligations (manual eval); change detection works for redlines/prior diffs; API: `POST /api/regscan/scan` always returns structured results.
-
-B11. Adaptive Coach (Pedagogy Engine)
-- System adapts learning flow, format, and cadence based on user progress, strengths, and preferences.
-- Supports topical difficulty adjustment, spaced repetition, and format switching (text, quiz, scenario).
-- Acceptance: at least two adaptive interventions per learner in first week; ≥70% of learners receive a personalized cadence; API: adaptive recommendations accessible per learner.
-
-## 6) Cerply OKRs (v1)
-
-⸻
-
-O1. Be the trusted engine for learning anything, with retention that sticks.
-    •    KR1.1: ≥80% of learners complete at least one scheduled review in week one.
-    •    KR1.2: ≥60% retention of knowledge items after 30 days (measured via spaced recall).
-    •    KR1.3: Time-to-first-plan (TTFP) < 60 seconds from artefact ingestion.
-    •    KR1.4: ≥70 median learner satisfaction (NPS-style in-app feedback).
-
-⸻
-
-O2. Establish Cerply Certified as the gold standard for horizontal topics.
-    •    KR2.1: ≥150 Certified items published within 6 months.
-    •    KR2.2: ≥5 high-value, corporate-relevant domains covered (e.g. compliance, data protection, safety, finance basics, onboarding).
-    •    KR2.3: 100% of Certified items have expert ratification + audit trail.
-    •    KR2.4: ≥3 design partner orgs adopt Certified packs in pilots.
-
-⸻
-
-O3. Build enterprise-grade adoption and monetization (D2B).
-    •    KR3.1: Secure ≥3 paying enterprise pilots by end of quarter.
-    •    KR3.2: Convert ≥50% of pilots to paid subscriptions/contracts.
-    •    KR3.3: Deliver ≥95% uptime and compliance with enterprise security requirements (SSO, audit logs, headers).
-    •    KR3.4: Competitive pricing benchmark: ≥20% lower cost than average LMS pilot alternatives while maintaining margins.
-
-⸻
-
-O4. Leverage consumer use (D2C) as data + funnel, not revenue.
-    •    KR4.1: Grow D2C waitlist to ≥5,000 users.
-    •    KR4.2: ≥1,000 active weekly consumer learners feeding into insight pipeline.
-    •    KR4.3: ≥25% of consumer learners share/export a module (GitHub/Notion/Markdown).
-    •    KR4.4: ≥20 Certified topics originate from consumer ingestion patterns.
-
-⸻
-
-O5. Demonstrate defensibility through certification + telemetry.
-    •    KR5.1: 100% of Certified items show per-item lineage and citations.
-    •    KR5.2: Publish ≥1 external validation study (partner university, design partner audit).
-    •    KR5.3: Telemetry dashboard live with daily token use, cost, and retention outcomes.
-    •    KR5.4: ≥2 industry associations recognize Cerply Certified content as equivalent to CPD/CE credits.
-
-## Appendix A — GTM (Authoritative Marketing Plan)
-Audience: L&D leaders, compliance managers, eng managers.
-Motion: content-led (publish Certified), founder demos, design partner pilots.
-Channels: site + waitlist, LinkedIn/communities, partner intros, webinars.
-Offers: Certified + IMA pack pilot (setup + 30-day success plan).
-KPIs: waitlist->demo, demo->pilot, content->inbound, pilot NPS, conversion to paid.
-
----
-
-## History
-- v1.2 (2025-09-19): Consolidated BRD; added certification flavors; adaptive/group learning; pricing; platforms; GTM as appendix.
-- v1.3 (2025-10-07): Epic 3 delivered (PR #TBD) — B3 Group Learning complete: Team Management API with team creation, member management (CSV support), track subscriptions, team analytics, event emission, and OKR tracking.
+### Other Out of Scope
+- Consumer social features (friends, sharing).
+- Consumer-facing marketing and onboarding flows.
+- Public-facing content marketplaces.

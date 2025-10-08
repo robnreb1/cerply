@@ -163,7 +163,7 @@ jobs:
           
       - name: Evaluate quality floor
         run: |
-          cd api && CANON_ENABLED=true npm run test:quality-floor
+          cd api && QUALITY_STUB=true CANON_STUB=true CANON_ENABLED=true npm run test:quality-floor
           
   cost-graph-tests:
     runs-on: ubuntu-latest
@@ -191,4 +191,4 @@ jobs:
           
       - name: Test cost optimization
         run: |
-          cd api && CANON_ENABLED=true npm run test:cost-graph
+          cd api && QUALITY_STUB=true CANON_STUB=true CANON_ENABLED=true npm run test:cost-graph

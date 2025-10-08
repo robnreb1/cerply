@@ -129,7 +129,8 @@ echo ""
 # Test 6: Get KPIs
 echo "✓ Test 6: Get KPIs (OKR Tracking)"
 echo "──────────────────────────────────────────────────────────"
-KPIS_RESPONSE=$(curl -sS "$API_BASE/api/ops/kpis")
+KPIS_RESPONSE=$(curl -sS "$API_BASE/api/ops/kpis" \
+  -H "x-admin-token: $ADMIN_TOKEN")
 
 TEAMS_TOTAL=$(echo "$KPIS_RESPONSE" | jq -r '.o3.teams_total')
 SUBSCRIPTIONS=$(echo "$KPIS_RESPONSE" | jq -r '.o3.active_subscriptions')

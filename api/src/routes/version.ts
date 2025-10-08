@@ -1,28 +1,40 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export async function registerVersionRoutes(app: any) {
   app.get('/api/version', async (_req: any, reply: any) => {
-    const image = {
-      tag: process.env.IMAGE_TAG || '',
-      revision: (process.env.IMAGE_REVISION || process.env.GIT_SHA || process.env.IMAGE_SHA || ''),
-      created: process.env.IMAGE_CREATED || '',
-    };
+    // Prefer specific build-time env vars, fallback to Render/runtime vars, then 'unknown'
+    const commit = process.env.COMMIT_SHA 
+      || process.env.RENDER_GIT_COMMIT 
+      || process.env.GIT_SHA 
+      || process.env.IMAGE_SHA 
+      || process.env.IMAGE_REVISION 
+      || 'unknown';
+    
+    const builtAt = process.env.BUILD_TIMESTAMP 
+      || process.env.IMAGE_CREATED 
+      || 'unknown';
+    
+    const imageTag = process.env.IMAGE_TAG || 'unknown';
+    
     const runtime = {
       channel: process.env.RUNTIME_CHANNEL || (process.env.NODE_ENV === 'production' ? 'prod' : 'staging')
     };
+    
     const data = {
-      ok: true,
-      image,
+      service: 'api',
+      commit,
+      built_at: builtAt,
+      image_tag: imageTag,
       node: process.version,
-      now: new Date().toISOString(),
-      version: image.tag || image.revision || '',
-      gitSha: image.revision || '',
       runtime,
+      now: new Date().toISOString(),
     };
-    reply.header('x-api', 'version');
-    if (image.tag !== undefined && image.tag !== '') reply.header('x-image-tag', String(image.tag));
-    if (image.revision !== undefined && image.revision !== '') reply.header('x-image-revision', String(image.revision));
-    if (image.created !== undefined && image.created !== '') reply.header('x-image-created', String(image.created));
-    if (runtime.channel !== undefined && runtime.channel !== '') reply.header('x-runtime-channel', String(runtime.channel));
+    
+    // Set response headers for easy inspection
+    reply.header('x-revision', commit);
+    reply.header('x-build', builtAt);
+    reply.header('x-image-tag', imageTag);
+    reply.header('x-runtime-channel', runtime.channel);
+    
     return data;
   });
 }
