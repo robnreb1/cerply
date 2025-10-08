@@ -1,0 +1,49 @@
+name: E2E Nightly (Flaky Tests)
+
+on:
+  schedule:
+    # Run at 2 AM UTC daily
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  e2e-nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build web (with preview flags)
+        working-directory: web
+        env:
+          NEXT_PUBLIC_PREVIEW_ORCH_UI: 'true'
+          NEXT_PUBLIC_PREVIEW_CERTIFIED_UI: 'true'
+        run: npm run build
+      
+      - name: Install Playwright browsers
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run @nightly E2E tests
+        working-directory: web
+        run: npx playwright test --grep @nightly --retries=2 --reporter=list
+      
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-nightly
+          path: web/playwright-report/
+          retention-days: 7
+
