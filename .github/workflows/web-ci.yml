@@ -73,7 +73,7 @@ jobs:
         run: bash ./scripts/lighthouse-ci.sh
 
       - name: Playwright E2E tests (home)
-        run: npm run test:e2e:home || echo "E2E tests skipped (requires full stack)"
+        run: npm run test:e2e:home -- --grep-invert @nightly || echo "E2E tests skipped (requires full stack)"
 
       - name: Cleanup
         if: always()

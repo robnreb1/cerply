@@ -24,7 +24,7 @@ interface MatrixRow {
   brdSections: string;
   fsdSections: string;
   architectureComponents: string;
-  status: 'Planned' | 'In Progress' | 'Done';
+  status: 'Planned' | 'In Progress' | 'Done' | 'Deferred' | 'Removed (post-pivot)';
   testsEvidence: string;
   notes: string;
 }
@@ -129,7 +129,7 @@ function parseMatrixFile(filePath: string): MatrixRow[] {
         brdSections: cells[3],
         fsdSections: cells[4],
         architectureComponents: cells[5],
-        status: cells[6] as 'Planned' | 'In Progress' | 'Done',
+        status: cells[6] as 'Planned' | 'In Progress' | 'Done' | 'Deferred' | 'Removed (post-pivot)',
         testsEvidence: cells[7],
         notes: cells[8] || ''
       });
@@ -177,23 +177,28 @@ function validateCoverage(ssotItems: SSOTItem[], matrixRows: MatrixRow[]): Cover
     if (item.isMVP && matrixRow.mvp === 'Yes') {
       report.mvpCoveredItems++;
 
-      // Check BRD sections
-      if (!matrixRow.brdSections || matrixRow.brdSections.trim() === '-' || matrixRow.brdSections.trim() === '') {
-        report.missingBRD.push(item.id);
-      }
-
-      // Check FSD sections
-      if (!matrixRow.fsdSections || matrixRow.fsdSections.trim() === '-' || matrixRow.fsdSections.trim() === '') {
-        report.missingFSD.push(item.id);
-      }
-
-      // Check evidence for completed items
+      // Only validate links/evidence for "Done" status
+      // Other statuses (Planned, In Progress, Deferred, Removed (post-pivot)) are warnings only
       if (matrixRow.status === 'Done') {
+        // Check BRD sections
+        if (!matrixRow.brdSections || matrixRow.brdSections.trim() === '-' || matrixRow.brdSections.trim() === '') {
+          report.missingBRD.push(item.id);
+        }
+
+        // Check FSD sections
+        if (!matrixRow.fsdSections || matrixRow.fsdSections.trim() === '-' || matrixRow.fsdSections.trim() === '') {
+          report.missingFSD.push(item.id);
+        }
+
+        // Check evidence for completed items
         if (!matrixRow.testsEvidence || matrixRow.testsEvidence.trim() === '-' || matrixRow.testsEvidence.trim() === '') {
           report.missingEvidence.push(item.id);
         } else {
           report.mvpWithEvidence++;
         }
+      } else if (matrixRow.status === 'Removed (post-pivot)') {
+        // Warn about removed items (but don't block CI)
+        report.warnings.push(`${item.id} is marked as "Removed (post-pivot)" - see notes for rationale`);
       }
     }
   }

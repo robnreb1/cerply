@@ -51,7 +51,7 @@ jobs:
           echo "HEAD=$(git rev-parse HEAD || echo unknown)"
           echo "--- scripts from web/package.json ---"
           node -e "console.log(JSON.stringify(require('./package.json').scripts, null, 2))"
-          npm run test:e2e -- --reporter=list
+          npm run test:e2e -- --reporter=list --grep-invert @nightly
 
       - name: Run E2E (STUDY preview)
         if: steps.find.outputs.url != ''
@@ -63,6 +63,6 @@ jobs:
           CERTIFIED_MODE: plan
         run: |
           set -euo pipefail
-          npx playwright test e2e/certified.study.preview.spec.ts --config=playwright.config.ts --reporter=list
+          npx playwright test e2e/certified.study.preview.spec.ts --config=playwright.config.ts --reporter=list --grep-invert @nightly
 
 
