@@ -15,6 +15,7 @@ import { getLearnerLevel, getAllLearnerLevels } from '../services/gamification';
 import { renderCertificatePDF, getUserCertificates, verifyCertificate } from '../services/certificates';
 import { getLearnerBadges, getAllBadges } from '../services/badges';
 import { getManagerNotifications, markNotificationRead, getUnreadCount } from '../services/notifications';
+import { emitCertificateDownloaded, emitNotificationMarkedRead } from '../services/audit';
 
 const FF_GAMIFICATION_V1 = process.env.FF_GAMIFICATION_V1 === 'true';
 const FF_CERTIFICATES_V1 = process.env.FF_CERTIFICATES_V1 === 'true';
@@ -246,6 +247,15 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       try {
         const pdfBuffer = await renderCertificatePDF(id);
 
+        // Emit audit event for certificate download
+        const session = getSession(req);
+        emitCertificateDownloaded({
+          userId: session?.userId || 'unknown',
+          certificateId: id,
+          performedBy: session?.userId,
+          requestId: req.id as string,
+        });
+
         return reply
           .header('Content-Type', 'application/pdf')
           .header('Content-Disposition', `attachment; filename="certificate-${id}.pdf"`)
@@ -407,6 +417,15 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
             error: { code: 'NOT_FOUND', message: 'Notification not found' }
           });
         }
+
+        // Emit audit event
+        emitNotificationMarkedRead({
+          userId: session.userId,
+          notificationId: id,
+          notificationType: 'manager_notification',
+          performedBy: session.userId,
+          requestId: req.id as string,
+        });
 
         const responseBody = { id, read };
         
