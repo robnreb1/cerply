@@ -57,7 +57,8 @@ export async function createApp() {
       (req as any).rawBody = body;
       
       // Parse form data: payload={"type":"block_actions",...}
-      const params = new URLSearchParams(body);
+      const bodyString = Buffer.isBuffer(body) ? body.toString('utf8') : body;
+      const params = new URLSearchParams(bodyString);
       const parsed: any = {};
       for (const [key, value] of params.entries()) {
         parsed[key] = value;

@@ -84,12 +84,18 @@ export interface Question {
 }
 
 export interface ProvenanceRecord {
-  moduleId: string;
-  section: string;
-  source: string;
-  model: string;
+  // Format 1: Old source mode
+  moduleId?: string;
+  section?: string;
+  source?: string;
+  model?: string;
   confidence?: number;
   reason?: string;
+  // Format 2: Research mode with generator sources
+  generatorSource?: string | string[];
+  // Format 3: Alternate research mode
+  newIds?: string[];
+  originalId?: string;
 }
 
 export interface EnsembleResult {
