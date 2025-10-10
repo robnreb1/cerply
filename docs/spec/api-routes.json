@@ -11,11 +11,21 @@
     "GET /flags",
     "GET /health",
     "GET /marketplace/ledger/summary",
+    "GET /api/learners/:id/level/:trackId",
+    "GET /api/learners/:id/levels",
+    "GET /api/learners/:id/certificates",
+    "GET /api/learners/:id/badges",
+    "GET /api/certificates/:id/download",
+    "GET /api/certificates/:id/verify",
+    "GET /api/manager/notifications",
+    "GET /api/manager/notifications/unread/count",
     "OPTIONS /import/file",
+    "PATCH /api/manager/notifications/:id",
     "POST /api/items/generate",
     "POST /api/delivery/send",
     "POST /api/delivery/webhook/slack",
     "POST /api/delivery/channels",
+    "POST /api/certificates/:id/revoke",
     "POST /challenges",
     "POST /curator/quality/compute",
     "POST /groups",
@@ -25,5 +35,31 @@
     "POST /learn/next",
     "POST /learn/submit"
   ],
-  "ts": "2025-10-10T00:00:00.000Z"
+  "ts": "2025-10-10T19:00:00.000Z",
+  "epic7": {
+    "feature_flags": ["FF_GAMIFICATION_V1", "FF_CERTIFICATES_V1", "FF_MANAGER_NOTIFICATIONS_V1"],
+    "idempotency": {
+      "header": "X-Idempotency-Key",
+      "replay_header": "X-Idempotency-Replay",
+      "ttl_hours": 24,
+      "mutating_routes": ["PATCH /api/manager/notifications/:id", "POST /api/certificates/:id/revoke"]
+    },
+    "pagination": {
+      "query_params": {
+        "limit": { "default": 50, "max": 200 },
+        "offset": { "default": 0 }
+      },
+      "response_shape": { "total": "number", "limit": "number", "offset": "number", "data": "array" },
+      "paginated_routes": ["GET /api/learners/:id/levels", "GET /api/manager/notifications"]
+    },
+    "rbac": {
+      "learner": ["GET /api/learners/:id/*", "GET /api/certificates/:id/download"],
+      "manager": ["GET /api/manager/notifications", "PATCH /api/manager/notifications/:id"],
+      "admin": ["POST /api/certificates/:id/revoke"]
+    },
+    "error_envelope": {
+      "shape": { "error": { "code": "string", "message": "string", "details": "object?" } },
+      "codes": ["BAD_REQUEST", "UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "CONFLICT", "INTERNAL_ERROR"]
+    }
+  }
 }
