@@ -1,9 +1,11 @@
 # MVP Use Cases
 > **Pivot note:** Cerply has pivoted from consumer to B2B SaaS focus. All use cases below are scoped for MVP and post-pivot strategy.
+
 > **Update (2025-10-10):** Aligned MVP with B2B strategy: Slack prioritized for channel delivery (WhatsApp Phase 2); ensemble content generation with 3-LLM pipeline for quality; gamification with levels/certificates/badges; conversational learning interface; true adaptive difficulty engine; consumer payments removed; Certified positioned as horizontal with expert panels; manager-centric curation and analytics emphasised.
 
 ## All users
 AU-1. Web app plus at least one channel integration for delivery (Slack for MVP, WhatsApp Phase 2, Teams Phase 3).
+
 AU-2. Users can access core learning flows: ingest, plan, learn, quiz, review.
 AU-3. Multi-device sync and offline support for lessons and quizzes.
 AU-4. User telemetry collected for progress, retention, and engagement.
@@ -36,6 +38,7 @@ L-15. Learners receive notifications and reminders.
 L-16. Learners progress through 5 levels per track (Novice → Learner → Practitioner → Expert → Master) based on correct attempts. Upon track completion, learners automatically receive downloadable PDF certificate with Ed25519 signature for verification. Learners unlock badges for achievements (Speed Demon, Perfectionist, 7-day Consistent, Knowledge Sharer, Lifelong Learner). Level-ups and certificate earnings trigger celebration UI and manager email notifications. Learners can query progress conversationally ("How am I doing?", "When will I complete this track?").
 L-17. Learners can configure preferred delivery channel (Slack, web, email fallback) and set quiet hours to avoid notifications during specific times (e.g., "22:00-07:00"). Learners can pause and resume notifications as needed. Channel preferences stored per user with verification status.
 L-18. Learners can answer questions using free-text input instead of multiple choice. System validates answers using NLP and LLM, accepts partial credit, and provides constructive feedback. Multiple choice reserved only for yes/no or categorical questions where free-text doesn't make sense.
+
 
 ## Expert
 E-1. Experts can create and ratify Certified content.
