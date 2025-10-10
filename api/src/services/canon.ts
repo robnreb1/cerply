@@ -36,18 +36,34 @@ const GENERIC_KEYWORDS = [
 ];
 
 /**
+ * Stop words to ignore in similarity checks
+ */
+const STOP_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+  'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+  'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'should',
+  'could', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those'
+]);
+
+/**
  * Detect if content is generic (industry-standard)
  * Generic content can be reused across organizations
  */
-export function isGenericContent(text: string): boolean {
+export function isGenericContent(text: string | null | undefined): boolean {
+  if (!text || typeof text !== 'string') {
+    return false;
+  }
+  
   const lowerText = text.toLowerCase();
   
-  // Check for multiple keyword matches (at least 2)
-  const matchCount = GENERIC_KEYWORDS.filter(keyword => 
-    lowerText.includes(keyword)
-  ).length;
+  // Check for keyword matches with word boundaries (at least 1 match for MVP)
+  const matchCount = GENERIC_KEYWORDS.filter(keyword => {
+    // Use word boundary regex for more accurate matching
+    const regex = new RegExp(`\\b${keyword.replace(/\s+/g, '\\s+')}\\b`, 'i');
+    return regex.test(lowerText);
+  }).length;
   
-  return matchCount >= 2;
+  return matchCount >= 1;
 }
 
 /**
@@ -90,13 +106,13 @@ export async function checkCanonReuse(
  * In production, use cosine similarity with embeddings or Levenshtein distance
  */
 function calculateTextSimilarity(text1: string, text2: string): number {
-  // Normalize and tokenize
+  // Normalize and tokenize, filtering stop words
   const words1 = new Set(
     text1
       .toLowerCase()
       .replace(/[^\w\s]/g, '')
       .split(/\s+/)
-      .filter(w => w.length > 2)
+      .filter(w => w.length > 2 && !STOP_WORDS.has(w))
   );
   
   const words2 = new Set(
@@ -104,14 +120,14 @@ function calculateTextSimilarity(text1: string, text2: string): number {
       .toLowerCase()
       .replace(/[^\w\s]/g, '')
       .split(/\s+/)
-      .filter(w => w.length > 2)
+      .filter(w => w.length > 2 && !STOP_WORDS.has(w))
   );
   
   // Jaccard similarity: |A ∩ B| / |A ∪ B|
   const intersection = new Set([...words1].filter(x => words2.has(x)));
   const union = new Set([...words1, ...words2]);
   
-  return intersection.size / union.size;
+  return union.size === 0 ? 0 : intersection.size / union.size;
 }
 
 /**
@@ -162,12 +178,20 @@ export async function getCanonStats(organizationId: string): Promise<{
  * Tag content as generic or proprietary
  * This helps with future canon lookups
  */
-export function classifyContentType(artefactText: string): 'generic' | 'proprietary' | 'mixed' {
-  const genericScore = GENERIC_KEYWORDS.filter(keyword =>
-    artefactText.toLowerCase().includes(keyword)
-  ).length;
+export function classifyContentType(artefactText: string | null | undefined): 'generic' | 'proprietary' | 'mixed' {
+  if (!artefactText || typeof artefactText !== 'string') {
+    return 'proprietary';
+  }
+  
+  const lowerText = artefactText.toLowerCase();
+  
+  // Use word boundary regex for accurate matching
+  const genericScore = GENERIC_KEYWORDS.filter(keyword => {
+    const regex = new RegExp(`\\b${keyword.replace(/\s+/g, '\\s+')}\\b`, 'i');
+    return regex.test(lowerText);
+  }).length;
 
-  if (genericScore >= 3) return 'generic';
+  if (genericScore >= 2) return 'generic';
   if (genericScore >= 1) return 'mixed';
   return 'proprietary';
 }
