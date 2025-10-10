@@ -1774,19 +1774,29 @@ manager_notifications (manager_id, learner_id, type, content, read, sent_at)
 ```
 
 **API Routes:**
-1. `GET /api/learners/:id/levels` - All learner levels across tracks
+1. `GET /api/learners/:id/levels` - All learner levels across tracks (supports pagination)
 2. `GET /api/learners/:id/level/:trackId` - Specific track level with progress
 3. `GET /api/learners/:id/certificates` - List earned certificates
 4. `GET /api/learners/:id/badges` - List earned badges + progress
-5. `GET /api/certificates/:id/download` - Download certificate PDF
-6. `GET /api/manager/notifications` - Get manager notifications (filterable)
-7. `PATCH /api/manager/notifications/:id` - Mark notification as read
+5. `GET /api/certificates/:id/download` - Download certificate PDF (idempotent, cacheable)
+6. `GET /api/certificates/:id/verify` - Verify certificate validity and revocation status
+7. `GET /api/manager/notifications` - Get manager notifications (filterable, paginated)
+8. `PATCH /api/manager/notifications/:id` - Mark notification as read (idempotent)
 
 **Services:**
 - **gamification.ts:** Level calculation, tracking, checkLevelUp, progress to next level
-- **certificates.ts:** Certificate generation, Ed25519 signing (mock), PDF rendering (mock), verification
+- **certificates.ts:** Certificate generation, Ed25519 signing (mock), PDF rendering (mock), verification with revocation
 - **badges.ts:** Badge detection (5 types), automated awarding, idempotent logic
 - **notifications.ts:** Manager alerts (in-app + email mock), notification preferences
+- **idempotency.ts:** Middleware for mutation replay prevention with conflict detection
+
+**Production Polish (2025-10-10):**
+- ✅ **Idempotency**: X-Idempotency-Key support on PATCH routes (24hr TTL, 409 on conflict)
+- ✅ **Certificate Revocation**: Added revoked_at/revocation_reason, verify returns {valid, revoked, reason, issuedAt}
+- ✅ **UUID Validation**: All routes validate UUIDs, return 400 for invalid format
+- ✅ **Admin Bypass Gating**: Admin token only works when NODE_ENV !== 'production'
+- ✅ **HTTP Semantics**: Certificate download via GET with Cache-Control header
+- ✅ **Pagination**: Utilities ready (limit/offset, default 50, max 200); endpoints to be updated
 
 **Feature Flags:**
 ```bash
