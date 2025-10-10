@@ -6,7 +6,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq, and, desc, count } from 'drizzle-orm';
 import { db } from '../db';
-import { managerNotifications, users } from '../db/schema';
+import { managerNotifications, users, certificates } from '../db/schema';
 import { requireAnyRole, requireManager, getSession } from '../middleware/rbac';
 import { isValidUUID } from '../utils/validation';
 import { checkIdempotencyKey, storeIdempotencyKey } from '../middleware/idempotency';
@@ -326,12 +326,9 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       }
 
       // Check idempotency key
-      const idempotentResponse = await checkIdempotencyKey(req);
-      if (idempotentResponse) {
-        return reply
-          .status(idempotentResponse.statusCode)
-          .headers(idempotentResponse.headers || {})
-          .send(idempotentResponse.body);
+      const replayed = await checkIdempotencyKey(req, reply, '/api/certificates/:id/revoke');
+      if (replayed) {
+        return; // Already sent response
       }
 
       // Admin-only (use requireRole with 'admin' or check session manually)
@@ -340,7 +337,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         return reply;
       }
 
-      const session = await getSession(req, reply);
+      const session = getSession(req);
       if (session && session.role !== 'admin') {
         return reply.status(403).send({
           error: { code: 'FORBIDDEN', message: 'Admin role required' }
@@ -381,7 +378,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         }
 
         const responseBody = result;
-        await storeIdempotencyKey(req, reply, 200, responseBody);
+        await storeIdempotencyKey(req, '/api/certificates/:id/revoke', 200, responseBody);
 
         return reply.send(responseBody);
       } catch (error) {
