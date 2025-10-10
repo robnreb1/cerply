@@ -235,3 +235,26 @@ export async function getUserCertificates(userId: string): Promise<Array<{
   }));
 }
 
+/**
+ * Revoke a certificate (admin-only)
+ */
+export async function revokeCertificate(
+  certificateId: string,
+  reason: string
+): Promise<{ revokedAt: Date; reason: string }> {
+  const now = new Date();
+  
+  await db
+    .update(certificates)
+    .set({
+      revokedAt: now,
+      revocationReason: reason,
+    })
+    .where(eq(certificates.id, certificateId));
+
+  return {
+    revokedAt: now,
+    reason,
+  };
+}
+

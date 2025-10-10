@@ -12,10 +12,10 @@ import { isValidUUID } from '../utils/validation';
 import { checkIdempotencyKey, storeIdempotencyKey } from '../middleware/idempotency';
 import { parsePaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { getLearnerLevel, getAllLearnerLevels } from '../services/gamification';
-import { renderCertificatePDF, getUserCertificates, verifyCertificate } from '../services/certificates';
+import { renderCertificatePDF, getUserCertificates, verifyCertificate, revokeCertificate } from '../services/certificates';
 import { getLearnerBadges, getAllBadges } from '../services/badges';
 import { getManagerNotifications, markNotificationRead, getUnreadCount } from '../services/notifications';
-import { emitCertificateDownloaded, emitNotificationMarkedRead } from '../services/audit';
+import { emitCertificateDownloaded, emitNotificationMarkedRead, emitCertificateRevoked } from '../services/audit';
 
 const FF_GAMIFICATION_V1 = process.env.FF_GAMIFICATION_V1 === 'true';
 const FF_CERTIFICATES_V1 = process.env.FF_CERTIFICATES_V1 === 'true';
@@ -306,6 +306,88 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         console.error('[gamification] Error verifying certificate:', error);
         return reply.status(500).send({
           error: { code: 'INTERNAL_ERROR', message: 'Failed to verify certificate' }
+        });
+      }
+    }
+  );
+
+  /**
+   * POST /api/certificates/:id/revoke
+   * Revoke a certificate (admin-only, idempotent)
+   * RBAC: admin only
+   */
+  app.post(
+    '/api/certificates/:id/revoke',
+    async (req: FastifyRequest<{ Params: { id: string }; Body: { reason: string } }>, reply: FastifyReply) => {
+      if (!FF_CERTIFICATES_V1) {
+        return reply.status(404).send({
+          error: { code: 'NOT_FOUND', message: 'Feature not enabled' }
+        });
+      }
+
+      // Check idempotency key
+      const idempotentResponse = await checkIdempotencyKey(req);
+      if (idempotentResponse) {
+        return reply
+          .status(idempotentResponse.statusCode)
+          .headers(idempotentResponse.headers || {})
+          .send(idempotentResponse.body);
+      }
+
+      // Admin-only (use requireRole with 'admin' or check session manually)
+      const passed = requireAnyRole(req, reply);
+      if (!passed) {
+        return reply;
+      }
+
+      const session = await getSession(req, reply);
+      if (session && session.role !== 'admin') {
+        return reply.status(403).send({
+          error: { code: 'FORBIDDEN', message: 'Admin role required' }
+        });
+      }
+
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      // Validate UUID
+      if (!isValidUUID(id)) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Invalid UUID format' }
+        });
+      }
+
+      if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Revocation reason required' }
+        });
+      }
+
+      try {
+        const result = await revokeCertificate(id, reason.trim());
+
+        // Emit audit event
+        // Note: We need to fetch the certificate to get userId and orgId
+        const [cert] = await db.select().from(certificates).where(eq(certificates.id, id)).limit(1);
+        if (cert) {
+          await emitCertificateRevoked({
+            userId: cert.userId,
+            organizationId: cert.organizationId || undefined,
+            certificateId: id,
+            reason: reason.trim(),
+            performedBy: session?.userId,
+            requestId: req.id,
+          });
+        }
+
+        const responseBody = result;
+        await storeIdempotencyKey(req, reply, 200, responseBody);
+
+        return reply.send(responseBody);
+      } catch (error) {
+        console.error('[gamification] Error revoking certificate:', error);
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to revoke certificate' }
         });
       }
     }

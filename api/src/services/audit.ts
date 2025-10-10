@@ -46,6 +46,12 @@ export interface CertificateDownloadedEvent extends BaseAuditEvent {
   certificateId: string;
 }
 
+export interface CertificateRevokedEvent extends BaseAuditEvent {
+  eventType: 'certificate_revoked';
+  certificateId: string;
+  reason: string;
+}
+
 export interface NotificationMarkedReadEvent extends BaseAuditEvent {
   eventType: 'notification_marked_read';
   notificationId: string;
@@ -57,6 +63,7 @@ export type AuditEvent =
   | LevelChangedEvent
   | CertificateIssuedEvent
   | CertificateDownloadedEvent
+  | CertificateRevokedEvent
   | NotificationMarkedReadEvent;
 
 // In-memory counters for KPIs (reset on server restart)
@@ -66,6 +73,7 @@ const counters = {
   levels_changed: 0,
   certificates_issued: 0,
   certificates_downloaded: 0,
+  certificates_revoked: 0,
   notifications_marked_read: 0,
 };
 
@@ -88,6 +96,9 @@ export async function emitAuditEvent(event: AuditEvent): Promise<void> {
       break;
     case 'certificate_downloaded':
       counters.certificates_downloaded++;
+      break;
+    case 'certificate_revoked':
+      counters.certificates_revoked++;
       break;
     case 'notification_marked_read':
       counters.notifications_marked_read++;
@@ -140,6 +151,7 @@ export function resetAuditCounters() {
   counters.levels_changed = 0;
   counters.certificates_issued = 0;
   counters.certificates_downloaded = 0;
+  counters.certificates_revoked = 0;
   counters.notifications_marked_read = 0;
 }
 
@@ -210,6 +222,24 @@ export async function emitCertificateDownloaded(params: {
 }): Promise<void> {
   await emitAuditEvent({
     eventType: 'certificate_downloaded',
+    timestamp: new Date(),
+    ...params,
+  });
+}
+
+/**
+ * Helper to emit certificate revoked event
+ */
+export async function emitCertificateRevoked(params: {
+  userId: string;
+  organizationId?: string;
+  certificateId: string;
+  reason: string;
+  performedBy?: string;
+  requestId?: string;
+}): Promise<void> {
+  await emitAuditEvent({
+    eventType: 'certificate_revoked',
     timestamp: new Date(),
     ...params,
   });

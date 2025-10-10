@@ -54,6 +54,7 @@ export async function registerOpsRoutes(app: FastifyInstance) {
           levels_changed: gamificationCounters.levels_changed,
           certificates_issued: gamificationCounters.certificates_issued,
           certificates_downloaded: gamificationCounters.certificates_downloaded,
+          certificates_revoked: gamificationCounters.certificates_revoked,
           notifications_marked_read: gamificationCounters.notifications_marked_read,
         },
         generated_at: new Date().toISOString(),
