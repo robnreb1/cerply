@@ -48,7 +48,7 @@ export async function registerIngestRoutes(app: FastifyInstance) {
     reply.header('cache-control', 'no-store');
 
     // Auth gate when enabled
-    const hasCookie = typeof (req.headers as any)?.cookie === 'string' && (req.headers as any).cookie.includes('cerply_session=');
+    const hasCookie = typeof (req.headers as any)?.cookie === 'string' && (req.headers as any).cookie.includes('cerply.sid=');
     const gateOn = (process.env.NODE_ENV === 'test')
       ? !hasCookie
       : (process.env.REQUIRE_AUTH_FOR_GENERATE && process.env.REQUIRE_AUTH_FOR_GENERATE !== '0');
