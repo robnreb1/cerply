@@ -282,6 +282,8 @@ export const certificates = pgTable('certificates', {
   signature: text('signature').notNull(), // Ed25519 signature (hex)
   pdfUrl: text('pdf_url'),
   verificationUrl: text('verification_url'),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  revocationReason: text('revocation_reason'),
 });
 
 export const badges = pgTable('badges', {
@@ -309,5 +311,18 @@ export const managerNotifications = pgTable('manager_notifications', {
   content: jsonb('content').notNull(),
   read: boolean('read').notNull().default(false),
   sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const idempotencyKeys = pgTable('idempotency_keys', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  key: text('key').notNull(),
+  route: text('route').notNull(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  statusCode: integer('status_code').notNull(),
+  responseHash: text('response_hash').notNull(),
+  responseBody: jsonb('response_body').notNull(),
+  responseHeaders: jsonb('response_headers'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 });
 

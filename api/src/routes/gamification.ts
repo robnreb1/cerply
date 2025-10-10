@@ -9,8 +9,10 @@ import { db } from '../db';
 import { managerNotifications, users } from '../db/schema';
 import { requireAnyRole, requireManager, getSession } from '../middleware/rbac';
 import { isValidUUID } from '../utils/validation';
+import { checkIdempotencyKey, storeIdempotencyKey } from '../middleware/idempotency';
+import { parsePaginationParams, createPaginatedResponse } from '../utils/pagination';
 import { getLearnerLevel, getAllLearnerLevels } from '../services/gamification';
-import { renderCertificatePDF, getUserCertificates } from '../services/certificates';
+import { renderCertificatePDF, getUserCertificates, verifyCertificate } from '../services/certificates';
 import { getLearnerBadges, getAllBadges } from '../services/badges';
 import { getManagerNotifications, markNotificationRead, getUnreadCount } from '../services/notifications';
 
@@ -257,6 +259,47 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
   );
 
   /**
+   * GET /api/certificates/:id/verify
+   * Verify certificate validity and check revocation status
+   */
+  app.get(
+    '/api/certificates/:id/verify',
+    async (req: FastifyRequest<{ Params: { id: string }; Querystring: { signature: string } }>, reply: FastifyReply) => {
+      if (!FF_CERTIFICATES_V1) {
+        return reply.status(404).send({
+          error: { code: 'NOT_FOUND', message: 'Feature not enabled' }
+        });
+      }
+
+      const { id } = req.params;
+      const { signature } = req.query;
+
+      // Validate UUID
+      if (!isValidUUID(id)) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Invalid UUID format' }
+        });
+      }
+
+      if (!signature) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Signature query parameter required' }
+        });
+      }
+
+      try {
+        const result = await verifyCertificate(id, signature);
+        return reply.send(result);
+      } catch (error) {
+        console.error('[gamification] Error verifying certificate:', error);
+        return reply.status(500).send({
+          error: { code: 'INTERNAL_ERROR', message: 'Failed to verify certificate' }
+        });
+      }
+    }
+  );
+
+  /**
    * GET /api/manager/notifications
    * Get manager's notifications (unread + recent read)
    */
@@ -343,6 +386,13 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
+      // Check idempotency key
+      const route = `/api/manager/notifications/:id`;
+      const wasReplayed = await checkIdempotencyKey(req, reply, route);
+      if (wasReplayed) {
+        return reply;
+      }
+
       const { read } = req.body;
 
       try {
@@ -354,7 +404,12 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
           });
         }
 
-        return reply.send({ id, read });
+        const responseBody = { id, read };
+        
+        // Store idempotency key
+        await storeIdempotencyKey(req, route, 200, responseBody);
+        
+        return reply.send(responseBody);
       } catch (error) {
         console.error('[gamification] Error marking notification as read:', error);
         return reply.status(500).send({

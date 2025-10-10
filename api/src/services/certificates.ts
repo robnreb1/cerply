@@ -116,24 +116,42 @@ async function signCertificate(data: Partial<CertificateData>): Promise<string> 
 }
 
 /**
- * Verify certificate signature
+ * Verify certificate signature and revocation status
  * For MVP, this validates the certificate exists and matches
  */
 export async function verifyCertificate(
   certificateId: string,
   signature: string
-): Promise<boolean> {
+): Promise<{
+  valid: boolean;
+  revoked: boolean;
+  reason?: string;
+  issuedAt?: Date;
+}> {
   const [cert] = await db
     .select()
     .from(certificates)
     .where(eq(certificates.id, certificateId))
     .limit(1);
 
-  if (!cert) return false;
+  if (!cert) {
+    return { valid: false, revoked: false };
+  }
 
+  // Check signature match
   // For MVP, simple string comparison
   // TODO: Replace with actual Ed25519 verification when dependencies installed
-  return cert.signature === signature;
+  const signatureValid = cert.signature === signature;
+
+  // Check revocation status
+  const isRevoked = cert.revokedAt !== null;
+
+  return {
+    valid: signatureValid && !isRevoked,
+    revoked: isRevoked,
+    reason: cert.revocationReason || undefined,
+    issuedAt: cert.issuedAt,
+  };
 }
 
 /**
