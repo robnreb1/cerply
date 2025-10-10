@@ -263,3 +263,51 @@ export const citations = pgTable('citations', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// Epic 7: Gamification & Certification System
+export const learnerLevels = pgTable('learner_levels', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  trackId: uuid('track_id').notNull().references(() => tracks.id, { onDelete: 'cascade' }),
+  level: text('level').notNull(), // 'novice' | 'learner' | 'practitioner' | 'expert' | 'master'
+  correctAttempts: integer('correct_attempts').notNull().default(0),
+  leveledUpAt: timestamp('leveled_up_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const certificates = pgTable('certificates', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  trackId: uuid('track_id').notNull().references(() => tracks.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  issuedAt: timestamp('issued_at', { withTimezone: true }).defaultNow().notNull(),
+  signature: text('signature').notNull(), // Ed25519 signature (hex)
+  pdfUrl: text('pdf_url'),
+  verificationUrl: text('verification_url'),
+});
+
+export const badges = pgTable('badges', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  description: text('description').notNull(),
+  icon: text('icon').notNull(),
+  criteria: jsonb('criteria').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const learnerBadges = pgTable('learner_badges', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  badgeId: uuid('badge_id').notNull().references(() => badges.id, { onDelete: 'cascade' }),
+  earnedAt: timestamp('earned_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const managerNotifications = pgTable('manager_notifications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  managerId: uuid('manager_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  learnerId: uuid('learner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'level_up' | 'certificate' | 'badge' | 'at_risk'
+  content: jsonb('content').notNull(),
+  read: boolean('read').notNull().default(false),
+  sentAt: timestamp('sent_at', { withTimezone: true }).defaultNow().notNull(),
+});
+

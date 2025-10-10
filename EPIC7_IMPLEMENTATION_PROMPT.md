@@ -3,7 +3,30 @@
 **For:** New Agent/Developer  
 **Date:** 2025-10-10  
 **Estimated Effort:** 12-16 hours (1.5 overnights)  
-**Priority:** P1 (Learner Engagement & Trust)
+**Priority:** P1 (Learner Engagement & Trust)  
+**Status:** ✅ Core API Implementation Complete (2025-10-10)
+
+---
+
+## Implementation Status
+
+**Completed:**
+- ✅ Phase 1: Database schema (5 tables + 5 badge seeds)
+- ✅ Phase 2: Gamification service (level calculation, tracking)
+- ✅ Phase 3: Certificate service (generation, mock signing)
+- ✅ Phase 4: Badge detection service (5 badge types)
+- ✅ Phase 5: Manager notification service (in-app + mock email)
+- ✅ Phase 6: API routes (7 endpoints with RBAC)
+- ✅ Phase 8: Tests (smoke tests + UAT plan)
+
+**Deferred:**
+- ⏳ Phase 5.5: Daily/weekly digest service (optional)
+- ⏳ Phase 7: Web UI components (Phase 2)
+- ⏳ Production dependencies (pdfkit, @noble/ed25519, node-cron)
+
+**See:** `EPIC7_IMPLEMENTATION_SUMMARY.md` for complete details.
+
+---
 
 ---
 
@@ -516,7 +539,9 @@ AWS_SECRET_ACCESS_KEY=...
 ```sql
 ------------------------------------------------------------------------------
 -- Epic 7: Gamification & Certification System
--- BRD: L-16, B-15 | FSD: §27 Gamification & Certificates v1
+-- BRD: L-16 (Learner progression), B-15 (Manager notifications)
+-- FSD: Will be added as new section post-§27 upon Epic 7 completion
+-- Roadmap: docs/MVP_B2B_ROADMAP.md (Epic 7, lines 619-785)
 ------------------------------------------------------------------------------
 
 -- Learner levels per track
@@ -1350,14 +1375,31 @@ export async function notifyManager(event: NotificationEvent | LevelUpEvent): Pr
     sentAt: new Date(),
   });
 
-  // TODO: Check manager notification preferences
+  // Check manager notification preferences (BRD B-15)
+  const managerPrefs = await getManagerNotificationPreferences(manager.id);
+  if (managerPrefs.notificationFrequency === 'off') {
+    return; // Manager opted out
+  }
 
-  // Send email
-  await sendEmail({
-    to: manager.email,
-    subject: getEmailSubject(event),
-    body: renderEmailTemplate(event),
-  });
+  // For immediate or daily digest, send email
+  if (managerPrefs.notificationFrequency === 'immediate') {
+    await sendEmail({
+      to: manager.email,
+      subject: getEmailSubject(event),
+      body: renderEmailTemplate(event),
+    });
+  }
+  // Note: Daily/weekly digests handled by separate cron job (see Phase 4)
+}
+
+/**
+ * Get manager notification preferences
+ * Returns: { notificationFrequency: 'immediate' | 'daily' | 'weekly' | 'off' }
+ */
+async function getManagerNotificationPreferences(managerId: string) {
+  // For MVP: Default to 'immediate' (preferences UI in future epic)
+  // Future: Query user_preferences table
+  return { notificationFrequency: 'immediate' };
 }
 
 /**
@@ -1487,12 +1529,516 @@ npm install @sendgrid/mail
 - [ ] Manager receives in-app notification
 - [ ] Manager receives email (if SendGrid configured)
 - [ ] Email templates render correctly
-- [ ] Daily digest aggregates events
-- [ ] Notification preferences respected (future)
 
 ---
 
-### Phase 6: API Routes (2 hours)
+### Phase 5.5: Daily/Weekly Digest Service (1.5 hours)
+
+**Background:** BRD B-15 specifies notification preferences including "daily digest" and "weekly summary". This phase implements the aggregation logic and scheduled cron jobs.
+
+**File:** `api/src/services/notificationDigest.ts` (NEW)
+
+```typescript
+/**
+ * Notification Digest Service
+ * Epic 7: Gamification & Certification System
+ * BRD B-15: Daily digest example: "3 team members leveled up this week, 2 earned certificates"
+ */
+
+import { db } from '../db';
+import { managerNotifications, users } from '../db/schema';
+import { eq, and, gte } from 'drizzle-orm';
+import { sendEmail } from './email';
+
+/**
+ * Send daily digests to managers with 'daily' notification preference
+ */
+export async function sendDailyDigests() {
+  const managers = await db
+    .select()
+    .from(users)
+    .where(eq(users.role, 'manager'));
+
+  for (const manager of managers) {
+    const prefs = await getManagerNotificationPreferences(manager.id);
+    if (prefs.notificationFrequency !== 'daily') continue;
+
+    // Get unread notifications from last 24 hours
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const notifications = await db
+      .select()
+      .from(managerNotifications)
+      .where(
+        and(
+          eq(managerNotifications.managerId, manager.id),
+          gte(managerNotifications.sentAt, since),
+          eq(managerNotifications.read, false)
+        )
+      );
+
+    if (notifications.length === 0) continue;
+
+    // Group by type
+    const levelUps = notifications.filter(n => n.type === 'level_up').length;
+    const certificates = notifications.filter(n => n.type === 'certificate').length;
+    const badges = notifications.filter(n => n.type === 'badge').length;
+
+    const summary = [
+      levelUps > 0 ? `${levelUps} team member${levelUps > 1 ? 's' : ''} leveled up` : null,
+      certificates > 0 ? `${certificates} certificate${certificates > 1 ? 's' : ''} earned` : null,
+      badges > 0 ? `${badges} badge${badges > 1 ? 's' : ''} unlocked` : null,
+    ].filter(Boolean).join(', ');
+
+    await sendEmail({
+      to: manager.email,
+      subject: `Daily Team Progress Digest`,
+      body: `Hi ${manager.name},\n\nYour team made progress today: ${summary}.\n\nView details: ${process.env.WEB_BASE_URL || 'https://app.cerply.com'}/manager/notifications`,
+    });
+  }
+}
+
+/**
+ * Send weekly summaries to managers with 'weekly' notification preference
+ */
+export async function sendWeeklyDigests() {
+  const managers = await db
+    .select()
+    .from(users)
+    .where(eq(users.role, 'manager'));
+
+  for (const manager of managers) {
+    const prefs = await getManagerNotificationPreferences(manager.id);
+    if (prefs.notificationFrequency !== 'weekly') continue;
+
+    // Get unread notifications from last 7 days
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const notifications = await db
+      .select()
+      .from(managerNotifications)
+      .where(
+        and(
+          eq(managerNotifications.managerId, manager.id),
+          gte(managerNotifications.sentAt, since),
+          eq(managerNotifications.read, false)
+        )
+      );
+
+    if (notifications.length === 0) continue;
+
+    // Group by type
+    const levelUps = notifications.filter(n => n.type === 'level_up').length;
+    const certificates = notifications.filter(n => n.type === 'certificate').length;
+    const badges = notifications.filter(n => n.type === 'badge').length;
+
+    const summary = [
+      levelUps > 0 ? `${levelUps} team member${levelUps > 1 ? 's' : ''} leveled up this week` : null,
+      certificates > 0 ? `${certificates} certificate${certificates > 1 ? 's' : ''} earned` : null,
+      badges > 0 ? `${badges} badge${badges > 1 ? 's' : ''} unlocked` : null,
+    ].filter(Boolean).join(', ');
+
+    await sendEmail({
+      to: manager.email,
+      subject: `Weekly Team Progress Summary`,
+      body: `Hi ${manager.name},\n\nYour team's progress this week: ${summary}.\n\nView details: ${process.env.WEB_BASE_URL || 'https://app.cerply.com'}/manager/notifications`,
+    });
+  }
+}
+
+/**
+ * Placeholder for getting manager notification preferences
+ * TODO: Implement preferences table in future epic
+ */
+async function getManagerNotificationPreferences(managerId: string) {
+  // For MVP: Default to 'immediate' (preferences UI in future epic)
+  // Future: Query user_preferences table
+  return { notificationFrequency: 'immediate' as 'immediate' | 'daily' | 'weekly' | 'off' };
+}
+```
+
+**Cron Job Setup:**
+
+**File:** `api/src/cron/digestScheduler.ts` (NEW)
+
+```typescript
+import cron from 'node-cron';
+import { sendDailyDigests, sendWeeklyDigests } from '../services/notificationDigest';
+
+/**
+ * Schedule daily and weekly digest emails
+ */
+export function initializeDigestScheduler() {
+  // Daily digest at 8:00 AM UTC
+  cron.schedule('0 8 * * *', async () => {
+    console.log('[Cron] Running daily notification digests...');
+    try {
+      await sendDailyDigests();
+      console.log('[Cron] Daily digests sent successfully');
+    } catch (err) {
+      console.error('[Cron] Error sending daily digests:', err);
+    }
+  });
+
+  // Weekly digest on Monday at 8:00 AM UTC
+  cron.schedule('0 8 * * 1', async () => {
+    console.log('[Cron] Running weekly notification digests...');
+    try {
+      await sendWeeklyDigests();
+      console.log('[Cron] Weekly digests sent successfully');
+    } catch (err) {
+      console.error('[Cron] Error sending weekly digests:', err);
+    }
+  });
+
+  console.log('[Cron] Digest scheduler initialized');
+}
+```
+
+**Integration in `api/src/index.ts`:**
+
+```typescript
+// Add import
+import { initializeDigestScheduler } from './cron/digestScheduler';
+
+// After app.listen(), add:
+if (process.env.FF_MANAGER_NOTIFICATIONS_V1 === 'true') {
+  initializeDigestScheduler();
+}
+```
+
+**Install node-cron:**
+```bash
+cd api
+npm install node-cron
+npm install --save-dev @types/node-cron
+```
+
+**Acceptance:**
+- [ ] Daily digest aggregates last 24h notifications (BRD B-15: "3 team members leveled up this week, 2 earned certificates")
+- [ ] Weekly digest aggregates last 7d notifications
+- [ ] Notification preferences respected (immediate/daily/weekly/off)
+- [ ] Cron jobs run at scheduled times (8 AM UTC daily, Monday weekly)
+- [ ] Digests only sent to managers with unread notifications
+- [ ] Email includes link to notification center
+
+---
+
+### Phase 6: Manager Notification Center UI (2 hours)
+
+**Background:** BRD B-15 specifies "notification center in dashboard with unread count and mark-as-read functionality". This phase builds the UI component.
+
+**File:** `web/app/manager/notifications/page.tsx` (NEW)
+
+```tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Bell, Check, Trash2 } from 'lucide-react';
+
+interface Notification {
+  id: string;
+  learnerName: string;
+  type: 'level_up' | 'certificate' | 'badge' | 'at_risk';
+  content: {
+    trackTitle?: string;
+    newLevel?: string;
+    previousLevel?: string;
+    badgeName?: string;
+  };
+  read: boolean;
+  sentAt: string;
+}
+
+export default function NotificationCenterPage() {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  async function fetchNotifications() {
+    const res = await fetch('/api/manager/notifications');
+    if (!res.ok) {
+      console.error('Failed to fetch notifications');
+      setLoading(false);
+      return;
+    }
+    const data = await res.json();
+    setNotifications(data.notifications || []);
+    setUnreadCount(data.unreadCount || 0);
+    setLoading(false);
+  }
+
+  async function markAsRead(id: string) {
+    const res = await fetch(`/api/manager/notifications/${id}`, { method: 'PATCH' });
+    if (!res.ok) {
+      console.error('Failed to mark notification as read');
+      return;
+    }
+    setNotifications(prev =>
+      prev.map(n => (n.id === id ? { ...n, read: true } : n))
+    );
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  }
+
+  async function markAllAsRead() {
+    await Promise.all(
+      notifications.filter(n => !n.read).map(n => markAsRead(n.id))
+    );
+  }
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading notifications...</div>;
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Bell className="w-8 h-8 text-blue-600" />
+          <h1 className="text-3xl font-bold">Notifications</h1>
+          {unreadCount > 0 && (
+            <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+              {unreadCount} unread
+            </span>
+          )}
+        </div>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllAsRead}
+            className="text-sm text-blue-600 hover:underline font-medium"
+          >
+            Mark all as read
+          </button>
+        )}
+      </div>
+
+      {notifications.length === 0 ? (
+        <div className="bg-gray-50 rounded-lg p-8 text-center">
+          <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">No notifications yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {notifications.map(notif => (
+            <div
+              key={notif.id}
+              className={`p-4 rounded-lg border transition-colors ${
+                notif.read
+                  ? 'bg-gray-50 border-gray-200'
+                  : 'bg-blue-50 border-blue-300 shadow-sm'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className="font-semibold text-lg">{notif.learnerName}</p>
+                  <p className="text-sm text-gray-700 mt-1">
+                    {notif.type === 'level_up' &&
+                      `Leveled up from ${notif.content.previousLevel} to ${notif.content.newLevel} in ${notif.content.trackTitle}`}
+                    {notif.type === 'certificate' &&
+                      `Earned a certificate for completing ${notif.content.trackTitle}`}
+                    {notif.type === 'badge' &&
+                      `Unlocked the "${notif.content.badgeName}" badge`}
+                    {notif.type === 'at_risk' &&
+                      `Is at risk and may need support in ${notif.content.trackTitle}`}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {new Date(notif.sentAt).toLocaleString()}
+                  </p>
+                </div>
+                {!notif.read && (
+                  <button
+                    onClick={() => markAsRead(notif.id)}
+                    className="ml-4 p-2 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                    title="Mark as read"
+                  >
+                    <Check className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+**Add Navigation Link:**
+
+Update `web/app/manager/layout.tsx` or `web/components/ManagerNav.tsx` to include:
+
+```tsx
+<a href="/manager/notifications" className="flex items-center gap-2">
+  <Bell className="w-5 h-5" />
+  Notifications
+  {unreadCount > 0 && (
+    <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-xs">
+      {unreadCount}
+    </span>
+  )}
+</a>
+```
+
+**Acceptance:**
+- [ ] Manager notification center UI displays all notifications
+- [ ] Unread count badge displays correctly
+- [ ] Mark-as-read button works for individual notifications
+- [ ] Mark-all-as-read button works
+- [ ] Notifications visually distinguished (read vs unread)
+- [ ] Empty state shows when no notifications
+- [ ] Notifications display correct content based on type
+
+---
+
+### Phase 7: Learner Profile UI (2 hours)
+
+**File:** `web/app/learner/profile/page.tsx` (NEW)
+
+```tsx
+'use client';
+
+import { useState, useEffect } from 'react';
+import { Trophy, Award, Star, TrendingUp } from 'lucide-react';
+
+interface LearnerProfile {
+  levels: Record<string, { level: string; correctAttempts: number; nextLevel: string; attemptsToNext: number }>;
+  certificates: Array<{ id: string; trackTitle: string; issuedAt: string; verificationUrl: string }>;
+  badges: Array<{ slug: string; name: string; description: string; icon: string; earnedAt: string }>;
+}
+
+export default function LearnerProfilePage() {
+  const [profile, setProfile] = useState<LearnerProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  async function fetchProfile() {
+    // Fetch all profile data
+    const [levels, certificates, badges] = await Promise.all([
+      fetch('/api/learner/levels').then(r => r.json()),
+      fetch('/api/learner/certificates').then(r => r.json()),
+      fetch('/api/learner/badges').then(r => r.json()),
+    ]);
+    setProfile({ levels, certificates, badges });
+    setLoading(false);
+  }
+
+  if (loading) return <div className="p-8">Loading profile...</div>;
+
+  return (
+    <div className="max-w-6xl mx-auto p-8">
+      <h1 className="text-4xl font-bold mb-8">My Progress</h1>
+
+      {/* Levels Section */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+          <TrendingUp className="w-6 h-6" />
+          Levels
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(profile?.levels || {}).map(([trackId, levelData]) => (
+            <div key={trackId} className="bg-white rounded-lg border p-4 shadow-sm">
+              <p className="font-semibold text-lg mb-2">{trackId}</p>
+              <p className="text-3xl font-bold text-blue-600 capitalize mb-2">{levelData.level}</p>
+              <p className="text-sm text-gray-600">
+                {levelData.correctAttempts} correct attempts
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                {levelData.attemptsToNext} more to reach {levelData.nextLevel}
+              </p>
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all"
+                  style={{ width: `${(levelData.correctAttempts / (levelData.correctAttempts + levelData.attemptsToNext)) * 100}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Certificates Section */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+          <Trophy className="w-6 h-6" />
+          Certificates
+        </h2>
+        {profile?.certificates.length === 0 ? (
+          <p className="text-gray-500">Complete a track to earn your first certificate!</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {profile?.certificates.map(cert => (
+              <div key={cert.id} className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg border border-yellow-200 p-4 shadow-sm">
+                <p className="font-semibold text-lg mb-1">{cert.trackTitle}</p>
+                <p className="text-sm text-gray-600 mb-3">
+                  Earned {new Date(cert.issuedAt).toLocaleDateString()}
+                </p>
+                <div className="flex gap-2">
+                  <a
+                    href={`/api/certificates/${cert.id}/download`}
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Download PDF
+                  </a>
+                  <span className="text-gray-400">•</span>
+                  <a
+                    href={cert.verificationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline"
+                  >
+                    Verify
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Badges Section */}
+      <section>
+        <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+          <Award className="w-6 h-6" />
+          Badges
+        </h2>
+        {profile?.badges.length === 0 ? (
+          <p className="text-gray-500">Unlock achievements to earn badges!</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {profile?.badges.map(badge => (
+              <div key={badge.slug} className="bg-white rounded-lg border p-4 text-center shadow-sm">
+                <div className="text-5xl mb-2">{badge.icon}</div>
+                <p className="font-semibold text-sm mb-1">{badge.name}</p>
+                <p className="text-xs text-gray-500">{badge.description}</p>
+                <p className="text-xs text-gray-400 mt-2">
+                  {new Date(badge.earnedAt).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+```
+
+**Acceptance:**
+- [ ] Learner profile page displays all levels per track
+- [ ] Progress bars show correctly
+- [ ] Certificates list with download/verify links
+- [ ] Badges display with icons and descriptions
+- [ ] Empty states show when no data
+
+---
+
+### Phase 8: API Routes (2 hours)
 
 **File:** `api/src/routes/gamification.ts` (NEW)
 
