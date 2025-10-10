@@ -221,15 +221,9 @@ export async function getAllLearnerLevels(
     .from(learnerLevels)
     .leftJoin(tracks, eq(learnerLevels.trackId, tracks.id))
     .where(eq(learnerLevels.userId, userId))
-    .orderBy(desc(learnerLevels.leveledUpAt));
-
-  if (limit !== undefined) {
-    query = query.limit(limit);
-  }
-  
-  if (offset !== undefined) {
-    query = query.offset(offset);
-  }
+    .orderBy(desc(learnerLevels.leveledUpAt))
+    .limit(limit || 50)
+    .offset(offset || 0);
 
   const levels = await query;
 
