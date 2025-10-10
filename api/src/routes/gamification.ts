@@ -36,8 +36,9 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       const session = getSession(req);
       const { id, trackId } = req.params;
 
-      // Check access (own data or manager/admin)
-      if (id !== session!.userId && session!.role !== 'manager' && session!.role !== 'admin') {
+      // Check access (own data or manager/admin; skip if using admin token)
+      const isAdminToken = !session;
+      if (!isAdminToken && id !== session!.userId && session!.role !== 'manager' && session!.role !== 'admin') {
         return reply.status(403).send({
           error: { code: 'FORBIDDEN', message: 'Not authorized' }
         });
@@ -78,8 +79,9 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       const session = getSession(req);
       const { id } = req.params;
 
-      // Check access
-      if (id !== session!.userId && session!.role !== 'manager' && session!.role !== 'admin') {
+      // Check access (skip if using admin token)
+      const isAdminToken = !session; // Admin token bypass has no session
+      if (!isAdminToken && id !== session!.userId && session!.role !== 'manager' && session!.role !== 'admin') {
         return reply.status(403).send({
           error: { code: 'FORBIDDEN', message: 'Not authorized' }
         });
@@ -115,8 +117,9 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       const session = getSession(req);
       const { id } = req.params;
 
-      // Check access
-      if (id !== session!.userId && session!.role !== 'manager' && session!.role !== 'admin') {
+      // Check access (skip if using admin token)
+      const isAdminToken = !session;
+      if (!isAdminToken && id !== session!.userId && session!.role !== 'manager' && session!.role !== 'admin') {
         return reply.status(403).send({
           error: { code: 'FORBIDDEN', message: 'Not authorized' }
         });
@@ -152,8 +155,9 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       const session = getSession(req);
       const { id } = req.params;
 
-      // Check access
-      if (id !== session!.userId && session!.role !== 'manager' && session!.role !== 'admin') {
+      // Check access (skip if using admin token)
+      const isAdminToken = !session;
+      if (!isAdminToken && id !== session!.userId && session!.role !== 'manager' && session!.role !== 'admin') {
         return reply.status(403).send({
           error: { code: 'FORBIDDEN', message: 'Not authorized' }
         });
