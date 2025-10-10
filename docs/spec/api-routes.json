@@ -4,6 +4,7 @@
     "GET /api/evidence/coverage",
     "GET /api/health",
     "GET /api/flags",
+    "GET /api/delivery/channels",
     "GET /certified/status",
     "GET /challenges/:id/leaderboard",
     "GET /evidence/coverage",
@@ -12,6 +13,9 @@
     "GET /marketplace/ledger/summary",
     "OPTIONS /import/file",
     "POST /api/items/generate",
+    "POST /api/delivery/send",
+    "POST /api/delivery/webhook/slack",
+    "POST /api/delivery/channels",
     "POST /challenges",
     "POST /curator/quality/compute",
     "POST /groups",
@@ -21,5 +25,5 @@
     "POST /learn/next",
     "POST /learn/submit"
   ],
-  "ts": "2025-09-12T00:00:00.000Z"
+  "ts": "2025-10-10T00:00:00.000Z"
 }
