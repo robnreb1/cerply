@@ -214,21 +214,25 @@ async function sendEmail(options: { to: string; subject: string; body: string })
 }
 
 /**
- * Get unread notifications for a manager
+ * Get manager notifications (with pagination)
  */
 export async function getManagerNotifications(
   managerId: string,
   unreadOnly: boolean = false,
-  limit: number = 50
-): Promise<Array<{
-  id: string;
-  learnerId: string;
-  learnerName: string;
-  type: string;
-  content: any;
-  read: boolean;
-  sentAt: Date;
-}>> {
+  limit: number = 50,
+  offset: number = 0
+): Promise<{
+  data: Array<{
+    id: string;
+    learnerId: string;
+    learnerName: string;
+    type: string;
+    content: any;
+    read: boolean;
+    sentAt: Date;
+  }>;
+  total: number;
+}> {
   const whereCondition = unreadOnly
     ? and(
         eq(managerNotifications.managerId, managerId),
@@ -236,6 +240,15 @@ export async function getManagerNotifications(
       )
     : eq(managerNotifications.managerId, managerId);
 
+  // Get total count
+  const [countResult] = await db
+    .select({ count: count() })
+    .from(managerNotifications)
+    .where(whereCondition!);
+  
+  const total = Number(countResult?.count || 0);
+
+  // Get paginated data
   const notifications = await db
     .select({
       id: managerNotifications.id,
@@ -250,9 +263,10 @@ export async function getManagerNotifications(
     .leftJoin(users, eq(managerNotifications.learnerId, users.id))
     .where(whereCondition!)
     .orderBy(desc(managerNotifications.sentAt))
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
 
-  return notifications.map(n => ({
+  const data = notifications.map(n => ({
     id: n.id,
     learnerId: n.learnerId,
     learnerName: n.learnerEmail || 'Unknown',
@@ -261,6 +275,8 @@ export async function getManagerNotifications(
     read: n.read,
     sentAt: n.sentAt,
   }));
+
+  return { data, total };
 }
 
 /**

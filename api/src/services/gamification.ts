@@ -6,7 +6,7 @@
 
 import { db } from '../db';
 import { learnerLevels, attempts, tracks } from '../db/schema';
-import { eq, and, count, sql } from 'drizzle-orm';
+import { eq, and, count, sql, desc } from 'drizzle-orm';
 
 export type Level = 'novice' | 'learner' | 'practitioner' | 'expert' | 'master';
 
@@ -183,18 +183,34 @@ export async function countCorrectAttempts(userId: string, trackId: string): Pro
 }
 
 /**
- * Get all learner levels for a user across all tracks
+ * Get all learner levels for a user across all tracks (with pagination)
  */
-export async function getAllLearnerLevels(userId: string): Promise<Array<{
-  trackId: string;
-  trackTitle: string;
-  level: Level;
-  correctAttempts: number;
-  nextLevel: Level | null;
-  attemptsToNext: number | null;
-  leveledUpAt: Date;
-}>> {
-  const levels = await db
+export async function getAllLearnerLevels(
+  userId: string,
+  limit?: number,
+  offset?: number
+): Promise<{
+  data: Array<{
+    trackId: string;
+    trackTitle: string;
+    level: Level;
+    correctAttempts: number;
+    nextLevel: Level | null;
+    attemptsToNext: number | null;
+    leveledUpAt: Date;
+  }>;
+  total: number;
+}> {
+  // Get total count
+  const [countResult] = await db
+    .select({ count: count() })
+    .from(learnerLevels)
+    .where(eq(learnerLevels.userId, userId));
+  
+  const total = Number(countResult?.count || 0);
+
+  // Get paginated data
+  let query = db
     .select({
       trackId: learnerLevels.trackId,
       trackTitle: tracks.title,
@@ -204,9 +220,20 @@ export async function getAllLearnerLevels(userId: string): Promise<Array<{
     })
     .from(learnerLevels)
     .leftJoin(tracks, eq(learnerLevels.trackId, tracks.id))
-    .where(eq(learnerLevels.userId, userId));
+    .where(eq(learnerLevels.userId, userId))
+    .orderBy(desc(learnerLevels.leveledUpAt));
 
-  return levels.map(l => {
+  if (limit !== undefined) {
+    query = query.limit(limit);
+  }
+  
+  if (offset !== undefined) {
+    query = query.offset(offset);
+  }
+
+  const levels = await query;
+
+  const data = levels.map(l => {
     const { nextLevel, attemptsToNext } = getNextLevelInfo(l.correctAttempts);
     return {
       trackId: l.trackId,
@@ -218,5 +245,7 @@ export async function getAllLearnerLevels(userId: string): Promise<Array<{
       leveledUpAt: l.leveledUpAt,
     };
   });
+
+  return { data, total };
 }
 

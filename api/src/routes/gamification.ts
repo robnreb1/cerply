@@ -74,11 +74,11 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
 
   /**
    * GET /api/learners/:id/levels
-   * Get all learner levels across all tracks
+   * Get all learner levels across all tracks (paginated)
    */
   app.get(
     '/api/learners/:id/levels',
-    async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+    async (req: FastifyRequest<{ Params: { id: string }; Querystring: { limit?: string; offset?: string } }>, reply: FastifyReply) => {
       if (!FF_GAMIFICATION_V1) {
         return reply.status(404).send({
           error: { code: 'NOT_FOUND', message: 'Feature not enabled' }
@@ -107,8 +107,10 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       }
 
       try {
-        const levels = await getAllLearnerLevels(id);
-        return reply.send({ levels });
+        const params = parsePaginationParams(req.query);
+        const { data, total } = await getAllLearnerLevels(id, params.limit, params.offset);
+        const response = createPaginatedResponse(data, total, params);
+        return reply.send({ levels: response.data, pagination: response.pagination });
       } catch (error) {
         console.error('[gamification] Error getting all learner levels:', error);
         return reply.status(500).send({
@@ -305,7 +307,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
    */
   app.get(
     '/api/manager/notifications',
-    async (req: FastifyRequest<{ Querystring: { unreadOnly?: string; limit?: string } }>, reply: FastifyReply) => {
+    async (req: FastifyRequest<{ Querystring: { unreadOnly?: string; limit?: string; offset?: string } }>, reply: FastifyReply) => {
       if (!FF_MANAGER_NOTIFICATIONS_V1) {
         return reply.status(404).send({
           error: { code: 'NOT_FOUND', message: 'Feature not enabled' }
@@ -321,27 +323,29 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       if (isAdminToken) {
         return reply.send({
           notifications: [],
+          pagination: { total: 0, limit: 50, offset: 0, hasMore: false },
           unreadCount: 0,
-          total: 0,
         });
       }
 
-      const { unreadOnly, limit } = req.query;
-      const maxResults = parseInt(limit || '50', 10);
-
       try {
-        const notifications = await getManagerNotifications(
+        const params = parsePaginationParams(req.query);
+        const { unreadOnly } = req.query;
+        
+        const { data, total } = await getManagerNotifications(
           session.userId,
           unreadOnly === 'true',
-          maxResults
+          params.limit,
+          params.offset
         );
 
         const unreadCount = await getUnreadCount(session.userId);
+        const paginated = createPaginatedResponse(data, total, params);
 
         return reply.send({
-          notifications,
+          notifications: paginated.data,
+          pagination: paginated.pagination,
           unreadCount,
-          total: notifications.length,
         });
       } catch (error) {
         console.error('[gamification] Error getting notifications:', error);
