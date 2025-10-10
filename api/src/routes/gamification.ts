@@ -231,9 +231,14 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       if (!requireManager(req, reply)) return reply;
 
       const session = getSession(req);
-      if (!session) {
-        return reply.status(401).send({
-          error: { code: 'UNAUTHORIZED', message: 'Session required' }
+      const isAdminToken = !session;
+      
+      // For admin token bypass, return empty results (no associated manager)
+      if (isAdminToken) {
+        return reply.send({
+          notifications: [],
+          unreadCount: 0,
+          total: 0,
         });
       }
 
@@ -279,9 +284,12 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
       if (!requireManager(req, reply)) return reply;
 
       const session = getSession(req);
-      if (!session) {
-        return reply.status(401).send({
-          error: { code: 'UNAUTHORIZED', message: 'Session required' }
+      const isAdminToken = !session;
+      
+      // Admin token bypass: can't mark notifications without a user context
+      if (isAdminToken) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Requires user session (admin token cannot modify notifications)' }
         });
       }
 

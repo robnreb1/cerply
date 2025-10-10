@@ -5,6 +5,8 @@ set -e
 
 API_BASE="${API_BASE:-http://localhost:8080}"
 ADMIN_TOKEN="${ADMIN_TOKEN:-dev-admin-token-12345}"
+# Use a valid UUID for testing (doesn't need to exist in DB)
+TEST_USER_ID="00000000-0000-0000-0000-000000000001"
 
 echo "=== Epic 7: Gamification - Smoke Tests ==="
 echo "API Base: $API_BASE"
@@ -12,21 +14,21 @@ echo ""
 
 # Test 1: Get learner levels for a user
 echo "Test 1: Get learner levels..."
-curl -sS "${API_BASE}/api/learners/test-user-id/levels" \
+curl -sS "${API_BASE}/api/learners/${TEST_USER_ID}/levels" \
   -H "x-admin-token: ${ADMIN_TOKEN}" \
   | jq -e 'has("levels")' && echo "✓ Learner levels endpoint works" || echo "✗ Learner levels endpoint failed"
 echo ""
 
 # Test 2: Get learner badges
 echo "Test 2: Get learner badges..."
-curl -sS "${API_BASE}/api/learners/test-user-id/badges" \
+curl -sS "${API_BASE}/api/learners/${TEST_USER_ID}/badges" \
   -H "x-admin-token: ${ADMIN_TOKEN}" \
-  | jq -e 'has("badges")' && echo "✓ Learner badges endpoint works" || echo "✗ Learner badges endpoint failed"
+  | jq -e 'has("badges") and has("totalBadges")' && echo "✓ Learner badges endpoint works" || echo "✗ Learner badges endpoint failed"
 echo ""
 
 # Test 3: Get learner certificates
 echo "Test 3: Get learner certificates..."
-curl -sS "${API_BASE}/api/learners/test-user-id/certificates" \
+curl -sS "${API_BASE}/api/learners/${TEST_USER_ID}/certificates" \
   -H "x-admin-token: ${ADMIN_TOKEN}" \
   | jq -e 'has("certificates")' && echo "✓ Learner certificates endpoint works" || echo "✗ Learner certificates endpoint failed"
 echo ""
@@ -35,7 +37,7 @@ echo ""
 echo "Test 4: Get manager notifications..."
 curl -sS "${API_BASE}/api/manager/notifications" \
   -H "x-admin-token: ${ADMIN_TOKEN}" \
-  | jq -e 'has("notifications")' && echo "✓ Manager notifications endpoint works" || echo "✗ Manager notifications endpoint failed"
+  | jq -e 'has("notifications") and has("unreadCount")' && echo "✓ Manager notifications endpoint works" || echo "✗ Manager notifications endpoint failed"
 echo ""
 
 echo "=== Smoke Tests Complete ==="
