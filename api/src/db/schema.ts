@@ -1,5 +1,5 @@
 /* Drizzle schema (CommonJS-friendly) */
-import { pgTable, uuid, text, integer, timestamp, jsonb, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, timestamp, jsonb, boolean, numeric, date, unique } from 'drizzle-orm/pg-core';
 
 // Organizations: enterprise customers
 export const organizations = pgTable('organizations', {
@@ -114,6 +114,7 @@ export const attempts = pgTable('attempts', {
   answerIndex: integer('answer_index'),
   correct: integer('correct').notNull(), // 0/1
   timeMs: integer('time_ms'),
+  channel: text('channel').default('web'), // Epic 5: Delivery channel
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -123,6 +124,142 @@ export const reviewSchedule = pgTable('review_schedule', {
   itemId: uuid('item_id').references(() => items.id).notNull(),
   nextAt: timestamp('next_at', { withTimezone: true }).notNull(),
   strengthScore: integer('strength_score').notNull(), // 0..1000 (int form of [0,1])
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Epic 4: Manager Dashboard - Analytics & Insights
+
+// Team analytics snapshots: aggregated metrics computed nightly or on-demand
+export const teamAnalyticsSnapshots = pgTable('team_analytics_snapshots', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamId: uuid('team_id').notNull().references(() => teams.id),
+  trackId: uuid('track_id').references(() => tracks.id),
+  snapshotDate: date('snapshot_date').notNull(),
+  activeLearners: integer('active_learners').notNull().default(0),
+  totalAttempts: integer('total_attempts').notNull().default(0),
+  correctAttempts: integer('correct_attempts').notNull().default(0),
+  avgComprehension: numeric('avg_comprehension', { precision: 5, scale: 3 }),
+  avgLatencyMs: integer('avg_latency_ms'),
+  atRiskCount: integer('at_risk_count').notNull().default(0),
+  completionRate: numeric('completion_rate', { precision: 5, scale: 3 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Learner-level analytics: for at-risk identification
+export const learnerAnalytics = pgTable('learner_analytics', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  teamId: uuid('team_id').notNull().references(() => teams.id),
+  trackId: uuid('track_id').references(() => tracks.id),
+  totalAttempts: integer('total_attempts').notNull().default(0),
+  correctAttempts: integer('correct_attempts').notNull().default(0),
+  comprehensionRate: numeric('comprehension_rate', { precision: 5, scale: 3 }),
+  lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+  nextReviewAt: timestamp('next_review_at', { withTimezone: true }),
+  overdueReviews: integer('overdue_reviews').notNull().default(0),
+  isAtRisk: boolean('is_at_risk').notNull().default(false),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Retention curves: spaced repetition effectiveness
+export const retentionCurves = pgTable('retention_curves', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamId: uuid('team_id').notNull().references(() => teams.id),
+  trackId: uuid('track_id').references(() => tracks.id),
+  dayOffset: integer('day_offset').notNull(),
+  retentionRate: numeric('retention_rate', { precision: 5, scale: 3 }),
+  sampleSize: integer('sample_size').notNull(),
+  snapshotDate: date('snapshot_date').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Analytics configuration: org-level thresholds
+export const analyticsConfig = pgTable('analytics_config', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id),
+  atRiskMinComprehension: numeric('at_risk_min_comprehension', { precision: 5, scale: 3 }).notNull().default('0.700'),
+  atRiskMaxOverdue: integer('at_risk_max_overdue').notNull().default(5),
+  cacheTtlMinutes: integer('cache_ttl_minutes').notNull().default(60),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Epic 5: Slack Channel Integration
+export const channels = pgTable('channels', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'slack' | 'whatsapp' | 'teams' | 'email'
+  config: jsonb('config').notNull(), // { slack_team_id, slack_bot_token, slack_signing_secret }
+  enabled: boolean('enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const userChannels = pgTable('user_channels', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  channelType: text('channel_type').notNull(), // 'slack' | 'whatsapp' | 'teams' | 'email'
+  channelId: text('channel_id').notNull(), // Slack user ID, phone number, etc.
+  preferences: jsonb('preferences'), // { quiet_hours, timezone, paused }
+  verified: boolean('verified').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Epic 6: Ensemble Content Generation
+export const contentGenerations = pgTable('content_generations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  managerId: uuid('manager_id').notNull().references(() => users.id),
+  artefactText: text('artefact_text').notNull(),
+  understanding: text('understanding'),
+  understandingApproved: boolean('understanding_approved').default(false),
+  refinementIterations: integer('refinement_iterations').default(0),
+  status: text('status').notNull().default('pending'),
+  contentType: text('content_type'), // 'generic' | 'proprietary' | 'mixed'
+  inputType: text('input_type').default('source'), // 'source' | 'topic'
+  generatorAOutput: jsonb('generator_a_output'),
+  generatorBOutput: jsonb('generator_b_output'),
+  factCheckerOutput: jsonb('fact_checker_output'),
+  totalCostUsd: numeric('total_cost_usd', { precision: 10, scale: 4 }),
+  totalTokens: integer('total_tokens'),
+  generationTimeMs: integer('generation_time_ms'),
+  ethicalFlags: jsonb('ethical_flags').default('[]'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const contentRefinements = pgTable('content_refinements', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  generationId: uuid('generation_id').notNull().references(() => contentGenerations.id, { onDelete: 'cascade' }),
+  iteration: integer('iteration').notNull(),
+  managerFeedback: text('manager_feedback').notNull(),
+  llmResponse: text('llm_response').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const contentProvenance = pgTable('content_provenance', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  generationId: uuid('generation_id').notNull().references(() => contentGenerations.id, { onDelete: 'cascade' }),
+  moduleId: text('module_id').notNull(),
+  sectionType: text('section_type').notNull(),
+  sourceLlm: text('source_llm').notNull(),
+  sourceModel: text('source_model').notNull(),
+  confidenceScore: numeric('confidence_score', { precision: 3, scale: 2 }),
+  selectedBy: text('selected_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Epic 6.5: Research Mode Citations
+export const citations = pgTable('citations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  generationId: uuid('generation_id').notNull().references(() => contentGenerations.id, { onDelete: 'cascade' }),
+  citationText: text('citation_text').notNull(),
+  title: text('title'),
+  author: text('author'),
+  sourceType: text('source_type'), // textbook, paper, course, video, website
+  url: text('url'),
+  relevance: text('relevance'),
+  validationStatus: text('validation_status'), // verified, questionable, unverified
+  confidenceScore: numeric('confidence_score', { precision: 3, scale: 2 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

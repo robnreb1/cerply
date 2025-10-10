@@ -45,6 +45,13 @@ async function proxy(req: NextRequest, { params }: { params: { path?: string[] }
     headers: (() => {
       const h = stripHopByHop(req.headers);
       if (auth) h.set('authorization', auth);
+      
+      // For local dev/UAT: automatically add admin token if not in production
+      if (process.env.NODE_ENV !== 'production') {
+        const adminToken = process.env.ADMIN_TOKEN || 'dev-admin-token-12345';
+        h.set('x-admin-token', adminToken);
+      }
+      
       return h;
     })(),
     cache: 'no-store',

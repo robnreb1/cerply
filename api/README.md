@@ -87,6 +87,16 @@ Configure via environment variables:
 **Operations:**
 - `GET /api/ops/kpis` - Operational KPIs (O3: teams_total, members_total, active_subscriptions)
 
+### Delivery Endpoints (Epic 5)
+
+**Slack Channel Integration:**
+- `POST /api/delivery/send` - Send lesson to user via Slack/WhatsApp/Teams
+- `POST /api/delivery/webhook/slack` - Slack webhook handler (button clicks, events)
+- `GET /api/delivery/channels` - Get user's configured channels
+- `POST /api/delivery/channels` - Configure channel preferences
+
+**Feature Flag:** `FF_CHANNEL_SLACK=true`
+
 ### Learning Flow (M3)
 
 **Content Generation:**
