@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { isAdminAllowed } from '../src/admin';
 
 // Gate signature: isAdminAllowed(headers, hasSession)
-const COOKIE = 'cerply_session=dev';
+const COOKIE = 'cerply.sid=dev';
 
 function headersWith(opts: { xAdmin?: string; cookie?: string } = {}) {
   const h: Record<string, string> = {};

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createApp } from '../src/index';
 
-const COOKIE = 'cerply_session=test';
+const COOKIE = 'cerply.sid=test';
 
 describe('Certified endpoints (feature-flagged stubs + mock + plan)', () => {
   let app: Awaited<ReturnType<typeof createApp>>;
