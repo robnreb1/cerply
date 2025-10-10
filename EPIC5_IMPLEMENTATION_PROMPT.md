@@ -291,7 +291,7 @@ CREATE INDEX idx_channels_org_type ON channels(organization_id, type);
   "type": "slack",
   "config": {
     "slack_team_id": "T123456",
-    "slack_bot_token": "xoxb-1234567890123-1234567890123-abcdefghijklmnopqrstuvwx",
+    "slack_bot_token": "xoxb-EXAMPLE-TOKEN-REPLACE-WITH-ACTUAL",
     "slack_signing_secret": "abc123def456ghi789jkl012mno345pq"
   },
   "enabled": true,
@@ -1601,7 +1601,7 @@ echo -n "v0:1234567890:{\"type\":\"url_verification\"}" | openssl dgst -sha256 -
 ### Test Slack API Manually
 ```bash
 curl -X POST https://slack.com/api/chat.postMessage \
-  -H "Authorization: Bearer xoxb-your-bot-token" \
+  -H "Authorization: Bearer YOUR_SLACK_BOT_TOKEN" \
   -H "content-type: application/json" \
   -d '{"channel":"U123456","text":"Test message"}'
 ```
@@ -1782,7 +1782,7 @@ describe('Feature Name', () => {
    - `im:history` - Read DM history
 4. Scroll to top, click **"Install to Workspace"**
 5. Click **"Allow"**
-6. Copy **"Bot User OAuth Token"** (starts with `xoxb-`)
+6. Copy **"Bot User OAuth Token"** (format: xoxb-...)
    - Save as `SLACK_BOT_TOKEN` in database
 
 ### Step 3: Enable Interactivity
@@ -1822,7 +1822,7 @@ VALUES (
   'slack',
   '{
     "slack_team_id": "T123456",
-    "slack_bot_token": "xoxb-1234567890123-1234567890123-abcdefg...",
+    "slack_bot_token": "YOUR_SLACK_BOT_TOKEN",
     "slack_signing_secret": "abc123def456..."
   }'::jsonb,
   true
@@ -1914,7 +1914,7 @@ INSERT INTO channels (organization_id, type, config, enabled)
 VALUES (
   '00000000-0000-0000-0000-000000000001',
   'slack',
-  '{\"slack_team_id\":\"T123456\",\"slack_bot_token\":\"xoxb-your-token\",\"slack_signing_secret\":\"your-secret\"}'::jsonb,
+  '{\"slack_team_id\":\"T123456\",\"slack_bot_token\":\"YOUR_SLACK_BOT_TOKEN\",\"slack_signing_secret\":\"your-secret\"}'::jsonb,
   true
 );
 "
