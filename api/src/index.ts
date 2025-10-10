@@ -18,10 +18,11 @@ export async function createApp() {
     }
   };
   
-  // CORS — allow credentials for local development, wildcard for production
-  const isDev = process.env.NODE_ENV !== 'production';
+  // CORS — allow credentials for local development, wildcard for production/test
+  const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
+  const isTest = process.env.NODE_ENV === 'test';
   await app.register(cors, { 
-    origin: isDev ? ['http://localhost:3000', 'http://127.0.0.1:3000'] : '*',
+    origin: isTest ? '*' : (isDev ? ['http://localhost:3000', 'http://127.0.0.1:3000'] : '*'),
     credentials: isDev ? true : false,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['content-type', 'authorization', 'x-admin-token', 'x-org-id', 'x-idempotency-key']
