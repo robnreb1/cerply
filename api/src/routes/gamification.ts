@@ -31,7 +31,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
-      if (!requireAnyRole(req, reply)) return;
+      if (!requireAnyRole(req, reply)) return reply;
 
       const session = getSession(req);
       const { id, trackId } = req.params;
@@ -73,7 +73,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
-      if (!requireAnyRole(req, reply)) return;
+      if (!requireAnyRole(req, reply)) return reply;
 
       const session = getSession(req);
       const { id } = req.params;
@@ -110,7 +110,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
-      if (!requireAnyRole(req, reply)) return;
+      if (!requireAnyRole(req, reply)) return reply;
 
       const session = getSession(req);
       const { id } = req.params;
@@ -147,7 +147,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
-      if (!requireAnyRole(req, reply)) return;
+      if (!requireAnyRole(req, reply)) return reply;
 
       const session = getSession(req);
       const { id } = req.params;
@@ -191,7 +191,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
-      if (!requireAnyRole(req, reply)) return;
+      if (!requireAnyRole(req, reply)) return reply;
 
       const { id } = req.params;
 
@@ -224,7 +224,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
-      if (!requireManager(req, reply)) return;
+      if (!requireManager(req, reply)) return reply;
 
       const session = getSession(req);
       if (!session) {
@@ -272,7 +272,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
-      if (!requireManager(req, reply)) return;
+      if (!requireManager(req, reply)) return reply;
 
       const session = getSession(req);
       if (!session) {
