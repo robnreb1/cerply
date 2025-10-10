@@ -8,6 +8,7 @@ import { eq, and, desc, count } from 'drizzle-orm';
 import { db } from '../db';
 import { managerNotifications, users } from '../db/schema';
 import { requireAnyRole, requireManager, getSession } from '../middleware/rbac';
+import { isValidUUID } from '../utils/validation';
 import { getLearnerLevel, getAllLearnerLevels } from '../services/gamification';
 import { renderCertificatePDF, getUserCertificates } from '../services/certificates';
 import { getLearnerBadges, getAllBadges } from '../services/badges';
@@ -31,10 +32,18 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
+      const { id, trackId } = req.params;
+
+      // Validate UUIDs
+      if (!isValidUUID(id) || !isValidUUID(trackId)) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Invalid UUID format' }
+        });
+      }
+
       if (!requireAnyRole(req, reply)) return reply;
 
       const session = getSession(req);
-      const { id, trackId } = req.params;
 
       // Check access (own data or manager/admin; skip if using admin token)
       const isAdminToken = !session;
@@ -74,10 +83,18 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
+      const { id } = req.params;
+
+      // Validate UUID
+      if (!isValidUUID(id)) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Invalid UUID format' }
+        });
+      }
+
       if (!requireAnyRole(req, reply)) return reply;
 
       const session = getSession(req);
-      const { id } = req.params;
 
       // Check access (skip if using admin token)
       const isAdminToken = !session; // Admin token bypass has no session
@@ -112,10 +129,18 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
+      const { id } = req.params;
+
+      // Validate UUID
+      if (!isValidUUID(id)) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Invalid UUID format' }
+        });
+      }
+
       if (!requireAnyRole(req, reply)) return reply;
 
       const session = getSession(req);
-      const { id } = req.params;
 
       // Check access (skip if using admin token)
       const isAdminToken = !session;
@@ -150,10 +175,18 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
+      const { id } = req.params;
+
+      // Validate UUID
+      if (!isValidUUID(id)) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Invalid UUID format' }
+        });
+      }
+
       if (!requireAnyRole(req, reply)) return reply;
 
       const session = getSession(req);
-      const { id } = req.params;
 
       // Check access (skip if using admin token)
       const isAdminToken = !session;
@@ -195,9 +228,16 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
-      if (!requireAnyRole(req, reply)) return reply;
-
       const { id } = req.params;
+
+      // Validate UUID
+      if (!isValidUUID(id)) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Invalid UUID format' }
+        });
+      }
+
+      if (!requireAnyRole(req, reply)) return reply;
 
       try {
         const pdfBuffer = await renderCertificatePDF(id);
@@ -205,6 +245,7 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         return reply
           .header('Content-Type', 'application/pdf')
           .header('Content-Disposition', `attachment; filename="certificate-${id}.pdf"`)
+          .header('Cache-Control', 'private, max-age=3600') // Cache for 1 hour
           .send(pdfBuffer);
       } catch (error) {
         console.error('[gamification] Error downloading certificate:', error);
@@ -281,6 +322,15 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
+      const { id } = req.params;
+
+      // Validate UUID
+      if (!isValidUUID(id)) {
+        return reply.status(400).send({
+          error: { code: 'BAD_REQUEST', message: 'Invalid UUID format' }
+        });
+      }
+
       if (!requireManager(req, reply)) return reply;
 
       const session = getSession(req);
@@ -293,7 +343,6 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
         });
       }
 
-      const { id } = req.params;
       const { read } = req.body;
 
       try {

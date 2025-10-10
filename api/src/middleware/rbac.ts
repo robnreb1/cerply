@@ -127,26 +127,31 @@ export function requireManager(req: FastifyRequest, reply: FastifyReply) {
 
 /**
  * Require any authenticated user (admin, manager, or learner)
- * Also accepts requests authenticated via ADMIN_TOKEN
+ * Also accepts requests authenticated via ADMIN_TOKEN (dev/test only)
  */
 export function requireAnyRole(req: FastifyRequest, reply: FastifyReply) {
-  // Check if already authenticated by admin token
-  const adminToken = process.env.ADMIN_TOKEN?.trim();
-  if (adminToken) {
-    const authHeader = req.headers.authorization as string | undefined;
-    const xAdminToken = req.headers['x-admin-token'] as string | undefined;
-    
-    // Check Authorization: Bearer <token>
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7).trim();
-      if (token === adminToken) {
+  // Admin token bypass only allowed in non-production environments
+  const isProduction = process.env.NODE_ENV === 'production';
+  const allowAdminBypass = !isProduction;
+  
+  if (allowAdminBypass) {
+    const adminToken = process.env.ADMIN_TOKEN?.trim();
+    if (adminToken) {
+      const authHeader = req.headers.authorization as string | undefined;
+      const xAdminToken = req.headers['x-admin-token'] as string | undefined;
+      
+      // Check Authorization: Bearer <token>
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7).trim();
+        if (token === adminToken) {
+          return true;
+        }
+      }
+      
+      // Check x-admin-token header
+      if (xAdminToken?.trim() === adminToken) {
         return true;
       }
-    }
-    
-    // Check x-admin-token header
-    if (xAdminToken?.trim() === adminToken) {
-      return true;
     }
   }
   
