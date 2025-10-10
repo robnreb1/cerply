@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS certificates (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   track_id            UUID NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
-  organization_id     UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  organization_id     UUID REFERENCES organizations(id) ON DELETE CASCADE,
   issued_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
   signature           TEXT NOT NULL,
   pdf_url             TEXT,

@@ -6,7 +6,7 @@
 
 import { db } from '../db';
 import { managerNotifications, users, teams, teamMembers } from '../db/schema';
-import { eq, and, desc, gte } from 'drizzle-orm';
+import { eq, and, desc, gte, count } from 'drizzle-orm';
 import type { LevelUpEvent } from './gamification';
 
 // Email service configuration
@@ -36,7 +36,7 @@ async function getLearnerManager(learnerId: string): Promise<{ id: string; email
     .where(eq(teamMembers.userId, learnerId))
     .limit(1);
 
-  if (!membership || !membership.managerId) return null;
+  if (!membership || !membership.managerId || !membership.managerEmail) return null;
 
   return {
     id: membership.managerId,
@@ -101,9 +101,9 @@ export async function notifyManager(event: NotificationEvent | LevelUpEvent): Pr
  * For MVP: Default to 'immediate'
  * TODO: Add user_preferences table in future epic
  */
-async function getManagerNotificationPreferences(managerId: string) {
+async function getManagerNotificationPreferences(managerId: string): Promise<{ notificationFrequency: 'immediate' | 'daily' | 'weekly' | 'off' }> {
   // For MVP: Default to 'immediate' (preferences UI in future epic)
-  return { notificationFrequency: 'immediate' as const };
+  return { notificationFrequency: 'immediate' };
 }
 
 /**
@@ -229,7 +229,14 @@ export async function getManagerNotifications(
   read: boolean;
   sentAt: Date;
 }>> {
-  let query = db
+  const whereCondition = unreadOnly
+    ? and(
+        eq(managerNotifications.managerId, managerId),
+        eq(managerNotifications.read, false)
+      )
+    : eq(managerNotifications.managerId, managerId);
+
+  const notifications = await db
     .select({
       id: managerNotifications.id,
       learnerId: managerNotifications.learnerId,
@@ -241,15 +248,9 @@ export async function getManagerNotifications(
     })
     .from(managerNotifications)
     .leftJoin(users, eq(managerNotifications.learnerId, users.id))
-    .where(eq(managerNotifications.managerId, managerId))
+    .where(whereCondition!)
     .orderBy(desc(managerNotifications.sentAt))
     .limit(limit);
-
-  if (unreadOnly) {
-    query = query.where(eq(managerNotifications.read, false));
-  }
-
-  const notifications = await query;
 
   return notifications.map(n => ({
     id: n.id,

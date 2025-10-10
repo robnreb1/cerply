@@ -193,11 +193,11 @@ export async function getLearnerBadges(userId: string): Promise<Array<{
     .orderBy(desc(learnerBadges.earnedAt));
 
   return earnedBadges.map(b => ({
-    id: b.id,
-    slug: b.slug,
-    name: b.name,
-    description: b.description,
-    icon: b.icon,
+    id: b.id!,
+    slug: b.slug!,
+    name: b.name!,
+    description: b.description!,
+    icon: b.icon!,
     earnedAt: b.earnedAt,
   }));
 }

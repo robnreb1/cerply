@@ -277,7 +277,7 @@ export const certificates = pgTable('certificates', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   trackId: uuid('track_id').notNull().references(() => tracks.id, { onDelete: 'cascade' }),
-  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
   issuedAt: timestamp('issued_at', { withTimezone: true }).defaultNow().notNull(),
   signature: text('signature').notNull(), // Ed25519 signature (hex)
   pdfUrl: text('pdf_url'),
