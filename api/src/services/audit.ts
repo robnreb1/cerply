@@ -5,6 +5,9 @@
  */
 
 import { db } from '../db';
+import { auditEvents } from '../db/schema';
+
+const PERSIST_AUDIT_EVENTS = process.env.PERSIST_AUDIT_EVENTS === 'true';
 
 export interface BaseAuditEvent {
   eventType: string;
@@ -69,9 +72,9 @@ const counters = {
 /**
  * Emit an audit event
  * For MVP: Logs to console in structured format
- * For Production: Send to analytics service (Segment, Mixpanel, etc.)
+ * For Production: Send to analytics service (Segment, Mixpanel, etc.) + persist to DB
  */
-export function emitAuditEvent(event: AuditEvent): void {
+export async function emitAuditEvent(event: AuditEvent): Promise<void> {
   // Increment counter
   switch (event.eventType) {
     case 'badge_awarded':
@@ -96,6 +99,24 @@ export function emitAuditEvent(event: AuditEvent): void {
     ...event,
     timestamp: event.timestamp.toISOString(),
   }));
+
+  // Optionally persist to database (PERSIST_AUDIT_EVENTS=true)
+  if (PERSIST_AUDIT_EVENTS) {
+    try {
+      await db.insert(auditEvents).values({
+        eventType: event.eventType,
+        userId: event.userId,
+        organizationId: event.organizationId || null,
+        performedBy: event.performedBy || null,
+        requestId: event.requestId || null,
+        metadata: event.metadata || null,
+        occurredAt: event.timestamp,
+      });
+    } catch (error) {
+      console.error('[audit] Failed to persist event:', error);
+      // Don't fail the main operation if audit persistence fails
+    }
+  }
 
   // TODO: Send to analytics service
   // await analytics.track(event.userId, event.eventType, event);
@@ -125,15 +146,15 @@ export function resetAuditCounters() {
 /**
  * Helper to emit badge awarded event
  */
-export function emitBadgeAwarded(params: {
+export async function emitBadgeAwarded(params: {
   userId: string;
   organizationId?: string;
   badgeId: string;
   badgeSlug: string;
   badgeName: string;
   requestId?: string;
-}) {
-  emitAuditEvent({
+}): Promise<void> {
+  await emitAuditEvent({
     eventType: 'badge_awarded',
     timestamp: new Date(),
     ...params,
@@ -143,7 +164,7 @@ export function emitBadgeAwarded(params: {
 /**
  * Helper to emit level changed event
  */
-export function emitLevelChanged(params: {
+export async function emitLevelChanged(params: {
   userId: string;
   organizationId?: string;
   trackId: string;
@@ -151,8 +172,8 @@ export function emitLevelChanged(params: {
   newLevel: string;
   correctAttempts: number;
   requestId?: string;
-}) {
-  emitAuditEvent({
+}): Promise<void> {
+  await emitAuditEvent({
     eventType: 'level_changed',
     timestamp: new Date(),
     ...params,
@@ -162,15 +183,15 @@ export function emitLevelChanged(params: {
 /**
  * Helper to emit certificate issued event
  */
-export function emitCertificateIssued(params: {
+export async function emitCertificateIssued(params: {
   userId: string;
   organizationId?: string;
   certificateId: string;
   trackId: string;
   trackTitle?: string;
   requestId?: string;
-}) {
-  emitAuditEvent({
+}): Promise<void> {
+  await emitAuditEvent({
     eventType: 'certificate_issued',
     timestamp: new Date(),
     ...params,
@@ -180,14 +201,14 @@ export function emitCertificateIssued(params: {
 /**
  * Helper to emit certificate downloaded event
  */
-export function emitCertificateDownloaded(params: {
+export async function emitCertificateDownloaded(params: {
   userId: string;
   organizationId?: string;
   certificateId: string;
   performedBy?: string;
   requestId?: string;
-}) {
-  emitAuditEvent({
+}): Promise<void> {
+  await emitAuditEvent({
     eventType: 'certificate_downloaded',
     timestamp: new Date(),
     ...params,
@@ -197,15 +218,15 @@ export function emitCertificateDownloaded(params: {
 /**
  * Helper to emit notification marked read event
  */
-export function emitNotificationMarkedRead(params: {
+export async function emitNotificationMarkedRead(params: {
   userId: string;
   organizationId?: string;
   notificationId: string;
   notificationType: string;
   performedBy?: string;
   requestId?: string;
-}) {
-  emitAuditEvent({
+}): Promise<void> {
+  await emitAuditEvent({
     eventType: 'notification_marked_read',
     timestamp: new Date(),
     ...params,

@@ -326,3 +326,15 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 });
 
+export const auditEvents = pgTable('audit_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  eventType: text('event_type').notNull(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  performedBy: uuid('performed_by').references(() => users.id, { onDelete: 'set null' }),
+  requestId: text('request_id'),
+  metadata: jsonb('metadata'),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
