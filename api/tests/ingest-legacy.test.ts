@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createApp } from '../src/index';
 
-const COOKIE = 'cerply_session=test';
+const COOKIE = 'cerply.sid=test';
 
 describe('legacy ingest wrappers', () => {
   let app: Awaited<ReturnType<typeof createApp>>;
