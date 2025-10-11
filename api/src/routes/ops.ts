@@ -9,6 +9,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db';
 import { teams, teamMembers, teamTrackSubscriptions } from '../db/schema';
 import { requireManager, getSession } from '../middleware/rbac';
+import { getAuditCounters } from '../services/audit';
 
 export async function registerOpsRoutes(app: FastifyInstance) {
   /**
@@ -39,11 +40,22 @@ export async function registerOpsRoutes(app: FastifyInstance) {
         .where(sql`active = true`);
       const activeSubscriptions = Number(subscriptionsResult?.count || 0);
 
+      // Epic 7: Gamification KPIs
+      const gamificationCounters = getAuditCounters();
+
       return reply.status(200).send({
         o3: {
           teams_total: teamsTotal,
           members_total: membersTotal,
           active_subscriptions: activeSubscriptions,
+        },
+        epic7: {
+          badges_awarded: gamificationCounters.badges_awarded,
+          levels_changed: gamificationCounters.levels_changed,
+          certificates_issued: gamificationCounters.certificates_issued,
+          certificates_downloaded: gamificationCounters.certificates_downloaded,
+          certificates_revoked: gamificationCounters.certificates_revoked,
+          notifications_marked_read: gamificationCounters.notifications_marked_read,
         },
         generated_at: new Date().toISOString(),
       });

@@ -275,6 +275,285 @@ curl -X POST http://localhost:8080/api/teams \
 - Subsequent requests with same key: Returns cached response
 - Different key: Creates new team
 
+## Gamification & Certification (Epic 7)
+
+### Feature Flags
+```bash
+FF_GAMIFICATION_V1=true
+FF_CERTIFICATES_V1=true
+FF_MANAGER_NOTIFICATIONS_V1=true
+```
+
+### RBAC
+- **Learner:** Access own levels, badges, certificates
+- **Manager:** View notifications, mark as read
+- **Admin:** Revoke certificates
+
+### Learner Progression
+
+**Get learner level for a track:**
+```bash
+curl http://localhost:8080/api/learners/$USER_ID/level/$TRACK_ID \
+  -H 'x-admin-token: dev-admin-token-12345'
+```
+
+**Response:**
+```json
+{
+  "level": "intermediate",
+  "correctAttempts": 45,
+  "nextLevel": "advanced",
+  "attemptsToNextLevel": 15
+}
+```
+
+**Get all learner levels (paginated):**
+```bash
+curl http://localhost:8080/api/learners/$USER_ID/levels?limit=50&offset=0 \
+  -H 'x-admin-token: dev-admin-token-12345'
+```
+
+**Response:**
+```json
+{
+  "total": 5,
+  "limit": 50,
+  "offset": 0,
+  "data": [
+    {
+      "trackId": "00000000-0000-0000-0000-000000000100",
+      "trackTitle": "Architecture Standards",
+      "level": "intermediate",
+      "correctAttempts": 45
+    }
+  ]
+}
+```
+
+### Achievement Badges
+
+**Get learner badges:**
+```bash
+curl http://localhost:8080/api/learners/$USER_ID/badges \
+  -H 'x-admin-token: dev-admin-token-12345'
+```
+
+**Response:**
+```json
+[
+  {
+    "badgeId": "first-correct",
+    "slug": "first-correct",
+    "name": "First Steps",
+    "description": "Answered your first question correctly",
+    "earnedAt": "2025-10-10T12:00:00Z"
+  }
+]
+```
+
+### Certificates
+
+**Get learner certificates:**
+```bash
+curl http://localhost:8080/api/learners/$USER_ID/certificates \
+  -H 'x-admin-token: dev-admin-token-12345'
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "cert-uuid-123",
+    "trackId": "track-uuid-100",
+    "trackTitle": "Architecture Standards",
+    "issuedAt": "2025-10-10T12:00:00Z",
+    "verificationUrl": "https://cerply.com/verify/cert-uuid-123"
+  }
+]
+```
+
+**Download certificate PDF:**
+```bash
+curl http://localhost:8080/api/certificates/$CERT_ID/download \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -o certificate.pdf
+```
+
+**Response Headers:**
+- `Content-Type: application/pdf`
+- `Content-Disposition: attachment; filename="certificate-{id}.pdf"`
+- `Cache-Control: private, max-age=3600`
+
+**Verify certificate:**
+```bash
+curl "http://localhost:8080/api/certificates/$CERT_ID/verify?signature=abc123" \
+  -H 'x-admin-token: dev-admin-token-12345'
+```
+
+**Response:**
+```json
+{
+  "valid": true,
+  "revoked": false,
+  "issuedAt": "2025-10-10T12:00:00Z"
+}
+```
+
+**Revoke certificate (admin-only):**
+```bash
+curl -X POST http://localhost:8080/api/certificates/$CERT_ID/revoke \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -H 'x-idempotency-key: revoke-cert-123' \
+  -d '{"reason":"Policy violation"}'
+```
+
+**Response:**
+```json
+{
+  "revokedAt": "2025-10-10T15:30:00Z",
+  "reason": "Policy violation"
+}
+```
+
+### Manager Notifications
+
+**Get manager notifications (paginated):**
+```bash
+curl "http://localhost:8080/api/manager/notifications?unreadOnly=true&limit=50&offset=0" \
+  -H 'x-admin-token: dev-admin-token-12345'
+```
+
+**Response:**
+```json
+{
+  "total": 12,
+  "limit": 50,
+  "offset": 0,
+  "data": [
+    {
+      "id": "notif-uuid-123",
+      "type": "learner_level_up",
+      "content": {
+        "learnerName": "Alice",
+        "trackTitle": "Architecture Standards",
+        "newLevel": "advanced"
+      },
+      "read": false,
+      "sentAt": "2025-10-10T12:00:00Z"
+    }
+  ]
+}
+```
+
+**Get unread count:**
+```bash
+curl http://localhost:8080/api/manager/notifications/unread/count \
+  -H 'x-admin-token: dev-admin-token-12345'
+```
+
+**Response:**
+```json
+{
+  "unread": 8
+}
+```
+
+**Mark notification as read (idempotent):**
+```bash
+curl -X PATCH http://localhost:8080/api/manager/notifications/$NOTIF_ID \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -H 'x-idempotency-key: mark-read-notif-123' \
+  -d '{"read":true}'
+```
+
+**Response:**
+```json
+{
+  "id": "notif-uuid-123",
+  "read": true
+}
+```
+
+### Idempotency (Epic 7)
+
+**Epic 7 Routes with Idempotency Support:**
+- `PATCH /api/manager/notifications/:id`
+- `POST /api/certificates/:id/revoke`
+
+**Headers:**
+- Request: `X-Idempotency-Key: unique-request-id`
+- Response: `X-Idempotency-Replay: true` (if replayed)
+
+**Behavior:**
+- First request: Processes normally, stores response (24hr TTL)
+- Replay (same key, same body): Returns cached response with `X-Idempotency-Replay: true`
+- Conflict (same key, different body): Returns `409 CONFLICT`
+
+### Pagination
+
+**Query Parameters:**
+- `limit` (default: 50, max: 200)
+- `offset` (default: 0)
+
+**Response Shape:**
+```json
+{
+  "total": 100,
+  "limit": 50,
+  "offset": 0,
+  "data": [...]
+}
+```
+
+**Paginated Routes:**
+- `GET /api/learners/:id/levels`
+- `GET /api/manager/notifications`
+
+### Audit Events
+
+**Epic 7 emits audit events for:**
+- `badge_awarded` - Badge earned by learner
+- `level_changed` - Learner progressed to new level
+- `certificate_issued` - Certificate generated
+- `certificate_downloaded` - Certificate PDF downloaded
+- `certificate_revoked` - Certificate revoked by admin
+- `notification_marked_read` - Manager marked notification as read
+
+**View counters:**
+```bash
+curl http://localhost:8080/api/ops/kpis
+```
+
+**Response includes Epic 7 metrics:**
+```json
+{
+  "epic7": {
+    "badges_awarded": 150,
+    "levels_changed": 45,
+    "certificates_issued": 12,
+    "certificates_downloaded": 8,
+    "certificates_revoked": 1,
+    "notifications_marked_read": 32
+  }
+}
+```
+
+### Cleanup Crons
+
+**Daily: Delete expired idempotency keys (>24h):**
+```bash
+cd api && npx tsx scripts/cleanup-idempotency-keys.ts
+```
+
+**Weekly: Delete old audit events (>180 days):**
+```bash
+cd api && RETAIN_AUDIT_DAYS=180 npx tsx scripts/cleanup-audit-events.ts
+```
+
+**Note:** Enable persistent audit events with `PERSIST_AUDIT_EVENTS=true` (default: console logs only).
+
 ## Database
 
 **Migrations:**
@@ -445,6 +724,7 @@ tail -f events.ndjson | jq
 
 ## Changelog
 
+- **2025-10-10:** Epic 7 delivered (Gamification & Certification System)
 - **2025-10-07:** Epic 3 delivered (Team Management & Learner Assignment)
 - **2025-09-20:** Epic 2 delivered (SSO & RBAC)
 - **2025-09-15:** M3 API Surface implemented (preview, generate, score, daily)
