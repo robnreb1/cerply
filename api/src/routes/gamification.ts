@@ -522,3 +522,4 @@ export async function registerGamificationRoutes(app: FastifyInstance) {
   );
 }
 
+export default registerGamificationRoutes;
