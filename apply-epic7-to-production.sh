@@ -7,8 +7,18 @@ echo "🚀 Epic 7 Production Database Setup"
 echo "======================================"
 echo ""
 
-# Production database URL
-export DATABASE_URL="postgresql://cerply_app:pB55GwS1h6t0PuxZ35ekDG1eNAZxgIHZ@dpg-d3lrdnt6ubrc73ebjh90-a.frankfurt-postgres.render.com/cerply_t8y3"
+# Check if DATABASE_URL is provided
+if [ -z "$DATABASE_URL" ]; then
+  echo "❌ ERROR: DATABASE_URL environment variable is required"
+  echo ""
+  echo "Usage:"
+  echo "  DATABASE_URL='<your-production-db-url>' ./apply-epic7-to-production.sh"
+  echo ""
+  echo "Get your production database URL from:"
+  echo "  Render Dashboard → cerply-production → Connections → External Database URL"
+  echo ""
+  exit 1
+fi
 
 echo "📦 Step 1: Applying Epic 7 schema to production..."
 echo ""
@@ -37,7 +47,7 @@ echo "Next Steps:"
 echo "1. Go to Render Dashboard → cerply-api-prod → Environment"
 echo "2. Add/update these environment variables:"
 echo ""
-echo "   DATABASE_URL=postgresql://cerply_app:pB55GwS1h6t0PuxZ35ekDG1eNAZxgIHZ@dpg-d3lrdnt6ubrc73ebjh90-a.frankfurt-postgres.render.com/cerply_t8y3"
+echo "   DATABASE_URL=<your-production-database-url>"
 echo "   FF_GAMIFICATION_V1=true"
 echo "   FF_CERTIFICATES_V1=true"
 echo "   FF_MANAGER_NOTIFICATIONS_V1=true"
