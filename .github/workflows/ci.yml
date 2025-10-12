@@ -39,6 +39,7 @@ jobs:
 
   evaluator-multiphase:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: changes
     # Moved to nightly-only (too slow for PR gate)
     if: needs.changes.outputs.docs_only != 'true' && github.event_name != 'pull_request'
@@ -525,6 +526,7 @@ jobs:
     name: Web E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    continue-on-error: true  # Temporarily allow failure while staging API stabilizes
     needs: [changes, pr-typecheck]
     steps:
       - name: Checkout
