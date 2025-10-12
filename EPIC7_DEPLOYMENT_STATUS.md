@@ -43,7 +43,7 @@ Production uses a **manual promotion workflow** that:
 3. Triggers Render production deployment
 4. Verifies health at `https://api.cerply.com`
 
-**Workflow:** `.github/workflows/promote-prod.yml`
+**Workflow:** `Promote API image to prod` (`.github/workflows/promote-prod.yml`)
 
 ---
 
@@ -57,9 +57,10 @@ Since Epic 7 is verified on staging, you can deploy to production immediately:
 
 Go to GitHub Actions:
 1. Visit: https://github.com/robnreb1/cerply/actions/workflows/promote-prod.yml
-2. Click **"Run workflow"**
-3. Leave source_tag empty (defaults to `staging-latest`)
-4. Click **"Run workflow"** button
+2. You'll see the workflow: **"Promote API image to prod"**
+3. Click **"Run workflow"** dropdown button (top right)
+4. Leave source_tag empty (defaults to `staging-latest`)
+5. Click green **"Run workflow"** button to confirm
 
 #### **Step 2: What Happens Automatically**
 
