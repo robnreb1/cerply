@@ -30,8 +30,8 @@ export async function registerVersionRoutes(app: any) {
     };
     
     // Set response headers for easy inspection
-    reply.header('x-revision', commit);
-    reply.header('x-build', builtAt);
+    reply.header('x-image-revision', commit);
+    reply.header('x-image-created', builtAt);
     reply.header('x-image-tag', imageTag);
     reply.header('x-runtime-channel', runtime.channel);
     
