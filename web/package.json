@@ -15,6 +15,7 @@
     "smoke:vercel": "bash ./scripts/vercel-smoke.sh",
     "smoke:api": "node ./scripts/smoke-api.mjs",
     "smoke:web": "bash ./scripts/web-smoke.sh",
+    "smoke:gate": "bash ./scripts/smoke-app-gating.sh",
     "lighthouse": "bash ./scripts/lighthouse-ci.sh",
     "test": "vitest --run",
     "test:watch": "vitest",

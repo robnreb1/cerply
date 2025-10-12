@@ -7,7 +7,7 @@ export function isAdminAllowed(headers: IncomingHttpHeaders, hasSession: boolean
   return Boolean(hasSession && (xAdmin || allowDev));
 }
 
-export const COOKIE_NAME = 'cerply_session';
+export const COOKIE_NAME = 'cerply.sid';
 export function hasSessionFromReq(req: any): boolean {
   const cookie = req?.cookies?.[COOKIE_NAME];
   return Boolean(cookie && String(cookie).length > 0);

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('Orchestrator preview: submit → stream → finish (mock)', async ({ page }) => {
+test('@nightly Orchestrator preview: submit → stream → finish (mock)', async ({ page }) => {
   // Gate UI on flag
   process.env.NEXT_PUBLIC_PREVIEW_ORCH_UI = 'true';
 

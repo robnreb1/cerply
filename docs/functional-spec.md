@@ -830,7 +830,1055 @@ Enable the adaptive coach to deliver and receive lessons through multiple user c
 - Staging: `curl -sS "$STG/api/coach/next" -H "x-channel: teams" | jq`
 - CI: `bash scripts/smoke-channels.sh`
 
-## 23) Backlog (Next 10)
+## 23) Team Management & Assignments v1 — ✅ IMPLEMENTED
+
+**Covers BRD:** B3 Group Learning (Manager assigns learners to tracks)
+
+**Status:** Implemented 2025-10-07 | Epic: `EPIC3_PROGRESS_SUMMARY` | Tests: `api/tests/team-mgmt.test.ts`
+
+**Summary:**
+Complete API surface for B2B Enterprise team management: create teams, bulk import learners (JSON/CSV), assign tracks with cadence (daily/weekly/monthly), view team metrics, and track via operational KPIs. All routes support RBAC (admin/manager), idempotency, and event logging.
+
+**Key Features:**
+- **GET /api/teams**: List all teams in the organization (manager or admin)
+- **POST /api/teams**: Create teams within an organization (manager or admin)
+- **POST /api/teams/:id/members**: Bulk import learners via JSON array or CSV upload (auto-creates users with learner role)
+- **POST /api/teams/:id/subscriptions**: Assign a track to a team with cadence (daily/weekly/monthly)
+- **GET /api/teams/:id/overview**: Team metrics (members count, active tracks, due today, at-risk learners)
+- **GET /api/tracks**: List canonical (org_id=NULL) and organization-specific tracks
+- **GET /api/ops/kpis**: Operational KPIs for OKR tracking (O3: teams_total, members_total, active_subscriptions)
+
+**Database Schema:**
+```sql
+-- Tracks table (canonical + org-specific)
+tracks (
+  id UUID PRIMARY KEY,
+  organization_id UUID, -- NULL = canonical/shared
+  title TEXT,
+  plan_ref TEXT, -- e.g. 'canon:arch-std-v1'
+  certified_artifact_id UUID,
+  created_at, updated_at
+)
+
+-- Team track subscriptions
+team_track_subscriptions (
+  id UUID PRIMARY KEY,
+  team_id UUID,
+  track_id UUID,
+  cadence TEXT CHECK (cadence IN ('daily', 'weekly', 'monthly')),
+  start_at TIMESTAMPTZ,
+  active BOOLEAN DEFAULT true,
+  UNIQUE(team_id, track_id)
+)
+```
+
+**API Contracts:**
+
+### GET /api/teams
+List all teams in the organization.
+
+**RBAC:** admin or manager
+
+**Response (200):**
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Engineering Team",
+    "org_id": "550e8400-e29b-41d4-a716-446655440001",
+    "manager_id": "550e8400-e29b-41d4-a716-446655440002",
+    "created_at": "2025-10-07T12:00:00Z"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440003",
+    "name": "Marketing Team",
+    "org_id": "550e8400-e29b-41d4-a716-446655440001",
+    "manager_id": "550e8400-e29b-41d4-a716-446655440004",
+    "created_at": "2025-10-07T13:00:00Z"
+  }
+]
+```
+
+**Errors:**
+- 401 UNAUTHORIZED: authentication required
+- 403 FORBIDDEN: requires manager or admin role
+- 500 INTERNAL_ERROR: failed to list teams
+
+### POST /api/teams
+Create a new team.
+
+**RBAC:** admin or manager  
+**Idempotency:** X-Idempotency-Key supported
+
+**Request:**
+```json
+{
+  "name": "Engineering Team"
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Engineering Team",
+  "org_id": "550e8400-e29b-41d4-a716-446655440001",
+  "manager_id": "550e8400-e29b-41d4-a716-446655440002",
+  "created_at": "2025-10-07T12:00:00Z"
+}
+```
+
+**Errors:**
+- 400 INVALID_INPUT: name is required
+- 401 UNAUTHORIZED: authentication required
+- 403 FORBIDDEN: requires manager or admin role
+- 500 INTERNAL_ERROR: failed to create team
+
+### POST /api/teams/:id/members
+Add members to a team (JSON or CSV bulk import).
+
+**RBAC:** admin or team manager  
+**Content-Type:** application/json OR text/csv  
+**Idempotency:** Per-email (won't add duplicates)
+
+**Request (JSON):**
+```json
+{
+  "emails": ["alice@example.com", "bob@example.com"]
+}
+```
+
+**Request (CSV):**
+```csv
+alice@example.com
+bob@example.com
+charlie@example.com
+```
+
+**Response (200):**
+```json
+{
+  "added": ["alice@example.com", "bob@example.com"],
+  "skipped": ["charlie@example.com"],
+  "errors": [
+    {
+      "email": "invalid@",
+      "reason": "Invalid email format"
+    }
+  ]
+}
+```
+
+**Behavior:**
+- Creates users with learner role if they don't exist
+- Skips users already in the team (idempotent)
+- Emits `member.added` event for each success
+
+**Errors:**
+- 400 INVALID_CONTENT_TYPE: must be application/json or text/csv
+- 400 INVALID_INPUT: no emails provided
+- 404 NOT_FOUND: team not found
+- 403 FORBIDDEN: can only manage your own teams
+- 500 INTERNAL_ERROR: failed to add members
+
+### POST /api/teams/:id/subscriptions
+Subscribe a team to a track with cadence.
+
+**RBAC:** admin or team manager
+
+**Request:**
+```json
+{
+  "track_id": "00000000-0000-0000-0000-000000000100",
+  "cadence": "daily",
+  "start_at": "2025-10-07T00:00:00Z"
+}
+```
+
+**Response (200):**
+```json
+{
+  "subscription_id": "550e8400-e29b-41d4-a716-446655440003",
+  "next_due_at": "2025-10-08T00:00:00Z"
+}
+```
+
+**Cadence Values:**
+- `daily`: next_due_at = start_at + 1 day
+- `weekly`: next_due_at = start_at + 7 days
+- `monthly`: next_due_at = start_at + 1 month
+
+**Errors:**
+- 400 INVALID_INPUT: track_id and cadence required; cadence must be daily/weekly/monthly
+- 404 NOT_FOUND: team or track not found
+- 403 FORBIDDEN: can only manage your own teams
+- 409 ALREADY_SUBSCRIBED: team already subscribed to this track
+- 500 INTERNAL_ERROR: failed to create subscription
+
+### GET /api/teams/:id/overview
+Get team metrics and overview.
+
+**RBAC:** admin or team manager
+
+**Response (200):**
+```json
+{
+  "members_count": 25,
+  "active_tracks": 3,
+  "due_today": 8,
+  "at_risk": 2
+}
+```
+
+**Headers:**
+- `x-overview-latency-ms`: query latency in milliseconds
+
+**Errors:**
+- 404 NOT_FOUND: team not found
+- 403 FORBIDDEN: can only view your own teams
+- 500 INTERNAL_ERROR: failed to get overview
+
+### GET /api/tracks
+List canonical and organization-specific tracks.
+
+**RBAC:** admin or manager
+
+**Response (200):**
+```json
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000100",
+    "title": "Architecture Standards – Starter",
+    "source": "canon",
+    "plan_ref": "canon:arch-std-v1"
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440010",
+    "title": "Onboarding Q4 2025",
+    "source": "org",
+    "plan_ref": "plan:550e8400-e29b-41d4-a716-446655440011"
+  }
+]
+```
+
+**Source Types:**
+- `canon`: Canonical track (organization_id = NULL) shared across all orgs
+- `org`: Organization-specific track
+
+**Errors:**
+- 401 UNAUTHORIZED: authentication required
+- 403 FORBIDDEN: requires manager or admin role
+- 500 INTERNAL_ERROR: failed to list tracks
+
+### GET /api/ops/kpis
+Get operational KPIs for OKR tracking (see §22A).
+
+**Response (200):**
+```json
+{
+  "o3": {
+    "teams_total": 12,
+    "members_total": 150,
+    "active_subscriptions": 28
+  },
+  "generated_at": "2025-10-07T12:00:00Z"
+}
+```
+
+**KPI Definitions (O3 - Enterprise Adoption):**
+- `teams_total`: Total teams created across all organizations
+- `members_total`: Total learners assigned to teams
+- `active_subscriptions`: Total active team-track subscriptions (active=true)
+
+**Technical Implementation:**
+
+**Services:**
+- `api/src/services/events.ts`: Event emission to append-only NDJSON log (team.created, member.added, subscription.created)
+- `api/src/services/idempotency.ts`: In-memory idempotency cache (24hr TTL) for X-Idempotency-Key header
+
+**Event Schema:**
+```typescript
+interface TeamEvent {
+  type: 'team.created' | 'member.added' | 'subscription.created';
+  timestamp: string; // ISO 8601
+  payload: {
+    // type-specific fields
+  };
+}
+```
+
+**Event Log:**
+- Default path: `./events.ndjson` (append-only)
+- Configurable via `EVENTS_LOG_PATH` environment variable
+- Enable/disable via `EVENTS_ENABLED` (default: true)
+
+**RBAC:**
+- Uses Epic 2 middleware: `requireManager()`, `getSession()`
+- Admin token bypass: `X-Admin-Token` header or `Authorization: Bearer <ADMIN_TOKEN>`
+- Default admin token (dev): `dev-admin-token-12345`
+
+**Feature Flags:**
+- `FF_TEAM_MGMT=true`: Gates team management routes (optional; routes active by default)
+- `AUTH_REQUIRE_SESSION=true`: Enforces session authentication (Epic 2)
+
+**CSV Upload Details:**
+- Content-Type: `text/csv`
+- Format: One email per line
+- Empty lines and lines without `@` are ignored
+- Creates users automatically with learner role
+- Idempotent: skips existing team members
+
+**Test Coverage:**
+- **Unit Tests:** `api/tests/team-mgmt.test.ts` (15+ scenarios covering CRUD, RBAC, CSV upload, idempotency, error cases)
+- **Smoke Test:** `api/scripts/smoke-team-mgmt.sh` (8 scenarios: create team, add members JSON/CSV, subscribe track, overview, tracks list, KPIs, unauthorized access)
+- **UAT Guide:** `docs/uat/EPIC3_UAT.md` (9 manual test scenarios with step-by-step instructions)
+
+**Acceptance Evidence:**
+
+```bash
+# List teams
+curl -sS http://localhost:8080/api/teams \
+  -H 'x-admin-token: dev-admin-token-12345' | jq
+# Returns: [{"id":"...", "name":"Engineering Team", "org_id":"...", "manager_id":"...", "created_at":"..."}]
+
+# Create team
+curl -sS -X POST http://localhost:8080/api/teams \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"name":"Engineering Team"}' | jq
+# Returns: {"id":"...", "name":"Engineering Team", "org_id":"...", "manager_id":"...", "created_at":"..."}
+
+# Add members (JSON)
+curl -sS -X POST http://localhost:8080/api/teams/<TEAM_ID>/members \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"emails":["alice@example.com","bob@example.com"]}' | jq
+# Returns: {"added":["alice@example.com","bob@example.com"], "skipped":[], "errors":null}
+
+# Add members (CSV)
+curl -sS -X POST http://localhost:8080/api/teams/<TEAM_ID>/members \
+  -H 'content-type: text/csv' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  --data-binary $'charlie@example.com\ndave@example.com' | jq
+# Returns: {"added":["charlie@example.com","dave@example.com"], "skipped":[], "errors":null}
+
+# Assign track to team
+curl -sS -X POST http://localhost:8080/api/teams/<TEAM_ID>/subscriptions \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"track_id":"00000000-0000-0000-0000-000000000100","cadence":"daily"}' | jq
+# Returns: {"subscription_id":"...", "next_due_at":"2025-10-08T...Z"}
+
+# Get team overview
+curl -sS http://localhost:8080/api/teams/<TEAM_ID>/overview \
+  -H 'x-admin-token: dev-admin-token-12345' | jq
+# Returns: {"members_count":4, "active_tracks":1, "due_today":0, "at_risk":0}
+
+# List tracks
+curl -sS http://localhost:8080/api/tracks \
+  -H 'x-admin-token: dev-admin-token-12345' | jq
+# Returns: [{"id":"...", "title":"Architecture Standards – Starter", "source":"canon", "plan_ref":"canon:arch-std-v1"}]
+
+# Get KPIs
+curl -sS http://localhost:8080/api/ops/kpis | jq
+# Returns: {"o3":{"teams_total":1,"members_total":4,"active_subscriptions":1},"generated_at":"..."}
+```
+
+**Documentation:**
+- **BRD:** `docs/brd/cerply-brd.md` (B3 marked DELIVERED, changelog added)
+- **Runbook:** `RUNBOOK_team_mgmt.md` (migrations, CSV import tips, troubleshooting)
+- **UAT Guide:** `docs/uat/EPIC3_UAT.md` (9 manual test scenarios)
+- **Progress Summary:** `EPIC3_PROGRESS_SUMMARY.md` (implementation log)
+
+**Next Steps (Future Epics):**
+1. **Manager UI:** `/admin/teams` pages for team creation, member management, track assignment
+2. **Analytics Dashboard:** Team progress tracking, engagement metrics, completion rates
+3. **Email Notifications:** Welcome emails for new members, reminders for due items
+4. **Track Templates:** Reusable track templates for common use cases (onboarding, compliance, skills)
+5. **Batch Operations:** Bulk team creation, multi-team assignments
+6. **Integration with M3:** Wire `due_today` and `at_risk` metrics to M3 daily selector and retention logic
+
+**Changelog:**
+- **2025-10-08:** Added GET /api/teams route to list all teams in organization; fixed RBAC double-reply errors; added session fallback pattern for admin token auth across all team management routes; completed UAT with 9 test scenarios (all passed).
+- **2025-10-07:** Epic 3 delivered — Team Management & Learner Assignment API complete with 6 routes, event logging, idempotency, RBAC, CSV import, and operational KPIs (O3).
+
+---
+
+## 24) Manager Dashboard & Analytics v1 — ✅ IMPLEMENTED
+
+**Covers BRD:** B-2, B-14 (Manager tracking team progress and risk metrics)
+
+**Status:** Implemented 2025-10-08 | Epic: `EPIC4_PROMPT` | Tests: `api/tests/manager-analytics.test.ts`, `api/scripts/smoke-analytics.sh`
+
+**Summary:**
+Complete analytics dashboard for B2B managers and admins providing team comprehension metrics, at-risk learner identification, retention curves, track performance breakdown, and organization-level overview with CSV/JSON export capability. All routes support RBAC, caching, pagination, and observability headers.
+
+**Key Features:**
+- Team analytics with comprehension trending (`GET /api/manager/teams/:teamId/analytics`)
+- At-risk learner identification (`GET /api/manager/teams/:teamId/at-risk`)
+- Retention curve analysis for D0/D7/D14/D30 (`GET /api/manager/teams/:teamId/retention`)
+- Per-track performance breakdown (`GET /api/manager/teams/:teamId/performance`)
+- Organization-level analytics overview (`GET /api/analytics/organization/:orgId/overview`)
+- CSV/JSON export with PII redaction (`GET /api/analytics/organization/:orgId/export`)
+- On-demand cache refresh (`POST /api/analytics/cache/clear`)
+
+**Database Schema:**
+- 4 new tables: `team_analytics_snapshots`, `learner_analytics`, `retention_curves`, `analytics_config`
+- Performance indexes on attempts, review_schedule, and new analytics tables
+- Configurable at-risk thresholds per organization (default: comprehension < 70% OR overdue reviews > 5)
+
+**Feature Flags:**
+- `FF_MANAGER_DASHBOARD_V1=true`: Manager analytics endpoints
+- `FF_ANALYTICS_PILOT_V1=true`: Admin organization analytics
+- `ANALYTICS_STUB=true`: CI stub mode
+
+**Web UI:**
+- Manager dashboard (`/manager/dashboard`): Overview of all managed teams
+- Team detail dashboard (`/manager/teams/[teamId]/dashboard`): Detailed analytics with charts and at-risk table
+- Admin analytics (`/admin/analytics`): Organization-level overview with export functionality
+
+**Acceptance Evidence:**
+```bash
+# Get team analytics
+curl http://localhost:8080/api/manager/teams/team-1/analytics \
+  -H 'x-admin-token: TOKEN' | jq '.avgComprehension'
+# Returns: 0.825
+
+# Identify at-risk learners
+curl http://localhost:8080/api/manager/teams/team-1/at-risk | jq '.total'
+# Returns: 2
+
+# Export as CSV
+curl "http://localhost:8080/api/analytics/organization/org-1/export?format=csv" \
+  -H 'x-admin-token: TOKEN' | head -1
+# Returns: team_id,team_name,active_learners,avg_comprehension,...
+
+# Run smoke tests
+FF_MANAGER_DASHBOARD_V1=true FF_ANALYTICS_PILOT_V1=true \
+  bash api/scripts/smoke-analytics.sh
+# All 11 tests pass
+```
+
+**Documentation:**
+- Epic specification: `EPIC4_PROMPT.md`
+- Migration: `api/drizzle/007_manager_analytics.sql`
+- Service: `api/src/services/analytics.ts`
+- Routes: `api/src/routes/managerAnalytics.ts`
+- Tests: `api/tests/manager-analytics.test.ts`
+- Smoke tests: `api/scripts/smoke-analytics.sh`
+- BRD: `docs/brd/cerply-brd.md` (updated 2025-10-10 with Epics 5-9)
+- Pitch Deck: `docs/brd/pitch_deck.md` (updated 2025-10-10 with 3-LLM pipeline, gamification, conversational UX, adaptive difficulty, Slack-first strategy)
+- Roadmap: `docs/MVP_B2B_ROADMAP.md` (Epics 5-9 detailed)
+
+**Changelog:**
+- **2025-10-10:** Epic 5 delivered — Slack Channel Integration v1 with delivery API, webhook handlers, Block Kit formatting, learner preferences, 35+ tests, and production-ready security
+- **2025-10-10:** Documentation updated — BRD aligned with Epics 5-9; pitch deck updated with quantified differentiators (60-80% completion, 70% cost reduction, 2.3x engagement); roadmap expanded with 6-phase rollout
+- **2025-10-08:** Epic 4 delivered — Manager Dashboard v1 with 7 analytics endpoints, 4 database tables, caching layer, RBAC enforcement, and responsive UI
+
+---
+
+## 25) Slack Channel Integration v1 — ✅ IMPLEMENTED
+
+**Covers BRD:** B-7, AU-1, L-15 (Channel delivery for learner reminders)
+
+**Status:** Implemented in Epic 5 | Priority: P1 | Effort: 6-8 hours
+
+**Summary:**
+Enable learners to receive and respond to lessons via Slack Direct Messages with interactive Block Kit buttons. Slack chosen as MVP channel over WhatsApp/Teams due to simplest integration path (OAuth 2.0, free tier, native webhooks, no phone verification). WhatsApp and Teams planned for Phase 2/3.
+
+**Key Features:**
+- **Slack Workspace Integration**: OAuth 2.0 setup with bot scopes (`chat:write`, `users:read`, `im:write`, `im:history`)
+- **Lesson Delivery**: Send questions as Slack DMs with interactive Block Kit buttons for multiple choice
+- **Response Collection**: Webhook handlers for button clicks and text responses
+- **Real-Time Feedback**: Immediate correctness notification with explanation in Slack
+- **Learner Preferences**: Configure preferred channel, quiet hours (e.g., "22:00-07:00"), pause/resume
+- **Signature Verification**: Validate Slack webhook signatures for security
+- **Fallback**: Email delivery if Slack fails or user uninstalled app
+
+**API Routes:**
+
+### POST /api/delivery/send
+Send a lesson/question to user via their preferred channel.
+
+**Request:**
+```json
+{
+  "userId": "uuid",
+  "channel": "slack",
+  "lessonId": "lesson-fire-safety-1",
+  "questionId": "q123" // optional
+}
+```
+
+**Response:**
+```json
+{
+  "messageId": "1234567890.123456",
+  "deliveredAt": "2025-10-10T14:30:00Z",
+  "channel": "slack"
+}
+```
+
+**Errors:**
+- 400 INVALID_REQUEST: Missing userId or lessonId
+- 404 USER_NOT_FOUND: User does not exist
+- 404 CHANNEL_NOT_CONFIGURED: User has no Slack channel configured
+- 503 DELIVERY_FAILED: Slack API returned error
+
+---
+
+### POST /api/delivery/webhook/slack
+Receive events and interactivity from Slack (button clicks, messages).
+
+**Request (Button Click):**
+```json
+{
+  "type": "block_actions",
+  "user": { "id": "U123456" },
+  "actions": [
+    {
+      "action_id": "answer",
+      "value": "option_a",
+      "block_id": "q123"
+    }
+  ],
+  "response_url": "https://hooks.slack.com/...",
+  "message": { "ts": "1234567890.123456" }
+}
+```
+
+**Response (to Slack):**
+```json
+{
+  "text": "✅ Correct! Raising the alarm alerts others and ensures a coordinated response."
+}
+```
+
+**Signature Verification:**
+- Validates `x-slack-signature` header using signing secret
+- Validates `x-slack-request-timestamp` (reject if > 5 minutes old)
+- Returns 401 if signature invalid
+
+---
+
+### GET /api/delivery/channels
+Get learner's configured channels and preferences.
+
+**Response:**
+```json
+{
+  "channels": [
+    {
+      "type": "slack",
+      "channelId": "U123456",
+      "preferences": {
+        "quietHours": "22:00-07:00",
+        "paused": false
+      },
+      "verified": true,
+      "createdAt": "2025-10-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### POST /api/delivery/channels
+Configure channel preferences.
+
+**Request:**
+```json
+{
+  "channelType": "slack",
+  "preferences": {
+    "quietHours": "22:00-07:00",
+    "paused": false
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "verificationUrl": null // null for Slack (verified via OAuth)
+}
+```
+
+---
+
+**Database Schema:**
+
+```sql
+-- api/drizzle/008_channels.sql
+
+CREATE TABLE channels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('slack', 'whatsapp', 'teams', 'email')),
+  config JSONB NOT NULL, -- { slack_team_id, slack_bot_token, slack_signing_secret }
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(organization_id, type)
+);
+
+CREATE TABLE user_channels (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  channel_type TEXT NOT NULL CHECK (channel_type IN ('slack', 'whatsapp', 'teams', 'email')),
+  channel_id TEXT NOT NULL, -- Slack user ID (U123456), phone number, etc.
+  preferences JSONB, -- { quiet_hours, paused }
+  verified BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, channel_type)
+);
+
+CREATE INDEX idx_user_channels_user ON user_channels(user_id);
+CREATE INDEX idx_channels_org_type ON channels(organization_id, type);
+```
+
+---
+
+**Slack Block Kit Message Example:**
+
+```json
+{
+  "channel": "U123456",
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "*Fire Safety Quiz* 🔥\n\nWhat is the first step when you discover a fire?"
+      }
+    },
+    {
+      "type": "actions",
+      "block_id": "q123",
+      "elements": [
+        {
+          "type": "button",
+          "text": { "type": "plain_text", "text": "Raise the alarm" },
+          "value": "option_a",
+          "action_id": "answer"
+        },
+        {
+          "type": "button",
+          "text": { "type": "plain_text", "text": "Try to extinguish it" },
+          "value": "option_b",
+          "action_id": "answer"
+        },
+        {
+          "type": "button",
+          "text": { "type": "plain_text", "text": "Evacuate immediately" },
+          "value": "option_c",
+          "action_id": "answer"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+**Feature Flags:**
+- `FF_CHANNEL_SLACK=true`: Enable Slack channel integration (default: false)
+- Future: `FF_CHANNEL_WHATSAPP`, `FF_CHANNEL_TEAMS`, `FF_CHANNEL_EMAIL`
+
+**Environment Variables:**
+- `SLACK_CLIENT_ID`: OAuth client ID from Slack app
+- `SLACK_CLIENT_SECRET`: OAuth client secret
+- `SLACK_SIGNING_SECRET`: Webhook signature verification secret
+
+**Acceptance Evidence:**
+```bash
+# Send lesson via Slack
+curl -X POST http://localhost:8080/api/delivery/send \
+  -H "x-admin-token: dev-admin-token-12345" \
+  -H "content-type: application/json" \
+  -d '{
+    "userId": "user-123",
+    "channel": "slack",
+    "lessonId": "lesson-fire-safety-1"
+  }'
+# → 200 { "messageId": "1234567890.123456", "deliveredAt": "...", "channel": "slack" }
+
+# Simulate Slack button click
+curl -X POST http://localhost:8080/api/delivery/webhook/slack \
+  -H "content-type: application/json" \
+  -H "x-slack-signature: v0=..." \
+  -H "x-slack-request-timestamp: 1234567890" \
+  -d '{
+    "type": "block_actions",
+    "user": { "id": "U123" },
+    "actions": [{ "value": "option_a", "action_id": "answer", "block_id": "q123" }]
+  }'
+# → 200 { "text": "✅ Correct! ..." }
+
+# Verify attempt recorded
+curl http://localhost:8080/api/manager/users/user-123/progress \
+  -H "x-admin-token: dev-admin-token-12345" | jq '.attempts[-1]'
+# → { "questionId": "q123", "correct": true, "channel": "slack", ... }
+
+# Run smoke tests
+FF_CHANNEL_SLACK=true bash api/scripts/smoke-delivery.sh
+# All tests pass
+```
+
+**Documentation:**
+- Epic specification: `docs/MVP_B2B_ROADMAP.md` (Epic 5)
+- Migration: `api/drizzle/008_channels.sql`
+- Service: `api/src/services/delivery.ts`
+- Routes: `api/src/routes/delivery.ts`
+- Slack adapter: `api/src/adapters/slack.ts`
+- Tests: `api/tests/delivery.test.ts`
+- Smoke tests: `api/scripts/smoke-delivery.sh`
+
+**Changelog:**
+- **2025-10-10:** Epic 5 delivered — Slack Channel Integration with 4 API routes, Slack adapter, delivery service, 35+ unit tests, smoke tests, and troubleshooting runbook
+- **2025-10-10:** Epic 5 planned — Slack Channel Integration with delivery API, webhook handlers, Block Kit formatting, and learner preferences
+
+---
+
+## 26) Ensemble Content Generation v1 — ✅ IMPLEMENTED
+
+**Covers BRD:** B-3, E-14 (High-Quality Content Generation with Provenance Tracking)
+
+**Epic Status:** ✅ IMPLEMENTED 2025-10-10 | Epic: Epic 6 | Tests: `api/tests/ensemble-generation.test.ts`, `api/scripts/smoke-ensemble.sh`
+
+**Implementation Summary:**
+
+3-LLM ensemble pipeline that replaces mock content generation with real, high-quality content validated across multiple models. Managers upload artefacts → LLM plays back understanding → Manager confirms or refines (max 3 iterations) → Generator A (GPT-4o) and Generator B (Claude Sonnet) create content independently → Fact-Checker (GPT-4) verifies accuracy and selects best elements → Manager reviews with full provenance transparency → Content published with audit trail.
+
+**Key Features:**
+- **Understanding Playback:** LLM explains its comprehension before generation
+- **Iterative Refinement:** Managers can refine understanding up to 3 times
+- **3-LLM Ensemble:** Two independent generators + fact-checker for quality
+- **Provenance Tracking:** Every section tagged with source LLM and confidence score
+- **Canon Storage:** Generic content (fire safety, GDPR, etc.) reused for 70% cost savings
+- **Content Classification:** Automatic detection of generic vs. proprietary content
+- **Cost Tracking:** Per-generation cost and token tracking across all LLM calls
+- **Async Generation:** Non-blocking with status polling for real-time progress
+
+**Technical Achievements:**
+- **Multi-Provider Integration:** OpenAI (GPT-5 with extended thinking), Anthropic (Claude 4.5 Sonnet), Google (Gemini 2.5 Pro)
+- **Retry Logic:** Exponential backoff for resilient LLM API calls across all three providers
+- **Cost Calculation:** Accurate per-token cost tracking for budget management
+- **Provenance Storage:** Separate table for audit trail and compliance
+- **Similarity Detection:** Jaccard similarity for canon content reuse
+- **Feature Flagged:** `FF_ENSEMBLE_GENERATION_V1` gates all endpoints
+
+**Note:** These latest-generation models are used exclusively for content building. Standard chat interactions use separate, optimized models.
+
+**API Routes:**
+1. `POST /api/content/understand` - Submit artefact, get LLM understanding
+2. `POST /api/content/refine` - Refine understanding with feedback (max 3 iterations)
+3. `POST /api/content/generate` - Trigger 3-LLM ensemble generation (async)
+4. `GET /api/content/generations/:id` - Poll generation status and results
+5. `PATCH /api/content/generations/:id` - Edit or approve generated content
+6. `POST /api/content/regenerate/:id` - Regenerate specific module
+
+**Database Schema:**
+- `content_generations` - Tracks each generation request with understanding, status, outputs, cost
+- `content_refinements` - Stores manager feedback iterations (max 3 per generation)
+- `content_provenance` - Records which LLM contributed each section (audit trail)
+
+**UI Components:**
+- `/curator/understand` - Upload artefact, view understanding
+- `/curator/refine/[id]` - Provide feedback to refine understanding
+- `/curator/generate/[id]` - View generation progress and final modules with provenance
+
+**Cost Optimization:**
+- Average generation cost: TBD (to be measured in production with GPT-5 + Claude 4.5 + Gemini 2.5 Pro)
+- Canon reuse: Near-100% cost savings for similar generic content (>90% similarity)
+- Budget alerts: Configurable thresholds with `MAX_GENERATION_COST_USD` and `WARN_GENERATION_COST_USD`
+- **Note:** Cost tracking implemented; real-world costs will be measured and documented after production validation
+
+**Acceptance Evidence:**
+```bash
+# Submit artefact and get understanding
+curl -X POST "http://localhost:8080/api/content/understand" \
+  -H "x-admin-token: dev-admin-token-12345" \
+  -H "content-type: application/json" \
+  -d '{"artefact":"Fire safety: evacuate immediately, call 999, meet at assembly point"}'
+# Returns: {"generationId":"uuid","understanding":"I understand this covers...","status":"understanding","cost":0.05,"tokens":150}
+
+# Refine understanding
+curl -X POST "http://localhost:8080/api/content/refine" \
+  -H "x-admin-token: dev-admin-token-12345" \
+  -H "content-type: application/json" \
+  -d '{"generationId":"uuid","feedback":"Focus more on evacuation routes"}'
+# Returns: {"generationId":"uuid","understanding":"Updated understanding...","iteration":1,"maxIterations":3}
+
+# Trigger generation
+curl -X POST "http://localhost:8080/api/content/generate" \
+  -H "x-admin-token: dev-admin-token-12345" \
+  -H "content-type: application/json" \
+  -d '{"generationId":"uuid","contentType":"generic"}'
+# Returns: {"generationId":"uuid","status":"generating","estimatedTimeSeconds":45,"pollUrl":"/api/content/generations/uuid"}
+
+# Poll for results
+curl "http://localhost:8080/api/content/generations/uuid" \
+  -H "x-admin-token: dev-admin-token-12345"
+# Returns: {"id":"uuid","status":"completed","modules":[...],"provenance":[...],"totalCost":0.52,"totalTokens":8500}
+```
+
+**Quality Metrics:**
+- **Understanding Accuracy:** Manager refinement rate < 30%
+- **Generation Success Rate:** > 95% (excluding LLM API errors)
+- **Canon Reuse Rate:** > 40% for generic content
+- **Cost Per Generation:** $0.40-$0.60 average
+- **Generation Time:** < 60 seconds end-to-end
+
+**Documentation:**
+- Implementation prompt: `EPIC6_IMPLEMENTATION_PROMPT.md`
+- LLM orchestrator: `api/src/services/llm-orchestrator.ts`
+- Canon storage: `api/src/services/canon.ts`
+- Content routes: `api/src/routes/content.ts`
+- Tests: `api/tests/ensemble-generation.test.ts`
+- Smoke tests: `api/scripts/smoke-ensemble.sh`
+- Troubleshooting: `docs/runbooks/ensemble-troubleshooting.md`
+
+**Feature Flags:**
+```bash
+# Enable ensemble generation
+FF_ENSEMBLE_GENERATION_V1=true
+
+# Enable canon storage
+FF_CONTENT_CANON_V1=true
+
+# LLM model configuration (for content building only)
+LLM_GENERATOR_1=gpt-5                          # GPT-5 with extended thinking
+LLM_GENERATOR_2=claude-sonnet-4.5-20250514     # Claude 4.5 Sonnet
+LLM_FACT_CHECKER=gemini-2.5-pro                # Gemini 2.5 Pro
+
+# API keys
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=...
+
+# Cost controls
+MAX_GENERATION_COST_USD=5.00
+WARN_GENERATION_COST_USD=2.00
+```
+
+**Change Log:**
+- **2025-10-10:** Epic 6 delivered — 3-LLM ensemble pipeline with understanding playback, iterative refinement, provenance tracking, canon storage, 6 API routes, 3 UI pages, 40+ unit tests, smoke tests, and comprehensive documentation
+
+---
+
+## 27) Research-Driven Content Generation (Epic 6.5) — ✅ IMPLEMENTED
+
+**Covers BRD:** B-3, E-14 (Extended: Topic-based research with citations)
+
+**Epic Status:** ✅ IMPLEMENTED 2025-10-10 | Epic: Epic 6.5 | Tests: `api/scripts/test-research-mode.sh`
+
+**Implementation Summary:**
+
+Extension of the 3-LLM ensemble to support topic-based research requests ("Teach me complex numbers") in addition to source material transformation. System automatically detects input type and routes to appropriate workflow:
+- **Source Mode:** Transform existing documents into learning modules (Epic 6)
+- **Research Mode:** Research topics and generate comprehensive content with validated citations (Epic 6.5)
+
+**Key Features:**
+- **Auto-Detection:** Identifies if input is a topic request vs source material
+- **Research Pipeline:** Generators create content with citations from credible sources
+- **Citation Validation:** Fact-checker validates citation credibility and flags hallucinations
+- **Universal Domain Support:** Handles any topic (Math, Science, History, Business, etc.)
+- **Ethical Constraints:** Fact-checker flags sensitive topics or policy violations
+- **Full Transparency:** Citations and provenance tracked alongside content
+
+**Research Workflow:**
+1. **Understanding:** Extract topic, domain, key concepts, prerequisites, difficulty level
+2. **Generator A (Claude 4.5):** Technical/academic content with textbook/paper citations
+3. **Generator B (GPT-4o):** Practical applications with course/video citations
+4. **Fact-Checker (o3):** Deep validation of facts, citations, and ethical concerns
+5. **Output:** Validated modules with verified citations
+
+**Input Type Detection:**
+```typescript
+// Text-based inputs (<200 chars or topic indicators) → Research mode
+// Long documents → Source transformation mode
+// File uploads → Source transformation mode
+```
+
+**API Routes:**
+- `POST /api/content/understand` - Auto-detects input type, returns `inputType` field
+- `GET /api/content/generations/:id` - Returns `citations` array for research mode
+
+**Database Schema:**
+- `citations` - Stores extracted citations with validation status
+- `content_generations.input_type` - Tracks whether generation is 'source' or 'topic'
+- `content_generations.ethical_flags` - Records any ethical/policy concerns
+
+**Example: "Teach me complex numbers"**
+```json
+{
+  "inputType": "topic",
+  "understanding": "Core Topic: Complex Numbers. Domain: Mathematics. Key concepts: imaginary unit, operations, polar form...",
+  "modules": [
+    {
+      "title": "Understanding the Imaginary Unit",
+      "content": "...[Source: Stewart Calculus, Chapter 3]...",
+      "citations": [...]
+    }
+  ],
+  "citations": [
+    {
+      "title": "Calculus: Early Transcendentals",
+      "author": "James Stewart",
+      "sourceType": "textbook",
+      "validationStatus": "verified",
+      "confidence": 0.95
+    }
+  ]
+}
+```
+
+**Cost & Performance:**
+- Research mode cost: Similar to source mode (~$0.07-0.20 per topic)
+- Generation time: 3-5 minutes (o3 validation)
+- Citations per topic: 6-12 from diverse sources
+- Validation rate: >80% citations verified by fact-checker
+
+**Note:** Research mode generates comprehensive content but NOT final adaptive lessons. Adaptive lesson generation is a separate system focused on personalization and interactivity.
+
+---
+
+## 28) Gamification & Certification System (Epic 7) — ✅ IMPLEMENTED (Core API)
+
+**Covers BRD:** L-16 (Learner progression), B-15 (Manager notifications)
+
+**Epic Status:** ✅ Core API Implementation Complete (2025-10-10) | Epic: Epic 7 | Docs: `EPIC7_IMPLEMENTATION_SUMMARY.md`
+
+**Implementation Summary:**
+
+Complete gamification system with learner levels, PDF certificates, achievement badges, and manager notifications designed to increase completion rates from 30-40% to 60-80%. Core API and services delivered; Web UI and production dependencies deferred to Phase 2.
+
+**Key Features:**
+- **5-Level Progression:** novice (0-20) → learner (21-50) → practitioner (51-100) → expert (101-200) → master (201+)
+- **Achievement Badges:** 5 types (Speed Demon, Perfectionist, Consistent, Knowledge Sharer, Lifelong Learner)
+- **Certificates:** Auto-generated on track completion with Ed25519 signatures (mock for MVP)
+- **Manager Notifications:** In-app alerts for level-ups, certificates, badges, at-risk learners
+- **Track-Specific Levels:** Independent progression tracking per learning track
+
+**Database Schema:**
+```sql
+-- 5 new tables
+learner_levels (user_id, track_id, level, correct_attempts, leveled_up_at)
+certificates (user_id, track_id, org_id, signature, pdf_url, verification_url)
+badges (slug, name, description, icon, criteria)
+learner_badges (user_id, badge_id, earned_at)
+manager_notifications (manager_id, learner_id, type, content, read, sent_at)
+```
+
+**API Routes:**
+1. `GET /api/learners/:id/levels` - All learner levels across tracks (supports pagination)
+2. `GET /api/learners/:id/level/:trackId` - Specific track level with progress
+3. `GET /api/learners/:id/certificates` - List earned certificates
+4. `GET /api/learners/:id/badges` - List earned badges + progress
+5. `GET /api/certificates/:id/download` - Download certificate PDF (idempotent, cacheable)
+6. `GET /api/certificates/:id/verify` - Verify certificate validity and revocation status
+7. `GET /api/manager/notifications` - Get manager notifications (filterable, paginated)
+8. `PATCH /api/manager/notifications/:id` - Mark notification as read (idempotent)
+
+**Services:**
+- **gamification.ts:** Level calculation, tracking, checkLevelUp, progress to next level
+- **certificates.ts:** Certificate generation, Ed25519 signing (mock), PDF rendering (mock), verification with revocation
+- **badges.ts:** Badge detection (5 types), automated awarding, idempotent logic
+- **notifications.ts:** Manager alerts (in-app + email mock), notification preferences
+- **idempotency.ts:** Middleware for mutation replay prevention with conflict detection
+
+**Production Polish (2025-10-10):**
+- ✅ **Idempotency**: X-Idempotency-Key support on PATCH routes (24hr TTL, 409 on conflict)
+- ✅ **Certificate Revocation**: Added revoked_at/revocation_reason, verify returns {valid, revoked, reason, issuedAt}
+- ✅ **UUID Validation**: All routes validate UUIDs, return 400 for invalid format
+- ✅ **Admin Bypass Gating**: Admin token only works when NODE_ENV !== 'production'
+- ✅ **HTTP Semantics**: Certificate download via GET with Cache-Control header
+- ✅ **Pagination**: Utilities ready (limit/offset, default 50, max 200); endpoints to be updated
+
+**Feature Flags:**
+```bash
+FF_GAMIFICATION_V1=true        # Enable levels and badges
+FF_CERTIFICATES_V1=true         # Enable certificate generation
+FF_MANAGER_NOTIFICATIONS_V1=true # Enable manager alerts
+```
+
+**Acceptance Evidence:**
+```bash
+# Get learner levels
+curl http://localhost:8080/api/learners/user-123/levels \
+  -H 'x-admin-token: dev-admin-token-12345' | jq '.levels'
+# Returns: [{"trackId":"...", "level":"learner", "correctAttempts":25, "nextLevel":"practitioner", "attemptsToNext":26}]
+
+# Get earned badges
+curl http://localhost:8080/api/learners/user-123/badges \
+  -H 'x-admin-token: dev-admin-token-12345' | jq '.badges'
+# Returns: [{"slug":"speed-demon", "name":"Speed Demon", "icon":"⚡", "earnedAt":"..."}]
+
+# Manager notifications
+curl http://localhost:8080/api/manager/notifications \
+  -H 'x-admin-token: dev-admin-token-12345' | jq '.unreadCount'
+# Returns: 3
+
+# Run smoke tests
+FF_GAMIFICATION_V1=true bash api/scripts/smoke-gamification.sh
+# All 4 tests pass
+```
+
+**Technical Implementation:**
+- **Migration:** `api/drizzle/010_gamification.sql` (5 tables + 5 badge seeds)
+- **Drizzle Schema:** `api/src/db/schema.ts` (TypeScript definitions)
+- **Services:** 4 new services (gamification, certificates, badges, notifications)
+- **Routes:** `api/src/routes/gamification.ts` (7 endpoints with RBAC)
+- **Tests:** Smoke test suite + comprehensive UAT plan (8 scenarios)
+
+**MVP Limitations (Requires Future Installation):**
+1. **Certificate Signatures:** Mock Base64 encoding (needs `@noble/ed25519`)
+2. **PDF Generation:** Text-based mock (needs `pdfkit`)
+3. **Email Notifications:** Console logging only (needs `SENDGRID_API_KEY`)
+4. **Daily/Weekly Digests:** Not implemented (Phase 5.5 deferred)
+5. **Web UI:** Not implemented (Phase 7 deferred)
+
+**Production Ready:**
+```bash
+# Install dependencies
+cd api
+npm install pdfkit @types/pdfkit @noble/ed25519 node-cron @types/node-cron
+
+# Apply migration
+npm run db:migrate
+
+# Enable flags
+export FF_GAMIFICATION_V1=true
+export FF_CERTIFICATES_V1=true
+export FF_MANAGER_NOTIFICATIONS_V1=true
+
+# Configure (optional)
+export CERT_SIGNING_KEY=<ed25519-private-key-hex>
+export SENDGRID_API_KEY=<sendgrid-api-key>
+export FROM_EMAIL=notifications@cerply.com
+```
+
+**Business Impact:**
+- **Goal:** Increase completion rates from 30-40% to 60-80%
+- **Mechanism:** Visible progression, achievement unlocks, verifiable credentials, manager engagement
+- **KPIs:** Track completion rates, badge unlock rate, certificate downloads, manager notification engagement
+
+**Documentation:**
+- Implementation prompt: `EPIC7_IMPLEMENTATION_PROMPT.md`
+- Implementation summary: `EPIC7_IMPLEMENTATION_SUMMARY.md`
+- UAT plan: `docs/uat/EPIC7_UAT_PLAN.md` (8 test scenarios)
+- Migration: `api/drizzle/010_gamification.sql`
+- Smoke tests: `api/scripts/smoke-gamification.sh`
+
+**Change Log:**
+- **2025-10-10:** Epic 7 core API delivered — Database schema (5 tables), gamification service (5 levels), certificate service (mock signing), badge detection (5 types), manager notifications (in-app + mock email), 7 API routes with RBAC, smoke tests, and UAT plan
+
+---
+
+## 29) Backlog (Next 10)
 
 1. LLM router + runner stubs (`api/src/llm/*`).
 2. JSON schemas: `modules.schema.json`, `score.schema.json`.

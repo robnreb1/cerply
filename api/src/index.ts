@@ -1,4 +1,5 @@
 // src/index.ts
+import 'dotenv/config'; // Load .env file
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
@@ -17,12 +18,14 @@ export async function createApp() {
     }
   };
   
-  // CORS — tests expect wildcard and no credentials
+  // CORS — allow credentials for local development, wildcard for production/test
+  const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
+  const isTest = process.env.NODE_ENV === 'test';
   await app.register(cors, { 
-    origin: '*', 
-    credentials: false,
+    origin: isTest ? '*' : (isDev ? ['http://localhost:3000', 'http://127.0.0.1:3000'] : '*'),
+    credentials: isDev ? true : false,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['content-type', 'authorization']
+    allowedHeaders: ['content-type', 'authorization', 'x-admin-token', 'x-org-id', 'x-idempotency-key']
   });
 
   // Helmet (let CORP be set per-route)
@@ -42,6 +45,34 @@ export async function createApp() {
       return done(err as any, undefined);
     }
   });
+
+  // Accept CSV content for team member bulk import
+  app.addContentTypeParser('text/csv', { parseAs: 'string' }, (req, body, done) => {
+    done(null, body);
+  });
+
+  // Accept form-urlencoded for Slack button clicks (Epic 5)
+  app.addContentTypeParser('application/x-www-form-urlencoded', { parseAs: 'string' }, (req, body, done) => {
+    try {
+      // Store raw body for signature verification
+      (req as any).rawBody = body;
+      
+      // Parse form data: payload={"type":"block_actions",...}
+      const bodyString = Buffer.isBuffer(body) ? body.toString('utf8') : body;
+      const params = new URLSearchParams(bodyString);
+      const parsed: any = {};
+      for (const [key, value] of params.entries()) {
+        parsed[key] = value;
+      }
+      done(null, parsed);
+    } catch (err) {
+      done(err as any, undefined);
+    }
+  });
+
+  // Idempotency middleware (Epic 3: X-Idempotency-Key support for team creation)
+  const { idempotencyService } = await import('./services/idempotency');
+  app.addHook('onRequest', idempotencyService.middleware());
 
   // Admin token guard for /certified/** (excluding public artifact routes)
   app.addHook('onRequest', async (req, reply) => {
@@ -85,11 +116,13 @@ export async function createApp() {
 
   // Admin routes (from your repo; restored in step A)
   const adminCertifiedModule = await import('./routes/admin.certified');
+  const adminUsersModule = await import('./routes/admin.users');
   await app.register(async (adminApp) => {
     // Register security admin plugin only for admin routes
     const securityAdminPlugin = await import('./plugins/security.admin');
     await adminApp.register(securityAdminPlugin.default);
     await adminApp.register(adminCertifiedModule.registerAdminCertifiedRoutes);
+    await adminApp.register(adminUsersModule.registerAdminUserRoutes);
   }, { prefix: '/api/admin' });
 
   // Public certified routes (artifacts, verify, legacy aliases)
@@ -106,6 +139,27 @@ export async function createApp() {
 
   // Auth routes for session management
   await safeRegister('./routes/auth', ['registerAuthRoutes']);
+
+  // SSO routes for enterprise authentication
+  await safeRegister('./routes/sso', ['registerSSORoutes']);
+
+  // Team Management routes (Epic 3: B2B Team Management & Learner Assignment)
+  await safeRegister('./routes/teams', ['registerTeamRoutes']);
+
+  // Manager Analytics routes (Epic 4: Manager Dashboard & Analytics)
+  await safeRegister('./routes/managerAnalytics', ['registerManagerAnalyticsRoutes']);
+
+  // Delivery routes (Epic 5: Slack Channel Integration)
+  await safeRegister('./routes/delivery', ['registerDeliveryRoutes']);
+
+  // Content Generation routes (Epic 6: Ensemble Content Generation)
+  await safeRegister('./routes/content', ['registerContentRoutes']);
+
+  // Gamification routes (Epic 7: Gamification & Certification System)
+  await safeRegister('./routes/gamification', ['registerGamificationRoutes']);
+
+  // Operations & KPI routes (Epic 3: OKR tracking)
+  await safeRegister('./routes/ops', ['registerOpsRoutes']);
 
   // Analytics routes for smoke tests and event tracking
   await safeRegister('./routes/analytics', ['registerAnalyticsRoutes']);
@@ -215,6 +269,17 @@ if (require.main === module) {
   (async () => {
     try {
       const app = await createApp();
+      
+      // Initialize SSO providers from database (graceful failure)
+      try {
+        const { ssoService } = await import('./sso/service');
+        await ssoService.loadProvidersFromDB();
+        console.log('[api] SSO providers loaded');
+      } catch (error: any) {
+        console.warn('[api] Failed to load SSO providers (DB might not be ready):', error.message);
+        console.warn('[api] SSO will be unavailable until DB is connected');
+      }
+      
       const port = Number(process.env.PORT ?? 8080);
       await app.listen({ host: '0.0.0.0', port });
       console.log(`[api] listening on http://0.0.0.0:${port}`);

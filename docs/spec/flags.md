@@ -77,3 +77,38 @@ Auth & Session (v0)
 - AUTH_COOKIE_NAME (default: sid) — cookie name for session id
 - AUTH_SESSION_TTL_SECONDS (default: 604800) — session TTL (7 days)
 - REDIS_URL (optional) — when set, session store uses Redis instead of in-memory
+
+Channel Integrations (Epic 5)
+- FF_CHANNEL_SLACK (default: false) — enables Slack channel integration via `/api/delivery/*` routes
+  - When true, `POST /api/delivery/send` accepts `channel: 'slack'`
+  - When true, `POST /api/delivery/webhook/slack` handles Slack events and interactivity
+- FF_CHANNEL_WHATSAPP (default: false) — enables WhatsApp integration (planned Phase 2)
+- FF_CHANNEL_TEAMS (default: false) — enables Microsoft Teams integration (planned Phase 3)
+- FF_CHANNEL_EMAIL (default: false) — enables email fallback for channel failures
+
+Slack Configuration (Epic 5)
+- SLACK_CLIENT_ID — OAuth client ID from Slack app configuration
+- SLACK_CLIENT_SECRET — OAuth client secret (must be set when FF_CHANNEL_SLACK=true)
+- SLACK_SIGNING_SECRET — Webhook signature verification secret (required for webhook handler)
+
+Ensemble Content Generation (Epic 6)
+- FF_ENSEMBLE_GENERATION_V1 (default: false) — enables 3-LLM ensemble content generation pipeline
+  - When true, enables `/api/content/*` routes for understanding, refinement, and generation
+  - Requires OPENAI_API_KEY and ANTHROPIC_API_KEY to be set
+- FF_CONTENT_CANON_V1 (default: false) — enables canon storage and reuse for generic content
+  - Automatically detects generic content (fire safety, GDPR, etc.) and stores for reuse
+  - Saves ~70% cost by reusing similar content (>90% similarity threshold)
+
+LLM Configuration (Epic 6)
+**Note:** These models are used ONLY for content building (ensemble generation), NOT for standard chat interactions.
+
+- OPENAI_API_KEY — OpenAI API key for GPT-5 (required for ensemble generation)
+- ANTHROPIC_API_KEY — Anthropic API key for Claude 4.5 Sonnet (required for ensemble generation)
+- GOOGLE_API_KEY — Google API key for Gemini 2.5 Pro (required for ensemble generation)
+- LLM_GENERATOR_1 (default: gpt-5) — First generator model with extended thinking capabilities
+- LLM_GENERATOR_2 (default: claude-sonnet-4.5-20250514) — Second generator model with nuanced reasoning
+- LLM_FACT_CHECKER (default: gemini-2.5-pro) — Fact-checker model with multimodal reasoning
+
+Cost Controls (Epic 6)
+- MAX_GENERATION_COST_USD (default: 5.00) — Maximum cost per generation; aborts if exceeded
+- WARN_GENERATION_COST_USD (default: 2.00) — Warning threshold for high-cost generations

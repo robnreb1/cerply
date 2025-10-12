@@ -1,0 +1,78 @@
+name: E2E Nightly (Flaky Tests + Slow Evaluators)
+
+on:
+  schedule:
+    # Run at 2 AM UTC daily
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  evaluator-multiphase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps (api)
+        run: npm ci -w api
+      - name: Build api (to produce dist)
+        run: npm -w api run build
+      - name: Run multiphase evaluator
+        env:
+          FASTIFY_AUTOSTART: 'false'
+          CERTIFIED_ENABLED: 'true'
+          CERTIFIED_MODE: 'plan'
+          FF_ADAPTIVE_ENGINE_V1: 'true'
+          FF_OPENAI_ADAPTER_V0: 'true'
+          FF_CERTIFIED_PROPOSERS: 'true'
+          FF_CERTIFIED_CHECKER: 'true'
+          CERTIFIED_PROPOSERS: 'adaptive,openai'
+        run: npm -w api run -s planner:eval:multi
+      - name: Upload evaluator artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: planner-eval-multiphase-nightly
+          path: api/tests/fixtures/planner-eval.multiphase.json
+
+  e2e-nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build web (with preview flags)
+        working-directory: web
+        env:
+          NEXT_PUBLIC_PREVIEW_ORCH_UI: 'true'
+          NEXT_PUBLIC_PREVIEW_CERTIFIED_UI: 'true'
+        run: npm run build
+      
+      - name: Install Playwright browsers
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run @nightly E2E tests
+        working-directory: web
+        run: npx playwright test --grep @nightly --retries=2 --reporter=list
+      
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-nightly
+          path: web/playwright-report/
+          retention-days: 7
+

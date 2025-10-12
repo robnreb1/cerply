@@ -71,10 +71,220 @@ open http://localhost:3000
   ```
 
 ## Feature Flags
-Env (API): FF_CURATOR_DASHBOARD_V1, FF_ADAPTIVE_ENGINE_V1, FF_TRUST_LABELS_V1
+Env (API): FF_CURATOR_DASHBOARD_V1, FF_ADAPTIVE_ENGINE_V1, FF_TRUST_LABELS_V1, FF_TEAM_MGMT
 Env (Web): NEXT_PUBLIC_FF_*
 
 See: [Functional Spec](docs/functional-spec.md)
+
+## Team Management (Epic 3) — B2B Enterprise
+
+**Quick Start:**
+
+```bash
+# Create a team
+curl -X POST http://localhost:8080/api/teams \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"name":"Engineering Team"}'
+
+# Add members (JSON)
+TEAM_ID="<team-id-from-above>"
+curl -X POST http://localhost:8080/api/teams/$TEAM_ID/members \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"emails":["alice@example.com","bob@example.com"]}'
+
+# Add members (CSV bulk import)
+curl -X POST http://localhost:8080/api/teams/$TEAM_ID/members \
+  -H 'content-type: text/csv' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  --data-binary $'charlie@example.com\ndave@example.com'
+
+# List available tracks
+curl http://localhost:8080/api/tracks \
+  -H 'x-admin-token: dev-admin-token-12345'
+
+# Assign track to team (daily/weekly/monthly cadence)
+TRACK_ID="00000000-0000-0000-0000-000000000100"
+curl -X POST http://localhost:8080/api/teams/$TEAM_ID/subscriptions \
+  -H 'content-type: application/json' \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -d '{"track_id":"'$TRACK_ID'","cadence":"daily"}'
+
+# Get team overview
+curl http://localhost:8080/api/teams/$TEAM_ID/overview \
+  -H 'x-admin-token: dev-admin-token-12345'
+
+# Get operational KPIs (teams_total, members_total, active_subscriptions)
+curl http://localhost:8080/api/ops/kpis
+```
+
+**Key Features:**
+- Create teams, bulk import learners (JSON/CSV)
+- Assign tracks with cadence (daily/weekly/monthly)
+- Team metrics (members, active tracks, due today, at-risk)
+- RBAC (admin/manager roles)
+- Event logging (NDJSON append-only)
+- Idempotency support (X-Idempotency-Key)
+
+**Documentation:**
+- **API Docs:** `api/README.md` (routes, examples, troubleshooting)
+- **FSD:** `docs/functional-spec.md` §23 Team Management & Assignments v1
+- **Runbook:** `RUNBOOK_team_mgmt.md` (migrations, CSV import, operations)
+- **UAT Guide:** `docs/uat/EPIC3_UAT.md` (9 manual test scenarios)
+
+**Tests:**
+```bash
+# Unit tests (15+ scenarios)
+npm test --workspace api -- team-mgmt.test.ts
+
+# Smoke test (8 scenarios)
+bash api/scripts/smoke-team-mgmt.sh
+```
+
+**Feature Flags:**
+- `FF_TEAM_MGMT=true` - Enable team management routes (default: enabled)
+- `AUTH_REQUIRE_SESSION=true` - Enforce session authentication (Epic 2)
+- `EVENTS_ENABLED=true` - Enable event logging (default: enabled)
+- `EVENTS_LOG_PATH=./events.ndjson` - Event log file path
+
+## Slack Channel Integration (Epic 5)
+
+**Quick Start:**
+
+1. Create Slack app at https://api.slack.com/apps
+2. Add bot scopes: `chat:write`, `users:read`, `im:write`, `im:history`
+3. Enable Interactivity: `https://api.cerply.com/api/delivery/webhook/slack`
+4. Copy credentials to `.env`:
+   ```bash
+   FF_CHANNEL_SLACK=true
+   SLACK_CLIENT_ID=your-client-id
+   SLACK_CLIENT_SECRET=your-secret
+   SLACK_SIGNING_SECRET=your-signing-secret
+   ```
+5. Insert channel config into database:
+   ```sql
+   INSERT INTO channels (organization_id, type, config, enabled)
+   VALUES (
+     'your-org-id',
+     'slack',
+     '{
+       "slack_team_id": "T123456",
+       "slack_bot_token": "xoxb-1234567890123-1234567890123-abcdefg...",
+       "slack_signing_secret": "abc123def456..."
+     }'::jsonb,
+     true
+   );
+   ```
+6. Test with smoke tests:
+   ```bash
+   FF_CHANNEL_SLACK=true bash api/scripts/smoke-delivery.sh
+   ```
+
+**Key Features:**
+- Deliver lessons via Slack DMs with interactive buttons
+- Real-time feedback on correct/incorrect answers
+- Quiet hours and paused notifications support
+- Webhook signature verification for security
+- Multi-channel support (Slack MVP, WhatsApp/Teams coming)
+
+**Documentation:**
+- **API Docs:** `api/README.md` §Delivery Endpoints
+- **FSD:** `docs/functional-spec.md` §25 Slack Channel Integration v1
+- **Runbook:** `docs/runbooks/slack-troubleshooting.md`
+- **Implementation:** `EPIC5_IMPLEMENTATION_PROMPT.md`
+
+**Tests:**
+```bash
+# Unit tests (35+ scenarios)
+npm test --workspace api -- delivery.test.ts
+
+# Smoke tests
+FF_CHANNEL_SLACK=true bash api/scripts/smoke-delivery.sh
+```
+
+---
+
+## Ensemble Content Generation (Epic 6) — 3-LLM Pipeline
+
+**Quick Start:**
+
+```bash
+# 1. Get API Keys
+# OpenAI: https://platform.openai.com/api-keys
+# Anthropic: https://console.anthropic.com/
+# Google: https://makersuite.google.com/app/apikey
+
+# 2. Configure environment
+# NOTE: These models are for CONTENT BUILDING only, not standard chat
+export FF_ENSEMBLE_GENERATION_V1=true
+export FF_CONTENT_CANON_V1=true
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+export GOOGLE_API_KEY=...
+
+# 3. Optional: Configure models and cost limits
+export LLM_GENERATOR_1=gpt-5                         # GPT-5 with extended thinking
+export LLM_GENERATOR_2=claude-sonnet-4.5-20250514    # Claude 4.5 Sonnet
+export LLM_FACT_CHECKER=gemini-2.5-pro               # Gemini 2.5 Pro
+export MAX_GENERATION_COST_USD=5.00
+export WARN_GENERATION_COST_USD=2.00
+
+# 4. Restart API
+npm run dev --workspace api
+```
+
+**API Routes:**
+
+```bash
+# Submit artefact and get understanding
+curl -X POST http://localhost:8080/api/content/understand \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -H 'content-type: application/json' \
+  -d '{"artefact":"Fire safety: evacuate immediately, call 999, meet at assembly point"}'
+
+# Refine understanding (up to 3 iterations)
+curl -X POST http://localhost:8080/api/content/refine \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -H 'content-type: application/json' \
+  -d '{"generationId":"uuid","feedback":"Focus more on evacuation routes"}'
+
+# Trigger 3-LLM ensemble generation
+curl -X POST http://localhost:8080/api/content/generate \
+  -H 'x-admin-token: dev-admin-token-12345' \
+  -H 'content-type: application/json' \
+  -d '{"generationId":"uuid","contentType":"generic"}'
+
+# Poll generation status
+curl http://localhost:8080/api/content/generations/uuid \
+  -H 'x-admin-token: dev-admin-token-12345'
+```
+
+**UI Components:**
+- `/curator/understand` — Upload artefact, view LLM understanding
+- `/curator/refine/[id]` — Provide feedback to refine understanding
+- `/curator/generate/[id]` — View generation progress and final modules
+
+**Cost Optimization:**
+- Average generation: TBD (cost tracking enabled; to be measured in production)
+- Canon reuse: Near-100% savings for similar generic content (>90% similarity)
+- Enable with: `FF_CONTENT_CANON_V1=true`
+- **Latest models:** GPT-5 (thinking), Claude 4.5 Sonnet, Gemini 2.5 Pro
+
+**Testing:**
+
+```bash
+# Unit tests
+npm test --workspace api -- ensemble-generation.test.ts
+
+# Smoke tests
+FF_ENSEMBLE_GENERATION_V1=true bash api/scripts/smoke-ensemble.sh
+```
+
+**Documentation:**
+- Functional Spec: `docs/functional-spec.md` (Section 26)
+- Troubleshooting: `docs/runbooks/ensemble-troubleshooting.md`
+- Feature Flags: `docs/spec/flags.md`
 
 ---
 

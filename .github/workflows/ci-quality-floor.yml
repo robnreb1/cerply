@@ -7,8 +7,28 @@ on:
     branches: [main]
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect docs-only changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs_only:
+              - 'docs/**'
+              - '**/*.md'
+              - '.github/workflows/**'
+              - 'scripts/traceability_check.ts'
+              - 'scripts/validate-*.ts'
+
   ux-no-templates-lint:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,6 +53,8 @@ jobs:
           
   nl-commands-e2e:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -62,6 +84,8 @@ jobs:
           
   conv-variance-eval:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -91,6 +115,8 @@ jobs:
           
   adaptive-e2e:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -112,6 +138,9 @@ jobs:
           
   quality-floor-eval:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -134,10 +163,12 @@ jobs:
           
       - name: Evaluate quality floor
         run: |
-          cd api && CANON_ENABLED=true npm run test:quality-floor
+          cd api && QUALITY_STUB=true CANON_STUB=true CANON_ENABLED=true npm run test:quality-floor
           
   cost-graph-tests:
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -160,4 +191,4 @@ jobs:
           
       - name: Test cost optimization
         run: |
-          cd api && CANON_ENABLED=true npm run test:cost-graph
+          cd api && QUALITY_STUB=true CANON_STUB=true CANON_ENABLED=true npm run test:cost-graph

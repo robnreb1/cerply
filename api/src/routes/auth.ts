@@ -13,7 +13,7 @@ function makeToken() {
 function buildCookie(token: string) {
   const maxAge = 60 * 60 * 24 * 30; // 30 days
   const parts = [
-    `cerply_session=${token}`,
+    `cerply.sid=${token}`,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
@@ -28,7 +28,7 @@ export function readSession(req: any): Session | null {
   const token = raw
     .split(';')
     .map(s => s.trim())
-    .find(s => s.startsWith('cerply_session='))?.split('=')[1];
+    .find(s => s.startsWith('cerply.sid='))?.split('=')[1];
   if (!token) return null;
   return SESSIONS.get(token) || null;
 }
@@ -45,15 +45,23 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     return { ok: true, next };
   });
 
-  // Callback – sets cookie and returns next hop
+  // Callback – sets cookie and redirects back to web app
   app.get('/api/auth/callback', async (req, reply) => {
     reply.header('x-api', 'auth-callback');
-    const token = (req.query as any)?.token as string | undefined;
+    const query = req.query as any;
+    const token = query?.token as string | undefined;
+    const redirect = query?.redirect as string | undefined;
+    
     if (!token || !SESSIONS.has(token)) {
       return reply.code(400).send({ ok: false, error: 'invalid-token' });
     }
+    
+    // Set session cookie
     reply.header('Set-Cookie', buildCookie(token));
-    return { ok: true, next: '/api/auth/me' };
+    
+    // Redirect back to web app (default to localhost:3000 if not specified)
+    const redirectUrl = redirect || 'http://localhost:3000';
+    return reply.redirect(302, redirectUrl);
   });
 
   // Who am I?
@@ -66,7 +74,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
   app.post('/api/auth/logout', async (_req, reply) => {
     reply.header('x-api', 'auth-logout');
-    reply.header('Set-Cookie', 'cerply_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+    reply.header('Set-Cookie', 'cerply.sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
     return { ok: true };
   });
 
