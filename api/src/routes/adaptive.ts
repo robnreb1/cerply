@@ -25,6 +25,8 @@ import { eq } from 'drizzle-orm';
 const FF_ADAPTIVE_DIFFICULTY_V1 = process.env.FF_ADAPTIVE_DIFFICULTY_V1 === 'true';
 
 export async function registerAdaptiveRoutes(app: FastifyInstance) {
+  // Epic 9: Debug logging for route registration
+  app.log.info(`[Epic9] Registering adaptive routes (FF_ADAPTIVE_DIFFICULTY_V1=${FF_ADAPTIVE_DIFFICULTY_V1})`);
   /**
    * GET /api/adaptive/profile/:userId
    * Get learner profile with learning style and weak topics
