@@ -1,5 +1,6 @@
 /* Drizzle schema (CommonJS-friendly) */
 import { pgTable, uuid, text, integer, timestamp, jsonb, boolean, numeric, date, unique } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // Organizations: enterprise customers
 export const organizations = pgTable('organizations', {
@@ -115,6 +116,10 @@ export const attempts = pgTable('attempts', {
   correct: integer('correct').notNull(), // 0/1
   timeMs: integer('time_ms'),
   channel: text('channel').default('web'), // Epic 5: Delivery channel
+  answerText: text('answer_text'), // Epic 8: Free-text answers
+  partialCredit: numeric('partial_credit', { precision: 3, scale: 2 }), // Epic 8: 0.00 to 1.00
+  feedback: text('feedback'), // Epic 8: Validation feedback
+  validationMethod: text('validation_method'), // Epic 8: 'mcq', 'fuzzy', 'llm'
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -335,6 +340,188 @@ export const auditEvents = pgTable('audit_events', {
   requestId: text('request_id'),
   metadata: jsonb('metadata'),
   occurredAt: timestamp('occurred_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Epic 8: Conversational Learning Interface
+
+// Chat sessions: tracks conversations for context and history
+export const chatSessions = pgTable('chat_sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+});
+
+// Chat messages: stores individual messages in conversations
+export const chatMessages = pgTable('chat_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sessionId: uuid('session_id').notNull().references(() => chatSessions.id, { onDelete: 'cascade' }),
+  role: text('role').notNull(), // 'user' | 'assistant' | 'system'
+  content: text('content').notNull(),
+  intent: text('intent'), // 'progress' | 'next' | 'explanation' | 'filter' | 'help'
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Confusion tracking: logs when learners are confused for adaptive difficulty signals
+export const confusionLog = pgTable('confusion_log', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  questionId: uuid('question_id').notNull(),
+  query: text('query').notNull(),
+  explanationProvided: text('explanation_provided').notNull(),
+  helpful: boolean('helpful'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// DEPRECATED TABLES (to be migrated to new hierarchy)
+// ============================================================================
+// NOTE: These tables are being replaced by the new Subject > Topic > Module > Quiz > Question hierarchy
+// After migration (017_migrate_legacy_content.sql), these will be renamed to *_legacy
+// - tracks → topics
+// - modules → modules_v2
+// - items → questions (within quizzes)
+// - team_track_subscriptions → topic_assignments
+
+// ============================================================================
+// NEW CONTENT HIERARCHY (Epic 6/7/8 Scope Fix)
+// ============================================================================
+// Migration: 016_content_hierarchy.sql
+// 5-tier structure: Subject > Topic > Module > Quiz > Question
+// Topics are the collection unit (what we generate - 4-6 modules each)
+// Modules are the provision unit (what learners consume)
+
+// Subjects: Top-level knowledge domains
+export const subjects = pgTable('subjects', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  title: text('title').notNull(),
+  description: text('description'),
+  icon: text('icon'),
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Topics: Content collection level (where we generate)
+export const topics = pgTable('topics', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  subjectId: uuid('subject_id').references(() => subjects.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  
+  // Certification
+  isCertified: boolean('is_certified').notNull().default(false),
+  certificationLevel: text('certification_level'), // 'topic' | 'module' | NULL
+  certifiedBy: uuid('certified_by').references(() => users.id),
+  certifiedAt: timestamp('certified_at', { withTimezone: true }),
+  
+  // Content metadata
+  contentSource: text('content_source').notNull(), // 'research' | 'upload' | 'url' | 'prompt'
+  isProprietary: boolean('is_proprietary').notNull().default(false),
+  
+  // Freshness management
+  lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }).defaultNow().notNull(),
+  refreshFrequencyMonths: integer('refresh_frequency_months').notNull().default(6),
+  
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Modules v2: Content provision level (what learners consume)
+export const modulesV2 = pgTable('modules_v2', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  orderIndex: integer('order_index').notNull(),
+  
+  // Certification (can certify individual modules OR inherit from topic)
+  isCertified: boolean('is_certified').notNull().default(false),
+  certificationLevel: text('certification_level'), // 'topic' | 'module' | NULL
+  
+  // Provenance from 3-LLM ensemble
+  provenance: jsonb('provenance'),
+  
+  estimatedDurationMinutes: integer('estimated_duration_minutes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Quizzes: Assessment containers (multiple questions)
+export const quizzes = pgTable('quizzes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  moduleId: uuid('module_id').notNull().references(() => modulesV2.id, { onDelete: 'cascade' }),
+  title: text('title'),
+  orderIndex: integer('order_index').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Questions: Individual quiz items (replaces 'items')
+export const questions = pgTable('questions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  quizId: uuid('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'mcq' | 'free' | 'explainer'
+  stem: text('stem').notNull(),
+  options: jsonb('options'),
+  correctAnswer: integer('correct_answer'),
+  guidanceText: text('guidance_text'),
+  difficultyLevel: text('difficulty_level'), // 'recall' | 'application' | 'analysis' | 'synthesis'
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Topic assignments: Who is learning what (replaces team_track_subscriptions)
+export const topicAssignments = pgTable('topic_assignments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  teamId: uuid('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  
+  // Assignment metadata
+  isMandatory: boolean('is_mandatory').notNull().default(false),
+  mandatoryUntil: timestamp('mandatory_until', { withTimezone: true }),
+  assignedBy: uuid('assigned_by').references(() => users.id),
+  assignedAt: timestamp('assigned_at', { withTimezone: true }).defaultNow().notNull(),
+  
+  // Status
+  paused: boolean('paused').notNull().default(false),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+});
+
+// Topic citations: Sources for research-based content (Epic 6.5)
+export const topicCitations = pgTable('topic_citations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  citationText: text('citation_text').notNull(),
+  sourceUrl: text('source_url'),
+  sourceType: text('source_type'), // 'textbook' | 'paper' | 'course' | 'documentation' | 'website'
+  credibilityScore: numeric('credibility_score', { precision: 3, scale: 2 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Topic secondary sources: Company-specific context (Epic 6.8)
+export const topicSecondarySources = pgTable('topic_secondary_sources', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  sourceType: text('source_type').notNull(), // 'url' | 'upload' | 'prompt'
+  sourceUrl: text('source_url'),
+  sourceFilePath: text('source_file_path'),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Topic communications: Manager curation workflow (Epic 6.8)
+export const topicCommunications = pgTable('topic_communications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  managerId: uuid('manager_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  draftMessage: text('draft_message'),
+  finalMessage: text('final_message'),
+  deliveryChannels: text('delivery_channels').array().notNull().default(sql`ARRAY[]::TEXT[]`),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

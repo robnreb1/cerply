@@ -171,6 +171,9 @@ export async function createApp() {
   // Chat routes for smoke tests
   await safeRegister('./routes/chat', ['registerChatRoutes']);
 
+  // Chat Learning routes (Epic 8: Conversational Learning Interface)
+  await safeRegister('./routes/chat-learning', ['registerChatLearningRoutes']);
+
   // Prompts routes for M2 proxy compatibility
   await safeRegister('./routes/prompts', ['registerPromptsRoutes']);
 

@@ -1746,11 +1746,11 @@ Extension of the 3-LLM ensemble to support topic-based research requests ("Teach
 
 ---
 
-## 28) Gamification & Certification System (Epic 7) — ✅ IMPLEMENTED (Core API)
+## 28) Gamification & Certification System (Epic 7) — ✅ DEPLOYED TO PRODUCTION
 
 **Covers BRD:** L-16 (Learner progression), B-15 (Manager notifications)
 
-**Epic Status:** ✅ Core API Implementation Complete (2025-10-10) | Epic: Epic 7 | Docs: `EPIC7_IMPLEMENTATION_SUMMARY.md`
+**Epic Status:** ✅ DEPLOYED TO PRODUCTION (2025-10-12) | Epic: Epic 7 | Docs: `EPIC7_PRODUCTION_VERIFICATION_RESULTS.md`, `EPIC7_FINAL_PRODUCTION_CHECKLIST.md`
 
 **Implementation Summary:**
 
@@ -1765,23 +1765,30 @@ Complete gamification system with learner levels, PDF certificates, achievement 
 
 **Database Schema:**
 ```sql
--- 5 new tables
+-- 7 new tables (5 core + 2 operational)
 learner_levels (user_id, track_id, level, correct_attempts, leveled_up_at)
-certificates (user_id, track_id, org_id, signature, pdf_url, verification_url)
+certificates (user_id, track_id, org_id, signature, pdf_url, verification_url, revoked_at, revocation_reason)
 badges (slug, name, description, icon, criteria)
 learner_badges (user_id, badge_id, earned_at)
-manager_notifications (manager_id, learner_id, type, content, read, sent_at)
+manager_notifications (manager_id, learner_id, type, content, read, sent_at, read_at)
+idempotency_keys (key, route, user_id, status_code, response_hash, response_body, expires_at)
+audit_events (event_type, user_id, organization_id, performed_by, request_id, metadata, occurred_at)
+
+-- Indexes for performance
+CREATE INDEX idx_audit_events_org_occurred ON audit_events(organization_id, occurred_at DESC);
+CREATE INDEX idx_manager_notifications_manager_read ON manager_notifications(manager_id, read);
 ```
 
-**API Routes:**
-1. `GET /api/learners/:id/levels` - All learner levels across tracks (supports pagination)
-2. `GET /api/learners/:id/level/:trackId` - Specific track level with progress
+**API Routes (8 endpoints):**
+1. `GET /api/learners/:id/levels` - All learner levels across tracks (pagination: limit/offset)
+2. `GET /api/learners/:id/level/:trackId` - Specific track level with progress (DEPRECATED: use #1)
 3. `GET /api/learners/:id/certificates` - List earned certificates
 4. `GET /api/learners/:id/badges` - List earned badges + progress
-5. `GET /api/certificates/:id/download` - Download certificate PDF (idempotent, cacheable)
-6. `GET /api/certificates/:id/verify` - Verify certificate validity and revocation status
-7. `GET /api/manager/notifications` - Get manager notifications (filterable, paginated)
-8. `PATCH /api/manager/notifications/:id` - Mark notification as read (idempotent)
+5. `GET /api/certificates/:id/download` - Download certificate PDF (Cache-Control headers)
+6. `GET /api/certificates/:id/verify` - Verify certificate validity and revocation status (public endpoint)
+7. `POST /api/certificates/:id/revoke` - Revoke certificate (admin-only, idempotent, audit logged)
+8. `GET /api/manager/notifications` - Get manager notifications (limit/offset/unreadOnly, paginated)
+9. `PATCH /api/manager/notifications/:id` - Mark notification as read (idempotent via X-Idempotency-Key)
 
 **Services:**
 - **gamification.ts:** Level calculation, tracking, checkLevelUp, progress to next level
@@ -1790,13 +1797,16 @@ manager_notifications (manager_id, learner_id, type, content, read, sent_at)
 - **notifications.ts:** Manager alerts (in-app + email mock), notification preferences
 - **idempotency.ts:** Middleware for mutation replay prevention with conflict detection
 
-**Production Polish (2025-10-10):**
-- ✅ **Idempotency**: X-Idempotency-Key support on PATCH routes (24hr TTL, 409 on conflict)
-- ✅ **Certificate Revocation**: Added revoked_at/revocation_reason, verify returns {valid, revoked, reason, issuedAt}
+**Production Features (2025-10-10 to 2025-10-12):**
+- ✅ **Idempotency**: X-Idempotency-Key support on PATCH routes (24hr TTL, 409 on conflict), with cleanup cron
+- ✅ **Certificate Revocation**: Added revoked_at/revocation_reason, admin-only POST /api/certificates/:id/revoke
 - ✅ **UUID Validation**: All routes validate UUIDs, return 400 for invalid format
 - ✅ **Admin Bypass Gating**: Admin token only works when NODE_ENV !== 'production'
-- ✅ **HTTP Semantics**: Certificate download via GET with Cache-Control header
-- ✅ **Pagination**: Utilities ready (limit/offset, default 50, max 200); endpoints to be updated
+- ✅ **HTTP Semantics**: Certificate download/verify with proper Cache-Control and Content-Disposition headers
+- ✅ **Pagination**: Full support (limit/offset, default 50, max 200) on levels and notifications endpoints
+- ✅ **Audit Events**: Comprehensive audit logging with 7 tables (idempotency_keys, audit_events) and weekly cleanup
+- ✅ **Production Deployment**: Docker-based deployment to Render with database migrations applied
+- ✅ **Security Hardening**: RBAC enforcement, authentication required, hard-coded credentials removed
 
 **Feature Flags:**
 ```bash
@@ -1805,7 +1815,7 @@ FF_CERTIFICATES_V1=true         # Enable certificate generation
 FF_MANAGER_NOTIFICATIONS_V1=true # Enable manager alerts
 ```
 
-**Acceptance Evidence:**
+**Acceptance Evidence (Development):**
 ```bash
 # Get learner levels
 curl http://localhost:8080/api/learners/user-123/levels \
@@ -1826,6 +1836,41 @@ curl http://localhost:8080/api/manager/notifications \
 FF_GAMIFICATION_V1=true bash api/scripts/smoke-gamification.sh
 # All 4 tests pass
 ```
+
+**Production Verification (2025-10-12):**
+```bash
+# Production API health check
+curl -s https://api.cerply.com/api/health | jq .
+# Returns: {"status":"ok","timestamp":"..."}
+
+# Version headers (confirms Docker image deployed)
+curl -sI https://api.cerply.com/api/version | grep -i x-image
+# x-image-revision: 2f77e89...
+# x-image-created: 2025-10-12T14:54:08Z
+# x-image-tag: staging
+
+# Epic 7 routes deployed and protected
+curl -s https://api.cerply.com/api/learners/test-id/levels
+# Returns: 401 UNAUTHORIZED (correct - auth required)
+
+curl -s https://api.cerply.com/api/manager/notifications  
+# Returns: 401 UNAUTHORIZED (correct - RBAC enforced)
+
+curl -s https://api.cerply.com/api/certificates/test-id/verify
+# Returns: 400 BAD_REQUEST (correct - invalid UUID)
+
+# Database connected (7 tables verified)
+psql $PRODUCTION_DATABASE_URL -c "\dt" | grep -E "learner_levels|certificates|badges|learner_badges|manager_notifications|idempotency_keys|audit_events"
+# All 7 tables present ✅
+
+# Feature flags enabled
+# Verified in Render dashboard:
+# FF_GAMIFICATION_V1=true ✅
+# FF_CERTIFICATES_V1=true ✅
+# FF_MANAGER_NOTIFICATIONS_V1=true ✅
+```
+
+**See full production verification**: `EPIC7_PRODUCTION_VERIFICATION_RESULTS.md`
 
 **Technical Implementation:**
 - **Migration:** `api/drizzle/010_gamification.sql` (5 tables + 5 badge seeds)
@@ -1874,11 +1919,323 @@ export FROM_EMAIL=notifications@cerply.com
 - Smoke tests: `api/scripts/smoke-gamification.sh`
 
 **Change Log:**
+- **2025-10-12:** Epic 7 DEPLOYED TO PRODUCTION — Full production deployment to Render (api.cerply.com), database migrations applied (7 tables), feature flags enabled, RBAC hardened, admin bypass disabled in prod, version headers fixed, security audit passed (hard-coded credentials removed), all infrastructure checks GREEN ✅
+- **2025-10-11:** Epic 7 production polish — Added certificate revocation route (POST /certificates/:id/revoke), idempotency cleanup cron (daily), audit event cleanup cron (weekly), pagination fully implemented, OpenAPI spec updated with curl examples, comprehensive CI tests added
 - **2025-10-10:** Epic 7 core API delivered — Database schema (5 tables), gamification service (5 levels), certificate service (mock signing), badge detection (5 types), manager notifications (in-app + mock email), 7 API routes with RBAC, smoke tests, and UAT plan
 
 ---
 
-## 29) Backlog (Next 10)
+## 29) Conversational Learning Interface (Epic 8) — ⚠️ PHASE 1 COMPLETE
+
+**Covers BRD:** L-12 (Conversational interface), L-18 (Free-text answers)
+
+**Epic Status:** ⚠️ PHASE 1 COMPLETE 2025-10-12 | Epic: Epic 8 | Tests: `api/tests/intent-router.test.ts`
+
+**Phase 1 Delivered (Infrastructure & Skeleton):**
+Natural language chat interface **skeleton** with basic intent routing. LLM-powered explanations, free-text validation, and confusion tracking are **planned for Phase 2-8** (~11h remaining).
+
+**Phase 1 Completed Features:**
+- ✅ Chat panel UI with Cmd+K shortcut (`web/components/ChatPanel.tsx`)
+- ✅ Database schema (3 new tables: `chat_sessions`, `chat_messages`, `confusion_log`)
+- ✅ Extended `attempts` table (answer_text, partial_credit, feedback, validation_method columns)
+- ✅ Basic intent router with pattern matching (~75% accuracy, 5 intents)
+- ✅ API routes (chat/message, sessions, explanation, feedback endpoints)
+- ✅ Feature flags (`FF_CONVERSATIONAL_UI_V1`, `FF_FREE_TEXT_ANSWERS_V1`)
+- ✅ Dev/test environment helpers (`getSessionOrMock()`)
+
+**Phase 2-8 Planned:**
+- ✅ **Phase 2 COMPLETE (2025-10-13):** LLM-powered explanations with OpenAI integration
+- ✅ **Phase 2 COMPLETE (2025-10-13):** Explanation caching (1-hour TTL for cost optimization)
+- ⏳ Free-text answer validation (fuzzy matching + LLM fallback)
+- ⏳ Partial credit scoring (0.0-1.0)
+- ⏳ Confusion tracking integrated with adaptive difficulty (Epic 9) — *Partially complete (logging in place)*
+- ⏳ Intent router accuracy improvements (75% → 90%+)
+- ⏳ Comprehensive E2E testing (Playwright)
+- ⏳ Production hardening & UAT
+
+**API Routes:**
+- `POST /api/chat/message` - Basic intent routing, static responses (no LLM yet)
+- `GET /api/chat/sessions` - List sessions (pagination not implemented)
+- `GET /api/chat/sessions/:id` - Get session history
+- ✅ `POST /api/chat/explanation` - **Phase 2 COMPLETE:** LLM-powered explanations with caching
+- ✅ `POST /api/chat/feedback` - **Phase 2 COMPLETE:** Mark explanations helpful/not helpful
+- `POST /api/learn/submit` - Schema extended (answerText field), validation not wired
+
+**Database Schema (Production Ready):**
+- `chat_sessions` (id, user_id, started_at, ended_at)
+- `chat_messages` (id, session_id, role, content, intent, metadata, created_at)
+- `confusion_log` (id, user_id, question_id, query, explanation_provided, helpful, created_at)
+- `attempts` extended: answer_text, partial_credit, feedback, validation_method
+
+**Feature Flags:**
+- `FF_CONVERSATIONAL_UI_V1` - Enable chat interface (Phase 1: UI skeleton only, default: false)
+- `FF_FREE_TEXT_ANSWERS_V1` - Enable free-text answers (Phase 2-8: validation pending, default: false)
+- `CHAT_LLM_MODEL` - Model for explanations (Phase 2-8, default: gpt-4o-mini)
+- `EXPLANATION_CACHE_TTL` - Cache TTL (Phase 2-8, default: 3600)
+- `LLM_UNDERSTANDING` - Validation model (Phase 2-8, default: gpt-4o)
+- `NEXT_PUBLIC_CONVERSATIONAL_UI_V1` - Enable ChatPanel UI (Phase 1, default: false)
+
+**Technical Status (Phase 1-2):**
+- Intent router: ~75% accuracy (5 patterns: progress/next/explanation/filter/help)
+- ✅ **Phase 2:** LLM explanations IMPLEMENTED (OpenAI integration, cost tracking, caching)
+- Free-text validation: NOT IMPLEMENTED (schema ready)
+- ✅ **Phase 2:** Confusion tracking IMPLEMENTED (logging to confusion_log, feedback endpoint active)
+- ✅ **Phase 2:** Cost per explanation: ~$0.00008-$0.00012 (gpt-4o-mini, $0 when cached)
+- Test coverage: ~30% (intent router + explanation engine unit tests, E2E pending)
+
+**Acceptance Evidence (Phase 1-2):**
+```bash
+# Test intent classification (unit tests)
+cd api && npm run test tests/intent-router.test.ts
+
+# Test explanation engine (Phase 2)
+cd api && npm run test tests/explanation-engine.test.ts
+
+# Test chat routes
+./api/scripts/smoke-chat.sh
+
+# Test explanation endpoint (Phase 2)
+./api/scripts/test-explanation-endpoint.sh
+
+# Start API with Phase 2 flags
+cd api
+FF_CONVERSATIONAL_UI_V1=true \
+OPENAI_API_KEY=sk-... \
+npm run dev
+
+# Start web with Phase 1 UI
+cd web
+NEXT_PUBLIC_CONVERSATIONAL_UI_V1=true npm run dev
+```
+
+**Phase 2-8 Rollout Plan:**
+1. ✅ **Phase 2:** LLM explanation engine with OpenAI integration (3h) — **COMPLETE 2025-10-13**
+2. **Phase 3:** Free-text answer validation with fuzzy matching (2h)
+3. **Phase 4:** Partial credit scoring and feedback loop (1.5h)
+4. **Phase 5:** Confusion tracking integration with Epic 9 (1h) — *Partially complete (logging done)*
+5. ~~**Phase 6:** Explanation caching for cost optimization (1.5h)~~ — **COMPLETE in Phase 2**
+6. **Phase 7:** Intent router accuracy improvements to 90%+ (1h)
+7. **Phase 8:** E2E testing and production UAT (1h)
+
+**Total Remaining Effort:** ~6.5 hours (Phases 3-4, 7-8)
+
+**Dependencies:**
+- API: ✅ `openai` (installed, **IN USE since Phase 2**), `fast-levenshtein` (pending Phase 3)
+- Web: `react-markdown` (pending UI redesign), `lucide-react` (already used)
+- Epic 9: Adaptive difficulty depends on confusion tracking (**Phase 5 logging complete, integration pending**)
+
+**Documentation:**
+- Implementation prompt: `EPIC8_IMPLEMENTATION_PROMPT.md`
+- Phase 2 delivery: `EPIC8_PHASE2_DELIVERY.md`
+- Intent router (Phase 1): `api/src/services/intent-router.ts`
+- ✅ Explanation engine (Phase 2): `api/src/services/explanation-engine.ts` — **FULLY IMPLEMENTED**
+- Free-text validator (Phase 3): `api/src/services/free-text-validator.ts` (stub only)
+- Chat routes (Phases 1-2): `api/src/routes/chat-learning.ts`
+- UI component (Phase 1): `web/components/ChatPanel.tsx`
+- Test: `api/tests/explanation-engine.test.ts`
+- Smoke test: `api/scripts/test-explanation-endpoint.sh`
+
+**Known Gaps:**
+- ~~LLM integration not wired (static responses only)~~ — **✅ FIXED in Phase 2**
+- ~~No caching implemented (explanation-cache.ts stub exists)~~ — **✅ FIXED in Phase 2**
+- Free-text validation schema ready but logic missing (Phase 3)
+- Test coverage inadequate (<80% ADR requirement, currently ~30%)
+- Intent router accuracy below target (75% vs 90%, Phase 7)
+
+**Next Steps to Complete Epic 8:**
+1. ✅ ~~Phase 2: LLM Explanation Engine~~ — **COMPLETE 2025-10-13**
+2. Phase 3: Free-text answer validation (~2h)
+3. Phase 4: Partial credit scoring (~1.5h)
+4. Phase 7: Intent router improvements (~1h)
+5. Phase 8: E2E testing and UAT (~1h)
+6. Increase test coverage to 80%
+7. Add JSDoc comments to all services
+8. Update FSD §29 to "✅ IMPLEMENTED" when all phases complete
+
+**Remaining Effort:** ~6.5 hours (Phases 3-4, 7-8 + testing)
+
+**Change Log:**
+- **2025-10-13 (Phase 2):** Phase 2 COMPLETE — LLM explanation engine fully implemented with OpenAI integration, cost tracking, caching, confusion tracking, and feedback endpoint
+- **2025-10-13 (Phase 1):** Updated to reflect Phase 1 status (infrastructure/skeleton only, LLM integration pending)
+- **2025-10-12 (Phase 1):** Phase 1 infrastructure delivered — Database schema (3 tables + extended attempts), chat UI, intent router (75% accuracy), API routes (skeleton), feature flags
+
+---
+
+## 30) Adaptive Difficulty Engine (Epic 9) — 📋 PLANNED
+
+**Covers BRD:** L-2 (Adaptive lesson plans with dynamic difficulty)
+
+**Epic Status:** 📋 PLANNED (After Epic 8 Phase 2-8 completion)
+
+See `EPIC9_IMPLEMENTATION_PROMPT.md` for full specification.
+
+**Key Features (Planned):**
+- 4 difficulty levels (Recall, Application, Analysis, Synthesis)
+- Performance signals (correctness, latency, confusion from Epic 8)
+- Learning style detection (visual/verbal/kinesthetic)
+- Topic weakness detection (comprehension < 70%)
+- Adaptive algorithm with BKT/AFM foundation
+
+**Dependencies:**
+- Requires Epic 8 Phase 5 (confusion tracking)
+- Requires Epic 0 (Platform Foundations - quality metrics)
+
+---
+
+## 31) Content Meta Model & Hierarchy — ⚠️ FOUNDATIONAL CHANGE
+
+**Status:** Database schema created, migration pending (P0)
+
+**Epic Status:** Epic-Scope-Fix (affects Epics 5, 6, 7, 8, 9, 10)
+
+Cerply's content structure has been redesigned to support better organization, certification, and freshness management.
+
+**New 5-Tier Hierarchy:**
+```
+Subject (e.g., "Computer Science", "Finance")
+  └─ Topic (e.g., "Machine Learning") ← Content collection level
+      └─ Module (e.g., "LLM Architecture") ← Content provision level
+          └─ Quiz (e.g., "Assessment 1", "Assessment 2")
+              └─ Question (e.g., "What does LLM stand for?")
+                  └─ Guidance (explanation text within question)
+```
+
+**Key Changes from Old Structure:**
+- **Tracks → Topics:** Topics live under subjects, support certification at this level
+- **Items → Questions:** Questions now grouped into quizzes for better organization
+- **Explicit Subject Layer:** All topics belong to a subject (Computer Science, Finance, etc.)
+- **Topic-Level Operations:** Generation, certification, and freshness all at topic level
+
+**Database Tables (Migration 016):**
+- `subjects` - Top-level knowledge domains
+- `topics` - Content collection level (4-6 modules each)
+- `modules_v2` - Content provision level (what learners consume)
+- `quizzes` - Assessment containers (grouping questions)
+- `questions` - Individual quiz items (replaces `items`)
+- `topic_assignments` - Tracks who is learning what (replaces `team_track_subscriptions`)
+- `topic_citations` - Research sources for content
+- `topic_secondary_sources` - Company-specific contextual content (Epic 6.8)
+- `topic_communications` - Assignment communications (Epic 6.8)
+
+**Content Generation Rules:**
+- All generation happens at **topic level** (manager prompts "Teach me X" → full topic with 4-6 modules)
+- Each topic belongs to a **subject** (auto-detected or manager-selected)
+- Content marked as **proprietary** (company-specific) or **canonical** (public/reusable)
+- Proprietary content never stored in canon (public reuse store)
+
+**Certification Rules:**
+- Can certify at **topic level** (all modules inherit) OR **module level** (individual modules)
+- `certification_level` field tracks scope ('topic' | 'module')
+- Certified content shows 🏅 badge in content library
+
+**Freshness Management:**
+- Operates at **topic level** (not per module)
+- Default refresh frequency: 6 months
+- Only refreshes if topic assigned to ≥1 active learner
+- Manual admin trigger available
+
+**Migration Strategy:**
+- See `EPIC_SCOPE_FIX_CONTENT_HIERARCHY.md` for full migration plan
+- P0 (Blocking): Database migration + foreign key updates
+- P1 (Pre-Production): Epic 5/6/7 code changes
+- P2 (Polish): Admin tools and migration UI
+
+**Affected Epics:**
+- **Epic 5 (Slack):** Update message templates to reference topics (not tracks)
+- **Epic 6 (Ensemble):** Generate at topic level (4-6 modules per topic)
+- **Epic 7 (Gamification):** Levels and certificates tied to topics
+- **Epic 8 (Conversational UI):** Chat context includes subject/topic/module hierarchy
+- **Epic 9 (Adaptive Difficulty):** Weakness detection at topic level
+- **Epic 10 (Certification):** Certification at topic OR module level
+
+**Traceability:**
+- ADR: Content Meta Model (LOCKED)
+- Migration: `api/drizzle/016_content_hierarchy.sql`, `017_migrate_legacy_content.sql`
+- Schema: `api/src/db/schema.ts` (new tables added)
+
+**Change Log:**
+- **2025-10-13:** Content hierarchy defined, database migrations created, Epic-Scope-Fix documented
+
+---
+
+## 32) Manager Curation Workflow (Epic 6.8) — 📋 PLANNED
+
+**Covers BRD:** B-3 (Customize content for internal policies), B-12 (Content approval workflows)
+
+**Epic Status:** 📋 PLANNED (After Epic 8 Phase 2-8 completion, 20-24 hours)
+
+**Context:** Managers need a comprehensive workflow to curate content, blend company-specific context with canonical knowledge, assign to teams, and communicate learning opportunities.
+
+**Workflow Steps:**
+
+**1. Content Identification**
+- Manager inputs: URL, prompt, or file upload
+- Cerply decides scope: Is it topic-level (broad, needs 4-6 modules) or module-level (specific, standalone)?
+- URL: Scrape and analyze structure
+- Prompt: Detect if topic ("Teach me machine learning") or specific question
+- Upload: Default to proprietary standalone module
+
+**2. Secondary Content Collection**
+- Manager adds contextual links/docs (company-specific policies, examples, case studies)
+- Stored separately in `topic_secondary_sources` table
+- Metadata extracted and used in LLM prompts
+- Content stays private (never added to public canon)
+
+**3. 3-LLM Generation (Integrates with Epic 6)**
+- Generate full topic (4-6 modules) OR standalone module
+- Pull canonical content from canon if exists (public knowledge)
+- Blend with proprietary secondary sources (company context)
+- Provenance tracking shows which sources contributed
+
+**4. Manager Review & Sign-Off**
+- Review all generated modules with inline editing
+- Approve entire topic OR individual modules
+- Determine certification readiness (submit to Epic 10 workflow)
+- Regenerate specific modules if needed
+
+**5. Assignment & Communication**
+- Select team members (entire team or specific individuals)
+- Set mandatory/recommended + deadline (if mandatory)
+- Cerply generates draft communication (LLM-powered, contextual)
+  - Example: "We're rolling out Machine Learning training to help you stay competitive. Complete by end of quarter."
+- Manager reviews/edits draft
+- Select delivery channels (Cerply app, email, Slack)
+- Send with one click
+
+**API Routes (Planned):**
+- `POST /api/manager/content/identify` - Identify content scope from URL/upload/prompt
+- `POST /api/manager/content/:topicId/sources` - Add secondary sources
+- `POST /api/manager/content/:topicId/generate` - Trigger 3-LLM generation with context
+- `GET /api/manager/content/:topicId/review` - Get generated modules for review
+- `PATCH /api/manager/content/:topicId/modules/:moduleId` - Edit module inline
+- `POST /api/manager/content/:topicId/assign` - Assign to team with communication
+- `POST /api/manager/content/:topicId/communication/draft` - Generate draft communication
+
+**Database Tables (Migration 016):**
+- `topic_secondary_sources` - Company-specific contextual content
+- `topic_communications` - Assignment communications tracking
+
+**Feature Flags:**
+- `FF_MANAGER_CURATION_V1=true`
+
+**Dependencies:**
+- Requires Epic 6 (ensemble generation pipeline)
+- Requires Epic 8 (conversational interface for learners)
+
+**Implementation Order:**
+- After Epic 8 Phase 2-8 complete
+- Before Epic 6.6 (Content Library Seeding)
+
+**Traceability:**
+- Implementation Prompt: `EPIC6.8_IMPLEMENTATION_PROMPT.md` (to be created)
+- Epic Master Plan: Epic 6.8 specification
+
+**Change Log:**
+- **2025-10-13:** Epic 6.8 defined, database tables added to migration 016
+
+---
+
+## 33) Backlog (Next 10)
 
 1. LLM router + runner stubs (`api/src/llm/*`).
 2. JSON schemas: `modules.schema.json`, `score.schema.json`.

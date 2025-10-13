@@ -2693,13 +2693,386 @@ chmod +x api/scripts/smoke-gamification.sh
 
 ---
 
-## 9. References
+## 9. Post-Deployment Operational Checklist (Day 1-7)
+
+**⚠️ Important**: These tasks are **NOT deployment blockers**. Epic 7 can go live with infrastructure in place. These are operational tasks to complete within the first week of production.
+
+### Priority: HIGH (Day 1-2)
+
+#### 1. Authenticated Happy-Path Testing (15 minutes)
+
+**Context**: Infrastructure checks confirm routes exist and are protected. Now verify the full flow with real users.
+
+**Requirements**:
+- Real JWT tokens from SSO/Auth0
+- At least 1 learner account and 1 manager account
+
+**Test Commands**:
+```bash
+# Get JWT token:
+# 1. Log into https://app.cerply.com
+# 2. DevTools → Network → Copy "Authorization: Bearer ..." header
+
+export JWT="your-token-here"
+export API="https://api.cerply.com"
+export USER_ID="your-user-id"
+
+# Test 1: Learner levels with pagination
+curl -H "Authorization: Bearer $JWT" \
+  "$API/api/learners/$USER_ID/levels?limit=5" | jq .
+# Expected: 200 { total, limit, offset, data: [...] }
+
+# Test 2: Manager notifications (unread only)
+curl -H "Authorization: Bearer $JWT" \
+  "$API/api/manager/notifications?limit=10&unreadOnly=true" | jq .
+# Expected: 200 { total, unreadCount, notifications: [...] }
+
+# Test 3: Idempotency (first call)
+IDEM_KEY="test-$(date +%s)"
+curl -X PATCH \
+  -H "Authorization: Bearer $JWT" \
+  -H "X-Idempotency-Key: $IDEM_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"read": true}' \
+  "$API/api/manager/notifications/NOTIFICATION_ID" -i | tee /tmp/first.txt
+
+# Test 4: Idempotency (replay - same key)
+curl -X PATCH \
+  -H "Authorization: Bearer $JWT" \
+  -H "X-Idempotency-Key: $IDEM_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"read": true}' \
+  "$API/api/manager/notifications/NOTIFICATION_ID" -i | tee /tmp/replay.txt
+
+# Verify: X-Idempotency-Replay: true header present
+grep -i "X-Idempotency-Replay" /tmp/replay.txt
+
+# Test 5: Certificate verify (public endpoint, no auth)
+curl "$API/api/certificates/VALID_CERT_ID/verify" | jq .
+# Expected: 200 { valid: true, certificateId, learnerId, ... }
+
+# Test 6: Certificate download (requires auth)
+curl -H "Authorization: Bearer $JWT" \
+  "$API/api/certificates/CERT_ID/download" -o test-cert.pdf
+file test-cert.pdf
+# Expected: PDF document, 200 status, correct headers
+```
+
+**Acceptance**:
+- [ ] Learner levels return paginated data
+- [ ] Manager notifications return with `total`, `unreadCount`, `offset`
+- [ ] Idempotency replay returns cached response + `X-Idempotency-Replay: true` header
+- [ ] Response bodies identical between first call and replay
+- [ ] Certificate verify returns `{ valid: true }` for real certs
+- [ ] Certificate download returns PDF with correct Content-Type and Content-Disposition headers
+
+**Estimated Time**: 15 minutes
+
+---
+
+#### 2. KPI Monitoring Sanity (5 minutes)
+
+**Context**: Verify KPI counters increment after real operations.
+
+**Steps**:
+```bash
+# 1. Check initial KPI state (requires admin/ops auth)
+curl -H "Authorization: Bearer $ADMIN_JWT" \
+  "$API/api/ops/kpis" | jq . | tee /tmp/kpis-before.json
+
+# 2. Perform operations:
+# - Mark 1 manager notification as read
+# - Download 1 certificate
+
+# 3. Check KPI state again
+curl -H "Authorization: Bearer $ADMIN_JWT" \
+  "$API/api/ops/kpis" | jq . | tee /tmp/kpis-after.json
+
+# 4. Compare (should see increments)
+diff <(jq -S . /tmp/kpis-before.json) <(jq -S . /tmp/kpis-after.json)
+```
+
+**Acceptance**:
+- [ ] `certificates_downloaded` increments after download
+- [ ] `certificates_verified` increments after verify call
+- [ ] `manager_notifications_read` increments after mark-as-read
+- [ ] KPI endpoint accessible (check auth requirements if 401)
+
+**Estimated Time**: 5 minutes
+
+---
+
+### Priority: MEDIUM (Day 3-5)
+
+#### 3. Audit Event Verification (5 minutes)
+
+**Context**: Ensure audit events are being persisted to the database.
+
+**Steps**:
+```bash
+# Option A: Check application logs
+# Look for JSON audit events in Render logs:
+# - {"eventType":"certificate_downloaded","userId":"..."}
+# - {"eventType":"notification_marked_read","userId":"..."}
+
+# Option B: Query database directly
+psql $DATABASE_URL -c "
+  SELECT event_type, user_id, occurred_at, metadata
+  FROM audit_events
+  ORDER BY occurred_at DESC
+  LIMIT 10;
+"
+```
+
+**Acceptance**:
+- [ ] Audit events appear in logs or database after operations
+- [ ] `certificate_downloaded` event logged on download
+- [ ] `notification_marked_read` event logged on PATCH
+- [ ] Events include correct `userId`, `organizationId`, `requestId`
+- [ ] `PERSIST_AUDIT_EVENTS=true` env var is set
+
+**Estimated Time**: 5 minutes
+
+---
+
+#### 4. Cleanup Cron Jobs (15 minutes setup, 1 week observation)
+
+**Context**: BRD requires housekeeping for idempotency keys (24h) and audit events (180 days).
+
+**Implementation Options**:
+
+**Option A: Render Cron Jobs (Recommended)**
+```yaml
+# In render.yaml or dashboard
+services:
+  - type: cron
+    name: idempotency-cleanup-daily
+    env: docker
+    schedule: "0 2 * * *"  # Daily at 2 AM UTC
+    dockerCommand: node api/scripts/cleanup-idempotency-keys.js
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: ...
+
+  - type: cron
+    name: audit-cleanup-weekly
+    env: docker
+    schedule: "0 3 * * 0"  # Weekly Sunday 3 AM UTC
+    dockerCommand: node api/scripts/cleanup-audit-events.js
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: ...
+      - key: RETAIN_AUDIT_DAYS
+        value: "180"
+```
+
+**Option B: GitHub Actions (Alternative)**
+```yaml
+# .github/workflows/cleanup-crons.yml
+name: Cleanup Crons
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily idempotency
+    - cron: '0 3 * * 0'  # Weekly audit
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: node api/scripts/cleanup-idempotency-keys.js
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+```
+
+**Acceptance**:
+- [ ] Idempotency cleanup cron scheduled (daily 2 AM UTC)
+- [ ] Audit cleanup cron scheduled (weekly Sunday 3 AM UTC)
+- [ ] Cron jobs run successfully (check logs after 24-48h)
+- [ ] Old idempotency keys deleted (>24h)
+- [ ] Old audit events deleted (>180 days)
+- [ ] Cron failures trigger alerts (see Monitoring section)
+
+**Estimated Time**: 15 minutes setup + ongoing observation
+
+---
+
+### Priority: MEDIUM (Day 3-7)
+
+#### 5. Monitoring & Alerts (30 minutes)
+
+**Context**: Set up lightweight alerts for Day-1 operational issues.
+
+**Critical Metrics to Monitor**:
+
+**1. 5xx Error Rate**
+- **Threshold**: > 1% of requests over 5 minutes
+- **Action**: Email + Slack alert
+- **Implementation**: Render built-in monitoring or APM (Datadog, New Relic)
+
+**2. Database Slow Queries**
+- **Threshold**: Queries > 1 second
+- **Action**: Log warning
+- **Check**: Indexes on `audit_events(organization_id, occurred_at DESC)`
+
+**3. Idempotency Conflicts (409s)**
+- **Threshold**: > 10 conflicts per hour (indicates high concurrency)
+- **Action**: Log for analysis (expected behavior, but watch volume)
+- **Query**: Count 409 responses on `/api/manager/notifications/:id`
+
+**4. Cron Job Failures**
+- **Threshold**: Exit code ≠ 0 for 2+ consecutive runs
+- **Action**: Email ops team
+- **Check**: Render cron logs or GitHub Actions status
+
+**Example Alert Setup (Render)**:
+```
+Service: cerply-api-production
+Alert Name: Epic 7 - High 5xx Rate
+Condition: Error rate > 1%
+Duration: 5 minutes
+Notification: Email ops@cerply.com + Slack #alerts
+```
+
+**Acceptance**:
+- [ ] Alert configured for 5xx rate > 1%
+- [ ] Alert configured for cron failures (2+ consecutive)
+- [ ] Slow query logging enabled (>1s queries logged)
+- [ ] 409 conflict monitoring in place (log analysis or dashboard)
+- [ ] Test alerts by triggering a failure (e.g., temporarily break DB connection)
+
+**Estimated Time**: 30 minutes
+
+---
+
+### Priority: LOW (Optional, Day 5-7)
+
+#### 6. Rate Limiting (30 minutes)
+
+**Context**: Protect public endpoints from abuse, especially certificate verify.
+
+**Recommended Limits**:
+
+| Endpoint | Limit | Scope |
+|----------|-------|-------|
+| `GET /api/certificates/:id/verify` | 100 req/min | Per IP |
+| `GET /api/certificates/:id/download` | 10 req/min | Per user |
+| `GET /api/manager/notifications` | 30 req/min | Per user |
+| `PATCH /api/manager/notifications/:id` | 30 req/min | Per user |
+| `GET /api/learners/:id/levels` | 60 req/min | Per user |
+
+**Implementation Options**:
+
+**Option A: Express Middleware (Simple)**
+```bash
+cd api && npm install express-rate-limit
+```
+
+```typescript
+// api/src/middleware/rateLimiter.ts
+import rateLimit from 'express-rate-limit';
+
+export const certifyVerifyLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 requests per minute per IP
+  message: { error: { code: 'RATE_LIMIT_EXCEEDED', message: 'Too many requests' } },
+});
+
+// In api/src/routes/gamification.ts
+app.get('/api/certificates/:id/verify', { preHandler: certifyVerifyLimiter }, async (req, reply) => {
+  // ...
+});
+```
+
+**Option B: Cloudflare Rate Limiting (Recommended if using Cloudflare)**
+- Set up via Cloudflare dashboard
+- More robust, handles DDoS attacks
+- No code changes required
+
+**Acceptance**:
+- [ ] Rate limiting enabled on certificate verify endpoint
+- [ ] 429 response returned when limit exceeded
+- [ ] Rate limit headers present (`X-RateLimit-Limit`, `X-RateLimit-Remaining`)
+- [ ] Legitimate traffic not affected
+
+**Estimated Time**: 30 minutes
+
+---
+
+#### 7. Security Headers Verification (10 minutes)
+
+**Context**: Ensure Epic 7 routes follow same security standards as existing routes.
+
+**Required Headers**:
+```
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+Access-Control-Allow-Origin: https://app.cerply.com
+```
+
+**Verification**:
+```bash
+curl -I 'https://api.cerply.com/api/certificates/test/verify'
+```
+
+**Acceptance**:
+- [ ] HSTS header present on all Epic 7 routes
+- [ ] `X-Content-Type-Options: nosniff` present
+- [ ] `X-Frame-Options: DENY` present
+- [ ] CORS headers correctly configured for your domain
+
+**Estimated Time**: 10 minutes
+
+---
+
+#### 8. Database Backup Verification (5 minutes)
+
+**Context**: Confirm production database has proper backup retention.
+
+**Steps**:
+1. Open Render Dashboard → Databases → `cerply-production`
+2. Navigate to "Backups" tab
+3. Verify:
+   - Daily automated snapshots enabled
+   - Retention: 30 days minimum (recommend 90 days for audit compliance)
+   - Last backup timestamp (should be <24h ago)
+
+**Acceptance**:
+- [ ] Daily automated backups enabled
+- [ ] Retention ≥ 30 days
+- [ ] Last backup completed successfully (<24h ago)
+- [ ] Point-in-time recovery available (if Render supports)
+
+**Estimated Time**: 5 minutes
+
+---
+
+### Summary: Operational Checklist Timeline
+
+| Task | Priority | When | Time | Status |
+|------|----------|------|------|--------|
+| **1. Authenticated happy-path tests** | HIGH | Day 1-2 | 15 min | ⏸️ Pending real JWT tokens |
+| **2. KPI monitoring sanity** | HIGH | Day 1-2 | 5 min | ⏸️ Pending authenticated ops access |
+| **3. Audit event verification** | MEDIUM | Day 3-5 | 5 min | ⏸️ Pending DB query or log access |
+| **4. Cleanup cron jobs** | MEDIUM | Day 3-5 | 15 min + observe | ⏸️ Crons not yet scheduled |
+| **5. Monitoring & alerts** | MEDIUM | Day 3-7 | 30 min | ⏸️ Alerts not configured |
+| **6. Rate limiting** | LOW | Day 5-7 | 30 min | ⏸️ Optional |
+| **7. Security headers** | LOW | Day 5-7 | 10 min | ⏸️ Verify existing headers |
+| **8. Database backups** | LOW | Day 1 | 5 min | ⏸️ Verify Render config |
+
+**Total Estimated Time**: ~2 hours (excluding ongoing observation)
+
+---
+
+## 10. References
 
 [Links to Epic 5/6 prompts, external libraries, etc.]
 
 ---
 
-## 10. Quick Start Checklist
+## 11. Quick Start Checklist
 
 [Pre-implementation, implementation (7 phases), acceptance, PR & deployment]
 
