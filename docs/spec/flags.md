@@ -136,3 +136,18 @@ Web Feature Flags (Epic 8)
 - NEXT_PUBLIC_CONVERSATIONAL_UI_V1 (default: false) — enables ChatPanel component in web UI
   - When true, shows floating chat button with Cmd+K shortcut
   - Keyboard shortcuts: Cmd+K or / to open, Escape to close
+
+Adaptive Difficulty Engine (Epic 9)
+- FF_ADAPTIVE_DIFFICULTY_V1 (default: false) — enables adaptive difficulty engine with learning style detection
+  - When true, enables `/api/adaptive/*` routes for profile, difficulty recommendations, attempt tracking, and analytics
+  - Automatically tracks mastery levels per user-topic using time-weighted algorithm (30-day half-life)
+  - Detects learning styles (visual/verbal/kinesthetic/balanced) from confusion patterns (requires 20+ attempts)
+  - Identifies weak topics with mastery < 0.70 for targeted practice
+  - Integrates with Epic 8 confusion tracking and Epic 7 gamification
+  - Requires database migration 018_adaptive_difficulty.sql to be run first
+
+Adaptive Algorithm Configuration (Epic 9)
+- ADAPTIVE_MIN_DIFFICULTY (default: 1) — minimum difficulty level (1=recall)
+- ADAPTIVE_MAX_DIFFICULTY (default: 4) — maximum difficulty level (4=synthesis)
+- WEAK_TOPIC_THRESHOLD (default: 0.70) — mastery threshold for identifying weak topics
+- MASTERY_DECAY_DAYS (default: 30) — time decay half-life in days for mastery calculation

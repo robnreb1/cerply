@@ -87,6 +87,7 @@ export function classifyIntent(query: string, context?: HierarchyContext): Inten
   }
 
   // Phase 7: Enhanced progress intent with hierarchy awareness
+  // Epic 9: Added adaptive difficulty patterns
   const progressPatterns = [
     /how am i doing/i,
     /my progress/i,
@@ -100,6 +101,17 @@ export function classifyIntent(query: string, context?: HierarchyContext): Inten
     /what.*my.*rank/i,
     /how many.*correct/i,
     /progress.*(this|current|in).*(topic|module|subject)/i,
+    // Epic 9: Adaptive difficulty queries
+    /what.*hard.*me/i,
+    /my.*weak.*topics?/i,
+    /weak.*areas?/i,
+    /struggling.*with/i,
+    /what.*need.*practice/i,
+    /what.*improve/i,
+    /my.*weaknesses?/i,
+    /show.*weak/i,
+    /my.*learning.*style/i,
+    /what.*my.*mastery/i,
   ];
   
   if (progressPatterns.some(p => p.test(lowerQuery))) {
