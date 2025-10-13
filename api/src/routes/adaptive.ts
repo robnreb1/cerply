@@ -24,6 +24,32 @@ import { eq } from 'drizzle-orm';
 
 const FF_ADAPTIVE_DIFFICULTY_V1 = process.env.FF_ADAPTIVE_DIFFICULTY_V1 === 'true';
 
+/**
+ * Get session or mock session for admin token (dev/test only)
+ */
+function getSessionOrMock(req: FastifyRequest) {
+  let session = getSession(req);
+  
+  // In dev/test: if admin token used but no session, create a mock session
+  if (!session && process.env.NODE_ENV !== 'production') {
+    const adminToken = process.env.ADMIN_TOKEN?.trim();
+    const xAdminToken = req.headers['x-admin-token'] as string | undefined;
+    const authHeader = req.headers.authorization as string | undefined;
+    
+    if (adminToken && (xAdminToken === adminToken || authHeader === `Bearer ${adminToken}`)) {
+      // Use a test user ID for admin token requests
+      session = { 
+        userId: '00000000-0000-0000-0000-000000000001', 
+        email: 'admin@test.local',
+        role: 'admin' as const,
+        organizationId: '00000000-0000-0000-0000-000000000001'
+      };
+    }
+  }
+  
+  return session;
+}
+
 export async function registerAdaptiveRoutes(app: FastifyInstance) {
   // Epic 9: Debug logging for route registration
   app.log.info(`[Epic9] Registering adaptive routes (FF_ADAPTIVE_DIFFICULTY_V1=${FF_ADAPTIVE_DIFFICULTY_V1})`);
@@ -54,8 +80,12 @@ export async function registerAdaptiveRoutes(app: FastifyInstance) {
 
       if (!requireAnyRole(req, reply)) return reply;
 
-      const session = getSession(req);
-      if (!session) return reply; // Should not happen after requireAnyRole, but TypeScript needs this
+      const session = getSessionOrMock(req);
+      if (!session) {
+        return reply.status(401).send({
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        });
+      }
 
       // Check access: admin/manager can view anyone, learners can only view self
       if (session.role === 'learner' && session.userId !== userId) {
@@ -135,8 +165,12 @@ export async function registerAdaptiveRoutes(app: FastifyInstance) {
 
       if (!requireAnyRole(req, reply)) return reply;
 
-      const session = getSession(req);
-      if (!session) return reply; // Should not happen after requireAnyRole, but TypeScript needs this
+      const session = getSessionOrMock(req);
+      if (!session) {
+        return reply.status(401).send({
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        });
+      }
 
       // Check access: learners can only view self
       if (session.role === 'learner' && session.userId !== userId) {
@@ -192,8 +226,12 @@ export async function registerAdaptiveRoutes(app: FastifyInstance) {
 
       if (!requireAnyRole(req, reply)) return reply;
 
-      const session = getSession(req);
-      if (!session) return reply; // Should not happen after requireAnyRole, but TypeScript needs this
+      const session = getSessionOrMock(req);
+      if (!session) {
+        return reply.status(401).send({
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        });
+      }
 
       const { userId, topicId, questionId, correct, partialCredit, responseTimeMs, difficultyLevel } = req.body;
 
@@ -288,8 +326,12 @@ export async function registerAdaptiveRoutes(app: FastifyInstance) {
 
       if (!requireAnyRole(req, reply)) return reply;
 
-      const session = getSession(req);
-      if (!session) return reply; // Should not happen after requireAnyRole, but TypeScript needs this
+      const session = getSessionOrMock(req);
+      if (!session) {
+        return reply.status(401).send({
+          error: { code: 'UNAUTHORIZED', message: 'Authentication required' }
+        });
+      }
 
       // Check access: learners can only view self
       if (session.role === 'learner' && session.userId !== userId) {
