@@ -112,3 +112,27 @@ LLM Configuration (Epic 6)
 Cost Controls (Epic 6)
 - MAX_GENERATION_COST_USD (default: 5.00) — Maximum cost per generation; aborts if exceeded
 - WARN_GENERATION_COST_USD (default: 2.00) — Warning threshold for high-cost generations
+
+Gamification & Certification (Epic 7)
+- FF_GAMIFICATION_V1 (default: false) — enables gamification features (levels, leaderboards)
+- FF_CERTIFICATES_V1 (default: false) — enables certificate generation and Ed25519 signing
+- FF_MANAGER_NOTIFICATIONS_V1 (default: false) — enables manager notifications for learner achievements
+- CERTIFICATE_SIGNING_KEY — Ed25519 private key for certificate signing (hex format)
+- CERTIFICATE_PUBLIC_KEY — Ed25519 public key for certificate verification (hex format)
+
+Conversational Learning Interface (Epic 8)
+- FF_CONVERSATIONAL_UI_V1 (default: false) — enables chat panel and natural language query routing
+  - When true, enables `/api/chat/*` routes for chat sessions, messages, and explanations
+  - Requires OPENAI_API_KEY to be set for LLM-powered explanations
+- FF_FREE_TEXT_ANSWERS_V1 (default: false) — enables free-text answer validation in `/api/learn/submit`
+  - When true, accepts `answerText` field in addition to `answerIndex`
+  - Uses fuzzy matching (>90% similarity) and LLM fallback for validation
+  - Requires OPENAI_API_KEY for LLM validation
+- CHAT_LLM_MODEL (default: gpt-4o-mini) — LLM model for chat explanations (cost-optimized)
+- LLM_UNDERSTANDING (default: gpt-4o) — LLM model for free-text answer validation (accuracy-optimized)
+- EXPLANATION_CACHE_TTL (default: 3600) — Cache TTL in seconds for explanations (1 hour)
+
+Web Feature Flags (Epic 8)
+- NEXT_PUBLIC_CONVERSATIONAL_UI_V1 (default: false) — enables ChatPanel component in web UI
+  - When true, shows floating chat button with Cmd+K shortcut
+  - Keyboard shortcuts: Cmd+K or / to open, Escape to close

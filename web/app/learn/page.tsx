@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiBase } from '@/lib/apiBase';
 import { COPY as copy, INTRO_COPY } from '@/lib/copy';
 import { parseIntent, routeIntent, getIntentSuggestions, generateMicrocopy } from '@/lib/ie/router';
+import ChatPanel from '@/components/ChatPanel';
 
 // Types matching M3 API contracts
 type PreviewResponse = {
@@ -929,6 +930,11 @@ export default function LearnPage() {
           >
             {copy.nlAsk.toggle}
           </button>
+        )}
+
+        {/* Epic 8: Conversational Learning Interface */}
+        {process.env.NEXT_PUBLIC_CONVERSATIONAL_UI_V1 === 'true' && (
+          <ChatPanel />
         )}
       </div>
     </main>

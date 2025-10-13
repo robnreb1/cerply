@@ -171,15 +171,30 @@ export async function countCorrectAttempts(userId: string, trackId: string): Pro
   // For MVP, we'll do a simplified count of all correct attempts for the user
   // TODO: Add proper track filtering once schema relationships are clarified
   
-  const [result] = await db
-    .select({ count: count() })
+  // Epic 8 Phase 4: Count partial credit as fractional correct answers
+  // Example: 10 full correct (1.0 each) + 5 partial (0.7 each) = 10 + 3.5 = 13.5 total
+  const allAttempts = await db
+    .select({
+      correct: attempts.correct,
+      partialCredit: attempts.partialCredit,
+    })
     .from(attempts)
-    .where(and(
-      eq(attempts.userId, userId),
-      eq(attempts.correct, 1)
-    ));
+    .where(eq(attempts.userId, userId));
 
-  return result?.count || 0;
+  // Sum up: Full credit (correct=1) counts as 1.0, partial credit uses its value
+  const totalCorrect = allAttempts.reduce((sum, att) => {
+    if (att.partialCredit !== null && att.partialCredit !== undefined) {
+      // Has partial credit score - use it (0.0 to 1.0)
+      return sum + Number(att.partialCredit);
+    } else if (att.correct === 1) {
+      // Legacy correct answer (stored as number 1) - count as 1.0
+      return sum + 1.0;
+    }
+    // Incorrect answer - count as 0
+    return sum;
+  }, 0);
+
+  return Math.floor(totalCorrect); // Floor to get integer for level thresholds
 }
 
 /**

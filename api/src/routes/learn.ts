@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { readSession } from './auth';
 import { attempts, reviewSchedule } from '../db/learner';
 import { and, eq } from 'drizzle-orm';
+import { validateFreeTextAnswer } from '../services/free-text-validator';
 
 type LearnItem = {
   id: string;
@@ -17,6 +18,7 @@ type LearnItem = {
 type SubmitReq = {
   itemId: string;
   answerIndex?: number | null;
+  answerText?: string | null;  // Epic 8: Free-text answer support
   responseTimeMs?: number | null;
   planId?: string | null;
 };
@@ -158,7 +160,51 @@ export async function registerLearnRoutes(app: FastifyInstance & { db?: any }) {
     reply.header('x-plan-key', planKey);
     let item = items.find(i => i.id === body.itemId);
     let correct = false;
-    if (typeof body.answerIndex === 'number') {
+    let partialCredit: number | undefined;
+    let feedback: string | undefined;
+    let validationMethod: string | undefined;
+    
+    // Epic 8: Free-text answer validation
+    const FF_FREE_TEXT_ANSWERS_V1 = process.env.FF_FREE_TEXT_ANSWERS_V1 === 'true';
+    if (FF_FREE_TEXT_ANSWERS_V1 && body.answerText && body.answerText.trim().length > 0) {
+      try {
+        // Get canonical answer
+        let canonicalAnswer = '';
+        if (item && item.options && typeof item.answerIndex === 'number') {
+          canonicalAnswer = item.options[item.answerIndex] || '';
+        } else {
+          try {
+            const db = (app as any)?.db;
+            if (db && db.execute) {
+              const row = await db.execute('select answer, options from items where id = $1 limit 1', [body.itemId]).then((r: any) => r && r[0]);
+              if (row) {
+                const opts = Array.isArray(row.options) ? row.options : (row.options?.values || []);
+                const ansIdx = typeof row.answer === 'number' ? row.answer : 0;
+                canonicalAnswer = opts[ansIdx] || '';
+              }
+            }
+          } catch {}
+        }
+
+        if (canonicalAnswer) {
+          const validation = await validateFreeTextAnswer(body.answerText, canonicalAnswer, item?.stem || '');
+          correct = validation.correct;
+          partialCredit = validation.partialCredit;
+          feedback = validation.feedback;
+          validationMethod = validation.method;
+          reply.header('x-validation-method', validation.method);
+        }
+      } catch (err) {
+        console.error('[learn] Free-text validation error:', err);
+        // Fall back to incorrect if validation fails
+        correct = false;
+        partialCredit = 0.0;
+        feedback = 'Unable to validate your answer. Please try again.';
+        validationMethod = 'error';
+      }
+    } else if (typeof body.answerIndex === 'number') {
+      // Original MCQ validation
+      validationMethod = 'mcq';
       if (item) {
         correct = body.answerIndex === item.answerIndex;
       } else {
@@ -181,12 +227,21 @@ export async function registerLearnRoutes(app: FastifyInstance & { db?: any }) {
     try {
       const db = (app && app.db) || null;
       if (db && db.execute) {
-        // persist attempt
+        // persist attempt (Epic 8: includes free-text fields)
         try {
           await db.execute(
-            `insert into attempts(user_id,item_id,answer_index,correct,time_ms)
-             values (null,$1,$2,$3,$4)`,
-            [body.itemId, body.answerIndex ?? null, correct ? 1 : 0, body.responseTimeMs ?? null]
+            `insert into attempts(user_id,item_id,answer_index,answer_text,correct,time_ms,partial_credit,feedback,validation_method)
+             values (null,$1,$2,$3,$4,$5,$6,$7,$8)`,
+            [
+              body.itemId, 
+              body.answerIndex ?? null, 
+              body.answerText ?? null,
+              correct ? 1 : 0, 
+              body.responseTimeMs ?? null,
+              partialCredit ?? null,
+              feedback ?? null,
+              validationMethod ?? null
+            ]
           );
           _dbAttempted = true;
         } catch {}
@@ -258,6 +313,9 @@ export async function registerLearnRoutes(app: FastifyInstance & { db?: any }) {
       ok: true,
       result: {
         correct,
+        partialCredit: partialCredit !== undefined ? partialCredit : (correct ? 1.0 : 0.0),
+        feedback,
+        validationMethod,
         strength: typeof nextS === 'number' ? Number((nextS as number).toFixed(3)) : undefined,
         nextReviewAt: typeof nextAt === 'number' ? new Date(nextAt as number).toISOString() : undefined
       }
