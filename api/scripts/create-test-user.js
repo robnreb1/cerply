@@ -13,10 +13,21 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
+function isRenderHost(urlString) {
+  try {
+    const parsed = new URL(urlString);
+    const hostname = parsed.hostname;
+    // Check if hostname is exactly 'render.com' or ends with '.render.com'
+    return hostname === 'render.com' || hostname.endsWith('.render.com');
+  } catch (e) {
+    return false;
+  }
+}
+
 async function createTestUser() {
   const pool = new Pool({
     connectionString: databaseUrl,
-    ssl: databaseUrl.includes('render.com') ? {
+    ssl: isRenderHost(databaseUrl) ? {
       rejectUnauthorized: false
     } : undefined
   });
