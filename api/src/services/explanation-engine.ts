@@ -6,7 +6,7 @@
 
 import OpenAI from 'openai';
 import { db } from '../db';
-import { items, confusionLog } from '../db/schema';
+import { items, questions, confusionLog } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 const CHAT_LLM_MODEL = process.env.CHAT_LLM_MODEL || 'gpt-4o-mini';
@@ -62,15 +62,22 @@ export async function generateExplanation(
     };
   }
 
-  // Fetch question from DB
-  const [question] = await db.select().from(items).where(eq(items.id, questionId)).limit(1);
+  // Fetch question from DB (try new schema first, then old schema)
+  let question = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
   
-  if (!question) {
+  if (question.length === 0) {
+    // Try old schema (items table)
+    question = await db.select().from(items).where(eq(items.id, questionId)).limit(1);
+  }
+  
+  if (question.length === 0) {
     throw new Error('Question not found');
   }
+  
+  const questionData = question[0];
 
   // Generate explanation using LLM
-  const prompt = buildExplanationPrompt(question, learnerQuery);
+  const prompt = buildExplanationPrompt(questionData, learnerQuery);
   
   const client = getOpenAIClient();
   const completion = await client.chat.completions.create({
