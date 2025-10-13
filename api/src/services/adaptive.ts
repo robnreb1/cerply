@@ -524,6 +524,19 @@ export async function recordAttemptForAdaptive(
   topicId: string,
   attemptData: AdaptiveAttemptData
 ): Promise<number> {
+  // IMPORTANT: Insert the attempt into the attempts table FIRST
+  // so that calculateMasteryLevel can include it in the calculation
+  await db.insert(attempts).values({
+    userId,
+    itemId: attemptData.questionId,
+    answerIndex: null, // Not needed for adaptive tracking
+    correct: attemptData.correct ? 1 : 0,
+    timeMs: attemptData.responseTimeMs ?? null,
+    partialCredit: attemptData.partialCredit?.toString() ?? null,
+    responseTimeMs: attemptData.responseTimeMs ?? null,
+    difficultyLevel: attemptData.difficultyLevel,
+  });
+
   // Get or create topic comprehension record
   const existing = await db
     .select()
@@ -555,7 +568,7 @@ export async function recordAttemptForAdaptive(
   const newPartialCreditSum = Number(existing[0]?.partialCreditSum ?? 0) + (attemptData.partialCredit ?? 0);
   const newConfusionCount = (existing[0]?.confusionCount ?? 0) + confusionIncrement;
 
-  // Recalculate mastery level
+  // Recalculate mastery level (now includes the attempt we just inserted)
   const newMastery = await calculateMasteryLevel(userId, topicId);
 
   // Get recommended difficulty for next attempt

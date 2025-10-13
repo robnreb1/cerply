@@ -283,7 +283,7 @@ export async function registerLearnRoutes(app: FastifyInstance & { db?: any }) {
           const db: any = (app as any).db;
           if (db && db.execute) {
             const topicRow = await db.execute(
-              `SELECT m.topic_id, q.difficulty_level
+              `SELECT m.topic_id, qq.difficulty_level
                FROM questions qq
                JOIN quizzes qz ON qq.quiz_id = qz.id
                JOIN modules_v2 m ON qz.module_id = m.id
