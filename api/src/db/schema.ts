@@ -223,6 +223,7 @@ export const contentGenerations = pgTable('content_generations', {
   status: text('status').notNull().default('pending'),
   contentType: text('content_type'), // 'generic' | 'proprietary' | 'mixed'
   inputType: text('input_type').default('source'), // 'source' | 'topic'
+  granularity: text('granularity'), // 'subject' | 'topic' | 'module' - THE KILLER FEATURE
   generatorAOutput: jsonb('generator_a_output'),
   generatorBOutput: jsonb('generator_b_output'),
   factCheckerOutput: jsonb('fact_checker_output'),
