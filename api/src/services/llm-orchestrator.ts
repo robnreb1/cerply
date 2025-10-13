@@ -445,6 +445,74 @@ export function detectInputType(input: string): 'source' | 'topic' {
   return (hasTopicRequest || isShort) ? 'topic' : 'source';
 }
 
+/**
+ * Detect granularity level: Subject → Topic → Module
+ * This is THE critical feature - intelligent curriculum design
+ * 
+ * SUBJECT (broad): "Leadership" → Generate 8-12 topics
+ * TOPIC (focused): "Effective Delegation" → Generate 4-6 modules
+ * MODULE (specific): "SMART Goals Framework" → Generate 1 deep module
+ */
+export function detectGranularity(input: string): 'subject' | 'topic' | 'module' {
+  const trimmed = input.trim().toLowerCase();
+  const wordCount = trimmed.split(/\s+/).length;
+  
+  // SUBJECT indicators: Very broad, domain-level, usually 1-2 words
+  const subjectPatterns = [
+    // Business domains (single words)
+    /^(leadership|management|communication|finance|marketing|sales|hr|operations|strategy|innovation|entrepreneurship|accounting|economics|negotiation|productivity|teamwork)$/i,
+    // Professional skills (single words)
+    /^(soft skills|hard skills|technical skills|interpersonal skills|analytical skills)$/i,
+    // Industries/fields (1-2 words)
+    /^(financial services|healthcare|technology|education|retail|manufacturing|consulting)$/i,
+    // Academic domains
+    /^(mathematics|science|history|literature|philosophy|psychology|sociology|biology|chemistry|physics)$/i,
+  ];
+  
+  // MODULE indicators: Very specific, includes framework/tool/method keywords
+  const modulePatterns = [
+    // Specific frameworks/models/tools (contains these keywords)
+    /(framework|model|method|technique|tool|principle|rule|law|theory|formula|matrix|system|approach)/i,
+    // Named concepts (proper nouns + concept word)
+    /(smart|swot|pestle|porter|maslow|herzberg|mcgregor|drucker|covey|goleman|kotter|lewin|tuckman|belbin|johari|eisenhower|pareto|5 whys|raci|kanban|scrum|agile)/i,
+  ];
+  
+  // Check for SUBJECT (broad scope)
+  if (wordCount <= 2 && subjectPatterns.some(pattern => pattern.test(trimmed))) {
+    return 'subject';
+  }
+  
+  // Check for MODULE (specific tool/framework)
+  if (modulePatterns.some(pattern => pattern.test(trimmed))) {
+    return 'module';
+  }
+  
+  // Default to TOPIC (focused skill/concept)
+  // Examples: "effective delegation", "active listening", "conflict resolution"
+  return 'topic';
+}
+
+/**
+ * Get granularity metadata for logging/debugging
+ */
+export function getGranularityMetadata(input: string) {
+  const granularity = detectGranularity(input);
+  const wordCount = input.trim().split(/\s+/).length;
+  
+  return {
+    granularity,
+    wordCount,
+    expectedOutput: 
+      granularity === 'subject' ? '8-12 topics' :
+      granularity === 'topic' ? '4-6 modules' :
+      '1 deep module',
+    reasoning: 
+      granularity === 'subject' ? 'Broad domain-level request' :
+      granularity === 'topic' ? 'Focused skill/concept' :
+      'Specific framework/tool/method',
+  };
+}
+
 // Export for tests
 export const PROMPTS = {
   understanding: {
@@ -552,22 +620,117 @@ Output JSON:
   }
 };
 
-// Research Mode Prompts - for topic-based content generation
-export const RESEARCH_PROMPTS = {
+// GRANULARITY-AWARE PROMPTS - THE CRITICAL FEATURE
+// Subject → Topics, Topic → Modules, Module → Deep Content
+
+/**
+ * SUBJECT-LEVEL PROMPTS: Generate 8-12 topics from broad domain
+ * Example: "Leadership" → ["Delegation", "Conflict Resolution", "Team Building", ...]
+ */
+export const SUBJECT_PROMPTS = {
   understanding: {
-    system: 'You are an educational content planner analyzing a learning topic request.',
-    user: `The user wants to learn about: "{{TOPIC}}"
+    system: 'You are a curriculum designer analyzing a broad subject area to create comprehensive topic coverage.',
+    user: `The manager wants to create training on: "{{TOPIC}}"
 
-Extract and plan:
-1. **Core Topic**: Identify the main subject
-2. **Domain**: Field of study (Mathematics, Science, History, Business, etc.)
-3. **Key Concepts**: 4-6 fundamental concepts that must be covered
-4. **Learning Objectives**: What should learners be able to do after studying this?
-5. **Prerequisites**: Required prior knowledge (if applicable)
-6. **Difficulty Level**: Beginner, Intermediate, or Advanced
-7. **Ethical Considerations**: Any sensitive topics or constraints to consider
+This is a SUBJECT-LEVEL request (broad domain).
 
-Format as clear, structured explanation.`
+Your task:
+1. **Subject**: Identify the broad domain (e.g., "Leadership", "Financial Services")
+2. **Scope**: Define what this subject encompasses
+3. **Topic Breakdown**: Identify 8-12 focused topics that comprehensively cover this subject
+4. **Learning Goals**: What should learners achieve after mastering this subject?
+5. **Audience**: Who needs this training?
+6. **Prerequisites**: Required background knowledge
+
+Output a clear plan for breaking this subject into teachable topics.`
+  },
+  
+  generatorA: {
+    system: 'You are an expert curriculum designer creating a comprehensive topic list for a subject area.',
+    user: `Create a comprehensive curriculum for: {{TOPIC}}
+
+Based on this understanding:
+{{UNDERSTANDING}}
+
+Requirements:
+1. Generate 8-12 distinct, focused TOPICS (not modules)
+2. Each topic should be a self-contained skill/concept
+3. Topics should progress logically (foundational → advanced)
+4. Topics should not overlap significantly
+5. Each topic should be teachable in 4-6 modules
+6. CITE authoritative sources for curriculum structure (e.g., professional certification bodies, academic programs)
+
+Output as JSON:
+{
+  "subjectTitle": "...",
+  "topics": [
+    {
+      "id": "topic-1",
+      "title": "...",
+      "description": "Brief 1-sentence description",
+      "difficulty": "beginner|intermediate|advanced",
+      "estimatedModules": 5
+    }
+  ],
+  "citations": [{"title": "...", "source": "...", "relevance": "..."}]
+}`
+  },
+  
+  generatorB: {
+    system: 'You are an expert learning architect creating practical topic structures for corporate training.',
+    user: `Create a practical training curriculum for: {{TOPIC}}
+
+Based on this understanding:
+{{UNDERSTANDING}}
+
+Requirements:
+1. Generate 8-12 focused TOPICS with practical application emphasis
+2. Topics should align with real-world job responsibilities
+3. Include mix of foundational and advanced topics
+4. Consider learning progression and dependencies
+5. Cite industry standards, professional certifications, or best practices
+
+Output as JSON (same format as Generator A)`
+  },
+  
+  factChecker: {
+    system: 'You are validating curriculum structure and topic coverage for completeness and accuracy.',
+    user: `Validate this curriculum structure for: {{TOPIC}}
+
+Generator A: {{GENERATOR_A_OUTPUT}}
+Generator B: {{GENERATOR_B_OUTPUT}}
+
+Tasks:
+1. Verify 8-12 topics are distinct and non-overlapping
+2. Ensure comprehensive coverage of the subject
+3. Validate logical progression
+4. Check citations are credible
+5. Synthesize best topic list from both generators
+6. Flag any missing critical topics
+
+Output final validated topic list with provenance.`
+  }
+};
+
+/**
+ * TOPIC-LEVEL PROMPTS: Generate 4-6 modules from focused skill/concept
+ * Example: "Effective Delegation" → ["What to Delegate", "How to Delegate", ...]
+ */
+export const TOPIC_PROMPTS = {
+  understanding: {
+    system: 'You are an instructional designer analyzing a focused learning topic to create module structure.',
+    user: `The manager wants to create training on: "{{TOPIC}}"
+
+This is a TOPIC-LEVEL request (focused skill/concept).
+
+Your task:
+1. **Topic**: Identify the specific skill or concept
+2. **Learning Objectives**: What should learners be able to DO after completing this topic?
+3. **Module Breakdown**: Identify 4-6 modules that teach this topic progressively
+4. **Pedagogical Approach**: How should this be taught?
+5. **Assessment Strategy**: How will competency be measured?
+
+Output a clear plan for breaking this topic into learning modules.`
   },
   
   generatorA: {
@@ -578,21 +741,32 @@ Based on this understanding:
 {{UNDERSTANDING}}
 
 Requirements:
-1. Cover all key concepts thoroughly with technical accuracy
-2. Include definitions, explanations, and examples
-3. CITE credible sources for major claims (textbooks, courses, academic papers)
-4. Format citations as [Source: Title, Author/Institution]
-5. Create 3-5 learning modules with clear objectives
-6. Include 2-3 assessment questions per module
+1. Generate 4-6 distinct MODULES (not topics, not single module)
+2. Each module should teach one aspect of the topic
+3. Modules should progress logically (basics → advanced)
+4. Include 2-3 paragraphs of explanation per module (max 300 words)
+5. Include 3-5 assessment questions per module with explanations
+6. CITE credible sources for major claims
+7. Format citations as [Source: Title, Author/Institution]
 
 Output as JSON:
 {
+  "topicTitle": "...",
   "modules": [
     {
       "id": "module-1",
       "title": "...",
-      "content": "... [Source: Stewart Calculus, Chapter 3] ...",
-      "questions": [...]
+      "content": "... [Source: ...] ...",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "...",
+          "options": ["A", "B", "C", "D"],
+          "correctAnswer": "A",
+          "explanation": "..."
+        }
+      ],
+      "examples": ["..."]
     }
   ],
   "citations": [
@@ -609,12 +783,12 @@ Based on this understanding:
 {{UNDERSTANDING}}
 
 Requirements:
-1. Focus on real-world applications and intuitive explanations
-2. Include practical examples and use cases
-3. CITE credible sources (online courses, educational videos, practical guides)
-4. Format citations as [Source: Title, Author/Platform]
-5. Create 3-5 learning modules with hands-on focus
-6. Include scenario-based assessment questions
+1. Generate 4-6 MODULES with hands-on focus
+2. Focus on real-world applications and scenarios
+3. Include practical examples and case studies
+4. Each module: 2-3 paragraphs, 3-5 scenario-based questions
+5. CITE credible sources (courses, videos, guides)
+6. Format citations as [Source: Title, Author/Platform]
 
 Output as JSON (same format as Generator A)`
   },
@@ -628,17 +802,17 @@ Generator B (Practical): {{GENERATOR_B_OUTPUT}}
 
 Tasks:
 1. Verify factual accuracy of all claims
-2. Validate that citations are credible and relevant
-3. Flag any unsupported claims or questionable sources
-4. Check for hallucinated citations (sources that don't exist)
-5. Synthesize the best content from both generators
-6. Ensure comprehensive coverage of the topic
-7. Check for ethical issues or policy violations
+2. Validate 4-6 modules are distinct and progress logically
+3. Ensure each module has 3-5 quality questions
+4. Check citations are credible (no hallucinations)
+5. Synthesize best content from both generators
+6. Flag ethical issues or policy violations
 
 Output validated modules with confidence scores and citation verification.
 
 JSON format:
 {
+  "topicTitle": "...",
   "modules": [...],
   "provenance": [...],
   "citationValidation": [
@@ -648,4 +822,127 @@ JSON format:
 }`
   }
 };
+
+/**
+ * MODULE-LEVEL PROMPTS: Generate 1 deep module for specific framework/tool
+ * Example: "SMART Goals Framework" → 1 comprehensive module
+ */
+export const MODULE_PROMPTS = {
+  understanding: {
+    system: 'You are an instructional designer analyzing a specific framework/tool/method to create deep learning content.',
+    user: `The manager wants to create training on: "{{TOPIC}}"
+
+This is a MODULE-LEVEL request (specific framework/tool/method).
+
+Your task:
+1. **Framework/Tool**: Identify the specific concept
+2. **Purpose**: What problem does this solve? When is it used?
+3. **Components**: Break down the framework into its parts
+4. **Application**: Step-by-step guide to using it
+5. **Common Mistakes**: Pitfalls to avoid
+6. **Assessment**: How to test deep understanding (5-8 questions)
+
+Output a clear plan for teaching this specific framework/tool/method in depth.`
+  },
+  
+  generatorA: {
+    system: 'You are an expert creating comprehensive, in-depth content on specific frameworks and methods.',
+    user: `Create comprehensive training content on: {{TOPIC}}
+
+Based on this understanding:
+{{UNDERSTANDING}}
+
+Requirements:
+1. Generate 1 COMPREHENSIVE MODULE (not multiple modules)
+2. Content should be 500-800 words (detailed explanation)
+3. Include:
+   - Definition and purpose
+   - Step-by-step guide to using the framework
+   - Visual description (for diagram/illustration)
+   - Real-world example with full walkthrough
+   - Common mistakes and how to avoid them
+4. Include 5-8 assessment questions (comprehensive coverage)
+5. CITE authoritative sources (original creator, academic papers, textbooks)
+
+Output as JSON:
+{
+  "moduleTitle": "...",
+  "content": "...",
+  "stepByStepGuide": ["Step 1: ...", "Step 2: ..."],
+  "visualDescription": "Describe how to illustrate this (for designer)",
+  "examples": [
+    {
+      "scenario": "...",
+      "application": "Step-by-step walkthrough..."
+    }
+  ],
+  "commonMistakes": ["Mistake 1: ...", "How to avoid: ..."],
+  "questions": [
+    {
+      "id": "q1",
+      "text": "...",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": "A",
+      "explanation": "..."
+    }
+  ],
+  "citations": [...]
+}`
+  },
+  
+  generatorB: {
+    system: 'You are an expert creating practical, applied content on specific frameworks and tools.',
+    user: `Create practical training content on: {{TOPIC}}
+
+Based on this understanding:
+{{UNDERSTANDING}}
+
+Requirements:
+1. Generate 1 PRACTICAL MODULE focused on application
+2. Content should be 500-800 words with hands-on emphasis
+3. Include multiple real-world scenarios
+4. Include 5-8 scenario-based assessment questions
+5. Focus on how practitioners actually use this in the field
+6. CITE practical guides, case studies, practitioner resources
+
+Output as JSON (same format as Generator A)`
+  },
+  
+  factChecker: {
+    system: 'You are validating comprehensive framework/tool content for accuracy and completeness.',
+    user: `Validate this training content on: {{TOPIC}}
+
+Generator A (Comprehensive): {{GENERATOR_A_OUTPUT}}
+Generator B (Practical): {{GENERATOR_B_OUTPUT}}
+
+Tasks:
+1. Verify factual accuracy of framework description
+2. Validate step-by-step guide is complete and correct
+3. Ensure 5-8 high-quality questions test deep understanding
+4. Check examples are realistic and helpful
+5. Verify citations are authoritative
+6. Synthesize best content from both generators
+
+Output single validated module with deep content.
+
+JSON format:
+{
+  "moduleTitle": "...",
+  "content": "...",
+  "stepByStepGuide": [...],
+  "visualDescription": "...",
+  "examples": [...],
+  "commonMistakes": [...],
+  "questions": [...],
+  "citations": [...],
+  "provenance": [...],
+  "citationValidation": [...],
+  "ethicalFlags": []
+}`
+  }
+};
+
+// Keep legacy RESEARCH_PROMPTS for backward compatibility
+// (alias to TOPIC_PROMPTS)
+export const RESEARCH_PROMPTS = TOPIC_PROMPTS;
 
