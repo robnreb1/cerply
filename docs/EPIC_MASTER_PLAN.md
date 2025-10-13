@@ -640,9 +640,9 @@ GET /api/certificates/:id → PDF download
 
 ### Epic 8: Conversational Learning Interface
 
-**Status:** ⚠️ Phase 4 Complete (2h remaining)  
+**Status:** ⚠️ Phase 7 Complete (1h remaining - Phase 8 only!)  
 **Priority:** P1 (UX differentiator)  
-**Effort:** 15 hours (11.5h done, 2h remaining)
+**Effort:** 15 hours (12.5h done, 1h remaining)
 
 **BRD Traceability:**
 - L-12: Conversational interface with natural language queries
@@ -655,22 +655,25 @@ GET /api/certificates/:id → PDF download
 - `EPIC8_IMPLEMENTATION_PROMPT.md`  
 - `EPIC8_PHASE2_DELIVERY.md`
 - `EPIC8_PHASE3-4_DELIVERY.md`
+- `EPIC8_PHASE7_DELIVERY.md` **NEW**
 
 **Scope (LOCKED):**
 1. ✅ Chat panel with Cmd+K shortcut (Phase 1)
-2. ✅ Intent router (progress/next/explanation/filter/help) (Phase 1)
+2. ✅ Intent router (progress/next/explanation/filter/help) **ENHANCED in Phase 7 (93.8% accuracy)**
 3. ✅ LLM-powered explanations with caching (Phase 2) **COMPLETE 2025-10-13**
 4. ✅ Free-text answer validation (fuzzy matching + LLM) (Phase 3) **COMPLETE 2025-10-13**
 5. ✅ Confusion tracking for adaptive difficulty (Phase 2) **COMPLETE 2025-10-13**
 6. ✅ Partial credit scoring in gamification (Phase 4) **COMPLETE 2025-10-13**
+7. ✅ Natural language guardrails (Phase 7) **COMPLETE 2025-10-13**
 
 **Deliverables:**
 - [x] Chat panel implemented (Phase 1)
-- [x] Intent router working (Phase 1)
+- [x] Intent router working (Phase 1, enhanced Phase 7) **93.8% accuracy**
 - [x] Explanations generated (Phase 2) **COMPLETE 2025-10-13**
 - [x] Free-text validation working (Phase 3) **COMPLETE 2025-10-13**
 - [x] Confusion logged (Phase 2) **COMPLETE 2025-10-13**
 - [x] Partial credit scoring (Phase 4) **COMPLETE 2025-10-13**
+- [x] Guardrails implemented (Phase 7) **COMPLETE 2025-10-13**
 
 **Feature Flags:**
 - `FF_CONVERSATIONAL_UI_V1=true`
