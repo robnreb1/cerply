@@ -1,5 +1,5 @@
 # Architecture Decision Records (ADR)
-**Version:** 1.2  
+**Version:** 1.3  
 **Status:** LOCKED (Changes require explicit approval)  
 **Last Updated:** 2025-10-13  
 **Owner:** Cerply Engineering
@@ -289,6 +289,24 @@ CREATE TABLE learner_profiles (...);
 
 ## 9. Render Deployment via Docker Images (IMMUTABLE)
 
+> **🚨 CRITICAL: READ THIS FIRST** 🚨
+>
+> **Render deploys from DOCKER IMAGES (ghcr.io), NOT from GitHub branches.**
+>
+> **This is NOT optional. This is HOW Render works.**
+>
+> **Common mistake:** "I merged to `main` but Render doesn't have my changes"
+> **Why:** Because Render doesn't watch Git branches. It watches Docker image tags.
+>
+> **Workflow:**
+> 1. You push to GitHub branch (e.g., `staging`)
+> 2. GitHub Actions builds Docker image and tags it (e.g., `staging-latest`)
+> 3. GitHub Actions triggers Render deploy hook
+> 4. Render pulls the Docker image tag (e.g., `ghcr.io/robnreb1/cerply-api:staging-latest`)
+> 5. Render deploys the IMAGE, not the branch
+>
+> **If you skip step 2 or 3, Render won't deploy anything.**
+
 **Decision:** Render deploys from pre-built Docker images pushed to GitHub Container Registry (ghcr.io), NOT directly from Git branches.
 
 **Rationale:** 
@@ -296,6 +314,7 @@ CREATE TABLE learner_profiles (...);
 - Faster deployments (no build time on Render)
 - Explicit promotion workflow (staging → prod)
 - Image-based rollback capability
+- **Prevents "works in Git but not in Render" issues**
 
 ### Deployment Workflow
 
@@ -750,6 +769,11 @@ function canonizeContent(topicId: string) {
 ---
 
 ## Changelog
+
+### v1.3 (2025-10-13)
+- **Strengthened §9: Render Deployment via Docker Images** - Added prominent warning box to prevent "merged but not deployed" issues
+- **Clarified Docker image workflow** - Emphasized that Render deploys FROM IMAGES (ghcr.io), NOT from Git branches
+- **Source:** Epic 9 completion + repeated user confusion about Render deployment
 
 ### v1.2 (2025-10-13)
 - **Added Content Meta Model section** - 5-tier hierarchy, mandatory patterns for generation/certification/freshness
