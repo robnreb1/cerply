@@ -248,10 +248,25 @@ async function callGemini(
 /**
  * Step 1: Playback Understanding
  * LLM reads artefact and explains its understanding
+ * NOW WITH GRANULARITY DETECTION
  */
-export async function playbackUnderstanding(artefact: string): Promise<LLMResult & { inputType?: string }> {
+export async function playbackUnderstanding(artefact: string): Promise<LLMResult & { inputType?: string; granularity?: string }> {
   const inputType = detectInputType(artefact);
-  const prompts = inputType === 'topic' ? RESEARCH_PROMPTS : PROMPTS;
+  
+  // CRITICAL: Detect granularity for intelligent prompting
+  const granularity = detectGranularity(artefact);
+  
+  // Select prompts based on granularity
+  let prompts;
+  if (granularity === 'subject') {
+    prompts = SUBJECT_PROMPTS;
+  } else if (granularity === 'module') {
+    prompts = MODULE_PROMPTS;
+  } else {
+    // Default to topic-level (or use RESEARCH_PROMPTS for backward compatibility)
+    prompts = inputType === 'topic' ? TOPIC_PROMPTS : PROMPTS;
+  }
+  
   const systemPrompt = prompts.understanding.system;
   const userPrompt = prompts.understanding.user
     .replace('{{ARTEFACT}}', artefact)
@@ -267,7 +282,7 @@ export async function playbackUnderstanding(artefact: string): Promise<LLMResult
     result = await callGemini(UNDERSTANDING_MODEL, userPrompt, systemPrompt);
   }
   
-  return { ...result, inputType };
+  return { ...result, inputType, granularity };
 }
 
 /**
@@ -299,14 +314,27 @@ export async function refineUnderstanding(
  * Step 3: Generate with Ensemble
  * Generator A and Generator B create content independently
  * Fact-Checker verifies and selects best elements
+ * NOW WITH GRANULARITY-AWARE PROMPTS
  */
 export async function generateWithEnsemble(
   understanding: string,
   artefact: string,
-  inputType: 'source' | 'topic' = 'source'
+  inputType: 'source' | 'topic' = 'source',
+  granularity?: 'subject' | 'topic' | 'module'
 ): Promise<EnsembleResult> {
   const start = Date.now();
-  const prompts = inputType === 'topic' ? RESEARCH_PROMPTS : PROMPTS;
+  
+  // CRITICAL: Use granularity-aware prompts
+  let prompts;
+  if (granularity === 'subject') {
+    prompts = SUBJECT_PROMPTS;
+  } else if (granularity === 'module') {
+    prompts = MODULE_PROMPTS;
+  } else if (inputType === 'topic') {
+    prompts = TOPIC_PROMPTS;
+  } else {
+    prompts = PROMPTS;
+  }
   
   // Generator A (Claude, GPT, or Gemini - depends on configuration)
   const generatorAPrompt = prompts.generatorA.user
