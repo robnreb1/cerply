@@ -1,9 +1,11 @@
 import { FastifyInstance } from 'fastify';
 import crypto from 'crypto';
 import { readSession } from './auth';
+import { readSSOSession } from './sso';
 import { attempts, reviewSchedule } from '../db/learner';
 import { and, eq } from 'drizzle-orm';
 import { validateFreeTextAnswer } from '../services/free-text-validator';
+import { recordAttemptForAdaptive, DifficultyLevel } from '../services/adaptive';
 
 type LearnItem = {
   id: string;
@@ -271,7 +273,44 @@ export async function registerLearnRoutes(app: FastifyInstance & { db?: any }) {
     reply.header('x-learn-attempt-db', _dbAttempted ? '1' : '0');
     reply.header('x-learn-db-scheduled', _dbScheduled ? '1' : '0');
 
-    
+    // Epic 9: Record attempt for adaptive difficulty tracking
+    const FF_ADAPTIVE_DIFFICULTY_V1 = process.env.FF_ADAPTIVE_DIFFICULTY_V1 === 'true';
+    if (FF_ADAPTIVE_DIFFICULTY_V1 && _dbAttempted) {
+      try {
+        const ssoSession = readSSOSession(req);
+        if (ssoSession && ssoSession.userId) {
+          // Get topicId from questionId by joining through quiz/module/topic hierarchy
+          const db: any = (app as any).db;
+          if (db && db.execute) {
+            const topicRow = await db.execute(
+              `SELECT m.topic_id, q.difficulty_level
+               FROM questions qq
+               JOIN quizzes qz ON qq.quiz_id = qz.id
+               JOIN modules_v2 m ON qz.module_id = m.id
+               WHERE qq.id = $1
+               LIMIT 1`,
+              [body.itemId]
+            );
+            
+            if (topicRow && topicRow[0]) {
+              const topicId = topicRow[0].topic_id;
+              const difficulty = topicRow[0].difficulty_level || 'application';
+              
+              await recordAttemptForAdaptive(ssoSession.userId, topicId, {
+                questionId: body.itemId,
+                correct,
+                partialCredit: partialCredit ?? undefined,
+                responseTimeMs: body.responseTimeMs ?? undefined,
+                difficultyLevel: difficulty as DifficultyLevel,
+              });
+            }
+          }
+        }
+      } catch (adaptiveErr) {
+        // Don't fail the request if adaptive tracking fails
+        console.error('[learn] Adaptive tracking error:', adaptiveErr);
+      }
+    }
 
     // update schedule (memory)
     const schedKey = keyFor(userId, planId);

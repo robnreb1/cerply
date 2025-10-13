@@ -120,6 +120,8 @@ export const attempts = pgTable('attempts', {
   partialCredit: numeric('partial_credit', { precision: 3, scale: 2 }), // Epic 8: 0.00 to 1.00
   feedback: text('feedback'), // Epic 8: Validation feedback
   validationMethod: text('validation_method'), // Epic 8: 'mcq', 'fuzzy', 'llm'
+  responseTimeMs: integer('response_time_ms'), // Epic 9: Response time for adaptive difficulty
+  difficultyLevel: text('difficulty_level'), // Epic 9: 'recall' | 'application' | 'analysis' | 'synthesis'
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -374,6 +376,43 @@ export const confusionLog = pgTable('confusion_log', {
   helpful: boolean('helpful'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+// ============================================================================
+// EPIC 9: ADAPTIVE DIFFICULTY ENGINE
+// ============================================================================
+// Migration: 018_adaptive_difficulty.sql
+// Tracks learner profiles (learning style, consistency) and topic comprehension (mastery levels)
+
+// Learner Profiles: Track learning style and performance consistency per user
+export const learnerProfiles = pgTable('learner_profiles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').notNull(), // TEXT to match users.id type
+  learningStyle: text('learning_style'), // 'visual' | 'verbal' | 'kinesthetic' | 'balanced' | 'unknown'
+  avgResponseTime: numeric('avg_response_time', { precision: 10, scale: 2 }), // milliseconds
+  consistencyScore: numeric('consistency_score', { precision: 3, scale: 2 }), // 0.00 - 1.00
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqUserId: unique().on(table.userId),
+}));
+
+// Topic Comprehension: Track mastery level per user per topic for adaptive difficulty
+export const topicComprehension = pgTable('topic_comprehension', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: text('user_id').notNull(), // TEXT to match users.id type
+  topicId: uuid('topic_id').notNull(),  // Will reference topics.id once migration 016 is complete
+  masteryLevel: numeric('mastery_level', { precision: 3, scale: 2 }).notNull().default('0.00'), // 0.00 - 1.00
+  difficultyLevel: text('difficulty_level').notNull().default('recall'), // 'recall' | 'application' | 'analysis' | 'synthesis'
+  attemptsCount: integer('attempts_count').notNull().default(0),
+  correctCount: integer('correct_count').notNull().default(0),
+  partialCreditSum: numeric('partial_credit_sum', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  confusionCount: integer('confusion_count').notNull().default(0),
+  lastPracticedAt: timestamp('last_practiced_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqUserTopic: unique().on(table.userId, table.topicId),
+}));
 
 // ============================================================================
 // DEPRECATED TABLES (to be migrated to new hierarchy)

@@ -2078,24 +2078,59 @@ NEXT_PUBLIC_CONVERSATIONAL_UI_V1=true npm run dev
 
 ---
 
-## 30) Adaptive Difficulty Engine (Epic 9) — 📋 PLANNED
+## 30) Adaptive Difficulty Engine (Epic 9) — ✅ COMPLETE
 
 **Covers BRD:** L-2 (Adaptive lesson plans with dynamic difficulty)
 
-**Epic Status:** 📋 PLANNED (After Epic 8 Phase 2-8 completion)
+**Epic Status:** ✅ COMPLETE (2025-10-13)
 
-See `EPIC9_IMPLEMENTATION_PROMPT.md` for full specification.
+**Implementation:** See `EPIC9_IMPLEMENTATION_PROMPT_v2.md` and `EPIC9_DELIVERY_SUMMARY.md`
 
-**Key Features (Planned):**
-- 4 difficulty levels (Recall, Application, Analysis, Synthesis)
-- Performance signals (correctness, latency, confusion from Epic 8)
-- Learning style detection (visual/verbal/kinesthetic)
-- Topic weakness detection (comprehension < 70%)
-- Adaptive algorithm with BKT/AFM foundation
+**Delivered Features:**
+- ✅ 4 difficulty levels (Recall, Application, Analysis, Synthesis) based on Bloom's Taxonomy
+- ✅ Performance signals: correctness, latency, confusion (Epic 8), partial credit, response time
+- ✅ Learning style detection: visual/verbal/kinesthetic/balanced/unknown (confidence-scored)
+- ✅ Topic weakness detection: identifies topics with mastery < 0.70
+- ✅ Time-weighted mastery calculation: exponential decay (30-day half-life)
+- ✅ Adaptive difficulty recommendations: dynamic adjustment based on recent performance
+- ✅ Integration with Epic 8 (confusion tracking) and Epic 7 (gamification)
+
+**API Endpoints:**
+```bash
+# Get learner adaptive profile
+GET /api/adaptive/profile/:userId
+# Response: { profile: { learningStyle, avgResponseTime, consistencyScore }, weakTopics: [...] }
+
+# Get recommended difficulty for topic
+GET /api/adaptive/topics/:topicId/difficulty/:userId
+# Response: { difficulty, masteryLevel, confidence, reasoning }
+
+# Record attempt for adaptive tracking
+POST /api/adaptive/attempt
+# Body: { userId, topicId, questionId, correct, partialCredit?, responseTimeMs?, difficultyLevel }
+# Response: { success: true, newMastery: 0.72 }
+
+# Get adaptive analytics dashboard
+GET /api/adaptive/analytics/:userId
+# Response: { overallMastery, learningStyle, topicBreakdown, strengthTopics, weakTopics }
+```
+
+**Database Tables:**
+- `learner_profiles` - Learning style, avg response time, consistency score
+- `topic_comprehension` - Per-topic mastery tracking (user_id, topic_id, mastery_level, difficulty_level)
+- Extended `attempts` table with `response_time_ms` and `difficulty_level`
+
+**Feature Flag:**
+- `FF_ADAPTIVE_DIFFICULTY_V1=true` - Enable adaptive difficulty engine
+
+**Testing:**
+- 25 unit tests covering core adaptive functions
+- 8 smoke tests for API endpoints
+- Integration with Epic 8 confusion tracking verified
 
 **Dependencies:**
-- Requires Epic 8 Phase 5 (confusion tracking)
-- Requires Epic 0 (Platform Foundations - quality metrics)
+- ✅ Epic 8 Phase 5 (confusion tracking) - Available via `confusion_log` table
+- ✅ Epic 0 (Platform Foundations) - Quality metrics integrated
 
 ---
 
