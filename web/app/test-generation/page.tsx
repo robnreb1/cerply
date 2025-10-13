@@ -57,12 +57,16 @@ export default function TestGenerationPage() {
 
     try {
       // Step 1: Understanding
+      const adminToken = process.env.NEXT_PUBLIC_ADMIN_TOKEN || 'test-admin-token';
+      console.log('Using admin token:', adminToken); // Debug
+      
       const understandResponse = await fetch(`${apiBase}/api/content/understand`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || 'test-admin-token',
+          'x-admin-token': adminToken,
         },
+        credentials: 'include', // Include cookies for session
         body: JSON.stringify({
           artefact: customInput,
           artefactType: 'text',
