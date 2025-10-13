@@ -186,8 +186,8 @@ export async function countCorrectAttempts(userId: string, trackId: string): Pro
     if (att.partialCredit !== null && att.partialCredit !== undefined) {
       // Has partial credit score - use it (0.0 to 1.0)
       return sum + Number(att.partialCredit);
-    } else if (att.correct === 1 || att.correct === true) {
-      // Legacy correct answer - count as 1.0
+    } else if (att.correct === 1) {
+      // Legacy correct answer (stored as number 1) - count as 1.0
       return sum + 1.0;
     }
     // Incorrect answer - count as 0

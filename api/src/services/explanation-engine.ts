@@ -66,8 +66,22 @@ export async function generateExplanation(
   let question = await db.select().from(questions).where(eq(questions.id, questionId)).limit(1);
   
   if (question.length === 0) {
-    // Try old schema (items table)
-    question = await db.select().from(items).where(eq(items.id, questionId)).limit(1);
+    // Try old schema (items table) - cast to any to handle schema differences
+    const legacyQuestion = await db.select().from(items).where(eq(items.id, questionId)).limit(1);
+    if (legacyQuestion.length > 0) {
+      // Map legacy schema to new schema format
+      question = [{
+        id: legacyQuestion[0].id,
+        quizId: legacyQuestion[0].moduleId, // Legacy: moduleId -> quizId
+        type: legacyQuestion[0].type,
+        stem: legacyQuestion[0].stem || '',
+        options: legacyQuestion[0].options,
+        correctAnswer: legacyQuestion[0].answer,
+        guidanceText: legacyQuestion[0].explainer,
+        difficultyLevel: null,
+        createdAt: legacyQuestion[0].createdAt,
+      }] as any;
+    }
   }
   
   if (question.length === 0) {
