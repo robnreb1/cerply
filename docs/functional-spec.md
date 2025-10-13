@@ -1542,20 +1542,26 @@ FF_CHANNEL_SLACK=true bash api/scripts/smoke-delivery.sh
 
 ---
 
-## 26) Ensemble Content Generation v1 — ✅ IMPLEMENTED
+## 26) Ensemble Content Generation v1 — 🚧 IN PROGRESS
 
-**Covers BRD:** B-3, E-14 (High-Quality Content Generation with Provenance Tracking)
+**Covers BRD:** B-3, E-14, L-13 (High-Quality Content Generation with Provenance Tracking + Natural Language Interface)
 
-**Epic Status:** ✅ IMPLEMENTED 2025-10-10 | Epic: Epic 6 | Tests: `api/tests/ensemble-generation.test.ts`, `api/scripts/smoke-ensemble.sh`
+**Epic Status:** 🚧 IN PROGRESS (Conversational UX ✅ 2025-10-13) | Epic: Epic 6 | Tests: `api/tests/ensemble-generation.test.ts`, `api/scripts/smoke-ensemble.sh`
 
 **Implementation Summary:**
 
-3-LLM ensemble pipeline that replaces mock content generation with real, high-quality content validated across multiple models. Managers upload artefacts → LLM plays back understanding → Manager confirms or refines (max 3 iterations) → Generator A (GPT-4o) and Generator B (Claude Sonnet) create content independently → Fact-Checker (GPT-4) verifies accuracy and selects best elements → Manager reviews with full provenance transparency → Content published with audit trail.
+Conversational learning interface with intelligent granularity detection that adapts the entire user experience. Users type what they want to learn → Cerply detects granularity (Subject/Topic/Module) → Cerply adapts conversation accordingly:
+- **Subject** (broad domain like "Leadership"): Cerply clarifies and suggests specific topics to start with
+- **Topic** (focused skill like "Effective Delegation"): Cerply guides step-by-step through modules
+- **Module** (specific tool like "SMART Goals"): Cerply generates content plus parent topic context
+
+Behind the scenes: 3-LLM ensemble pipeline with Generator A (GPT-4o), Generator B (Claude Sonnet), and Fact-Checker (o3) creates high-quality, verified content with full provenance tracking.
 
 **Key Features:**
-- **Granularity Detection (THE KILLER FEATURE):** Intelligently detects if input is Subject (8-12 topics), Topic (4-6 modules), or Module (1 deep module) and adapts prompts accordingly
-- **Understanding Playback:** LLM explains its comprehension before generation
-- **Iterative Refinement:** Managers can refine understanding up to 3 times
+- **Conversational Granularity Detection (THE KILLER FEATURE):** Natural language interface that intelligently detects Subject (8-12 topics), Topic (4-6 modules), or Module (1 deep module) and adapts the entire conversation flow
+- **Adaptive Conversation Flow:** Different conversation paths based on detected granularity (clarify → guide → generate)
+- **Understanding Playback:** Cerply explains its comprehension conversationally before generation
+- **Natural Language First:** Main page is conversational interface, not forms or buttons
 - **3-LLM Ensemble:** Two independent generators + fact-checker for quality
 - **Adaptive Prompting:** Uses specialized prompts (SUBJECT_PROMPTS, TOPIC_PROMPTS, MODULE_PROMPTS) based on detected granularity
 - **Provenance Tracking:** Every section tagged with source LLM and confidence score
@@ -1565,9 +1571,11 @@ FF_CHANNEL_SLACK=true bash api/scripts/smoke-delivery.sh
 - **Async Generation:** Non-blocking with status polling for real-time progress
 
 **Technical Achievements:**
+- **Conversational Main Interface:** `web/app/page.tsx` is now a chat-first interface, not a login redirect
 - **Intelligent Granularity Detection:** Pattern-based detection with subject patterns (business domains, industries), module patterns (framework/model/technique keywords), and topic default
 - **Multi-Provider Integration:** OpenAI (GPT-5 with extended thinking), Anthropic (Claude 4.5 Sonnet), Google (Gemini 2.5 Pro)
 - **Adaptive Prompt Selection:** Automatic selection of prompt set based on granularity (SUBJECT/TOPIC/MODULE)
+- **Conversational Response Generation:** Different response templates for each granularity level
 - **Retry Logic:** Exponential backoff for resilient LLM API calls across all three providers
 - **Cost Calculation:** Accurate per-token cost tracking for budget management
 - **Provenance Storage:** Separate table for audit trail and compliance
@@ -1597,10 +1605,10 @@ FF_CHANNEL_SLACK=true bash api/scripts/smoke-delivery.sh
 - **Module:** "SMART Goals Framework" → 1 deep module (500-800 words, step-by-step guide, visual description, examples, 5-8 questions)
 
 **UI Components:**
+- `/` (main page) - **NEW:** Conversational learning interface with intelligent granularity detection (chat-first, natural language)
 - `/curator/understand` - Upload artefact, view understanding
 - `/curator/refine/[id]` - Provide feedback to refine understanding
 - `/curator/generate/[id]` - View generation progress and final modules with provenance
-- `/test-generation` - **NEW:** Granularity testing interface with 15 predefined test cases (5 subject, 5 topic, 5 module) for validating detection accuracy
 
 **Cost Optimization:**
 - Average generation cost: TBD (to be measured in production with GPT-5 + Claude 4.5 + Gemini 2.5 Pro)

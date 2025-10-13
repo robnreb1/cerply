@@ -368,20 +368,24 @@ POST /api/channels/slack/webhook → 200 OK
 **Implementation Prompt:** `EPIC6_IMPLEMENTATION_PROMPT.md`
 
 **Scope (LOCKED + ENHANCED):**
-1. **Granularity Detection (NEW):** Intelligently detects Subject (8-12 topics) vs Topic (4-6 modules) vs Module (1 deep module)
-2. **Adaptive Prompting (NEW):** Uses specialized prompt sets (SUBJECT_PROMPTS, TOPIC_PROMPTS, MODULE_PROMPTS) based on detected granularity
-3. Understanding phase (manager playback + iterative refinement)
-4. 3-LLM pipeline (Generator A, Generator B, Fact-Checker)
-5. Provenance tracking (which LLM contributed what)
-6. Canon storage for generic content reuse
-7. Manager review UI with regeneration
+1. **Conversational Granularity Detection (THE KILLER FEATURE):** Natural language interface intelligently detects Subject (8-12 topics) vs Topic (4-6 modules) vs Module (1 deep module) and adapts conversation accordingly
+2. **Adaptive Conversation Flow:** 
+   - Subject → Clarifies and suggests topic options
+   - Topic → Guides step-by-step module sequence
+   - Module → Generates content + parent topic context
+3. **Adaptive Prompting:** Uses specialized prompt sets (SUBJECT_PROMPTS, TOPIC_PROMPTS, MODULE_PROMPTS) based on detected granularity
+4. Understanding phase (conversational playback + iterative refinement)
+5. 3-LLM pipeline (Generator A, Generator B, Fact-Checker)
+6. Provenance tracking (which LLM contributed what)
+7. Canon storage for generic content reuse
 
 **Deliverables:**
-- [x] **Granularity detection function** (`detectGranularity()`)
+- [x] **Conversational main page** (`web/app/page.tsx`) - natural language first interface
+- [x] **Granularity detection function** (`detectGranularity()`) integrated into conversation flow
 - [x] **3 prompt sets** (SUBJECT_PROMPTS, TOPIC_PROMPTS, MODULE_PROMPTS)
 - [x] **API integration** (granularity field in content_generations table)
-- [x] **Test UI** (`/test-generation` with 15 test cases)
-- [ ] Understanding phase working (API routes exist, UI pending)
+- [x] **Adaptive conversation responses** based on detected granularity
+- [ ] Understanding phase working (API routes exist, conversation flow in progress)
 - [ ] 3-LLM pipeline implemented (code complete, needs Epic 6 base deployment)
 - [ ] Provenance tracked (schema ready)
 - [ ] Canon storage integrated (code complete)
