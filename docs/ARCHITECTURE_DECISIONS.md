@@ -287,6 +287,131 @@ CREATE TABLE learner_profiles (...);
 
 ---
 
+## 9. Render Deployment via Docker Images (IMMUTABLE)
+
+**Decision:** Render deploys from pre-built Docker images pushed to GitHub Container Registry (ghcr.io), NOT directly from Git branches.
+
+**Rationale:** 
+- Consistent, repeatable builds across environments
+- Faster deployments (no build time on Render)
+- Explicit promotion workflow (staging → prod)
+- Image-based rollback capability
+
+### Deployment Workflow
+
+#### **1. Docker Image Build & Tagging**
+
+GitHub Actions (`.github/workflows/ci.yml`) builds Docker images on every push:
+
+**Branch → Image Tags:**
+- **`staging` branch** → `ghcr.io/robnreb1/cerply-api:staging-latest` + `staging`
+- **`main` branch** → `ghcr.io/robnreb1/cerply-api:prod-candidate` + `sha-<short-sha>`
+
+**Critical:** Pushing to `main` does NOT update `staging-latest` tag!
+
+#### **2. Render Service Configuration**
+
+**Staging Service:**
+- **Name:** `cerply-api-staging`
+- **Image URL:** `ghcr.io/robnreb1/cerply-api:staging-latest`
+- **Deploy Trigger:** Render deploy hook triggered by CI after building `staging-latest` image
+
+**Production Service:**
+- **Name:** `cerply-api-prod`  
+- **Image URL:** `ghcr.io/robnreb1/cerply-api:prod`
+- **Deploy Trigger:** Render deploy hook triggered by `promote-prod` workflow
+
+#### **3. Deployment Steps**
+
+**To Deploy to Staging:**
+```bash
+# Step 1: Merge main → staging (creates PR to resolve conflicts)
+gh pr create --base staging --head main --title "chore: merge main to staging"
+
+# Step 2: After PR is merged, GitHub Actions automatically:
+# - Builds Docker image
+# - Tags as ghcr.io/robnreb1/cerply-api:staging-latest
+# - Triggers Render staging deploy hook
+# - Waits for health check
+# - Verifies image headers
+```
+
+**To Deploy to Production:**
+```bash
+# Step 1: Test staging thoroughly
+
+# Step 2: Run promote-prod workflow (manual trigger)
+gh workflow run promote-prod.yml
+
+# This workflow:
+# - Pulls staging-latest image
+# - Retags as :prod
+# - Triggers Render prod deploy hook
+# - Waits for health check
+# - Verifies image headers
+```
+
+### Common Mistakes & Fixes
+
+#### ❌ **Mistake 1: "I merged to main but Render staging doesn't have my changes"**
+
+**Why:** Render staging uses `staging-latest` tag, which only updates when you push to `staging` branch.
+
+**Fix:** Merge `main` → `staging` via PR:
+```bash
+gh pr create --base staging --head main --title "chore: deploy main to staging"
+```
+
+#### ❌ **Mistake 2: "I set a feature flag in Render but routes still return 404"**
+
+**Why:** Feature flags are baked into the Docker image at build time (environment variables), but route registration happens at runtime. If the code isn't in the image, the routes don't exist.
+
+**Fix:** 
+1. Ensure code is merged to correct branch (`staging` for staging, not `main`)
+2. Verify Docker image was rebuilt (check GitHub Actions)
+3. Verify Render pulled new image (check Render events tab)
+4. Then set feature flag and trigger manual deploy
+
+#### ❌ **Mistake 3: "Production has old code after staging was tested"**
+
+**Why:** Production uses `:prod` tag, which must be manually promoted from `:staging-latest`.
+
+**Fix:** Run `promote-prod` workflow (don't push directly to a prod branch).
+
+### Verification Commands
+
+**After Deploying to Staging:**
+```bash
+# Check health
+curl https://api-stg.cerply.com/api/health
+
+# Check image headers (verify new build)
+curl -I https://api-stg.cerply.com/api/version | grep x-image
+
+# Check feature flags
+curl https://api-stg.cerply.com/api/flags
+```
+
+**After Promoting to Production:**
+```bash
+# Check health
+curl https://api.cerply.com/api/health
+
+# Verify image digest matches staging
+# (This is automated in promote-prod workflow)
+```
+
+### Related Documentation
+- **Render Deployment Architecture:** [RENDER_DEPLOYMENT_ARCHITECTURE.md](../RENDER_DEPLOYMENT_ARCHITECTURE.md)
+- **CI Workflow:** [.github/workflows/ci.yml](../.github/workflows/ci.yml)
+- **Promote Prod Workflow:** [.github/workflows/promote-prod.yml](../.github/workflows/promote-prod.yml)
+
+**Traceability:**
+- Implementation: All Epics require correct deployment
+- Quality: Consistent deployment reduces bugs
+
+---
+
 ## Feature Flag Patterns (LOCKED)
 
 ### Naming Convention

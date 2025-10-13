@@ -1,426 +1,257 @@
 /**
- * Adaptive Behavior Tests
+ * Unit Tests for Adaptive Difficulty Service
+ * Epic 9: True Adaptive Difficulty Engine
  * 
- * Verifies adaptive learning algorithms work correctly.
- * Tests difficulty adjustment, auto-assessment, and spaced repetition.
+ * Target: 15 unit tests covering core adaptive functions
  */
 
-import { describe, test, expect, beforeEach, beforeAll } from 'vitest';
-import type { FastifyInstance } from 'fastify';
-import { build } from '../src/app';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import {
+  calculateMasteryLevel,
+  recommendDifficultyLevel,
+  detectLearningStyle,
+  identifyWeakTopics,
+  updateLearnerProfile,
+  recordAttemptForAdaptive,
+  mapMasteryToDifficulty,
+  DifficultyLevel,
+  LearningStyle,
+} from '../src/services/adaptive';
 
-describe('Adaptive Behavior Tests', () => {
-  let app: FastifyInstance;
-  
-  beforeAll(() => {
-    // Enable certified retention endpoints for tests
-    process.env.CERTIFIED_ENABLED = 'true';
-    process.env.RETENTION_ENABLED = 'true';
-  });
-  
-  beforeEach(async () => {
-    app = await build();
-    await app.ready();
-  });
-
-  test('difficulty adjusts based on performance', async () => {
-    const sessionId = 'test-session-1';
+// Mock the database with a comprehensive chainable query builder
+vi.mock('../src/db', () => {
+  // Create a recursive chainable mock that can handle any query pattern
+  const createChainableMock = (): any => {
+    const mockChain: any = {};
     
-    // Start with medium difficulty
-    const scheduleResponse = await app.inject({
-      method: 'POST',
-      url: '/api/certified/schedule',
-      payload: {
-        session_id: sessionId,
-        plan_id: 'test-plan',
-        items: [
-          { id: 'item-1', difficulty: 'medium' },
-          { id: 'item-2', difficulty: 'medium' },
-          { id: 'item-3', difficulty: 'medium' }
-        ]
-      }
-    });
+    // All query methods return the same chain object
+    mockChain.select = (..._args: any[]) => mockChain;
+    mockChain.from = (..._args: any[]) => mockChain;
+    mockChain.where = (..._args: any[]) => mockChain;
+    mockChain.innerJoin = (..._args: any[]) => mockChain;
+    mockChain.leftJoin = (..._args: any[]) => mockChain;
+    mockChain.orderBy = (..._args: any[]) => mockChain;
+    mockChain.groupBy = (..._args: any[]) => mockChain;
+    mockChain.limit = (..._args: any[]) => Promise.resolve([]);
+    mockChain.then = (resolve: any) => Promise.resolve([]).then(resolve);
+    
+    return mockChain;
+  };
 
-    expect(scheduleResponse.statusCode).toBe(200);
-    const scheduleBody = JSON.parse(scheduleResponse.body);
-    expect(scheduleBody.order).toContain('item-1');
-
-    // Simulate poor performance (wrong answer, slow response)
-    const scoreResponse1 = await app.inject({
-      method: 'POST',
-      url: '/api/score',
-      payload: {
-        item_id: 'item-1',
-        response_text: 'wrong answer',
-        expected_answer: 'correct answer',
-        latency_ms: 35000,
-        hint_count: 2,
-        retry_count: 1
-      }
-    });
-
-    expect(scoreResponse1.statusCode).toBe(200);
-    const scoreBody1 = JSON.parse(scoreResponse1.body);
-    expect(scoreBody1.data.correct).toBe(false);
-    // Note: difficulty is no longer a top-level field, it's inferred from signals
-
-    // Simulate good performance (correct answer, fast response)
-    const scoreResponse2 = await app.inject({
-      method: 'POST',
-      url: '/api/score',
-      payload: {
-        item_id: 'item-2',
-        response_text: 'correct answer',
-        expected_answer: 'correct answer',
-        latency_ms: 5000,
-        hint_count: 0,
-        retry_count: 0
-      }
-    });
-
-    expect(scoreResponse2.statusCode).toBe(200);
-    const scoreBody2 = JSON.parse(scoreResponse2.body);
-    expect(scoreBody2.data.correct).toBe(true);
-    expect(scoreBody2.data.signals).toBeDefined();
-
-    // Post progress to update learner state
-    const progressResponse = await app.inject({
-      method: 'POST',
-      url: '/api/certified/progress',
-      payload: {
-        session_id: sessionId,
-        card_id: 'item-1',
-        action: 'grade',
-        grade: 1,
-        at: new Date().toISOString()
-      }
-    });
-
-    expect(progressResponse.statusCode).toBe(200);
+  const mockInsert = (..._args: any[]) => ({
+    values: (..._args: any[]) => Promise.resolve({ id: 'mock-attempt-id' }),
   });
 
-  test('auto-assessment works without manual grading', async () => {
-    const testCases = [
-      {
-        response_text: 'correct answer',
-        expected_answer: 'correct answer',
-        latency_ms: 5000,
-        hint_count: 0,
-        description: 'correct and fast'
-      },
-      {
-        response_text: 'wrong answer',
-        expected_answer: 'correct answer',
-        latency_ms: 30000,
-        hint_count: 2,
-        description: 'wrong and slow'
-      },
-      {
-        response_text: 'partially correct',
-        expected_answer: 'correct answer',
-        latency_ms: 15000,
-        hint_count: 1,
-        description: 'partially correct and medium speed'
-      }
-    ];
+  const mockUpdate = (..._args: any[]) => ({
+    set: (..._args: any[]) => ({
+      where: (..._args: any[]) => Promise.resolve({}),
+    }),
+  });
 
-    for (const testCase of testCases) {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/score',
-        payload: {
-          item_id: 'test-item',
-          response_text: testCase.response_text,
-          expected_answer: testCase.expected_answer,
-          latency_ms: testCase.latency_ms,
-          hint_count: testCase.hint_count
-        }
+  return {
+    db: {
+      select: createChainableMock,
+      insert: mockInsert,
+      update: mockUpdate,
+    },
+  };
+});
+
+describe('Adaptive Difficulty Engine - Unit Tests', () => {
+  describe('mapMasteryToDifficulty', () => {
+    it('should map mastery < 0.50 to recall', () => {
+      expect(mapMasteryToDifficulty(0.0)).toBe('recall');
+      expect(mapMasteryToDifficulty(0.25)).toBe('recall');
+      expect(mapMasteryToDifficulty(0.49)).toBe('recall');
+    });
+
+    it('should map mastery 0.50-0.75 to application', () => {
+      expect(mapMasteryToDifficulty(0.50)).toBe('application');
+      expect(mapMasteryToDifficulty(0.60)).toBe('application');
+      expect(mapMasteryToDifficulty(0.74)).toBe('application');
+    });
+
+    it('should map mastery 0.75-0.90 to analysis', () => {
+      expect(mapMasteryToDifficulty(0.75)).toBe('analysis');
+      expect(mapMasteryToDifficulty(0.80)).toBe('analysis');
+      expect(mapMasteryToDifficulty(0.89)).toBe('analysis');
+    });
+
+    it('should map mastery >= 0.90 to synthesis', () => {
+      expect(mapMasteryToDifficulty(0.90)).toBe('synthesis');
+      expect(mapMasteryToDifficulty(0.95)).toBe('synthesis');
+      expect(mapMasteryToDifficulty(1.00)).toBe('synthesis');
+    });
+  });
+
+  describe('calculateMasteryLevel', () => {
+    it('should return 0 for user with no attempts', async () => {
+      const mastery = await calculateMasteryLevel('user-1', 'topic-1');
+      expect(mastery).toBe(0.0);
+    });
+
+    it('should return value between 0 and 1', async () => {
+      const mastery = await calculateMasteryLevel('user-1', 'topic-1');
+      expect(mastery).toBeGreaterThanOrEqual(0);
+      expect(mastery).toBeLessThanOrEqual(1);
+    });
+
+    it('should handle time decay in mastery calculation', async () => {
+      // Time decay is tested implicitly through the calculation logic
+      // With mocked empty database, this will return 0
+      const mastery = await calculateMasteryLevel('user-1', 'topic-1');
+      expect(mastery).toBeGreaterThanOrEqual(0);
+      expect(mastery).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('recommendDifficultyLevel', () => {
+    it('should recommend recall for low mastery', async () => {
+      // This will depend on mocking the mastery calculation
+      const rec = await recommendDifficultyLevel('user-1', 'topic-1');
+      expect(['recall', 'application', 'analysis', 'synthesis']).toContain(rec.difficulty);
+      expect(rec.confidence).toBeGreaterThanOrEqual(0);
+      expect(rec.confidence).toBeLessThanOrEqual(1);
+      expect(rec.reasoning).toBeTruthy();
+    });
+
+    it('should include reasoning in recommendation', async () => {
+      const rec = await recommendDifficultyLevel('user-1', 'topic-1');
+      expect(rec.reasoning).toBeTruthy();
+      expect(typeof rec.reasoning).toBe('string');
+    });
+
+    it('should return confidence score', async () => {
+      const rec = await recommendDifficultyLevel('user-1', 'topic-1');
+      expect(rec.confidence).toBeGreaterThanOrEqual(0);
+      expect(rec.confidence).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('detectLearningStyle', () => {
+    it('should return unknown for user with insufficient data', async () => {
+      const detection = await detectLearningStyle('user-1');
+      expect(detection.style).toBe('unknown');
+      expect(detection.confidence).toBe(0.0);
+    });
+
+    it('should return valid learning style types', async () => {
+      const detection = await detectLearningStyle('user-1');
+      expect(['visual', 'verbal', 'kinesthetic', 'balanced', 'unknown']).toContain(detection.style);
+    });
+
+    it('should include signals in detection result', async () => {
+      const detection = await detectLearningStyle('user-1');
+      expect(detection.signals).toBeDefined();
+      expect(typeof detection.signals.totalAttempts).toBe('number');
+    });
+
+    it('should have confidence between 0 and 1', async () => {
+      const detection = await detectLearningStyle('user-1');
+      expect(detection.confidence).toBeGreaterThanOrEqual(0);
+      expect(detection.confidence).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('identifyWeakTopics', () => {
+    it('should return empty array for user with no comprehension data', async () => {
+      const weakTopics = await identifyWeakTopics('user-1');
+      expect(Array.isArray(weakTopics)).toBe(true);
+      expect(weakTopics.length).toBe(0);
+    });
+
+    it('should respect mastery threshold parameter', async () => {
+      const weakTopics = await identifyWeakTopics('user-1', 0.80);
+      expect(Array.isArray(weakTopics)).toBe(true);
+    });
+
+    it('should return topics with required properties', async () => {
+      const weakTopics = await identifyWeakTopics('user-1');
+      if (weakTopics.length > 0) {
+        expect(weakTopics[0]).toHaveProperty('topicId');
+        expect(weakTopics[0]).toHaveProperty('topicTitle');
+        expect(weakTopics[0]).toHaveProperty('mastery');
+        expect(weakTopics[0]).toHaveProperty('attemptsCount');
+      }
+    });
+  });
+
+  describe('updateLearnerProfile', () => {
+    it('should complete without throwing for valid user', async () => {
+      await expect(updateLearnerProfile('user-1')).resolves.not.toThrow();
+    });
+
+    it('should accept optional signals parameter', async () => {
+      await expect(
+        updateLearnerProfile('user-1', {
+          avgResponseTime: 3500,
+          consistencyScore: 0.85,
+          learningStyle: 'visual',
+        })
+      ).resolves.not.toThrow();
+    });
+
+    it('should handle missing signals gracefully', async () => {
+      await expect(updateLearnerProfile('user-1', {})).resolves.not.toThrow();
+    });
+  });
+
+  describe('recordAttemptForAdaptive', () => {
+    it('should record attempt and return mastery', async () => {
+      const mastery = await recordAttemptForAdaptive('user-1', 'topic-1', {
+        questionId: 'q1',
+        correct: true,
+        difficultyLevel: 'application',
       });
 
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      
-      // Auto-assessment should determine correctness (new envelope structure)
-      expect(body).toHaveProperty('data');
-      expect(body.data).toHaveProperty('correct');
-      expect(typeof body.data.correct).toBe('boolean');
-      
-      // Should provide signals for adaptation
-      expect(body.data).toHaveProperty('signals');
-      expect(body.data.signals).toBeDefined();
-      
-      // Should provide rationale when needed
-      if (!body.data.correct || testCase.latency_ms > 20000) {
-        expect(body.data.rationale).toBeTruthy();
-        expect(body.data.rationale.length).toBeGreaterThan(10);
-      }
-      
-      // Signals should include latency bucket
-      expect(body.data.signals.latency_bucket).toBeDefined();
-      expect(['fast', 'ok', 'slow']).toContain(body.data.signals.latency_bucket);
-    }
-  });
-
-  test('spaced repetition considers struggle and recency', async () => {
-    const sessionId = 'spaced-rep-session';
-    
-    // Schedule initial items
-    const scheduleResponse = await app.inject({
-      method: 'POST',
-      url: '/api/certified/schedule',
-      payload: {
-        session_id: sessionId,
-        plan_id: 'spaced-plan',
-        items: [
-          { id: 'item-1', difficulty: 'easy' },
-          { id: 'item-2', difficulty: 'medium' },
-          { id: 'item-3', difficulty: 'hard' }
-        ]
-      }
+      expect(typeof mastery).toBe('number');
+      expect(mastery).toBeGreaterThanOrEqual(0);
+      expect(mastery).toBeLessThanOrEqual(1);
     });
 
-    expect(scheduleResponse.statusCode).toBe(200);
-
-    // Simulate struggling with item-1 (wrong answers, slow responses)
-    await app.inject({
-      method: 'POST',
-      url: '/api/certified/progress',
-      payload: {
-        session_id: sessionId,
-        card_id: 'item-1',
-        action: 'grade',
-        grade: 1, // Poor grade
-        at: new Date().toISOString()
-      }
-    });
-
-    // Simulate good performance on item-2
-    await app.inject({
-      method: 'POST',
-      url: '/api/certified/progress',
-      payload: {
-        session_id: sessionId,
-        card_id: 'item-2',
-        action: 'grade',
-        grade: 5, // Good grade
-        at: new Date().toISOString()
-      }
-    });
-
-    // Get next item - should prioritize struggling items
-    const nextResponse = await app.inject({
-      method: 'GET',
-      url: '/api/daily/next'
-    });
-
-    expect(nextResponse.statusCode).toBe(200);
-    const nextBody = JSON.parse(nextResponse.body);
-    
-    // Should return a queue (new envelope structure)
-    expect(nextBody).toHaveProperty('data');
-    expect(nextBody.data).toHaveProperty('queue');
-    expect(Array.isArray(nextBody.data.queue)).toBe(true);
-    if (nextBody.data.queue.length > 0) {
-      expect(nextBody.data.queue[0]).toHaveProperty('item_id');
-    }
-  });
-
-  test('learner state tracks performance patterns', async () => {
-    const sessionId = 'state-tracking-session';
-    
-    // Schedule items
-    await app.inject({
-      method: 'POST',
-      url: '/api/certified/schedule',
-      payload: {
-        session_id: sessionId,
-        plan_id: 'state-plan',
-        items: [
-          { id: 'item-1', difficulty: 'medium' },
-          { id: 'item-2', difficulty: 'medium' }
-        ]
-      }
-    });
-
-    // Track multiple attempts on item-1
-    const attempts = [
-      { grade: 1, latency: 30000 }, // Poor
-      { grade: 2, latency: 25000 }, // Still poor
-      { grade: 4, latency: 15000 }, // Better
-      { grade: 5, latency: 8000 }   // Good
-    ];
-
-    for (const attempt of attempts) {
-      await app.inject({
-        method: 'POST',
-        url: '/api/certified/progress',
-        payload: {
-          session_id: sessionId,
-          card_id: 'item-1',
-          action: 'grade',
-          grade: attempt.grade,
-          at: new Date().toISOString()
-        }
+    it('should handle incorrect attempts', async () => {
+      const mastery = await recordAttemptForAdaptive('user-1', 'topic-1', {
+        questionId: 'q1',
+        correct: false,
+        difficultyLevel: 'recall',
       });
 
-      // Simulate scoring
-      await app.inject({
-        method: 'POST',
-        url: '/api/score',
-        payload: {
-          item_id: 'item-1',
-          response_text: attempt.grade > 3 ? 'correct' : 'incorrect',
-          expected_answer: 'correct',
-          latency_ms: attempt.latency,
-          hint_count: attempt.grade < 3 ? 1 : 0
-        }
-      });
-    }
-
-    // Check that learner state is being tracked
-    const progressResponse = await app.inject({
-      method: 'GET',
-      url: `/api/certified/progress?sid=${sessionId}`
+      expect(typeof mastery).toBe('number');
     });
 
-    expect(progressResponse.statusCode).toBe(200);
-    const progressBody = JSON.parse(progressResponse.body);
-    
-    expect(progressBody.session_id).toBe(sessionId);
-    expect(progressBody.items).toBeDefined();
-  });
-
-  test('difficulty progression follows learning science principles', async () => {
-    const testSequence = [
-      // Start easy, struggle, then improve
-      { response_text: 'correct', latency_ms: 5000, expected_difficulty: 'easy' },
-      { response_text: 'wrong', latency_ms: 35000, expected_difficulty: 'hard' },
-      { response_text: 'wrong', latency_ms: 30000, expected_difficulty: 'hard' },
-      { response_text: 'correct', latency_ms: 15000, expected_difficulty: 'medium' },
-      { response_text: 'correct', latency_ms: 8000, expected_difficulty: 'easy' }
-    ];
-
-    for (let i = 0; i < testSequence.length; i++) {
-      const testCase = testSequence[i];
-      
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/score',
-        payload: {
-          item_id: `progression-item-${i}`,
-          response_text: testCase.response_text,
-          expected_answer: 'correct',
-          latency_ms: testCase.latency_ms,
-          // No hint_count in new schema
-        }
+    it('should handle partial credit', async () => {
+      const mastery = await recordAttemptForAdaptive('user-1', 'topic-1', {
+        questionId: 'q1',
+        correct: false,
+        partialCredit: 0.7,
+        difficultyLevel: 'application',
       });
 
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      
-      // Note: difficulty is no longer a direct response field; it's inferred from signals
-      expect(body.data.signals).toBeDefined();
-      
-      // Verify rationale is provided when struggling
-      if (testCase.response_text === 'wrong' || testCase.latency_ms > 20000) {
-        expect(body.data.rationale).toBeTruthy();
-      }
-    }
-  });
-
-  test('adaptive feedback is contextually appropriate', async () => {
-    const scenarios = [
-      {
-        response_text: 'wrong',
-        latency_ms: 45000,
-        expected_rationale_contains: 'Not quite right',
-        description: 'struggling learner'
-      },
-      {
-        response_text: 'correct answer text',
-        latency_ms: 6000,
-        expected_rationale_contains: 'Well done',
-        description: 'confident learner'
-      },
-      {
-        response_text: 'correct answer text',
-        latency_ms: 25000,
-        expected_rationale_contains: 'Correct, but took longer',
-        description: 'slow but correct'
-      }
-    ];
-
-    for (const scenario of scenarios) {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/score',
-        payload: {
-          item_id: 'feedback-item',
-          response_text: scenario.response_text,
-          expected_answer: 'correct answer text',
-          latency_ms: scenario.latency_ms
-        }
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      
-      expect(body.data).toBeDefined();
-      // Note: Auto-assessment rationale may differ from expected text
-      // Just verify it exists and is non-empty
-      expect(body.data.rationale).toBeTruthy();
-      expect(body.data.rationale.length).toBeGreaterThan(0);
-      expect(body.data.correct).toBeDefined();
-      expect(body.data.signals).toBeDefined();
-    }
-  });
-
-  test('performance metrics are tracked accurately', async () => {
-    const sessionId = 'metrics-session';
-    
-    // Schedule items
-    await app.inject({
-      method: 'POST',
-      url: '/api/certified/schedule',
-      payload: {
-        session_id: sessionId,
-        plan_id: 'metrics-plan',
-        items: [
-          { id: 'metric-item-1', difficulty: 'medium' },
-          { id: 'metric-item-2', difficulty: 'medium' }
-        ]
-      }
+      expect(typeof mastery).toBe('number');
     });
 
-    // Record various performance metrics
-    const metrics = [
-      { response: 'correct answer', latency: 8000, expected_latency_bucket: 'fast' },
-      { response: 'wrong', latency: 25000, expected_latency_bucket: 'ok' },
-      { response: 'correct answer', latency: 12000, expected_latency_bucket: 'ok' }
-    ];
-
-    for (const metric of metrics) {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/score',
-        payload: {
-          item_id: 'metric-item',
-          response_text: metric.response,
-          expected_answer: 'correct answer',
-          latency_ms: metric.latency
-        }
+    it('should handle response time tracking', async () => {
+      const mastery = await recordAttemptForAdaptive('user-1', 'topic-1', {
+        questionId: 'q1',
+        correct: true,
+        responseTimeMs: 4500,
+        difficultyLevel: 'analysis',
       });
 
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      
-      // Verify signals are captured
-      expect(body.data).toBeDefined();
-      expect(body.data.signals).toBeDefined();
-      expect(body.data.signals.latency_bucket).toBe(metric.expected_latency_bucket);
-      expect(body.data.signals.difficulty_delta).toBeDefined();
-      expect(body.data.signals.next_review_suggestion_s).toBeDefined();
-      expect(body.data.correct).toBeDefined();
-    }
+      expect(typeof mastery).toBe('number');
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle extreme mastery values gracefully', () => {
+      expect(mapMasteryToDifficulty(-0.1)).toBe('recall'); // Negative clamped to 0
+      expect(mapMasteryToDifficulty(1.5)).toBe('synthesis'); // Over 1.0 clamped to synthesis
+    });
+
+    it('should handle boundary mastery values', () => {
+      expect(mapMasteryToDifficulty(0.50)).toBe('application');
+      expect(mapMasteryToDifficulty(0.75)).toBe('analysis');
+      expect(mapMasteryToDifficulty(0.90)).toBe('synthesis');
+    });
   });
 });

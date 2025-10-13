@@ -174,6 +174,11 @@ export async function createApp() {
   // Chat Learning routes (Epic 8: Conversational Learning Interface)
   await safeRegister('./routes/chat-learning', ['registerChatLearningRoutes']);
 
+  // Adaptive Difficulty routes (Epic 9: True Adaptive Difficulty Engine)
+  app.log.info('[Epic9] Attempting to register adaptive routes...');
+  await safeRegister('./routes/adaptive', ['registerAdaptiveRoutes']);
+  app.log.info('[Epic9] Adaptive routes registration complete');
+
   // Prompts routes for M2 proxy compatibility
   await safeRegister('./routes/prompts', ['registerPromptsRoutes']);
 
