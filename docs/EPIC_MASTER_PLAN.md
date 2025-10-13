@@ -1,5 +1,5 @@
 # Epic Master Plan - Cerply B2B Enterprise MVP
-**Version:** 1.3  
+**Version:** 1.4  
 **Status:** LOCKED (Changes require explicit approval)  
 **Last Updated:** 2025-10-13  
 **Owner:** Cerply Engineering
@@ -36,15 +36,16 @@ This document is the **single source of truth** for all epic planning, scope, st
 | **7** | P1 | ✅ Complete | L-16, B-15 | §28 | EPIC7_IMPLEMENTATION_PROMPT.md | 18h |
 | **8** | P1 | ✅ Complete | L-12, L-18 | §29 | EPIC8_IMPLEMENTATION_PROMPT.md | 13.5h actual (10% under budget) |
 | **9** | P1 | ✅ Complete | L-2 | §30 | EPIC9_IMPLEMENTATION_PROMPT_v2.md | 13h |
-| **10** | P1 | 📋 Planned | E-1, E-14 | TBD | TBD | 10h |
-| **11** | P2 | 📋 Planned | B-6 | TBD | TBD | 16h |
-| **12** | P2 | 📋 Planned | B-5, B-14 | TBD | TBD | 20h |
+| **10** | P2 | 📋 Post-MVP | E-1, E-14 | TBD | TBD | 10h |
+| **11** | P2 | 📋 Post-MVP | B-6 | TBD | TBD | 16h |
+| **12** | P2 | 📋 Post-MVP | B-5, B-14 | TBD | TBD | 20h |
 
 **Legend:**
 - ✅ Complete: Deployed to production
 - ⚠️ Phase 1 Complete: Infrastructure complete, additional phases planned
 - 🚧 In Progress: Active development
 - 📋 Planned: Scope locked, awaiting implementation
+- 📋 Post-MVP: Deferred to post-MVP phase
 
 ---
 
@@ -68,15 +69,13 @@ This document is the **single source of truth** for all epic planning, scope, st
 9. ✅ **Epic 8:** Conversational Learning Interface
 10. ✅ **Epic 9:** True Adaptive Difficulty Engine
 
-### Phase 5: Content Operations (Planned)
-11. 📋 **Epic 6.6:** Content Library Seeding (100 topics)
+### Phase 5: Content Operations (MVP-Critical)
+11. 📋 **Epic 6.6:** Content Library Seeding (100 topics) - **NEXT PRIORITY**
 12. 📋 **Epic 6.7:** Content Lifecycle Management
 13. 📋 **Epic 6.8:** Manager Curation Workflow
 
-### Phase 6: Certification & Compliance (Planned)
-14. 📋 **Epic 10:** Enhanced Certification Workflow
-
-### Phase 7: Platform Integration (Future)
+### Phase 6: Post-MVP (Future)
+14. 📋 **Epic 10:** Enhanced Certification Workflow (hardcoded flags for MVP)
 15. 📋 **Epic 11:** Self-Serve Ingestion
 16. 📋 **Epic 12:** Enterprise Analytics & Reporting
 
@@ -773,9 +772,10 @@ GET /api/adaptive/analytics/:userId
 
 ### Epic 10: Enhanced Certification Workflow
 
-**Status:** 📋 Planned  
-**Priority:** P1 (Trust & compliance)  
-**Effort:** 10 hours
+**Status:** 📋 Post-MVP (Deferred)  
+**Priority:** P2 (Post-MVP)  
+**Effort:** 10 hours  
+**MVP Solution:** Hardcoded `is_certified` flags on specific topics
 
 **BRD Traceability:**
 - E-1: Experts create and ratify Certified content
@@ -995,11 +995,15 @@ GET /api/certification/audit/:requestId
 - ✅ Week 8: Conversational UI (Epic 8)
 - ✅ Week 9: Adaptive Difficulty (Epic 9)
 
-### Planned (Epics 6.6, 6.7, 6.8, 10)
-- Week 10: Manager Curation Workflow (Epic 6.8)
-- Week 11: Content Library Seeding (Epic 6.6)
-- Week 12: Content Lifecycle (Epic 6.7)
-- Week 13: Enhanced Certification (Epic 10)
+### MVP-Critical (Epics 6.6, 6.7, 6.8)
+- **Week 10: Content Library Seeding (Epic 6.6)** - NEXT PRIORITY
+- Week 11: Content Lifecycle (Epic 6.7)
+- Week 12: Manager Curation Workflow (Epic 6.8)
+
+### Post-MVP (Epics 10, 11, 12)
+- Post-MVP: Enhanced Certification Workflow (Epic 10) - Hardcoded for MVP
+- Post-MVP: Self-Serve Ingestion (Epic 11)
+- Post-MVP: Enterprise Analytics (Epic 12)
 
 ---
 
@@ -1017,6 +1021,13 @@ GET /api/certification/audit/:requestId
 ---
 
 ## Changelog
+
+### v1.4 (2025-10-13)
+- **Epic 9 Complete** - ✅ Adaptive Difficulty Engine (13h, on budget, 26 tests passing)
+- **Epic 10 moved to Post-MVP** - Enhanced Certification deferred; MVP will use hardcoded `is_certified` flags
+- **Updated rollout timeline** - Epic 6.6 (Batch Seeding) is now next priority
+- **Updated quality criteria** - Raised bar to >0.90 quality score, >95% citation accuracy
+- **Source:** Strategic decision to focus on content seeding before expert certification workflow
 
 ### v1.3 (2025-10-13)
 - **Epic 8 Complete** - ✅ Conversational Learning Interface (Phases 1-8, 13.5h actual, 10% under budget)
