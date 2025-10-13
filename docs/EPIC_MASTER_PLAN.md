@@ -35,7 +35,7 @@ This document is the **single source of truth** for all epic planning, scope, st
 | **6.8** | P1 | 📋 Planned | B-3, B-12 | §32 | EPIC6.8_IMPLEMENTATION_PROMPT.md | 20-24h |
 | **7** | P1 | ✅ Complete | L-16, B-15 | §28 | EPIC7_IMPLEMENTATION_PROMPT.md | 18h |
 | **8** | P1 | ✅ Complete | L-12, L-18 | §29 | EPIC8_IMPLEMENTATION_PROMPT.md | 13.5h actual (10% under budget) |
-| **9** | P1 | 📋 Planned | L-2 | §30 | EPIC9_IMPLEMENTATION_PROMPT.md | 13h |
+| **9** | P1 | ✅ Complete | L-2 | §30 | EPIC9_IMPLEMENTATION_PROMPT_v2.md | 13h |
 | **10** | P1 | 📋 Planned | E-1, E-14 | TBD | TBD | 10h |
 | **11** | P2 | 📋 Planned | B-6 | TBD | TBD | 16h |
 | **12** | P2 | 📋 Planned | B-5, B-14 | TBD | TBD | 20h |
@@ -697,7 +697,7 @@ POST /api/chat/message -d '{"message":"How am I doing?"}'
 
 ### Epic 9: True Adaptive Difficulty Engine
 
-**Status:** ✅ COMPLETE (2025-10-13)  
+**Status:** ✅ COMPLETE - DEPLOYED TO PRODUCTION (2025-10-13)  
 **Priority:** P1 (Core learning science)  
 **Effort:** 13 hours (13h actual, on schedule)
 
@@ -709,7 +709,15 @@ POST /api/chat/message -d '{"message":"How am I doing?"}'
 
 **Implementation Prompts:** 
 - `EPIC9_IMPLEMENTATION_PROMPT_v2.md` (specification)
-- `EPIC9_DELIVERY_SUMMARY.md` (delivery report)
+- `EPIC9_DELIVERY_SUMMARY.md` (implementation summary)
+- `EPIC9_PRODUCTION_DELIVERY_SUMMARY.md` (production delivery summary)
+- `EPIC9_UAT_GUIDE.md` (user acceptance testing)
+
+**Deployment:**
+- **Staging:** 2025-10-13, 20:04 UTC (Docker image: `staging-latest`)
+- **Production:** 2025-10-13, ~20:10 UTC (Docker image: `prod`)
+- **Feature Flag:** `FF_ADAPTIVE_DIFFICULTY_V1=true`
+- **Database Migration:** `018_adaptive_difficulty.sql` (applied successfully)
 
 **Scope (DELIVERED):**
 1. ✅ 4 difficulty levels (Bloom's Taxonomy: recall/application/analysis/synthesis)
@@ -881,7 +889,7 @@ GET /api/certification/audit/:requestId
 |----------------|-------------|---------|--------|
 | AU-1 | Multi-channel delivery | 2, 5 | Complete |
 | AU-2 | Core learning flows | 1-4 | Complete |
-| L-2 | Adaptive lesson plans | 9 | Planned |
+| L-2 | Adaptive lesson plans | 9 | Complete |
 | L-3 | SSO-required | 2 | Complete |
 | L-12 | Conversational interface | 8 | Planned |
 | L-16 | Levels, certificates, badges | 7 | Complete |
@@ -983,9 +991,11 @@ GET /api/certification/audit/:requestId
 ### In Progress (Epics 6, 6.5)
 - Week 6-7: Ensemble Generation (Epic 6 + 6.5)
 
-### Planned (Epics 8, 9, 6.6, 6.7, 6.8, 10)
-- Week 8: Conversational UI (Epic 8)
-- Week 9: Adaptive Difficulty (Epic 9)
+### Completed (Epics 8, 9)
+- ✅ Week 8: Conversational UI (Epic 8)
+- ✅ Week 9: Adaptive Difficulty (Epic 9)
+
+### Planned (Epics 6.6, 6.7, 6.8, 10)
 - Week 10: Manager Curation Workflow (Epic 6.8)
 - Week 11: Content Library Seeding (Epic 6.6)
 - Week 12: Content Lifecycle (Epic 6.7)
