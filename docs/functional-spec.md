@@ -1553,9 +1553,11 @@ FF_CHANNEL_SLACK=true bash api/scripts/smoke-delivery.sh
 3-LLM ensemble pipeline that replaces mock content generation with real, high-quality content validated across multiple models. Managers upload artefacts → LLM plays back understanding → Manager confirms or refines (max 3 iterations) → Generator A (GPT-4o) and Generator B (Claude Sonnet) create content independently → Fact-Checker (GPT-4) verifies accuracy and selects best elements → Manager reviews with full provenance transparency → Content published with audit trail.
 
 **Key Features:**
+- **Granularity Detection (THE KILLER FEATURE):** Intelligently detects if input is Subject (8-12 topics), Topic (4-6 modules), or Module (1 deep module) and adapts prompts accordingly
 - **Understanding Playback:** LLM explains its comprehension before generation
 - **Iterative Refinement:** Managers can refine understanding up to 3 times
 - **3-LLM Ensemble:** Two independent generators + fact-checker for quality
+- **Adaptive Prompting:** Uses specialized prompts (SUBJECT_PROMPTS, TOPIC_PROMPTS, MODULE_PROMPTS) based on detected granularity
 - **Provenance Tracking:** Every section tagged with source LLM and confidence score
 - **Canon Storage:** Generic content (fire safety, GDPR, etc.) reused for 70% cost savings
 - **Content Classification:** Automatic detection of generic vs. proprietary content
@@ -1563,7 +1565,9 @@ FF_CHANNEL_SLACK=true bash api/scripts/smoke-delivery.sh
 - **Async Generation:** Non-blocking with status polling for real-time progress
 
 **Technical Achievements:**
+- **Intelligent Granularity Detection:** Pattern-based detection with subject patterns (business domains, industries), module patterns (framework/model/technique keywords), and topic default
 - **Multi-Provider Integration:** OpenAI (GPT-5 with extended thinking), Anthropic (Claude 4.5 Sonnet), Google (Gemini 2.5 Pro)
+- **Adaptive Prompt Selection:** Automatic selection of prompt set based on granularity (SUBJECT/TOPIC/MODULE)
 - **Retry Logic:** Exponential backoff for resilient LLM API calls across all three providers
 - **Cost Calculation:** Accurate per-token cost tracking for budget management
 - **Provenance Storage:** Separate table for audit trail and compliance
@@ -1573,22 +1577,30 @@ FF_CHANNEL_SLACK=true bash api/scripts/smoke-delivery.sh
 **Note:** These latest-generation models are used exclusively for content building. Standard chat interactions use separate, optimized models.
 
 **API Routes:**
-1. `POST /api/content/understand` - Submit artefact, get LLM understanding
+1. `POST /api/content/understand` - Submit artefact, get LLM understanding **+ granularity detection**
+   - Returns: `{ understanding, inputType, granularity, granularityMetadata: { expected, reasoning }, ... }`
+   - Granularity: `subject` (8-12 topics) | `topic` (4-6 modules) | `module` (1 deep module)
 2. `POST /api/content/refine` - Refine understanding with feedback (max 3 iterations)
-3. `POST /api/content/generate` - Trigger 3-LLM ensemble generation (async)
+3. `POST /api/content/generate` - Trigger 3-LLM ensemble generation (async) **using detected granularity**
 4. `GET /api/content/generations/:id` - Poll generation status and results
 5. `PATCH /api/content/generations/:id` - Edit or approve generated content
 6. `POST /api/content/regenerate/:id` - Regenerate specific module
 
 **Database Schema:**
-- `content_generations` - Tracks each generation request with understanding, status, outputs, cost
+- `content_generations` - Tracks each generation request with understanding, status, outputs, cost, **granularity (subject|topic|module)**
 - `content_refinements` - Stores manager feedback iterations (max 3 per generation)
 - `content_provenance` - Records which LLM contributed each section (audit trail)
+
+**Granularity Examples:**
+- **Subject:** "Leadership" → 10 topics (Delegation, Conflict Resolution, Team Building, Motivation, Coaching, Feedback, Decision Making, Strategic Thinking, Change Management, Performance Management)
+- **Topic:** "Effective Delegation" → 5 modules (Understanding Delegation, What to Delegate, Choosing the Right Person, Communicating Clearly, Following Up)
+- **Module:** "SMART Goals Framework" → 1 deep module (500-800 words, step-by-step guide, visual description, examples, 5-8 questions)
 
 **UI Components:**
 - `/curator/understand` - Upload artefact, view understanding
 - `/curator/refine/[id]` - Provide feedback to refine understanding
 - `/curator/generate/[id]` - View generation progress and final modules with provenance
+- `/test-generation` - **NEW:** Granularity testing interface with 15 predefined test cases (5 subject, 5 topic, 5 module) for validating detection accuracy
 
 **Cost Optimization:**
 - Average generation cost: TBD (to be measured in production with GPT-5 + Claude 4.5 + Gemini 2.5 Pro)
