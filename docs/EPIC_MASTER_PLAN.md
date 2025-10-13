@@ -1,5 +1,5 @@
 # Epic Master Plan - Cerply B2B Enterprise MVP
-**Version:** 1.2  
+**Version:** 1.3  
 **Status:** LOCKED (Changes require explicit approval)  
 **Last Updated:** 2025-10-13  
 **Owner:** Cerply Engineering
@@ -34,7 +34,7 @@ This document is the **single source of truth** for all epic planning, scope, st
 | **6.7** | P1 | 📋 Planned | L-11, B-3 | TBD | TBD | 8h |
 | **6.8** | P1 | 📋 Planned | B-3, B-12 | §32 | EPIC6.8_IMPLEMENTATION_PROMPT.md | 20-24h |
 | **7** | P1 | ✅ Complete | L-16, B-15 | §28 | EPIC7_IMPLEMENTATION_PROMPT.md | 18h |
-| **8** | P1 | ⚠️ Phase 4 Complete | L-12, L-18 | §29 | EPIC8_IMPLEMENTATION_PROMPT.md | 15h (Phases 1-4: 11.5h done, Phases 7-8: 2h remaining) |
+| **8** | P1 | ✅ Complete | L-12, L-18 | §29 | EPIC8_IMPLEMENTATION_PROMPT.md | 13.5h actual (10% under budget) |
 | **9** | P1 | 📋 Planned | L-2 | §30 | EPIC9_IMPLEMENTATION_PROMPT.md | 13h |
 | **10** | P1 | 📋 Planned | E-1, E-14 | TBD | TBD | 10h |
 | **11** | P2 | 📋 Planned | B-6 | TBD | TBD | 16h |
@@ -64,8 +64,8 @@ This document is the **single source of truth** for all epic planning, scope, st
 ### Phase 3: Engagement & Retention (Partially Complete)
 8. ✅ **Epic 7:** Gamification & Certification System
 
-### Phase 4: Conversational & Adaptive (Planned)
-9. 📋 **Epic 8:** Conversational Learning Interface
+### Phase 4: Conversational & Adaptive (Partially Complete)
+9. ✅ **Epic 8:** Conversational Learning Interface
 10. 📋 **Epic 9:** True Adaptive Difficulty Engine
 
 ### Phase 5: Content Operations (Planned)
@@ -986,6 +986,13 @@ GET /api/certification/audit/:requestId
 ---
 
 ## Changelog
+
+### v1.3 (2025-10-13)
+- **Epic 8 Complete** - ✅ Conversational Learning Interface (Phases 1-8, 13.5h actual, 10% under budget)
+- **P0 Migration Complete** - Content hierarchy database schema deployed to staging
+- **90 tests passing** - Epic 8 test suite (intent routing, explanations, free-text validation, E2E)
+- **Performance targets exceeded** - 93.8% intent accuracy (target: 90%), $0.00009/explanation (target: $0.0002)
+- **Source:** Epic 8 agent closure + P0 migration reconciliation
 
 ### v1.2 (2025-10-13)
 - **Added Epic 6.8: Manager Curation Workflow** - New 20-24h epic for manager-centric content curation and assignment
