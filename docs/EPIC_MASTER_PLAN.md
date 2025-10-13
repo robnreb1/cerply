@@ -353,42 +353,68 @@ POST /api/channels/slack/webhook → 200 OK
 
 ### Epic 6: Ensemble Content Generation
 
-**Status:** 🚧 In Progress  
+**Status:** 🚧 In Progress (Granularity Detection ✅ Complete 2025-10-13)  
 **Priority:** P1 (Content quality)  
-**Effort:** 16 hours
+**Effort:** 18 hours (16h base + 2h granularity enhancement)
 
 **BRD Traceability:**
 - B-3: 3-LLM ensemble generation (Generator A, Generator B, Fact-Checker)
+- B-3: **Intelligent curriculum design** (granularity detection - THE KILLER FEATURE)
 - E-14: Provenance tracking for certification
 
 **FSD Traceability:**
-- §26: Ensemble Content Generation
+- §26: Ensemble Content Generation (updated with granularity detection)
 
 **Implementation Prompt:** `EPIC6_IMPLEMENTATION_PROMPT.md`
 
-**Scope (LOCKED):**
-1. Understanding phase (manager playback + iterative refinement)
-2. 3-LLM pipeline (Generator A, Generator B, Fact-Checker)
-3. Provenance tracking (which LLM contributed what)
-4. Canon storage for generic content reuse
-5. Manager review UI with regeneration
+**Scope (LOCKED + ENHANCED):**
+1. **Granularity Detection (NEW):** Intelligently detects Subject (8-12 topics) vs Topic (4-6 modules) vs Module (1 deep module)
+2. **Adaptive Prompting (NEW):** Uses specialized prompt sets (SUBJECT_PROMPTS, TOPIC_PROMPTS, MODULE_PROMPTS) based on detected granularity
+3. Understanding phase (manager playback + iterative refinement)
+4. 3-LLM pipeline (Generator A, Generator B, Fact-Checker)
+5. Provenance tracking (which LLM contributed what)
+6. Canon storage for generic content reuse
+7. Manager review UI with regeneration
 
 **Deliverables:**
-- [ ] Understanding phase working
-- [ ] 3-LLM pipeline implemented
-- [ ] Provenance tracked
-- [ ] Canon storage integrated
-- [ ] Manager review UI
+- [x] **Granularity detection function** (`detectGranularity()`)
+- [x] **3 prompt sets** (SUBJECT_PROMPTS, TOPIC_PROMPTS, MODULE_PROMPTS)
+- [x] **API integration** (granularity field in content_generations table)
+- [x] **Test UI** (`/test-generation` with 15 test cases)
+- [ ] Understanding phase working (API routes exist, UI pending)
+- [ ] 3-LLM pipeline implemented (code complete, needs Epic 6 base deployment)
+- [ ] Provenance tracked (schema ready)
+- [ ] Canon storage integrated (code complete)
+- [ ] Manager review UI (deferred to Phase 2)
 
 **Feature Flags:**
 - `FF_ENSEMBLE_GENERATION_V1=true`
 - `FF_CONTENT_CANON_V1=true`
 
-**Acceptance:**
+**Database Migration:**
+- `018_add_granularity.sql` - Adds `granularity` column to `content_generations`
+
+**Acceptance (Updated):**
 ```bash
+POST /api/content/understand
+# Request: { "artefact": "Leadership" }
+# Response: {
+#   "understanding": "...",
+#   "granularity": "subject",  ← NEW
+#   "granularityMetadata": {   ← NEW
+#     "expected": "8-12 topics",
+#     "reasoning": "Broad domain-level request"
+#   }
+# }
+
 POST /api/content/generate
-# → { modules: [...], provenance: { generatorA: [...], generatorB: [...], factChecker: [...] } }
+# → Uses SUBJECT_PROMPTS to generate 8-12 topics
+# → { topics: [...], provenance: { generatorA: [...], generatorB: [...], factChecker: [...] } }
 ```
+
+**Testing:**
+- 15 test cases at `/test-generation` (5 subject, 5 topic, 5 module)
+- Expected: 100% accurate granularity detection
 
 ---
 
