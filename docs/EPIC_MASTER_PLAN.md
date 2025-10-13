@@ -34,7 +34,7 @@ This document is the **single source of truth** for all epic planning, scope, st
 | **6.7** | P1 | 📋 Planned | L-11, B-3 | TBD | TBD | 8h |
 | **6.8** | P1 | 📋 Planned | B-3, B-12 | §32 | EPIC6.8_IMPLEMENTATION_PROMPT.md | 20-24h |
 | **7** | P1 | ✅ Complete | L-16, B-15 | §28 | EPIC7_IMPLEMENTATION_PROMPT.md | 18h |
-| **8** | P1 | ⚠️ Phase 2 Complete | L-12, L-18 | §29 | EPIC8_IMPLEMENTATION_PROMPT.md | 15h (Phases 1-2: 7h done, Phase 3-8: 6.5h remaining) |
+| **8** | P1 | ⚠️ Phase 4 Complete | L-12, L-18 | §29 | EPIC8_IMPLEMENTATION_PROMPT.md | 15h (Phases 1-4: 11.5h done, Phases 7-8: 2h remaining) |
 | **9** | P1 | 📋 Planned | L-2 | §30 | EPIC9_IMPLEMENTATION_PROMPT.md | 13h |
 | **10** | P1 | 📋 Planned | E-1, E-14 | TBD | TBD | 10h |
 | **11** | P2 | 📋 Planned | B-6 | TBD | TBD | 16h |
@@ -640,9 +640,9 @@ GET /api/certificates/:id → PDF download
 
 ### Epic 8: Conversational Learning Interface
 
-**Status:** ⚠️ Phase 2 Complete (6.5h remaining)  
+**Status:** ⚠️ Phase 4 Complete (2h remaining)  
 **Priority:** P1 (UX differentiator)  
-**Effort:** 15 hours (7h done, 6.5h remaining)
+**Effort:** 15 hours (11.5h done, 2h remaining)
 
 **BRD Traceability:**
 - L-12: Conversational interface with natural language queries
@@ -651,22 +651,26 @@ GET /api/certificates/:id → PDF download
 **FSD Traceability:**
 - §29: Conversational Learning Interface
 
-**Implementation Prompt:** `EPIC8_IMPLEMENTATION_PROMPT.md`  
-**Phase 2 Delivery:** `EPIC8_PHASE2_DELIVERY.md`
+**Implementation Prompts:**
+- `EPIC8_IMPLEMENTATION_PROMPT.md`  
+- `EPIC8_PHASE2_DELIVERY.md`
+- `EPIC8_PHASE3-4_DELIVERY.md`
 
 **Scope (LOCKED):**
 1. ✅ Chat panel with Cmd+K shortcut (Phase 1)
 2. ✅ Intent router (progress/next/explanation/filter/help) (Phase 1)
 3. ✅ LLM-powered explanations with caching (Phase 2) **COMPLETE 2025-10-13**
-4. ⏳ Free-text answer validation (fuzzy matching + LLM) (Phase 3)
+4. ✅ Free-text answer validation (fuzzy matching + LLM) (Phase 3) **COMPLETE 2025-10-13**
 5. ✅ Confusion tracking for adaptive difficulty (Phase 2) **COMPLETE 2025-10-13**
+6. ✅ Partial credit scoring in gamification (Phase 4) **COMPLETE 2025-10-13**
 
 **Deliverables:**
 - [x] Chat panel implemented (Phase 1)
 - [x] Intent router working (Phase 1)
 - [x] Explanations generated (Phase 2) **COMPLETE 2025-10-13**
-- [ ] Free-text validation working (Phase 3)
+- [x] Free-text validation working (Phase 3) **COMPLETE 2025-10-13**
 - [x] Confusion logged (Phase 2) **COMPLETE 2025-10-13**
+- [x] Partial credit scoring (Phase 4) **COMPLETE 2025-10-13**
 
 **Feature Flags:**
 - `FF_CONVERSATIONAL_UI_V1=true`

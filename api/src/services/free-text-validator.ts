@@ -7,8 +7,19 @@
 import OpenAI from 'openai';
 import Levenshtein from 'fast-levenshtein';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const LLM_UNDERSTANDING = process.env.LLM_UNDERSTANDING || 'gpt-4o';
+
+// Lazy initialization of OpenAI client (only when needed)
+let openai: OpenAI | null = null;
+function getOpenAIClient(): OpenAI {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openai;
+}
 
 export interface ValidationResult {
   correct: boolean;
@@ -94,7 +105,8 @@ Respond in JSON format:
 }`;
 
   try {
-    const completion = await openai.chat.completions.create({
+    const client = getOpenAIClient();
+    const completion = await client.chat.completions.create({
       model: LLM_UNDERSTANDING,
       messages: [
         {
