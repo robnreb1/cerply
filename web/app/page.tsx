@@ -61,10 +61,6 @@ export default function Home() {
       const affirmativePatterns = /^(yes|yep|yeah|yup|sure|ok|okay|correct|right|that's right|exactly|absolutely|definitely|go ahead|proceed|start|begin|let's do it|sounds good|perfect|great|good|confirmed|confirm)/i;
       const isAffirmative = affirmativePatterns.test(userInput.trim());
 
-      console.log('[Cerply Debug] lastAssistantMessage awaitingConfirmation:', isConfirmation);
-      console.log('[Cerply Debug] userInput:', userInput);
-      console.log('[Cerply Debug] isAffirmative:', isAffirmative);
-
       if (isConfirmation && isAffirmative) {
         // User confirmed! Now generate content
         const granularity = lastAssistantMessage.granularity || 'topic';
@@ -73,11 +69,11 @@ export default function Home() {
         let generatingResponse = '';
         if (granularity === 'subject') {
           // Subject confirmed - but this shouldn't happen as subjects suggest topics
-          generatingResponse = 'Great! Please let me know which specific topic you\'d like to focus on.';
+          generatingResponse = 'Understood. Please let me know which specific topic you would like to focus on.';
         } else if (granularity === 'module') {
-          generatingResponse = `Fantastic! I'll create your learning path now. This specific skill is part of a broader topic, so I'm building out the complete learning journey including quizzes, case studies, practical exercises, and milestone assessments. You'll work through this step by step for better retention.\n\n_Creating your personalized content... (15-20 seconds)_`;
+          generatingResponse = `Understood. I'm structuring your learning path now. This specific skill is part of a broader topic, so I'm building the complete curriculum. You'll work through this systematically for optimal retention.\n\n_Creating your personalized content... (15-20 seconds)_`;
         } else {
-          generatingResponse = `Excellent! This is a valuable skill to develop. I'm now structuring your learning path with all the modules, quizzes, case studies, practical exercises, and milestone assessments. You'll master this through adaptive lessons designed just for you.\n\n_Creating your personalized content... (15-20 seconds)_`;
+          generatingResponse = `Understood. I'm now structuring your learning path based on current research and verified sources. The content will be delivered in adaptive modules designed to optimize your learning.\n\n_Creating your personalized content... (15-20 seconds)_`;
         }
 
         const generatingMessage: Message = {
@@ -140,23 +136,23 @@ export default function Home() {
       if (granularity === 'subject') {
         // Subject: This is broad, suggest topics
         if (!isRefinement) {
-          assistantResponse = `That's a great area to develop in! From what you're asking, I can see you're interested in this broader field.\n\nLet me make sure I understand: **${shortSummary}**\n\nDoes that sound right? This is quite a broad domain, so I'd suggest focusing on a specific topic within it that would give you practical, applicable skills. What specific aspect interests you most?`;
+          assistantResponse = `I understand you're interested in this broader field. Let me confirm: **${shortSummary}**\n\nIs that correct? This is quite a broad domain, so I'd suggest focusing on a specific topic within it. What specific aspect would you like to pursue?`;
         } else {
-          assistantResponse = `I understand - you want to narrow this down. **${shortSummary}** This is a broad area, so which specific topic would you like to focus on for practical skills?`;
+          assistantResponse = `I see. **${shortSummary}** This is a broad area. Which specific topic would you like to focus on?`;
         }
       } else if (granularity === 'module') {
         // Module: specific skill/tool
         if (!isRefinement) {
-          assistantResponse = `Love it - you're focused on something specific and practical. Let me confirm: **${shortSummary}**\n\nDoes that capture what you're looking for? If so, I'll build out a complete learning journey including this specific skill and related concepts, with quizzes and practical exercises throughout.`;
+          assistantResponse = `I understand. Let me confirm: **${shortSummary}**\n\nIs that what you're looking for? Once you confirm, we will start your adaptive learning based on the latest research and credible sources.`;
         } else {
-          assistantResponse = `Got it - **${shortSummary}** Does that sound right? If so, I'll structure your learning path.`;
+          assistantResponse = `I see. **${shortSummary}** Is that correct? If so, we can begin.`;
         }
       } else {
         // Topic: the anchor point
         if (!isRefinement) {
-          assistantResponse = `Excellent choice - this is a really valuable area to develop. Let me confirm: **${shortSummary}**\n\nIs that what you're looking for? Once you confirm, I'll create your complete learning path with modules, quizzes, case studies, practical exercises, and milestone assessments.`;
+          assistantResponse = `I understand. Let me confirm: **${shortSummary}**\n\nIs that what you're looking for? Once you confirm, we will start your adaptive learning based on the latest research and credible sources.`;
         } else {
-          assistantResponse = `I understand - **${shortSummary}** Does that capture it? If so, I'll create your structured learning path.`;
+          assistantResponse = `I see. **${shortSummary}** Is that correct? If so, we can begin.`;
         }
       }
 
