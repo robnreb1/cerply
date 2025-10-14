@@ -4,7 +4,7 @@
 
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Book, Target, Wrench } from 'lucide-react';
+import { Send, Target, Wrench } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface Message {
@@ -32,7 +32,7 @@ export default function Home() {
     const welcomeMessage: Message = {
       id: 'welcome',
       role: 'assistant',
-      content: "Hi! I'm Cerply, your adaptive learning companion. 🎓\n\nJust tell me what you'd like to learn, and I'll create a personalized learning path for you.\n\n**Try saying:**\n- \"Leadership\" (I'll help you choose a starting point)\n- \"Effective Delegation\" (I'll guide you step-by-step)\n- \"SMART Goals Framework\" (I'll teach you this specific tool)",
+      content: "Hi, I'm Cerply. Shall we continue with your live topics, or would you like to learn something new?",
     };
     setMessages([welcomeMessage]);
   }, []);
@@ -52,7 +52,7 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Call understanding endpoint to detect granularity
+      // Call understanding endpoint to detect granularity with timeout
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
@@ -62,14 +62,21 @@ export default function Home() {
         headers['x-admin-token'] = 'test-admin-token';
       }
 
+      // Create fetch with 10-second timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const understandRes = await fetch('/api/content/understand', {
         method: 'POST',
         headers,
         body: JSON.stringify({ artefact: userInput }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+
       if (!understandRes.ok) {
-        throw new Error('Failed to process your request');
+        throw new Error('LEARNING_ENGINE_ERROR');
       }
 
       const understandData = await understandRes.json();
@@ -78,22 +85,18 @@ export default function Home() {
 
       // Generate conversational response based on granularity
       let assistantResponse = '';
-      let icon = <Book className="w-5 h-5" />;
 
       if (granularity === 'subject') {
         // Subject: Ask user to narrow down
-        icon = <Sparkles className="w-5 h-5" />;
         assistantResponse = `I understand you want to learn about **${userInput}** - that's a broad and important domain!\n\n${understanding}\n\n**To get started, which aspect interests you most?**\n\nFor example, you could start with:\n- Delegation skills\n- Conflict resolution\n- Team building\n- Motivation techniques\n\nJust tell me what sounds most relevant to you right now. 🎯`;
       } else if (granularity === 'module') {
         // Module: Generate module + show parent context
-        icon = <Wrench className="w-5 h-5" />;
         assistantResponse = `Perfect! I'll teach you **${userInput}** - a specific and powerful tool.\n\n${understanding}\n\nThis is part of a broader learning path, so I'll also show you how it fits into the bigger picture.\n\n**Generating your content now...** 🚀\n\n_(This will take about 15-20 seconds as I create high-quality, verified content)_`;
         
         // TODO: Trigger actual generation here
         // For now, show placeholder
       } else {
         // Topic: Start module sequence
-        icon = <Target className="w-5 h-5" />;
         assistantResponse = `Excellent choice! **${userInput}** is a focused skill that will make a real impact.\n\n${understanding}\n\n**Here's how we'll learn this together:**\nI'll guide you through one module at a time, with quizzes and practical examples. This spaced approach helps you retain what you learn.\n\n**Ready to start Module 1?** Let me know and we'll begin! 🎯`;
       }
 
@@ -110,12 +113,20 @@ export default function Home() {
 
       setMessages(prev => [...prev, assistantMessage]);
       setSessionId(understandData.id || sessionId);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Chat error:', err);
+      
+      let errorContent = "We have been unable to connect to the Cerply learning engine, please try again later.";
+      
+      // Check if it was a timeout
+      if (err.name === 'AbortError') {
+        errorContent = "We have been unable to connect to the Cerply learning engine, please try again later.";
+      }
+      
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: "I'm sorry, I encountered an issue processing your request. Could you try rephrasing that? 🤔",
+        content: errorContent,
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -135,14 +146,9 @@ export default function Home() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Cerply</h1>
-              <p className="text-xs text-gray-500">Adaptive Learning Intelligence</p>
-            </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Cerply</h1>
+            <p className="text-xs text-gray-500">Learn anything. Remember everything.</p>
           </div>
           <div className="text-sm text-gray-500">
             {process.env.NODE_ENV === 'development' && (
@@ -187,7 +193,7 @@ export default function Home() {
                       </ReactMarkdown>
                       {msg.granularity && (
                         <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-2 text-xs text-gray-500">
-                          {msg.granularity === 'subject' && <><Sparkles className="w-3 h-3" /> Broad domain detected</>}
+                          {msg.granularity === 'subject' && <>🌟 Broad domain detected</>}
                           {msg.granularity === 'topic' && <><Target className="w-3 h-3" /> Focused topic detected</>}
                           {msg.granularity === 'module' && <><Wrench className="w-3 h-3" /> Specific tool detected</>}
                         </div>
@@ -226,7 +232,7 @@ export default function Home() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="What would you like to learn today?"
+                placeholder=""
                 className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400"
                 disabled={isLoading}
                 autoFocus
@@ -240,9 +246,41 @@ export default function Home() {
                 Send
               </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              💡 Try: "Leadership", "Effective Delegation", or "SMART Goals Framework"
-            </p>
+            
+            {/* Shortcuts */}
+            <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+              <span className="font-medium">Shortcuts:</span>
+              <button
+                onClick={() => {/* TODO: Open file upload */}}
+                className="hover:text-blue-600 hover:underline transition-colors"
+              >
+                Upload
+              </button>
+              <button
+                onClick={() => {/* TODO: Open challenge form */}}
+                className="hover:text-blue-600 hover:underline transition-colors"
+              >
+                Challenge
+              </button>
+              <button
+                onClick={() => {/* TODO: Navigate to catalog */}}
+                className="hover:text-blue-600 hover:underline transition-colors"
+              >
+                Catalog
+              </button>
+              <button
+                onClick={() => {/* TODO: Navigate to account */}}
+                className="hover:text-blue-600 hover:underline transition-colors"
+              >
+                Account
+              </button>
+              <button
+                onClick={() => {/* TODO: Navigate to progress */}}
+                className="hover:text-blue-600 hover:underline transition-colors"
+              >
+                Progress
+              </button>
+            </div>
           </div>
         </div>
       </div>
