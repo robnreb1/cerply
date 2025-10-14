@@ -657,20 +657,17 @@ Output JSON:
  */
 export const SUBJECT_PROMPTS = {
   understanding: {
-    system: 'You are a curriculum designer analyzing a broad subject area to create comprehensive topic coverage.',
-    user: `The manager wants to create training on: "{{TOPIC}}"
+    system: 'You are a concise learning advisor. Summarize the broad domain the user is interested in.',
+    user: `User request: "{{TOPIC}}"
 
-This is a SUBJECT-LEVEL request (broad domain).
+Provide a brief summary of this BROAD SUBJECT AREA. Focus on what the domain encompasses, not specific topics.
 
-Your task:
-1. **Subject**: Identify the broad domain (e.g., "Leadership", "Financial Services")
-2. **Scope**: Define what this subject encompasses
-3. **Topic Breakdown**: Identify 8-12 focused topics that comprehensively cover this subject
-4. **Learning Goals**: What should learners achieve after mastering this subject?
-5. **Audience**: Who needs this training?
-6. **Prerequisites**: Required background knowledge
+Example responses:
+- "a comprehensive understanding of business management principles, including strategy, operations, and team leadership"
+- "the fundamentals and advanced concepts of computer science, covering programming, algorithms, and system design"
+- "core financial services knowledge, including banking, investments, risk management, and regulatory compliance"
 
-Output a clear plan for breaking this subject into teachable topics.`
+Keep it concise and natural.`
   },
   
   generatorA: {
@@ -746,19 +743,17 @@ Output final validated topic list with provenance.`
  */
 export const TOPIC_PROMPTS = {
   understanding: {
-    system: 'You are an instructional designer analyzing a focused learning topic to create module structure.',
-    user: `The manager wants to create training on: "{{TOPIC}}"
+    system: 'You are a concise learning advisor. Summarize what the user wants to learn in 1-2 clear sentences.',
+    user: `User request: "{{TOPIC}}"
 
-This is a TOPIC-LEVEL request (focused skill/concept).
+Provide a brief, natural summary of what they want to learn. Focus on the KEY CONCEPTS and SKILLS, not on creating modules or pedagogy.
 
-Your task:
-1. **Topic**: Identify the specific skill or concept
-2. **Learning Objectives**: What should learners be able to DO after completing this topic?
-3. **Module Breakdown**: Identify 4-6 modules that teach this topic progressively
-4. **Pedagogical Approach**: How should this be taught?
-5. **Assessment Strategy**: How will competency be measured?
+Example responses:
+- "the key principles of effective leadership, including delegation, communication, and team motivation"
+- "Python programming fundamentals, including variables, loops, functions, and data structures"
+- "financial planning strategies for retirement, covering investment options, risk management, and tax optimization"
 
-Output a clear plan for breaking this topic into learning modules.`
+Keep it concise, natural, and focused on WHAT they'll learn, not HOW.`
   },
   
   generatorA: {
@@ -857,20 +852,17 @@ JSON format:
  */
 export const MODULE_PROMPTS = {
   understanding: {
-    system: 'You are an instructional designer analyzing a specific framework/tool/method to create deep learning content.',
-    user: `The manager wants to create training on: "{{TOPIC}}"
+    system: 'You are a concise learning advisor. Summarize the specific skill, framework, or tool the user wants to learn.',
+    user: `User request: "{{TOPIC}}"
 
-This is a MODULE-LEVEL request (specific framework/tool/method).
+Provide a brief summary of this SPECIFIC SKILL/FRAMEWORK/TOOL. Focus on what it is and what they'll be able to do.
 
-Your task:
-1. **Framework/Tool**: Identify the specific concept
-2. **Purpose**: What problem does this solve? When is it used?
-3. **Components**: Break down the framework into its parts
-4. **Application**: Step-by-step guide to using it
-5. **Common Mistakes**: Pitfalls to avoid
-6. **Assessment**: How to test deep understanding (5-8 questions)
+Example responses:
+- "the SMART Goals framework for setting clear, achievable objectives in business and personal contexts"
+- "active listening techniques for effective communication, including paraphrasing, reflection, and empathetic responses"
+- "Python's pandas library for data analysis, covering dataframes, data manipulation, and visualization"
 
-Output a clear plan for teaching this specific framework/tool/method in depth.`
+Keep it concise, practical, and focused on the SKILL or TOOL itself.`
   },
   
   generatorA: {
