@@ -112,7 +112,7 @@ export interface EnsembleResult {
 /**
  * Call OpenAI model with retry logic
  */
-async function callOpenAI(
+export async function callOpenAI(
   model: string,
   prompt: string,
   systemPrompt: string,
