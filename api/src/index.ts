@@ -155,6 +155,9 @@ export async function createApp() {
   // Content Generation routes (Epic 6: Ensemble Content Generation)
   await safeRegister('./routes/content', ['registerContentRoutes']);
 
+  // Conversation routes (Epic 6: Natural conversational UI)
+  await safeRegister('./routes/conversation', ['registerConversationRoutes']);
+
   // Gamification routes (Epic 7: Gamification & Certification System)
   await safeRegister('./routes/gamification', ['registerGamificationRoutes']);
 
