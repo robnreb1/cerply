@@ -53,124 +53,64 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Check if we're responding to a confirmation request
+      // Get conversation context from previous messages
       const lastAssistantMessage = messages.filter(m => m.role === 'assistant').pop();
-      const isConfirmation = lastAssistantMessage?.awaitingConfirmation;
+      const messageHistory = messages.map(m => ({ role: m.role, content: m.content }));
       
-      // If user is confirming, check for affirmative responses (very flexible)
-      const affirmativePatterns = /^(yes|yep|yeah|yup|sure|ok|okay|correct|right|that's right|exactly|absolutely|definitely|go ahead|proceed|start|begin|let's do it|sounds good|perfect|great|good|confirmed|confirm)/i;
-      const isAffirmative = affirmativePatterns.test(userInput.trim());
-
-      if (isConfirmation && isAffirmative) {
-        // User confirmed! Now generate content
-        const granularity = lastAssistantMessage.granularity || 'topic';
-        const originalRequest = lastAssistantMessage.metadata?.originalRequest || userInput;
-
-        let generatingResponse = '';
-        if (granularity === 'subject') {
-          // Subject confirmed - but this shouldn't happen as subjects suggest topics
-          generatingResponse = 'Understood. Please let me know which specific topic you would like to focus on.';
-        } else if (granularity === 'module') {
-          generatingResponse = `Understood. I'm structuring your learning path now. This specific skill is part of a broader topic, so I'm building the complete curriculum. You'll work through this systematically for optimal retention.\n\n_Creating your personalized content... (15-20 seconds)_`;
-        } else {
-          generatingResponse = `Understood. I'm now structuring your learning path based on current research and verified sources. The content will be delivered in adaptive modules designed to optimize your learning.\n\n_Creating your personalized content... (15-20 seconds)_`;
-        }
-
-        const generatingMessage: Message = {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: generatingResponse,
-          granularity,
-        };
-
-        setMessages(prev => [...prev, generatingMessage]);
-        setIsLoading(false);
-        // TODO: Trigger actual content generation API call
-        return;
-      }
-
-      // If user is refining or clarifying, skip praise and just confirm understanding
-      const isRefinement = isConfirmation && !isAffirmative;
-
-      // Call understanding endpoint to detect granularity with timeout
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'x-admin-token': 'test-admin-token',
+      // Prepare conversation request
+      const conversationRequest = {
+        userInput,
+        messageHistory,
+        currentState: lastAssistantMessage?.awaitingConfirmation ? 'confirming' as const : 'initial' as const,
+        granularity: lastAssistantMessage?.granularity,
+        understanding: lastAssistantMessage?.metadata?.understanding,
+        originalRequest: lastAssistantMessage?.metadata?.originalRequest || userInput,
       };
 
+      // Call LLM-driven conversation endpoint with timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout for LLM calls
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-      const understandRes = await fetch('/api/content/understand', {
+      const conversationRes = await fetch('/api/conversation', {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ artefact: userInput }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-token': 'test-admin-token',
+        },
+        body: JSON.stringify(conversationRequest),
         signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
 
-      if (!understandRes.ok) {
-        throw new Error('LEARNING_ENGINE_ERROR');
+      if (!conversationRes.ok) {
+        throw new Error('CONVERSATION_ERROR');
       }
 
-      const understandData = await understandRes.json();
-      const granularity = understandData.granularity || 'topic';
-      const llmUnderstanding = understandData.understanding || '';
-
-      // Use the LLM's actual understanding to create a personalized, natural response
-      // Extract the core summary (remove "I understand this covers..." prefix if present)
-      let coreSummary = llmUnderstanding;
-      if (coreSummary.startsWith('I understand this covers')) {
-        coreSummary = coreSummary.replace(/^I understand this covers[:\s]*/i, '');
-      } else if (coreSummary.startsWith('I understand')) {
-        coreSummary = coreSummary.replace(/^I understand[:\s]*/i, '');
-      }
+      const conversationData = await conversationRes.json();
       
-      // Trim to first 2-3 sentences for confirmation (keep it concise)
-      const sentences = coreSummary.split(/[.!?]+/).filter(s => s.trim().length > 0);
-      const shortSummary = sentences.slice(0, 2).join('. ').trim() + (sentences.length > 2 ? '.' : '');
-
-      let assistantResponse = '';
-
-      if (granularity === 'subject') {
-        // Subject: This is broad, suggest topics
-        if (!isRefinement) {
-          assistantResponse = `I understand you're interested in this broader field. Let me confirm: **${shortSummary}**\n\nIs that correct? This is quite a broad domain, so I'd suggest focusing on a specific topic within it. What specific aspect would you like to pursue?`;
-        } else {
-          assistantResponse = `I see. **${shortSummary}** This is a broad area. Which specific topic would you like to focus on?`;
-        }
-      } else if (granularity === 'module') {
-        // Module: specific skill/tool
-        if (!isRefinement) {
-          assistantResponse = `I understand. Let me confirm: **${shortSummary}**\n\nIs that what you're looking for? Once you confirm, we will start your adaptive learning based on the latest research and credible sources.`;
-        } else {
-          assistantResponse = `I see. **${shortSummary}** Is that correct? If so, we can begin.`;
-        }
-      } else {
-        // Topic: the anchor point
-        if (!isRefinement) {
-          assistantResponse = `I understand. Let me confirm: **${shortSummary}**\n\nIs that what you're looking for? Once you confirm, we will start your adaptive learning based on the latest research and credible sources.`;
-        } else {
-          assistantResponse = `I see. **${shortSummary}** Is that correct? If so, we can begin.`;
-        }
-      }
-
+      // Create assistant message with LLM-generated response (no templates!)
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: assistantResponse,
-        granularity,
-        awaitingConfirmation: true,
+        content: conversationData.message,
+        granularity: conversationData.granularity,
+        awaitingConfirmation: conversationData.nextState === 'confirming',
         metadata: {
-          understanding: understandData.understanding,
-          generationId: understandData.id,
-          originalRequest: userInput,
+          understanding: conversationData.understanding,
+          generationId: conversationData.generationId,
+          originalRequest: conversationRequest.originalRequest,
         },
       };
 
       setMessages(prev => [...prev, assistantMessage]);
-      setSessionId(understandData.id || sessionId);
+      setSessionId(conversationData.generationId || sessionId);
+
+      // If action is START_GENERATION, trigger content generation
+      if (conversationData.action === 'START_GENERATION') {
+        // TODO: Trigger actual content generation API call
+        console.log('[Cerply] Starting content generation for:', conversationRequest.originalRequest);
+      }
     } catch (err: any) {
       console.error('Chat error:', err);
       
