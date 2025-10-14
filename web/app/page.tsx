@@ -99,7 +99,7 @@ export default function Home() {
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout for LLM calls
 
       const understandRes = await fetch('/api/content/understand', {
         method: 'POST',
