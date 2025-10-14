@@ -67,6 +67,12 @@ export default function Home() {
         originalRequest: lastAssistantMessage?.metadata?.originalRequest || userInput,
       };
 
+      console.log('[Frontend Debug] Sending to backend:', {
+        currentState: conversationRequest.currentState,
+        userInput: conversationRequest.userInput,
+        awaitingConfirmation: lastAssistantMessage?.awaitingConfirmation,
+      });
+
       // Call LLM-driven conversation endpoint with timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
