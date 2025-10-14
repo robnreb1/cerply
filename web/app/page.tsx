@@ -55,12 +55,8 @@ export default function Home() {
       // Call understanding endpoint to detect granularity with timeout
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'x-admin-token': 'test-admin-token', // Always send for local testing
       };
-      
-      // Use admin token for testing/demo
-      if (process.env.NODE_ENV === 'development') {
-        headers['x-admin-token'] = 'test-admin-token';
-      }
 
       // Create fetch with 10-second timeout
       const controller = new AbortController();
