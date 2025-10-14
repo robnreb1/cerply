@@ -24,13 +24,19 @@ export async function generateConversationalResponse(
 ): Promise<{ content: string; nextState: string; action?: string }> {
   
   // HARDCODED: Affirmative response to content clarification
-  // This is predictable, instant, and LLMs kept recapping the topic despite explicit instructions
-  if (context.currentState === 'generating') {
-    return {
-      content: "Understood. I'm now structuring your adaptive learning path based on current research - this will help you master the topic systematically.",
-      nextState: 'generating',
-      action: 'START_GENERATION',
-    };
+  // Check if user is confirming and provided an affirmative response
+  if (context.currentState === 'confirming') {
+    const affirmativePatterns = /^(yes|yep|yeah|yup|sure|ok|okay|correct|right|that's right|exactly|absolutely|definitely|go ahead|proceed|start|begin|let's do it|sounds good|perfect|great|good|confirmed|confirm)/i;
+    const isAffirmative = affirmativePatterns.test(userInput.trim());
+    
+    if (isAffirmative) {
+      // User confirmed! Return instant hardcoded response
+      return {
+        content: "Understood. I'm now structuring your adaptive learning path based on current research - this will help you master the topic systematically.",
+        nextState: 'generating',
+        action: 'START_GENERATION',
+      };
+    }
   }
   
   const systemPrompt = `You are Cerply, an understated, professional learning advisor with the tone of an Oxford professor. 
@@ -96,7 +102,7 @@ Previous understanding: "${context.understanding}"
 Acknowledge the refinement briefly and naturally. Ask a clarifying question if helpful, or confirm the new direction.`;
   }
 
-  // Generate response with LLM (for initial, confirming, refining states)
+  // Generate response with LLM (for initial, refining states)
   const result = await callOpenAI('gpt-4o', userPrompt, systemPrompt);
   
   // Determine next action based on state
@@ -106,14 +112,9 @@ Acknowledge the refinement briefly and naturally. Ask a clarifying question if h
   if (context.currentState === 'initial') {
     nextState = 'initial'; // Stay in initial, wait for next message
   } else if (context.currentState === 'confirming') {
-    // Check if user confirmed
-    const affirmative = /^(yes|yep|yeah|yup|sure|ok|okay|correct|right|exactly|go ahead|proceed|start|begin|confirmed)/i.test(userInput.trim());
-    if (affirmative) {
-      nextState = 'generating';
-      action = 'START_GENERATION';
-    } else {
-      nextState = 'refining';
-    }
+    // If we reach here, user didn't affirm (otherwise handled above)
+    // They're refining or clarifying
+    nextState = 'refining';
   }
   
   return {
