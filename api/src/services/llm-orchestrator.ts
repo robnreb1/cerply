@@ -116,7 +116,8 @@ export async function callOpenAI(
   model: string,
   prompt: string,
   systemPrompt: string,
-  retries: number = 3
+  retries: number = 3,
+  temperature: number = 0.7
 ): Promise<LLMResult> {
   const start = Date.now();
   const client = getOpenAIClient();
@@ -140,7 +141,7 @@ export async function callOpenAI(
       } else {
         // Standard models support temperature and use max_tokens
         params.max_tokens = 4000;
-        params.temperature = 0.7;
+        params.temperature = temperature;
       }
       
       const response = await client.chat.completions.create(params);

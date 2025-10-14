@@ -102,7 +102,9 @@ Examples:
 Be concise and action-focused. No topic recap.`;
   }
 
-  const result = await callOpenAI('gpt-4o', userPrompt, systemPrompt);
+  // Use temperature=0 for generating state to ensure it follows instructions exactly
+  const temperature = context.currentState === 'generating' ? 0 : 0.7;
+  const result = await callOpenAI('gpt-4o', userPrompt, systemPrompt, 3, temperature);
   
   // Determine next action based on state
   let nextState = context.currentState;
