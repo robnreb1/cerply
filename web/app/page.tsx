@@ -48,14 +48,19 @@ export default function Home() {
       content: userInput,
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // CRITICAL: Use functional update to get CURRENT messages, not stale closure
+    let currentMessages: Message[] = [];
+    setMessages(prev => {
+      currentMessages = [...prev, userMessage];
+      return currentMessages;
+    });
     setInput('');
     setIsLoading(true);
 
     try {
-      // Get conversation context from previous messages
-      const lastAssistantMessage = messages.filter(m => m.role === 'assistant').pop();
-      const messageHistory = messages.map(m => ({ role: m.role, content: m.content }));
+      // Get conversation context from CURRENT messages (not stale closure)
+      const lastAssistantMessage = currentMessages.filter(m => m.role === 'assistant').pop();
+      const messageHistory = currentMessages.map(m => ({ role: m.role, content: m.content }));
       
       // Prepare conversation request
       const conversationRequest = {
