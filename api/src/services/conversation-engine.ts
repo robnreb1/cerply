@@ -89,13 +89,17 @@ Acknowledge the refinement briefly and naturally. Ask a clarifying question if h
     // They confirmed, start generation
     userPrompt = `The learner has confirmed they want to learn: "${context.originalRequest}"
 
-Provide a brief, professional response (2 sentences max):
-1. Thank them for confirming (1 short sentence)
-2. Explain you're now structuring their adaptive learning path to help them master this topic
+Provide a very brief response (1-2 sentences max):
+- Acknowledge confirmation with "Understood" or similar
+- State you're now structuring their adaptive learning path
+- DO NOT mention or summarize the topic - they already confirmed it
+- DO NOT explain what they'll learn - they know
 
-Keep it concise and action-oriented. Don't repeat what they want to learn. Just acknowledge and confirm you're starting.
+Examples:
+"Understood. I'm structuring your adaptive learning path now, designed to help you master this systematically."
+"Thank you. I'm now building your personalized learning journey - this will be structured to optimize your comprehension."
 
-Example: "Understood. I'm now structuring your adaptive learning path based on current research - this will help you master the topic systematically."`;
+Be concise and action-focused. No topic recap.`;
   }
 
   const result = await callOpenAI('gpt-4o', userPrompt, systemPrompt);
