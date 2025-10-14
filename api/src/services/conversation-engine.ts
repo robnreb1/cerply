@@ -25,25 +25,17 @@ export async function generateConversationalResponse(
   
   // HARDCODED: Affirmative response to content clarification
   // Check if user is confirming and provided an affirmative response
-  console.log('[Backend Debug] Received:', {
-    currentState: context.currentState,
-    userInput: userInput,
-  });
-  
   if (context.currentState === 'confirming') {
     const affirmativePatterns = /^(yes|yep|yeah|yup|sure|ok|okay|correct|right|that's right|exactly|absolutely|definitely|go ahead|proceed|start|begin|let's do it|sounds good|perfect|great|good|confirmed|confirm)/i;
     const isAffirmative = affirmativePatterns.test(userInput.trim());
     
-    console.log('[Backend Debug] In confirming state, isAffirmative:', isAffirmative);
-    
     if (isAffirmative) {
-      // User confirmed! Return instant hardcoded response
-      console.log('[Backend Debug] Returning hardcoded response!');
-      return {
+      // User confirmed! Return instant hardcoded response (no LLM call)
+      return Promise.resolve({
         content: "Understood. I'm now structuring your adaptive learning path based on current research - this will help you master the topic systematically.",
         nextState: 'generating',
         action: 'START_GENERATION',
-      };
+      });
     }
   }
   

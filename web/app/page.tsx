@@ -69,14 +69,9 @@ export default function Home() {
         currentState: lastAssistantMessage?.awaitingConfirmation ? 'confirming' as const : 'initial' as const,
         granularity: lastAssistantMessage?.granularity,
         understanding: lastAssistantMessage?.metadata?.understanding,
+        // IMPORTANT: Keep original request from first message, don't override with "yes"
         originalRequest: lastAssistantMessage?.metadata?.originalRequest || userInput,
       };
-
-      console.log('[Frontend Debug] Sending to backend:', {
-        currentState: conversationRequest.currentState,
-        userInput: conversationRequest.userInput,
-        awaitingConfirmation: lastAssistantMessage?.awaitingConfirmation,
-      });
 
       // Call LLM-driven conversation endpoint with timeout
       const controller = new AbortController();
