@@ -87,17 +87,20 @@ export default function Home() {
       let assistantResponse = '';
 
       if (granularity === 'subject') {
-        // Subject: Ask user to narrow down
-        assistantResponse = `I understand you want to learn about **${userInput}** - that's a broad and important domain!\n\n${understanding}\n\n**To get started, which aspect interests you most?**\n\nFor example, you could start with:\n- Delegation skills\n- Conflict resolution\n- Team building\n- Motivation techniques\n\nJust tell me what sounds most relevant to you right now. 🎯`;
+        // Subject: Suggest topics, DON'T generate content yet
+        // User picks a topic, THEN we generate that ONE topic
+        assistantResponse = `I understand you want to learn about **${userInput}** - that's a broad and important domain!\n\n${understanding}\n\n**To get started, which specific topic would you like to learn?**\n\nFor example:\n- Delegation skills\n- Conflict resolution\n- Team building\n- Motivation techniques\n\nJust tell me which topic interests you, and I'll create a complete learning path for it. 🎯`;
       } else if (granularity === 'module') {
-        // Module: Generate module + show parent context
-        assistantResponse = `Perfect! I'll teach you **${userInput}** - a specific and powerful tool.\n\n${understanding}\n\nThis is part of a broader learning path, so I'll also show you how it fits into the bigger picture.\n\n**Generating your content now...** 🚀\n\n_(This will take about 15-20 seconds as I create high-quality, verified content)_`;
+        // Module: Generate PARENT TOPIC content, deliver specific module
+        // Example: User asks "SMART Goals" → Generate "Goal Setting" topic → Deliver SMART Goals module
+        assistantResponse = `Perfect! I'll teach you **${userInput}**.\n\n${understanding}\n\nThis is part of a broader topic, so I'll generate the complete learning path and start you with this specific module.\n\n**Generating your content now...** 🚀\n\n_(Creating high-quality, verified content for the complete topic - about 15-20 seconds)_`;
         
-        // TODO: Trigger actual generation here
-        // For now, show placeholder
+        // TODO: Identify parent topic, generate entire topic content, deliver specific module
       } else {
-        // Topic: Start module sequence
-        assistantResponse = `Excellent choice! **${userInput}** is a focused skill that will make a real impact.\n\n${understanding}\n\n**Here's how we'll learn this together:**\nI'll guide you through one module at a time, with quizzes and practical examples. This spaced approach helps you retain what you learn.\n\n**Ready to start Module 1?** Let me know and we'll begin! 🎯`;
+        // Topic: Generate ALL modules for this topic (THE ANCHOR POINT)
+        assistantResponse = `Excellent choice! **${userInput}** is a focused topic that will make a real impact.\n\n${understanding}\n\n**Generating your complete learning path now...** 🚀\n\nI'm creating all modules for this topic with quizzes and practical examples. This will take about 15-20 seconds.\n\n_(You'll learn this one module at a time for better retention)_`;
+        
+        // TODO: Trigger topic generation (all modules)
       }
 
       const assistantMessage: Message = {
