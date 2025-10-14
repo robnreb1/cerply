@@ -116,30 +116,43 @@ export default function Home() {
 
       const understandData = await understandRes.json();
       const granularity = understandData.granularity || 'topic';
+      const llmUnderstanding = understandData.understanding || '';
 
-      // Extract key concepts from understanding to create natural summary
+      // Use the LLM's actual understanding to create a personalized, natural response
+      // Extract the core summary (remove "I understand this covers..." prefix if present)
+      let coreSummary = llmUnderstanding;
+      if (coreSummary.startsWith('I understand this covers')) {
+        coreSummary = coreSummary.replace(/^I understand this covers[:\s]*/i, '');
+      } else if (coreSummary.startsWith('I understand')) {
+        coreSummary = coreSummary.replace(/^I understand[:\s]*/i, '');
+      }
+      
+      // Trim to first 2-3 sentences for confirmation (keep it concise)
+      const sentences = coreSummary.split(/[.!?]+/).filter(s => s.trim().length > 0);
+      const shortSummary = sentences.slice(0, 2).join('. ').trim() + (sentences.length > 2 ? '.' : '');
+
       let assistantResponse = '';
 
       if (granularity === 'subject') {
         // Subject: This is broad, suggest topics
         if (!isRefinement) {
-          assistantResponse = `That's a great area to develop in! From what you're asking, you want to build capabilities in this broader domain. Let me make sure I understand correctly:\n\n**You're interested in learning about the fundamentals and key concepts in this field.**\n\nIs that right? If so, I can suggest some specific topics to start with that will give you practical, applicable skills.`;
+          assistantResponse = `That's a great area to develop in! From what you're asking, I can see you're interested in this broader field.\n\nLet me make sure I understand: **${shortSummary}**\n\nDoes that sound right? This is quite a broad domain, so I'd suggest focusing on a specific topic within it that would give you practical, applicable skills. What specific aspect interests you most?`;
         } else {
-          assistantResponse = `I understand - you want to narrow this down. This is a broad area, so let me suggest some specific topics you could focus on that would give you real, practical skills. Which of these interests you most?`;
+          assistantResponse = `I understand - you want to narrow this down. **${shortSummary}** This is a broad area, so which specific topic would you like to focus on for practical skills?`;
         }
       } else if (granularity === 'module') {
         // Module: specific skill/tool
         if (!isRefinement) {
-          assistantResponse = `Love it - you're focused on a specific, practical skill. Let me make sure I've understood correctly:\n\n**You want to learn this specific technique/tool as part of your professional development.**\n\nDoes that capture what you're looking for? If so, I'll structure a complete learning path that includes this and related skills, with quizzes and practical exercises throughout.`;
+          assistantResponse = `Love it - you're focused on something specific and practical. Let me confirm: **${shortSummary}**\n\nDoes that capture what you're looking for? If so, I'll build out a complete learning journey including this specific skill and related concepts, with quizzes and practical exercises throughout.`;
         } else {
-          assistantResponse = `Got it - let me make sure I understand what you're asking for now. You want to develop this specific skill. Does that sound right? If so, I'll build out a structured learning path for you.`;
+          assistantResponse = `Got it - **${shortSummary}** Does that sound right? If so, I'll structure your learning path.`;
         }
       } else {
         // Topic: the anchor point
         if (!isRefinement) {
-          assistantResponse = `Excellent choice - this is a really valuable skill to develop. Let me confirm I've understood correctly:\n\n**You want to build practical capabilities in this area through structured, bite-sized lessons.**\n\nIs that what you're looking for? Once you confirm, I'll structure the complete learning path with quizzes, case studies, practical exercises, and milestone assessments.`;
+          assistantResponse = `Excellent choice - this is a really valuable area to develop. Let me confirm: **${shortSummary}**\n\nIs that what you're looking for? Once you confirm, I'll create your complete learning path with modules, quizzes, case studies, practical exercises, and milestone assessments.`;
         } else {
-          assistantResponse = `I understand - let me make sure I've got this right now. You want to develop capabilities in this specific topic area. Does that capture it? If so, I'll create your structured learning path.`;
+          assistantResponse = `I understand - **${shortSummary}** Does that capture it? If so, I'll create your structured learning path.`;
         }
       }
 
