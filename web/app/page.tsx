@@ -4,7 +4,7 @@
 
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Send, Target, Wrench } from 'lucide-react';
+import { Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface Message {
@@ -13,6 +13,7 @@ interface Message {
   content: string;
   granularity?: 'subject' | 'topic' | 'module';
   metadata?: any;
+  awaitingConfirmation?: boolean; // Track if we're waiting for user confirmation
 }
 
 export default function Home() {
@@ -52,13 +53,51 @@ export default function Home() {
     setIsLoading(true);
 
     try {
+      // Check if we're responding to a confirmation request
+      const lastAssistantMessage = messages.filter(m => m.role === 'assistant').pop();
+      const isConfirmation = lastAssistantMessage?.awaitingConfirmation;
+      
+      // If user is confirming, check for affirmative responses
+      const affirmativePatterns = /^(yes|yep|yeah|sure|correct|that's right|exactly|go ahead|proceed|start|begin|let's do it|sounds good|perfect)/i;
+      const isAffirmative = affirmativePatterns.test(userInput);
+
+      if (isConfirmation && isAffirmative) {
+        // User confirmed! Now generate content
+        const granularity = lastAssistantMessage.granularity || 'topic';
+        const originalRequest = lastAssistantMessage.metadata?.originalRequest || userInput;
+
+        let generatingResponse = '';
+        if (granularity === 'subject') {
+          // Subject confirmed - but this shouldn't happen as subjects suggest topics
+          generatingResponse = 'Great! Please let me know which specific topic you\'d like to focus on.';
+        } else if (granularity === 'module') {
+          generatingResponse = `Fantastic! I'll create your learning path now. This specific skill is part of a broader topic, so I'm building out the complete learning journey including quizzes, case studies, practical exercises, and milestone assessments. You'll work through this step by step for better retention.\n\n_Creating your personalized content... (15-20 seconds)_`;
+        } else {
+          generatingResponse = `Excellent! This is a valuable skill to develop. I'm now structuring your learning path with all the modules, quizzes, case studies, practical exercises, and milestone assessments. You'll master this through adaptive lessons designed just for you.\n\n_Creating your personalized content... (15-20 seconds)_`;
+        }
+
+        const generatingMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: generatingResponse,
+          granularity,
+        };
+
+        setMessages(prev => [...prev, generatingMessage]);
+        setIsLoading(false);
+        // TODO: Trigger actual content generation API call
+        return;
+      }
+
+      // If user is refining or clarifying, skip praise and just confirm understanding
+      const isRefinement = isConfirmation && !isAffirmative;
+
       // Call understanding endpoint to detect granularity with timeout
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'x-admin-token': 'test-admin-token', // Always send for local testing
+        'x-admin-token': 'test-admin-token',
       };
 
-      // Create fetch with 10-second timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -77,26 +116,31 @@ export default function Home() {
 
       const understandData = await understandRes.json();
       const granularity = understandData.granularity || 'topic';
-      const understanding = understandData.understanding || '';
 
-      // Generate conversational response based on granularity
+      // Extract key concepts from understanding to create natural summary
       let assistantResponse = '';
 
       if (granularity === 'subject') {
-        // Subject: Suggest topics, DON'T generate content yet
-        // User picks a topic, THEN we generate that ONE topic
-        assistantResponse = `I understand you want to learn about **${userInput}** - that's a broad and important domain!\n\n${understanding}\n\n**To get started, which specific topic would you like to learn?**\n\nFor example:\n- Delegation skills\n- Conflict resolution\n- Team building\n- Motivation techniques\n\nJust tell me which topic interests you, and I'll create a complete learning path for it. 🎯`;
+        // Subject: This is broad, suggest topics
+        if (!isRefinement) {
+          assistantResponse = `That's a great area to develop in! From what you're asking, you want to build capabilities in this broader domain. Let me make sure I understand correctly:\n\n**You're interested in learning about the fundamentals and key concepts in this field.**\n\nIs that right? If so, I can suggest some specific topics to start with that will give you practical, applicable skills.`;
+        } else {
+          assistantResponse = `I understand - you want to narrow this down. This is a broad area, so let me suggest some specific topics you could focus on that would give you real, practical skills. Which of these interests you most?`;
+        }
       } else if (granularity === 'module') {
-        // Module: Generate PARENT TOPIC content, deliver specific module
-        // Example: User asks "SMART Goals" → Generate "Goal Setting" topic → Deliver SMART Goals module
-        assistantResponse = `Perfect! I'll teach you **${userInput}**.\n\n${understanding}\n\nThis is part of a broader topic, so I'll generate the complete learning path and start you with this specific module.\n\n**Generating your content now...** 🚀\n\n_(Creating high-quality, verified content for the complete topic - about 15-20 seconds)_`;
-        
-        // TODO: Identify parent topic, generate entire topic content, deliver specific module
+        // Module: specific skill/tool
+        if (!isRefinement) {
+          assistantResponse = `Love it - you're focused on a specific, practical skill. Let me make sure I've understood correctly:\n\n**You want to learn this specific technique/tool as part of your professional development.**\n\nDoes that capture what you're looking for? If so, I'll structure a complete learning path that includes this and related skills, with quizzes and practical exercises throughout.`;
+        } else {
+          assistantResponse = `Got it - let me make sure I understand what you're asking for now. You want to develop this specific skill. Does that sound right? If so, I'll build out a structured learning path for you.`;
+        }
       } else {
-        // Topic: Generate ALL modules for this topic (THE ANCHOR POINT)
-        assistantResponse = `Excellent choice! **${userInput}** is a focused topic that will make a real impact.\n\n${understanding}\n\n**Generating your complete learning path now...** 🚀\n\nI'm creating all modules for this topic with quizzes and practical examples. This will take about 15-20 seconds.\n\n_(You'll learn this one module at a time for better retention)_`;
-        
-        // TODO: Trigger topic generation (all modules)
+        // Topic: the anchor point
+        if (!isRefinement) {
+          assistantResponse = `Excellent choice - this is a really valuable skill to develop. Let me confirm I've understood correctly:\n\n**You want to build practical capabilities in this area through structured, bite-sized lessons.**\n\nIs that what you're looking for? Once you confirm, I'll structure the complete learning path with quizzes, case studies, practical exercises, and milestone assessments.`;
+        } else {
+          assistantResponse = `I understand - let me make sure I've got this right now. You want to develop capabilities in this specific topic area. Does that capture it? If so, I'll create your structured learning path.`;
+        }
       }
 
       const assistantMessage: Message = {
@@ -104,9 +148,11 @@ export default function Home() {
         role: 'assistant',
         content: assistantResponse,
         granularity,
+        awaitingConfirmation: true,
         metadata: {
           understanding: understandData.understanding,
           generationId: understandData.id,
+          originalRequest: userInput,
         },
       };
 
@@ -117,7 +163,6 @@ export default function Home() {
       
       let errorContent = "We have been unable to connect to the Cerply learning engine, please try again later.";
       
-      // Check if it was a timeout
       if (err.name === 'AbortError') {
         errorContent = "We have been unable to connect to the Cerply learning engine, please try again later.";
       }
@@ -190,13 +235,6 @@ export default function Home() {
                       >
                         {msg.content}
                       </ReactMarkdown>
-                      {msg.granularity && (
-                        <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-2 text-xs text-gray-500">
-                          {msg.granularity === 'subject' && <>🌟 Broad domain detected</>}
-                          {msg.granularity === 'topic' && <><Target className="w-3 h-3" /> Focused topic detected</>}
-                          {msg.granularity === 'module' && <><Wrench className="w-3 h-3" /> Specific tool detected</>}
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <p className="text-sm">{msg.content}</p>
@@ -266,6 +304,12 @@ export default function Home() {
                 className="hover:text-blue-600 hover:underline transition-colors"
               >
                 Catalog
+              </button>
+              <button
+                onClick={() => {/* TODO: Navigate to curate - manager content creation */}}
+                className="hover:text-blue-600 hover:underline transition-colors"
+              >
+                Curate
               </button>
               <button
                 onClick={() => {/* TODO: Navigate to account */}}
