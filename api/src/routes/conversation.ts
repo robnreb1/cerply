@@ -52,6 +52,7 @@ export async function registerConversationRoutes(app: FastifyInstance) {
         // If this is the first message, get understanding from LLM
         let updatedUnderstanding = understanding;
         let updatedGranularity = granularity;
+        let updatedState = currentState;
         let generationId = undefined;
 
         if (currentState === 'initial' && !understanding) {
@@ -60,12 +61,13 @@ export async function registerConversationRoutes(app: FastifyInstance) {
           updatedUnderstanding = understandingResult.content;
           updatedGranularity = understandingResult.granularity as 'subject' | 'topic' | 'module';
           generationId = understandingResult.tokens; // Use as temp ID
+          updatedState = 'confirming'; // Move to confirming state after understanding
         }
 
         // Generate conversational response
         const response = await generateConversationalResponse(userInput, {
           messageHistory,
-          currentState: updatedUnderstanding ? 'confirming' : 'initial',
+          currentState: updatedState,
           granularity: updatedGranularity,
           understanding: updatedUnderstanding,
           originalRequest: originalRequest || userInput,
