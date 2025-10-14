@@ -23,6 +23,16 @@ export async function generateConversationalResponse(
   context: ConversationContext
 ): Promise<{ content: string; nextState: string; action?: string }> {
   
+  // HARDCODED: Affirmative response to content clarification
+  // This is predictable, instant, and LLMs kept recapping the topic despite explicit instructions
+  if (context.currentState === 'generating') {
+    return {
+      content: "Understood. I'm now structuring your adaptive learning path based on current research - this will help you master the topic systematically.",
+      nextState: 'generating',
+      action: 'START_GENERATION',
+    };
+  }
+  
   const systemPrompt = `You are Cerply, an understated, professional learning advisor with the tone of an Oxford professor. 
 
 TONE GUIDELINES:
@@ -84,27 +94,10 @@ CRITICAL: Your response MUST end with a question asking for confirmation. Do not
 Previous understanding: "${context.understanding}"
 
 Acknowledge the refinement briefly and naturally. Ask a clarifying question if helpful, or confirm the new direction.`;
-
-  } else if (context.currentState === 'generating') {
-    // They confirmed, start generation
-    userPrompt = `The learner has confirmed they want to learn: "${context.originalRequest}"
-
-Provide a very brief response (1-2 sentences max):
-- Acknowledge confirmation with "Understood" or similar
-- State you're now structuring their adaptive learning path
-- DO NOT mention or summarize the topic - they already confirmed it
-- DO NOT explain what they'll learn - they know
-
-Examples:
-"Understood. I'm structuring your adaptive learning path now, designed to help you master this systematically."
-"Thank you. I'm now building your personalized learning journey - this will be structured to optimize your comprehension."
-
-Be concise and action-focused. No topic recap.`;
   }
 
-  // Use temperature=0 for generating state to ensure it follows instructions exactly
-  const temperature = context.currentState === 'generating' ? 0 : 0.7;
-  const result = await callOpenAI('gpt-4o', userPrompt, systemPrompt, 3, temperature);
+  // Generate response with LLM (for initial, confirming, refining states)
+  const result = await callOpenAI('gpt-4o', userPrompt, systemPrompt);
   
   // Determine next action based on state
   let nextState = context.currentState;
