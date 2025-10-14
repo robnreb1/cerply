@@ -57,9 +57,13 @@ export default function Home() {
       const lastAssistantMessage = messages.filter(m => m.role === 'assistant').pop();
       const isConfirmation = lastAssistantMessage?.awaitingConfirmation;
       
-      // If user is confirming, check for affirmative responses
-      const affirmativePatterns = /^(yes|yep|yeah|sure|correct|that's right|exactly|go ahead|proceed|start|begin|let's do it|sounds good|perfect)/i;
-      const isAffirmative = affirmativePatterns.test(userInput);
+      // If user is confirming, check for affirmative responses (very flexible)
+      const affirmativePatterns = /^(yes|yep|yeah|yup|sure|ok|okay|correct|right|that's right|exactly|absolutely|definitely|go ahead|proceed|start|begin|let's do it|sounds good|perfect|great|good|confirmed|confirm)/i;
+      const isAffirmative = affirmativePatterns.test(userInput.trim());
+
+      console.log('[Cerply Debug] lastAssistantMessage awaitingConfirmation:', isConfirmation);
+      console.log('[Cerply Debug] userInput:', userInput);
+      console.log('[Cerply Debug] isAffirmative:', isAffirmative);
 
       if (isConfirmation && isAffirmative) {
         // User confirmed! Now generate content
