@@ -68,13 +68,14 @@ I understand this as: "${context.understanding}"
 
 This is a ${context.granularity}-level request.
 
-Provide a brief, natural confirmation message:
-1. Acknowledge their interest (1 sentence)
-2. Summarize your understanding in your own words (don't just repeat the understanding text)
-3. Ask if that's correct
-4. If confirmed, mention you'll start their adaptive learning based on research and credible sources
+Provide a brief, natural confirmation message that:
+1. Briefly acknowledges what they want to learn (1-2 sentences)
+2. MUST end with a clear confirmation question asking if that's correct
 
-Keep it conversational and natural. Vary your language.`;
+Example structure:
+"I understand you're interested in [topic]. [Brief 1-sentence summary of what they'll learn]. Is that what you're looking for?"
+
+CRITICAL: Your response MUST end with a question asking for confirmation. Do not just explain - you must ask them to confirm.`;
 
   } else if (context.currentState === 'refining') {
     // They're refining their request

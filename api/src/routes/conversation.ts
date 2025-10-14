@@ -65,7 +65,7 @@ export async function registerConversationRoutes(app: FastifyInstance) {
         // Generate conversational response
         const response = await generateConversationalResponse(userInput, {
           messageHistory,
-          currentState: understanding ? 'confirming' : 'initial',
+          currentState: updatedUnderstanding ? 'confirming' : 'initial',
           granularity: updatedGranularity,
           understanding: updatedUnderstanding,
           originalRequest: originalRequest || userInput,
