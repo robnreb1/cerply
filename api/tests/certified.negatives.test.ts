@@ -13,7 +13,7 @@ describe('Certified PLAN negatives (413, 429) with CORS headers', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 

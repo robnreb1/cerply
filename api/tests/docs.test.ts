@@ -1,11 +1,14 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { createApp } from '../src/index';
 
 describe('API Docs (preview only)', () => {
-  let app: Awaited<ReturnType<typeof createApp>>;
+  let app: Awaited<ReturnType<typeof createApp>> | undefined;
 
-  afterAll(async () => {
-    if (app) await app.close();
+  afterEach(async () => {
+    if (app) {
+      await app.close();
+      app = undefined;
+    }
     vi.unstubAllEnvs();
   });
 
@@ -14,7 +17,6 @@ describe('API Docs (preview only)', () => {
     app = await createApp();
     const r = await app.inject({ method: 'GET', url: '/api/docs' });
     expect([404, 301, 302, 200]).toContain(r.statusCode); // tolerate non-mounted or redirects
-    await app.close();
   });
 
   it('returns 200 when PREVIEW_DOCS=true', async () => {

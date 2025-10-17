@@ -1,10 +1,21 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import type { FastifyInstance } from 'fastify';
 
 describe('Analytics Preview Routes', () => {
-  it('OPTIONS returns 204 and ACAO:*', async () => {
-    process.env.PREVIEW_ANALYTICS = 'true';
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    vi.stubEnv('PREVIEW_ANALYTICS', 'true');
     const { createApp } = await import('../src');
-    const app = await createApp();
+    app = await createApp();
+  });
+
+  afterAll(async () => {
+    if (app) await app.close();
+    vi.unstubAllEnvs();
+  });
+
+  it('OPTIONS returns 204 and ACAO:*', async () => {
     const res = await app.inject({ method: 'OPTIONS', url: '/api/analytics/ingest' });
     expect([204, 400]).toContain(res.statusCode); // Allow both for CORS variations
     if (res.statusCode === 204) {
@@ -13,23 +24,17 @@ describe('Analytics Preview Routes', () => {
   });
 
   it('POST ingest enforces content-type and secret when set', async () => {
-    process.env.PREVIEW_ANALYTICS = 'true';
-    process.env.ANALYTICS_INGEST_SECRET = 't';
-    const { createApp } = await import('../src');
-    const app = await createApp();
+    vi.stubEnv('ANALYTICS_INGEST_SECRET', 't');
     const r415 = await app.inject({ method: 'POST', url: '/api/analytics/ingest', payload: '{}' });
     expect(r415.statusCode).toBe(415);
     const r401 = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json' }, payload: '{}' });
     expect([400,401]).toContain(r401.statusCode);
     const r401b = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json', authorization: 'Bearer bad' }, payload: JSON.stringify({ events: [] }) });
     expect([400,401]).toContain(r401b.statusCode);
+    vi.unstubEnv('ANALYTICS_INGEST_SECRET');
   });
 
   it('ingest + aggregate roundtrip', async () => {
-    process.env.PREVIEW_ANALYTICS = 'true';
-    delete process.env.ANALYTICS_INGEST_SECRET;
-    const { createApp } = await import('../src');
-    const app = await createApp();
     const now = new Date().toISOString();
     const ingest = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json' }, payload: JSON.stringify({ events: [ { event:'plan_request', ts: now, anon_session_id: 's1', context:{ topic:'Hashes', engine:'mock' } } ] }) });
     expect(ingest.statusCode).toBe(204);
