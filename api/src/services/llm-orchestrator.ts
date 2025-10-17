@@ -15,9 +15,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // PHILOSOPHY: Always use the BEST available models for maximum quality
 // OPTIMIZED: Use o3's deep reasoning for validation rather than initial generation (cost optimization)
 const UNDERSTANDING_MODEL = process.env.LLM_UNDERSTANDING || 'gpt-4o'; // Fast, cheap for initial understanding
-const GENERATOR_1 = process.env.LLM_GENERATOR_1 || 'claude-sonnet-4-5'; // Claude 4.5: Fast, creative first draft
-const GENERATOR_2 = process.env.LLM_GENERATOR_2 || 'gpt-4o'; // GPT-4o: Fast, analytical alternative draft
-const FACT_CHECKER = process.env.LLM_FACT_CHECKER || 'o3'; // o3: Deep reasoning to validate and select best content
+
+// RESEARCH-GRADE ENSEMBLE (provider-agnostic, capability-first)
+const GENERATOR_1 = process.env.LLM_GENERATOR_1 || 'claude-opus-4'; // Best long-form synthesis (fallback: claude-sonnet-4-5)
+const GENERATOR_2 = process.env.LLM_GENERATOR_2 || 'o3-mini'; // Best analytical reasoning (cost-effective)
+const FACT_CHECKER = process.env.LLM_FACT_CHECKER || 'o3'; // Best reasoning for validation
+const CITATION_VALIDATOR = process.env.LLM_CITATION_VALIDATOR || 'o3-mini'; // Citation accuracy verification (100% required)
 
 // Lazy initialization of clients (only when needed to avoid startup failures)
 let _openai: OpenAI | null = null;
@@ -104,6 +107,15 @@ export interface EnsembleResult {
   factChecker: LLMResult;
   finalModules: Module[];
   provenance: ProvenanceRecord[];
+  citationValidation?: { // NEW: 100% citation accuracy requirement
+    accuracy: number;
+    validCitations: number;
+    totalCitations: number;
+    flaggedIssues: Array<{ module: string; issue: string; severity: 'error' | 'warning' }>;
+    requiresHumanReview: boolean;
+    costUsd: number;
+    tokens: number;
+  };
   totalCost: number;
   totalTokens: number;
   totalTime: number;
@@ -117,7 +129,8 @@ export async function callOpenAI(
   prompt: string,
   systemPrompt: string,
   retries: number = 3,
-  temperature: number = 0.7
+  temperature: number = 0.7,
+  maxTokens: number = 4000 // Allow custom max tokens for long-form content (GPT-5 supports up to 16384)
 ): Promise<LLMResult> {
   const start = Date.now();
   const client = getOpenAIClient();
@@ -136,11 +149,11 @@ export async function callOpenAI(
       // Use the correct parameter names based on model
       if (model.startsWith('gpt-5') || model.startsWith('o1') || model.startsWith('o3')) {
         // GPT-5/o1/o3 use max_completion_tokens and don't support custom temperature
-        params.max_completion_tokens = 4000;
+        params.max_completion_tokens = maxTokens; // Use custom limit (GPT-5 supports up to 16384)
         // Temperature defaults to 1 (only supported value for these models)
       } else {
         // Standard models support temperature and use max_tokens
-        params.max_tokens = 4000;
+        params.max_tokens = maxTokens;
         params.temperature = temperature;
       }
       
@@ -167,7 +180,7 @@ export async function callOpenAI(
 /**
  * Call Anthropic model with retry logic
  */
-async function callAnthropic(
+export async function callAnthropic(
   model: string,
   prompt: string,
   systemPrompt: string,
@@ -398,15 +411,175 @@ export async function generateWithEnsemble(
     throw new Error(`Fact-checker returned invalid JSON: ${error.message}`);
   }
   
+  // CRITICAL: Citation validation (100% accuracy required for publication)
+  // This validates every citation in the final content against the source material
+  const citationValidation = await validateCitations(
+    factCheckerData.modules,
+    artefact,
+    factCheckerData.provenance
+  );
+  
   return {
     generatorA,
     generatorB,
     factChecker,
     finalModules: factCheckerData.modules,
     provenance: factCheckerData.provenance,
-    totalCost: generatorA.costUsd + generatorB.costUsd + factChecker.costUsd,
-    totalTokens: generatorA.tokens + generatorB.tokens + factChecker.tokens,
+    citationValidation, // NEW: Include citation validation results
+    totalCost: generatorA.costUsd + generatorB.costUsd + factChecker.costUsd + citationValidation.costUsd,
+    totalTokens: generatorA.tokens + generatorB.tokens + factChecker.tokens + citationValidation.tokens,
     totalTime: Date.now() - start,
+  };
+}
+
+/**
+ * Validate Citations (100% Accuracy Requirement)
+ * 
+ * CRITICAL REQUIREMENT: All citations in published content must be 100% accurate.
+ * This function verifies every citation against the source material and flags any issues.
+ * 
+ * @param modules - Generated learning modules with citations
+ * @param sourceMaterial - Original research material
+ * @param provenance - Claimed provenance from fact-checker
+ * @returns Validation results with accuracy score and flagged issues
+ */
+async function validateCitations(
+  modules: any[],
+  sourceMaterial: string,
+  provenance: any
+): Promise<{
+  accuracy: number;
+  validCitations: number;
+  totalCitations: number;
+  flaggedIssues: Array<{
+    module: string;
+    issue: string;
+    severity: 'error' | 'warning';
+  }>;
+  requiresHumanReview: boolean;
+  costUsd: number;
+  tokens: number;
+}> {
+  const start = Date.now();
+  
+  // Extract all citations from modules
+  const allCitations: Array<{ module: string; citation: string }> = [];
+  for (const module of modules) {
+    if (module.content) {
+      // Simple regex to find citation patterns [1], [2], etc.
+      const citationMatches = module.content.match(/\[\d+\]/g) || [];
+      citationMatches.forEach((citation: string) => {
+        allCitations.push({
+          module: module.title,
+          citation,
+        });
+      });
+    }
+  }
+  
+  if (allCitations.length === 0) {
+    // No citations found - flag as warning
+    return {
+      accuracy: 0,
+      validCitations: 0,
+      totalCitations: 0,
+      flaggedIssues: [{
+        module: 'ALL',
+        issue: 'No citations found in generated content - this may be acceptable for introductory content',
+        severity: 'warning',
+      }],
+      requiresHumanReview: false, // Acceptable for basic content
+      costUsd: 0,
+      tokens: 0,
+    };
+  }
+  
+  // Use reasoning model to validate each citation
+  const validationPrompt = `You are a citation validator. Your job is to verify that every citation in the generated content accurately references the source material.
+
+SOURCE MATERIAL:
+${sourceMaterial}
+
+GENERATED MODULES WITH CITATIONS:
+${JSON.stringify(modules, null, 2)}
+
+PROVENANCE CLAIMS:
+${JSON.stringify(provenance, null, 2)}
+
+TASK: Verify every citation [1], [2], [3], etc. in the generated content:
+1. Check if the citation number matches a specific claim in the content
+2. Verify that claim can be traced back to the source material
+3. Flag any citations that are:
+   - Not found in source material
+   - Misrepresented or taken out of context
+   - Missing required context
+   - Referring to non-existent sources
+
+Return JSON with:
+{
+  "totalCitations": number,
+  "validCitations": number,
+  "accuracy": 0-1 (must be 1.0 for publication),
+  "flaggedIssues": [
+    {
+      "module": "module name",
+      "citation": "[1]",
+      "issue": "detailed description",
+      "severity": "error" | "warning",
+      "recommendation": "how to fix"
+    }
+  ]
+}
+
+CRITICAL: If accuracy < 1.0, content CANNOT be published without human review.`;
+
+  const systemPrompt = `You are a rigorous academic citation validator. Your standard is 100% accuracy - any deviation must be flagged. Be thorough and precise.`;
+  
+  let validationResult;
+  if (CITATION_VALIDATOR.startsWith('gpt-') || CITATION_VALIDATOR.startsWith('o1') || CITATION_VALIDATOR.startsWith('o3')) {
+    validationResult = await callOpenAI(CITATION_VALIDATOR, validationPrompt, systemPrompt);
+  } else if (CITATION_VALIDATOR.startsWith('claude-')) {
+    validationResult = await callAnthropic(CITATION_VALIDATOR, validationPrompt, systemPrompt);
+  } else {
+    validationResult = await callGemini(CITATION_VALIDATOR, validationPrompt, systemPrompt);
+  }
+  
+  // Parse validation results
+  let validationData;
+  try {
+    let cleanContent = validationResult.content.trim();
+    if (cleanContent.startsWith('```json')) {
+      cleanContent = cleanContent.replace(/^```json\s*\n/, '').replace(/\n```\s*$/, '');
+    } else if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```\s*\n/, '').replace(/\n```\s*$/, '');
+    }
+    validationData = JSON.parse(cleanContent);
+  } catch (error: any) {
+    console.error('[CitationValidator] JSON parse error:', error.message);
+    // Fallback: flag for human review
+    return {
+      accuracy: 0,
+      validCitations: 0,
+      totalCitations: allCitations.length,
+      flaggedIssues: [{
+        module: 'ALL',
+        issue: `Citation validation failed: ${error.message}`,
+        severity: 'error',
+      }],
+      requiresHumanReview: true,
+      costUsd: validationResult.costUsd,
+      tokens: validationResult.tokens,
+    };
+  }
+  
+  return {
+    accuracy: validationData.accuracy || 0,
+    validCitations: validationData.validCitations || 0,
+    totalCitations: validationData.totalCitations || allCitations.length,
+    flaggedIssues: validationData.flaggedIssues || [],
+    requiresHumanReview: validationData.accuracy < 1.0, // CRITICAL: < 100% = human review required
+    costUsd: validationResult.costUsd,
+    tokens: validationResult.tokens,
   };
 }
 
@@ -484,7 +657,13 @@ export function detectInputType(input: string): 'source' | 'topic' {
  */
 export function detectGranularity(input: string): 'subject' | 'topic' | 'module' {
   const trimmed = input.trim().toLowerCase();
-  const wordCount = trimmed.split(/\s+/).length;
+  
+  // CRITICAL: Strip filler words before analysis
+  // Users often say "physics please" or "I want biology" or "teach me chemistry"
+  const fillerWords = /\b(please|thanks|thank you|i want|teach me|learn|study|about|the)\b/gi;
+  const cleanedInput = trimmed.replace(fillerWords, '').trim().replace(/\s+/g, ' ');
+  
+  const wordCount = cleanedInput.split(/\s+/).filter(w => w.length > 0).length;
   
   // SUBJECT indicators: Very broad, domain-level, usually 1-2 words
   const subjectPatterns = [
@@ -495,7 +674,7 @@ export function detectGranularity(input: string): 'subject' | 'topic' | 'module'
     // Industries/fields (1-2 words)
     /^(financial services|healthcare|technology|education|retail|manufacturing|consulting)$/i,
     // Academic domains
-    /^(mathematics|science|history|literature|philosophy|psychology|sociology|biology|chemistry|physics)$/i,
+    /^(mathematics|maths|science|history|literature|philosophy|psychology|sociology|biology|chemistry|physics)$/i,
   ];
   
   // MODULE indicators: Very specific, includes framework/tool/method keywords
@@ -507,12 +686,12 @@ export function detectGranularity(input: string): 'subject' | 'topic' | 'module'
   ];
   
   // Check for SUBJECT (broad scope)
-  if (wordCount <= 2 && subjectPatterns.some(pattern => pattern.test(trimmed))) {
+  if (wordCount <= 2 && subjectPatterns.some(pattern => pattern.test(cleanedInput))) {
     return 'subject';
   }
   
   // Check for MODULE (specific tool/framework)
-  if (modulePatterns.some(pattern => pattern.test(trimmed))) {
+  if (modulePatterns.some(pattern => pattern.test(cleanedInput))) {
     return 'module';
   }
   
@@ -602,7 +781,7 @@ Output as JSON: { "modules": [{id: "module-1", title, content, questions: [{id: 
   },
   
   factChecker: {
-    system: 'You are a fact-checker and content judge powered by Gemini 2.5 Pro. Your role is to verify accuracy, remove hallucinations, and select the best elements from both generators. Use your multimodal reasoning to ensure the highest quality content.',
+    system: 'You are a fact-checking validator. Your ONLY task is to verify accuracy and output valid JSON. Return ONLY JSON with no conversational text before or after. Do not explain your reasoning - just return the JSON structure exactly as specified.',
     user: `Generator A (GPT-5) output:
 {{GENERATOR_A_OUTPUT}}
 
@@ -720,7 +899,7 @@ Output as JSON (same format as Generator A)`
   },
   
   factChecker: {
-    system: 'You are validating curriculum structure and topic coverage for completeness and accuracy.',
+    system: 'You are a fact-checking validator. Return ONLY valid JSON with no conversational text. Do not add explanations, comments, or any text outside the JSON structure.',
     user: `Validate this curriculum structure for: {{TOPIC}}
 
 Generator A: {{GENERATOR_A_OUTPUT}}
@@ -818,7 +997,7 @@ Output as JSON (same format as Generator A)`
   },
   
   factChecker: {
-    system: 'You are a fact-checker validating educational content and citations for accuracy.',
+    system: 'You are a fact-checking validator. Return ONLY valid JSON with no conversational text. Do not add explanations, comments, or any text outside the JSON structure.',
     user: `Validate this learning content on: {{TOPIC}}
 
 Generator A (Technical): {{GENERATOR_A_OUTPUT}}
@@ -930,7 +1109,7 @@ Output as JSON (same format as Generator A)`
   },
   
   factChecker: {
-    system: 'You are validating comprehensive framework/tool content for accuracy and completeness.',
+    system: 'You are a fact-checking validator. Return ONLY valid JSON with no conversational text. Do not add explanations, comments, or any text outside the JSON structure.',
     user: `Validate this training content on: {{TOPIC}}
 
 Generator A (Comprehensive): {{GENERATOR_A_OUTPUT}}
