@@ -39,7 +39,7 @@ interface ProprietaryContentRequest {
   sourceUrl?: string;
 }
 
-export function registerManagerModuleRoutes(app: FastifyInstance) {
+export async function registerManagerModuleRoutes(app: FastifyInstance) {
   
   // ============================================================================
   // MODULE CRUD OPERATIONS
