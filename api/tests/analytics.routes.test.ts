@@ -11,7 +11,7 @@ describe('Analytics Preview Routes', () => {
   });
 
   afterAll(async () => {
-    if (app) if (app) await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 
@@ -31,10 +31,12 @@ describe('Analytics Preview Routes', () => {
     expect([400,401]).toContain(r401.statusCode);
     const r401b = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json', authorization: 'Bearer bad' }, payload: JSON.stringify({ events: [] }) });
     expect([400,401]).toContain(r401b.statusCode);
-    vi.unstubEnv('ANALYTICS_INGEST_SECRET');
   });
 
   it('ingest + aggregate roundtrip', async () => {
+    // Ensure no secret is set for this test
+    vi.unstubEnv('ANALYTICS_INGEST_SECRET');
+    
     const now = new Date().toISOString();
     const ingest = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json' }, payload: JSON.stringify({ events: [ { event:'plan_request', ts: now, anon_session_id: 's1', context:{ topic:'Hashes', engine:'mock' } } ] }) });
     expect(ingest.statusCode).toBe(204);
