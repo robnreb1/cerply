@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS agent_tool_calls (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   tool_name TEXT NOT NULL,
   parameters JSONB NOT NULL,
   result JSONB,

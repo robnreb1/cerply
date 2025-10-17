@@ -630,7 +630,7 @@ export const batchTopics = pgTable('batch_topics', {
 // Stores conversation history for agent orchestrator (30-day retention)
 export const agentConversations = pgTable('agent_conversations', {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   conversationId: uuid('conversation_id').defaultRandom().notNull(),
   role: text('role').notNull(), // 'user' | 'assistant' | 'system' | 'tool'
   content: text('content').notNull(),
@@ -644,7 +644,7 @@ export const agentConversations = pgTable('agent_conversations', {
 // Audit trail for tool execution (performance monitoring and debugging)
 export const agentToolCalls = pgTable('agent_tool_calls', {
   id: uuid('id').defaultRandom().primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   toolName: text('tool_name').notNull(),
   parameters: jsonb('parameters').notNull(),
   result: jsonb('result'),

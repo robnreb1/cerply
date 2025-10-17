@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS agent_conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   conversation_id UUID NOT NULL DEFAULT gen_random_uuid(),
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
   content TEXT NOT NULL,
