@@ -23,20 +23,7 @@ describe('Analytics Preview Routes', () => {
     }
   });
 
-  it('POST ingest enforces content-type and secret when set', async () => {
-    vi.stubEnv('ANALYTICS_INGEST_SECRET', 't');
-    const r415 = await app.inject({ method: 'POST', url: '/api/analytics/ingest', payload: '{}' });
-    expect(r415.statusCode).toBe(415);
-    const r401 = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json' }, payload: '{}' });
-    expect([400,401]).toContain(r401.statusCode);
-    const r401b = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json', authorization: 'Bearer bad' }, payload: JSON.stringify({ events: [] }) });
-    expect([400,401]).toContain(r401b.statusCode);
-  });
-
   it('ingest + aggregate roundtrip', async () => {
-    // Ensure no secret is set for this test
-    vi.unstubEnv('ANALYTICS_INGEST_SECRET');
-    
     const now = new Date().toISOString();
     const ingest = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json' }, payload: JSON.stringify({ events: [ { event:'plan_request', ts: now, anon_session_id: 's1', context:{ topic:'Hashes', engine:'mock' } } ] }) });
     expect(ingest.statusCode).toBe(204);
@@ -45,6 +32,16 @@ describe('Analytics Preview Routes', () => {
     const json = JSON.parse(agg.body);
     expect(json?.totals?.by_event?.plan_request).toBeGreaterThanOrEqual(1);
     expect(Array.isArray(json?.totals?.by_day)).toBe(true);
+  });
+
+  it('POST ingest enforces content-type and secret when set', async () => {
+    vi.stubEnv('ANALYTICS_INGEST_SECRET', 't');
+    const r415 = await app.inject({ method: 'POST', url: '/api/analytics/ingest', payload: '{}' });
+    expect(r415.statusCode).toBe(415);
+    const r401 = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json' }, payload: '{}' });
+    expect([400,401]).toContain(r401.statusCode);
+    const r401b = await app.inject({ method: 'POST', url: '/api/analytics/ingest', headers: { 'content-type':'application/json', authorization: 'Bearer bad' }, payload: JSON.stringify({ events: [] }) });
+    expect([400,401]).toContain(r401b.statusCode);
   });
 });
 
