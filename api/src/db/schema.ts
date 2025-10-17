@@ -632,9 +632,10 @@ export const agentConversations = pgTable('agent_conversations', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   conversationId: uuid('conversation_id').defaultRandom().notNull(),
-  role: text('role').notNull(), // 'user' | 'assistant' | 'system'
+  role: text('role').notNull(), // 'user' | 'assistant' | 'system' | 'tool'
   content: text('content').notNull(),
   toolCalls: jsonb('tool_calls'), // Array of tool calls made (if any)
+  toolCallId: text('tool_call_id'), // Tool call ID for role='tool' messages
   timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });

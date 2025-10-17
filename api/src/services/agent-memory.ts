@@ -17,9 +17,10 @@ export class AgentMemory {
    */
   async storeMessage(
     userId: string,
-    role: 'user' | 'assistant' | 'system',
+    role: 'user' | 'assistant' | 'system' | 'tool',
     content: string,
-    toolCalls?: any
+    toolCalls?: any,
+    toolCallId?: string
   ): Promise<void> {
     try {
       await db
@@ -29,6 +30,7 @@ export class AgentMemory {
           role,
           content,
           toolCalls: toolCalls || null,
+          toolCallId: toolCallId || null,
           timestamp: new Date(),
           createdAt: new Date(),
         });

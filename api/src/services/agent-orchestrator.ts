@@ -46,9 +46,10 @@ function getOpenAIClient(): OpenAI {
 }
 
 export interface AgentMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   tool_calls?: any[];
+  tool_call_id?: string; // Required for role: 'tool' messages
 }
 
 export interface AgentResponse {
@@ -169,13 +170,15 @@ export class AgentOrchestrator {
         conversationHistory.push({
           role: 'assistant',
           content: message.content || '',
-          tool_calls: toolCalls,
+          tool_calls: message.tool_calls as any, // OpenAI tool call format
         });
 
-        // Add tool results to conversation
+        // Add tool results to conversation as 'tool' messages with IDs
+        // This follows OpenAI's function calling API specification
         for (const toolResult of toolResults) {
           conversationHistory.push({
-            role: 'assistant', // Tool results are treated as assistant messages
+            role: 'tool',
+            tool_call_id: toolResult.tool_call_id,
             content: toolResult.content,
           });
         }
