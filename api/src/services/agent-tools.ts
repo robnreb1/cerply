@@ -9,7 +9,7 @@
 import { searchTopics as searchTopicsService } from './topic-search';
 import { detectGranularity as detectGranularityService } from '../services/llm-orchestrator';
 import { db } from '../db';
-import { artefacts, attempts, agentConversations } from '../db/schema';
+import { topics, attempts, agentConversations } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 /**
@@ -164,19 +164,19 @@ export const getUserProgressTool: AgentTool = {
   },
   async execute({ userId }) {
     try {
-      // Get user's active artefacts (learning content)
-      const userArtefacts = await db
+      // Get user's active topics (learning content)
+      const userTopics = await db
         .select()
-        .from(artefacts)
-        .where(eq(artefacts.userId, userId))
-        .orderBy(desc(artefacts.updatedAt))
+        .from(topics)
+        .where(eq(topics.userId, userId))
+        .orderBy(desc(topics.updatedAt))
         .limit(5);
 
-      // Get user's recent quiz attempts
+      // Get user's recent attempts (simplified - will be enhanced in Epic 14/15)
       const userAttempts = await db
         .select({
           itemId: attempts.itemId,
-          score: attempts.score,
+          correct: attempts.correct,
           createdAt: attempts.createdAt,
         })
         .from(attempts)
@@ -185,16 +185,16 @@ export const getUserProgressTool: AgentTool = {
         .limit(10);
 
       return {
-        hasActiveContent: userArtefacts.length > 0,
-        activeTopics: userArtefacts.map((a: any) => ({
-          id: a.id,
-          title: a.title,
-          status: a.status,
-          updatedAt: a.updatedAt,
+        hasActiveContent: userTopics.length > 0,
+        activeTopics: userTopics.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          subject: t.subject,
+          updatedAt: t.updatedAt,
         })),
         recentActivity: userAttempts.length > 0,
-        averageScore: userAttempts.length > 0
-          ? Math.round(userAttempts.reduce((sum: number, a: any) => sum + (Number(a.score) || 0), 0) / userAttempts.length)
+        successRate: userAttempts.length > 0
+          ? Math.round((userAttempts.filter((a: any) => a.correct).length / userAttempts.length) * 100)
           : null,
       };
     } catch (error: any) {
