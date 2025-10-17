@@ -270,7 +270,7 @@ export async function registerSSORoutes(app: FastifyInstance) {
       const expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
 
       SESSIONS.set(sessionId, {
-        userId: '00000000-0000-0000-0000-000000000002', // Manager test user
+        userId: '00000000-0000-0000-0000-000000000003', // Manager test user
         email: 'manager@cerply-staging.local',
         role: 'manager',
         organizationId: '00000000-0000-0000-0000-000000000001', // Default org
@@ -311,7 +311,7 @@ export async function registerSSORoutes(app: FastifyInstance) {
       const expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
 
       SESSIONS.set(sessionId, {
-        userId: '00000000-0000-0000-0000-000000000001', // Admin test user
+        userId: '00000000-0000-0000-0000-000000000002', // Admin test user
         email: 'admin@cerply-staging.local',
         role: 'admin',
         organizationId: '00000000-0000-0000-0000-000000000001', // Default org
