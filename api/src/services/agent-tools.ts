@@ -164,38 +164,15 @@ export const getUserProgressTool: AgentTool = {
   },
   async execute({ userId }) {
     try {
-      // Get user's active topics (learning content)
-      const userTopics = await db
-        .select()
-        .from(topics)
-        .where(eq(topics.userId, userId))
-        .orderBy(desc(topics.updatedAt))
-        .limit(5);
-
-      // Get user's recent attempts (simplified - will be enhanced in Epic 14/15)
-      const userAttempts = await db
-        .select({
-          itemId: attempts.itemId,
-          correct: attempts.correct,
-          createdAt: attempts.createdAt,
-        })
-        .from(attempts)
-        .where(eq(attempts.userId, userId))
-        .orderBy(desc(attempts.createdAt))
-        .limit(10);
-
+      // TODO: Epic 14/15 - Implement proper user progress tracking
+      // For now, return stub to enable agent functionality
+      // Will be enhanced with proper module/topic assignment tracking
+      
       return {
-        hasActiveContent: userTopics.length > 0,
-        activeTopics: userTopics.map((t: any) => ({
-          id: t.id,
-          title: t.title,
-          subject: t.subject,
-          updatedAt: t.updatedAt,
-        })),
-        recentActivity: userAttempts.length > 0,
-        successRate: userAttempts.length > 0
-          ? Math.round((userAttempts.filter((a: any) => a.correct).length / userAttempts.length) * 100)
-          : null,
+        hasActiveContent: false,
+        activeModules: [],
+        recentActivity: false,
+        message: 'User progress tracking will be implemented in Epic 14 (Manager Module Workflows)',
       };
     } catch (error: any) {
       console.error('[Tool:getUserProgress] Error:', error.message);
