@@ -8,6 +8,7 @@
 
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam, ChatCompletionMessageToolCall as OpenAIToolCall } from 'openai/resources/chat/completions';
+import { AgentMemory } from './agent-memory.js';
 
 export interface ToolCall {
   toolName: string;
@@ -22,14 +23,6 @@ export interface AgentTool {
   parameters: any;
   execute: (params: any) => Promise<any>;
   timeout?: number;
-}
-
-// Forward declaration for AgentMemory (will be resolved at runtime)
-class AgentMemory {
-  async storeMessage(userId: string, role: string, content: string): Promise<void> { }
-  async getConversationHistory(userId: string, limit: number): Promise<any[]> { return []; }
-  async storeToolCall(userId: string, toolName: string, params: any, result: any, time: number, error?: string): Promise<void> { }
-  async clearConversation(userId: string): Promise<void> { }
 }
 
 // Lazy OpenAI client initialization
@@ -70,9 +63,7 @@ export class AgentOrchestrator {
   private maxIterations: number;
 
   constructor() {
-    // Dynamically import AgentMemory to avoid circular dependency
-    const { AgentMemory: RealAgentMemory } = require('./agent-memory');
-    this.memory = new RealAgentMemory();
+    this.memory = new AgentMemory();
     this.model = process.env.AGENT_LLM_MODEL || 'gpt-4o';
     this.maxIterations = parseInt(process.env.AGENT_MAX_ITERATIONS || '5', 10);
   }
