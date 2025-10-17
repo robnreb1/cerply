@@ -1,7 +1,7 @@
 # Epic Master Plan - Cerply B2B Enterprise MVP
-**Version:** 1.4  
+**Version:** 1.5  
 **Status:** LOCKED (Changes require explicit approval)  
-**Last Updated:** 2025-10-13  
+**Last Updated:** 2025-10-16  
 **Owner:** Cerply Engineering
 
 ---
@@ -30,7 +30,7 @@ This document is the **single source of truth** for all epic planning, scope, st
 | **5** | P1 | ✅ Complete | AU-1, L-17, B-7 | §25 | EPIC5_IMPLEMENTATION_PROMPT.md | 12h |
 | **6** | P1 | 🚧 In Progress | B-3, E-14 | §26 | EPIC6_IMPLEMENTATION_PROMPT.md | 16h |
 | **6.5** | P1 | 🚧 In Progress | B-3.1 | §27 | (Part of Epic 6) | Included |
-| **6.6** | P1 | 📋 Planned | B-3 (scaling) | TBD | TBD | 10h |
+| **6.6** | P1 | 📋 Planned | B-3 (scaling) | §31 | EPIC6.6_CONTENT_LIBRARY_SEEDING_PROMPT.md | 12h |
 | **6.7** | P1 | 📋 Planned | L-11, B-3 | TBD | TBD | 8h |
 | **6.8** | P1 | 📋 Planned | B-3, B-12 | §32 | EPIC6.8_IMPLEMENTATION_PROMPT.md | 20-24h |
 | **7** | P1 | ✅ Complete | L-16, B-15 | §28 | EPIC7_IMPLEMENTATION_PROMPT.md | 18h |
@@ -39,6 +39,7 @@ This document is the **single source of truth** for all epic planning, scope, st
 | **10** | P2 | 📋 Post-MVP | E-1, E-14 | TBD | TBD | 10h |
 | **11** | P2 | 📋 Post-MVP | B-6 | TBD | TBD | 16h |
 | **12** | P2 | 📋 Post-MVP | B-5, B-14 | TBD | TBD | 20h |
+| **13** | P1 | 📋 Planned | L-12, L-18 (enhancement) | §33 | EPIC13_AGENT_ORCHESTRATOR_PROMPT.md | 24-28h |
 
 **Legend:**
 - ✅ Complete: Deployed to production
@@ -69,15 +70,16 @@ This document is the **single source of truth** for all epic planning, scope, st
 9. ✅ **Epic 8:** Conversational Learning Interface
 10. ✅ **Epic 9:** True Adaptive Difficulty Engine
 
-### Phase 5: Content Operations (MVP-Critical)
-11. 📋 **Epic 6.6:** Content Library Seeding (100 topics) - **NEXT PRIORITY**
-12. 📋 **Epic 6.7:** Content Lifecycle Management
-13. 📋 **Epic 6.8:** Manager Curation Workflow
+### Phase 5: Content Operations & Conversational Refactor (MVP-Critical) **PARALLEL EXECUTION**
+11. 📋 **Epic 6.6:** Content Library Seeding (400 topics) - **STREAM 1**
+12. 📋 **Epic 13:** Agent Orchestrator Architecture - **STREAM 2 (PARALLEL)**
+13. 📋 **Epic 6.7:** Content Lifecycle Management
+14. 📋 **Epic 6.8:** Manager Curation Workflow
 
 ### Phase 6: Post-MVP (Future)
-14. 📋 **Epic 10:** Enhanced Certification Workflow (hardcoded flags for MVP)
-15. 📋 **Epic 11:** Self-Serve Ingestion
-16. 📋 **Epic 12:** Enterprise Analytics & Reporting
+15. 📋 **Epic 10:** Enhanced Certification Workflow (hardcoded flags for MVP)
+16. 📋 **Epic 11:** Self-Serve Ingestion
+17. 📋 **Epic 12:** Enterprise Analytics & Reporting
 
 ---
 
@@ -99,14 +101,15 @@ Channel & Content Layer
 ├─ Epic 5: Slack Integration
 └─ Epic 6: Ensemble Generation (uses Epic 0 canon)
     ├─ Epic 6.5: Research Mode
-    ├─ Epic 6.6: Content Library Seeding (requires 6 + 6.5)
+    ├─ Epic 6.6: Content Library Seeding (requires 6 + 6.5) **PARALLEL STREAM 1**
     ├─ Epic 6.7: Content Lifecycle (requires 6 + Epic 0 canon)
     └─ Epic 6.8: Manager Curation Workflow (requires 6 + 8)
 
 Engagement Layer
 └─ Epic 7: Gamification
     ├─ Epic 8: Conversational UI (requires 7 for progress queries + Epic 0 for adaptive)
-    │   └─ Epic 9: Adaptive Difficulty (requires 8 for confusion + Epic 0 for quality)
+    │   ├─ Epic 9: Adaptive Difficulty (requires 8 for confusion + Epic 0 for quality)
+    │   └─ Epic 13: Agent Orchestrator (refactors 8, requires 8 + 9) **PARALLEL STREAM 2**
     └─ Epic 10: Enhanced Certification (requires 7 for signatures)
 
 Platform Layer
@@ -460,41 +463,72 @@ POST /api/content/generate -d '{"topic":"Explain async/await"}'
 
 ### Epic 6.6: Content Library Seeding
 
-**Status:** 📋 Planned  
+**Status:** 📋 Planned **PARALLEL STREAM 1**  
 **Priority:** P1 (Day 1 content)  
-**Effort:** 10 hours
+**Effort:** 12 hours
 
 **BRD Traceability:**
-- B-3: Content scaling for MVP launch
+- B-3: Content scaling for MVP launch (soft skills + financial services)
 
 **FSD Traceability:**
-- TBD (will be added upon implementation)
+- §31: Content Library Seeding (batch generation with quality gates)
+
+**Implementation Prompt:** `EPIC6.6_CONTENT_LIBRARY_SEEDING_PROMPT.md`
 
 **Scope (LOCKED):**
-1. CSV topic input system (100 topics: soft skills + financial services)
-2. Batch generation queue (Epic 6 + Epic 6.5 orchestration)
-3. Progress tracking dashboard
-4. Canon storage integration
-5. Ongoing automated seeding (not one-time)
+1. **Phase 1: UAT Pilot (20 topics)**
+   - CSV topic input system
+   - Batch generation queue (Epic 6 + Epic 6.5 orchestration)
+   - Progress tracking dashboard
+   - Quality validation (>0.90 quality score, >95% citation accuracy)
+   - Cost tracking per topic (<$0.30 target)
+   - Manual UAT approval gate
+
+2. **Phase 2: Scale Production (400 topics or $100 budget)**
+   - Automated batch processing
+   - Canon storage integration
+   - Cost ceiling enforcement ($100 or 400 topics, whichever hits first)
+   - Ongoing automated seeding (not one-time)
+   - Quality monitoring and alerts
 
 **Deliverables:**
 - [ ] CSV upload working
 - [ ] Batch queue implemented
-- [ ] Progress dashboard
-- [ ] 100 topics generated
+- [ ] Progress dashboard with cost tracking
+- [ ] Quality validation pipeline
+- [ ] Phase 1: 20 topics generated and UAT approved
+- [ ] Phase 2: 400 topics generated (or $100 spent)
 - [ ] Canon storage populated
+
+**Quality Gates:**
+- Quality score: >0.90 (target: >0.92)
+- Citation accuracy: >95% (fact-checker validation)
+- Cost per topic: <$0.30 (3-LLM ensemble cost)
+- No ethical flags
 
 **Feature Flags:**
 - `FF_BATCH_GENERATION_V1=true`
+- `FF_BATCH_COST_CEILING=100` (in USD)
+- `FF_BATCH_QUALITY_FLOOR=0.90`
 
 **Dependencies:**
-- Requires Epic 6 (ensemble)
+- Requires Epic 6 (ensemble generation)
 - Requires Epic 6.5 (research mode)
+- Can run IN PARALLEL with Epic 13 (Agent Orchestrator)
 
 **Acceptance:**
 ```bash
-POST /api/content/seed -d @topics.csv
-# → { jobId: "...", status: "queued", totalTopics: 100 }
+# Phase 1: Upload 20 topics for UAT
+POST /api/content/batch/upload -d @topics_pilot.csv
+# → { batchId: "...", status: "queued", totalTopics: 20, phase: "uat" }
+
+# Monitor progress
+GET /api/content/batch/:batchId/progress
+# → { completed: 15, pending: 5, cost: $4.20, avgQuality: 0.93 }
+
+# Phase 2: Scale to 400 topics (or $100 budget)
+POST /api/content/batch/upload -d @topics_full.csv
+# → { batchId: "...", status: "queued", totalTopics: 400, budgetLimit: 100, phase: "production" }
 ```
 
 ---
@@ -800,6 +834,117 @@ GET /api/adaptive/analytics/:userId
 
 ---
 
+### Epic 13: Agent Orchestrator Architecture
+
+**Status:** 📋 Planned **PARALLEL STREAM 2**  
+**Priority:** P1 (UX foundation refactor)  
+**Effort:** 24-28 hours
+
+**BRD Traceability:**
+- L-12: Conversational interface with natural language queries (architectural enhancement)
+- L-18: Free-text answers with NLP validation (architectural enhancement)
+
+**FSD Traceability:**
+- §29: Conversational Learning Interface (refactor)
+- §33: Agent Orchestrator Architecture (NEW)
+
+**Implementation Prompt:** `EPIC13_AGENT_ORCHESTRATOR_PROMPT.md`
+
+**Scope (LOCKED):**
+
+**Phase 1: Agent Infrastructure (8h)**
+1. Agent service with OpenAI function calling
+2. Tool registry system
+3. Agent state management
+4. Conversation memory with 30-day retention
+5. LLM provider abstraction
+
+**Phase 2: Tool Migration (10h)**
+6. Convert existing workflows to tools:
+   - `searchTopics(query, userId)` - Find existing content
+   - `detectGranularity(input)` - Classify subject/topic/module
+   - `getUserProgress(userId)` - Get active modules
+   - `generateContent(topic, userId)` - Create learning materials
+   - `confirmWithUser(question)` - Ask clarification
+   - `storeDecision(userId, decision)` - Log workflow decisions
+7. Tool validation & error handling
+8. Tool composition (chaining)
+
+**Phase 3: Agent Integration (8h)**
+9. Replace intent detection with agent decisions
+10. Replace workflow routing with agent tool calls
+11. Maintain backward compatibility during migration
+12. A/B testing framework (pattern vs agent)
+
+**Phase 4: Testing & Optimization (4-6h)**
+13. Edge case testing (30+ scenarios from backlog)
+14. Performance optimization (target <500ms p95)
+15. Cost optimization (monitor LLM spend)
+16. Gradual rollout strategy (10% → 50% → 100%)
+
+**Deliverables:**
+- [ ] Agent orchestrator service (`api/src/services/agent-orchestrator.ts`)
+- [ ] Tool registry (`api/src/services/agent-tools.ts`)
+- [ ] Conversation memory service (`api/src/services/agent-memory.ts`)
+- [ ] Agent API routes (`api/src/routes/agent.ts`)
+- [ ] Database migration: `020_agent_conversations.sql`
+- [ ] Database migration: `021_agent_tool_calls.sql`
+- [ ] A/B testing framework
+- [ ] 30+ edge case tests
+- [ ] Migration runbook
+
+**Feature Flags:**
+- `FF_AGENT_ORCHESTRATOR_V1=false` - Enable agent architecture
+- `FF_AGENT_AB_TEST_V1=false` - Enable A/B testing (pattern vs agent)
+- `AGENT_LLM_MODEL=gpt-4o` - Agent thinking model
+- `AGENT_TOOL_TIMEOUT=10000` - Tool execution timeout (ms)
+- `AGENT_MAX_ITERATIONS=5` - Max agent reasoning loops
+
+**Dependencies:**
+- ✅ Epic 8 (Conversational UI) - Complete
+- ✅ Epic 9 (Adaptive Difficulty) - Complete
+- Can run IN PARALLEL with Epic 6.6 (Content Library Seeding)
+
+**Acceptance:**
+```bash
+# Agent handles natural language variations
+POST /api/agent/chat
+Body: { userId: "...", message: "learn something new" }
+# → { message: "Perfect. What would you like to learn?", toolCalls: ["detectIntent"] }
+
+# Agent routes intelligently
+POST /api/agent/chat
+Body: { userId: "...", message: "teach me quantum physics" }
+# → { 
+#   message: "Right, quantum physics...",
+#   toolCalls: ["detectGranularity", "searchTopics", "confirmWithUser"]
+# }
+
+# Edge cases handled naturally (no code changes)
+POST /api/agent/chat
+Body: { userId: "...", message: "it is" }
+# → { message: "Thank you. I'm putting that together now...", toolCalls: ["generateContent"] }
+
+# Performance metrics
+Latency p95: <500ms ✅
+Cost per conversation: <$0.01 ✅
+Edge case accuracy: >95% ✅
+```
+
+**Performance Targets:**
+- Agent reasoning: <300ms (LLM function calling)
+- Tool execution: <200ms (existing workflows)
+- Total latency p95: <500ms
+- Cost per conversation: <$0.01 (gpt-4o-mini for most, gpt-4o for complex)
+- Edge case coverage: >95% (no "system confused" errors)
+
+**Success Metrics:**
+- Natural language understanding: >99% (vs 90% current pattern matching)
+- Developer velocity: 2x faster for new edge cases
+- User satisfaction: "system understands me" sentiment >90%
+
+---
+
 ### Epic 10: Enhanced Certification Workflow
 
 **Status:** 📋 Post-MVP (Deferred)  
@@ -946,8 +1091,11 @@ GET /api/certification/audit/:requestId
 | §26 | Ensemble Generation | 6 | In Progress |
 | §27 | Research Mode | 6.5 | In Progress |
 | §28 | Gamification | 7 | Complete |
-| §29 | Conversational UI | 8 | Planned |
-| §30 | Adaptive Difficulty | 9 | Planned |
+| §29 | Conversational UI | 8 | Complete |
+| §30 | Adaptive Difficulty | 9 | Complete |
+| §31 | Content Library Seeding | 6.6 | Planned |
+| §32 | Manager Curation Workflow | 6.8 | Planned |
+| §33 | Agent Orchestrator Architecture | 13 | Planned |
 
 ---
 
@@ -969,7 +1117,11 @@ GET /api/certification/audit/:requestId
 | `FF_LEARNING_STYLE_V1` | 9 | false | Planned | Enable learning style detection |
 | `FF_CERTIFICATION_WORKFLOW_V1` | 10 | false | Planned | Enable expert certification workflow |
 | `FF_BATCH_GENERATION_V1` | 6.6 | false | Planned | Enable batch content generation |
+| `FF_BATCH_COST_CEILING` | 6.6 | 100 | Planned | Budget ceiling for batch generation (USD) |
+| `FF_BATCH_QUALITY_FLOOR` | 6.6 | 0.90 | Planned | Minimum quality score for batch content |
 | `FF_CONTENT_LIFECYCLE_V1` | 6.7 | false | Planned | Enable content lifecycle management |
+| `FF_AGENT_ORCHESTRATOR_V1` | 13 | false | Planned | Enable agent orchestrator architecture |
+| `FF_AGENT_AB_TEST_V1` | 13 | false | Planned | Enable A/B testing (pattern vs agent) |
 
 ### Infrastructure Toggles (Epic 0)
 
@@ -1009,6 +1161,15 @@ GET /api/certification/audit/:requestId
 | `LLM_UNDERSTANDING` | 8 | gpt-4o | Planned | Free-text answer validation model |
 | `NEXT_PUBLIC_CONVERSATIONAL_UI_V1` | 8 | false | Phase 1 | Enable ChatPanel UI (web) |
 
+### Agent Configuration (Epic 13)
+
+| Configuration Variable | Epic | Default | Status | Description |
+|-----------------------|------|---------|--------|-------------|
+| `AGENT_LLM_MODEL` | 13 | gpt-4o | Planned | Agent thinking model (function calling) |
+| `AGENT_TOOL_TIMEOUT` | 13 | 10000 | Planned | Tool execution timeout (milliseconds) |
+| `AGENT_MAX_ITERATIONS` | 13 | 5 | Planned | Maximum agent reasoning loops |
+| `AGENT_CONVERSATION_MEMORY_DAYS` | 13 | 30 | Planned | Conversation history retention (days) |
+
 ---
 
 ## Rollout Timeline
@@ -1025,10 +1186,27 @@ GET /api/certification/audit/:requestId
 - ✅ Week 8: Conversational UI (Epic 8)
 - ✅ Week 9: Adaptive Difficulty (Epic 9)
 
-### MVP-Critical (Epics 6.6, 6.7, 6.8)
-- **Week 10: Content Library Seeding (Epic 6.6)** - NEXT PRIORITY
-- Week 11: Content Lifecycle (Epic 6.7)
-- Week 12: Manager Curation Workflow (Epic 6.8)
+### MVP-Critical (Epics 6.6, 13, 6.7, 6.8) **PARALLEL EXECUTION**
+
+**Week 10-13: Parallel Streams**
+
+**STREAM 1: Content Library Seeding (Epic 6.6)** 
+- Week 10: Phase 1 - UAT Pilot (20 topics)
+- Week 10-11: UAT approval and quality validation
+- Week 11-12: Phase 2 - Scale Production (400 topics or $100 budget)
+- Week 12: Canon integration and monitoring
+
+**STREAM 2: Agent Orchestrator (Epic 13) - PARALLEL**
+- Week 10: Phase 1 - Agent infrastructure & tool registry
+- Week 11: Phase 2 - Tool migration & integration
+- Week 12: Phase 3 - A/B testing & optimization
+- Week 13: Phase 4 - Gradual rollout (10% → 50% → 100%)
+
+**These two streams are INDEPENDENT and can run simultaneously with different engineers.**
+
+**Week 14-15: Content Operations**
+- Week 14: Content Lifecycle Management (Epic 6.7)
+- Week 15-16: Manager Curation Workflow (Epic 6.8)
 
 ### Post-MVP (Epics 10, 11, 12)
 - Post-MVP: Enhanced Certification Workflow (Epic 10) - Hardcoded for MVP
@@ -1051,6 +1229,15 @@ GET /api/certification/audit/:requestId
 ---
 
 ## Changelog
+
+### v1.5 (2025-10-16)
+- **Added Epic 13: Agent Orchestrator Architecture** - New 24-28h epic to refactor conversational layer from pattern matching to AI agent with tool-calling (24-28h)
+- **Updated Epic 6.6 scope** - Phased approach: 20 topics UAT pilot, then scale to 400 topics or $100 budget
+- **Parallel execution strategy** - Epic 6.6 (Content Seeding) and Epic 13 (Agent Orchestrator) can run simultaneously as independent streams
+- **Updated FSD mapping** - Added §31 (Content Library Seeding) and §33 (Agent Orchestrator Architecture)
+- **Updated dependency graph** - Shows Epic 13 as refactor of Epic 8, parallel with Epic 6.6
+- **Updated rollout timeline** - Weeks 10-13 show two parallel streams for accelerated delivery
+- **Source:** Architectural review identifying pattern matching limitations and need for natural language agent
 
 ### v1.4 (2025-10-13)
 - **Epic 9 Complete** - ✅ Adaptive Difficulty Engine (13h, on budget, 26 tests passing)
