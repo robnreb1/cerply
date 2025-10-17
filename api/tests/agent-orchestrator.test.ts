@@ -16,7 +16,11 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 const API_URL = process.env.TEST_API_URL || 'http://localhost:8080';
 const TEST_USER = `test-user-${Date.now()}`;
 
-describe('Epic 13: Agent Orchestrator', () => {
+// Skip in CI - these are integration tests that require a running server
+// Run locally with: npm test -- agent-orchestrator.test.ts
+const describeMode = process.env.CI ? describe.skip : describe;
+
+describeMode('Epic 13: Agent Orchestrator', () => {
   
   beforeAll(async () => {
     // Ensure feature flag is enabled

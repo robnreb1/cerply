@@ -117,16 +117,21 @@ export class AgentOrchestrator {
         const systemPrompt = this.getSystemPrompt();
         
         // Build messages for OpenAI
+        // Preserve tool_call_id for role='tool' and tool_calls for role='assistant'
         const messages: ChatCompletionMessageParam[] = [
           { role: 'system', content: systemPrompt },
-          ...recentHistory.map((msg: any) => ({
-            role: msg.role as 'user' | 'assistant',
-            content: msg.content,
-          })),
-          ...conversationHistory.map((msg: any) => ({
-            role: msg.role as 'user' | 'assistant',
-            content: msg.content,
-          })),
+          ...recentHistory.map((msg: any) => {
+            const base: any = { role: msg.role, content: msg.content };
+            if (msg.role === 'tool' && msg.tool_call_id) base.tool_call_id = msg.tool_call_id;
+            if (msg.role === 'assistant' && msg.tool_calls) base.tool_calls = msg.tool_calls;
+            return base;
+          }),
+          ...conversationHistory.map((msg: any) => {
+            const base: any = { role: msg.role, content: msg.content };
+            if (msg.role === 'tool' && msg.tool_call_id) base.tool_call_id = msg.tool_call_id;
+            if (msg.role === 'assistant' && msg.tool_calls) base.tool_calls = msg.tool_calls;
+            return base;
+          }),
         ];
 
         const client = getOpenAIClient();

@@ -763,11 +763,11 @@ export default function Home() {
                     <div className="prose prose-sm max-w-none">
                       <ReactMarkdown
                         components={{
-                          strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
-                          em: ({ children }) => <em className="italic text-gray-700">{children}</em>,
-                          ul: ({ children }) => <ul className="list-disc pl-5 space-y-1 my-2">{children}</ul>,
-                          li: ({ children }) => <li className="text-gray-700">{children}</li>,
-                          p: ({ children }) => <p className="mb-2 last:mb-0 text-gray-700">{children}</p>,
+                          strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                          em: ({ children }: { children?: React.ReactNode }) => <em className="italic text-gray-700">{children}</em>,
+                          ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-5 space-y-1 my-2">{children}</ul>,
+                          li: ({ children }: { children?: React.ReactNode }) => <li className="text-gray-700">{children}</li>,
+                          p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0 text-gray-700">{children}</p>,
                         }}
                       >
                         {msg.content}
