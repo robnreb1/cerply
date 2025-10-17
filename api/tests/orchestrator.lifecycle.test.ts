@@ -9,7 +9,7 @@ describe('Orchestrator lifecycle (status/logs/cancel)', () => {
     vi.stubEnv('ORCH_MODE', 'mock');
     app = await createApp();
   });
-  afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
+  afterAll(async () => { if (app) await app.close(); vi.unstubAllEnvs(); });
 
   it('logs endpoint returns recent lines including job.end', async () => {
     const payload = { goal: 'log-demo', steps: [], limits: { maxSteps: 2, maxWallMs: 1000 } };

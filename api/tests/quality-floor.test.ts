@@ -21,6 +21,10 @@ describe('Quality Floor Evaluation Tests', () => {
   beforeEach(async () => {
     app = await build();
     await app.ready();
+  }, 30000); // Increase timeout to 30s
+
+  afterEach(async () => {
+    if (app) await app.close();
   });
 
   test('quality evaluation meets minimum thresholds', async () => {

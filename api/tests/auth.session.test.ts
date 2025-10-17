@@ -7,7 +7,7 @@ describe('Auth session v0', () => {
     vi.stubEnv('AUTH_ENABLED', 'true');
     app = await createApp();
   });
-  afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
+  afterAll(async () => { if (app) await app.close(); vi.unstubAllEnvs(); });
 
   it('OPTIONS preflight for /api/auth/session returns 204 with ACAO:*', async () => {
     const r = await app.inject({ method: 'OPTIONS', url: '/api/auth/session', headers: { origin: 'https://app.cerply.com' } });

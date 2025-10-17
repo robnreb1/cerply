@@ -25,6 +25,10 @@ describe('Canon Reuse Tests', () => {
   beforeEach(async () => {
     app = await build();
     await app.ready();
+  }, 30000); // Increase timeout to 30s
+
+  afterEach(async () => {
+    if (app) await app.close();
   });
 
   test('content is canonized after generation', async () => {

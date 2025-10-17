@@ -13,7 +13,7 @@ describe('Certified security baselines (limits, rate limiting, headers)', () => 
     vi.stubEnv('RATE_LIMIT_CERTIFIED_REFILL_PER_SEC', '1');
     app = await createApp();
   });
-  afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
+  afterAll(async () => { if (app) await app.close(); vi.unstubAllEnvs(); });
 
   it('enforces request size limits with 413 and ACAO:*', async () => {
     // Use a very large body (>64KB) to trigger limits regardless of plugin order

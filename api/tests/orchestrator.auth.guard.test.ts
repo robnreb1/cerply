@@ -9,7 +9,7 @@ describe('Orchestrator soft auth guard', () => {
     vi.stubEnv('AUTH_REQUIRE_SESSION', 'true');
     app = await createApp();
   });
-  afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
+  afterAll(async () => { if (app) await app.close(); vi.unstubAllEnvs(); });
 
   it('401 on POST without session when required', async () => {
     const r = await app.inject({ method: 'POST', url: '/api/orchestrator/jobs', headers: { 'content-type': 'application/json' }, payload: { goal: 'x', steps: [], limits: { maxSteps: 1, maxWallMs: 10 } } });

@@ -17,7 +17,7 @@ describe('Certified PLAN multiphase (proposers → checker → lock)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 

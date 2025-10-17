@@ -11,7 +11,7 @@ describe('Certified PLAN mode matches golden fixture', () => {
     app = await createApp();
   });
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 

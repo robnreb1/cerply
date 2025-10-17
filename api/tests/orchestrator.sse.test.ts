@@ -7,7 +7,10 @@ describe('Orchestrator SSE', () => {
     vi.stubEnv('ORCH_ENABLED', 'true');
     app = await createApp();
   });
-  afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
+  afterAll(async () => { 
+    if (app) await app.close(); 
+    vi.unstubAllEnvs(); 
+  });
 
   it('streams events for a running job', async () => {
     const payload = { goal: 'demo', steps: [{ type: 'dev.log', payload: { hello: 'world' } }], limits: { maxSteps: 3, maxWallMs: 2000 } };

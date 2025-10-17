@@ -28,7 +28,7 @@ describe('Admin Certified Pagination & Filtering (NDJSON)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 
@@ -155,7 +155,7 @@ describe('Admin Certified Pagination & Filtering (SQLite)', () => {
   });
 
   afterAll(async () => {
-    if (app) await app.close();
+    if (app) if (app) await app.close();
     vi.unstubAllEnvs();
   });
 

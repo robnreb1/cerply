@@ -8,7 +8,7 @@ describe('CSRF double-submit guard', () => {
     vi.stubEnv('ORCH_ENABLED', 'true');
     app = await createApp();
   });
-  afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
+  afterAll(async () => { if (app) await app.close(); vi.unstubAllEnvs(); });
 
   async function createSession() {
     const r = await app.inject({ method: 'POST', url: '/api/auth/session', payload: {} });

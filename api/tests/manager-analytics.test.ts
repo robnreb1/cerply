@@ -226,7 +226,7 @@ describe.skipIf(skipInCI)('Epic 4: Manager Analytics API', () => {
     await db.delete(userRoles).where(eq(userRoles.organizationId, testOrgId));
     await db.delete(users).where(eq(users.organizationId, testOrgId));
     await db.delete(organizations).where(eq(organizations.id, testOrgId));
-    await app.close();
+    if (app) await app.close();
   });
 
   describe('GET /api/manager/teams/:teamId/analytics - Team Analytics', () => {

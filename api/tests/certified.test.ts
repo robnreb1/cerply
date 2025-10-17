@@ -15,7 +15,7 @@ describe('Certified endpoints (feature-flagged stubs + mock + plan)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 
