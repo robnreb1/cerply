@@ -244,5 +244,90 @@ export async function registerSSORoutes(app: FastifyInstance) {
 
     return { ok: true };
   });
+
+  /**
+   * GET /api/dev/login-as-manager
+   * Instantly create a manager session for testing Epic 14
+   * Query: { redirect?: string }
+   * 
+   * SECURITY: Only enabled in non-production environments
+   */
+  app.get('/api/dev/login-as-manager', async (req, reply) => {
+    // Guard: Only allow in non-production
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    if (nodeEnv === 'production') {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Endpoint not available in production' }
+      });
+    }
+
+    const query = req.query as any;
+    const redirectUrl = query.redirect || process.env.WEB_BASE_URL || 'http://localhost:3000';
+
+    try {
+      // Create session for manager user
+      const sessionId = crypto.randomBytes(32).toString('hex');
+      const expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
+
+      SESSIONS.set(sessionId, {
+        userId: '00000000-0000-0000-0000-000000000002', // Manager test user
+        email: 'manager@cerply-staging.local',
+        role: 'manager',
+        organizationId: '00000000-0000-0000-0000-000000000001', // Default org
+        expiresAt,
+      });
+
+      // Set cookie
+      reply.header('Set-Cookie', buildSSOCookie(sessionId));
+
+      // Redirect to app
+      return reply.redirect(redirectUrl);
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: { code: 'LOGIN_FAILED', message: error.message }
+      });
+    }
+  });
+
+  /**
+   * GET /api/dev/login-as-admin
+   * Instantly create an admin session for testing
+   */
+  app.get('/api/dev/login-as-admin', async (req, reply) => {
+    // Guard: Only allow in non-production
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    if (nodeEnv === 'production') {
+      return reply.status(404).send({
+        error: { code: 'NOT_FOUND', message: 'Endpoint not available in production' }
+      });
+    }
+
+    const query = req.query as any;
+    const redirectUrl = query.redirect || process.env.WEB_BASE_URL || 'http://localhost:3000';
+
+    try {
+      // Create session for admin user
+      const sessionId = crypto.randomBytes(32).toString('hex');
+      const expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 days
+
+      SESSIONS.set(sessionId, {
+        userId: '00000000-0000-0000-0000-000000000001', // Admin test user
+        email: 'admin@cerply-staging.local',
+        role: 'admin',
+        organizationId: '00000000-0000-0000-0000-000000000001', // Default org
+        expiresAt,
+      });
+
+      // Set cookie
+      reply.header('Set-Cookie', buildSSOCookie(sessionId));
+
+      // Redirect to app
+      return reply.redirect(redirectUrl);
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: { code: 'LOGIN_FAILED', message: error.message }
+      });
+    }
+  });
 }
 
