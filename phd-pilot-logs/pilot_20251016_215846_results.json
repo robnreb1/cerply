@@ -1,0 +1,31 @@
+{
+  "startTime": "2025-10-16T20:58:46Z",
+  "topics": [
+    {
+      "name": "Python Programming",
+      "status": "failed",
+      "error": "HTTP 500",
+      "durationSeconds": 895
+    }
+    ,
+    {
+      "name": "Enterprise Architecture",
+      "status": "failed",
+      "error": "HTTP 500",
+      "durationSeconds": 244
+    }
+    ,
+    {
+      "name": "Tech Startup UK",
+      "status": "failed",
+      "error": "HTTP 500",
+      "durationSeconds": 177
+    }
+  ],
+  "endTime": "2025-10-16T21:21:43Z",
+  "summary": {
+    "total": 3,
+    "completed": 0,
+    "failed": 3
+  }
+}

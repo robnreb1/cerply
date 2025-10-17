@@ -15,9 +15,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // PHILOSOPHY: Always use the BEST available models for maximum quality
 // OPTIMIZED: Use o3's deep reasoning for validation rather than initial generation (cost optimization)
 const UNDERSTANDING_MODEL = process.env.LLM_UNDERSTANDING || 'gpt-4o'; // Fast, cheap for initial understanding
-const GENERATOR_1 = process.env.LLM_GENERATOR_1 || 'claude-sonnet-4-5'; // Claude 4.5: Fast, creative first draft
-const GENERATOR_2 = process.env.LLM_GENERATOR_2 || 'gpt-4o'; // GPT-4o: Fast, analytical alternative draft
-const FACT_CHECKER = process.env.LLM_FACT_CHECKER || 'o3'; // o3: Deep reasoning to validate and select best content
+
+// RESEARCH-GRADE ENSEMBLE (provider-agnostic, capability-first)
+const GENERATOR_1 = process.env.LLM_GENERATOR_1 || 'claude-opus-4'; // Best long-form synthesis (fallback: claude-sonnet-4-5)
+const GENERATOR_2 = process.env.LLM_GENERATOR_2 || 'o3-mini'; // Best analytical reasoning (cost-effective)
+const FACT_CHECKER = process.env.LLM_FACT_CHECKER || 'o3'; // Best reasoning for validation
+const CITATION_VALIDATOR = process.env.LLM_CITATION_VALIDATOR || 'o3-mini'; // Citation accuracy verification (100% required)
 
 // Lazy initialization of clients (only when needed to avoid startup failures)
 let _openai: OpenAI | null = null;
@@ -104,6 +107,15 @@ export interface EnsembleResult {
   factChecker: LLMResult;
   finalModules: Module[];
   provenance: ProvenanceRecord[];
+  citationValidation?: { // NEW: 100% citation accuracy requirement
+    accuracy: number;
+    validCitations: number;
+    totalCitations: number;
+    flaggedIssues: Array<{ module: string; issue: string; severity: 'error' | 'warning' }>;
+    requiresHumanReview: boolean;
+    costUsd: number;
+    tokens: number;
+  };
   totalCost: number;
   totalTokens: number;
   totalTime: number;
@@ -112,11 +124,13 @@ export interface EnsembleResult {
 /**
  * Call OpenAI model with retry logic
  */
-async function callOpenAI(
+export async function callOpenAI(
   model: string,
   prompt: string,
   systemPrompt: string,
-  retries: number = 3
+  retries: number = 3,
+  temperature: number = 0.7,
+  maxTokens: number = 4000 // Allow custom max tokens for long-form content (GPT-5 supports up to 16384)
 ): Promise<LLMResult> {
   const start = Date.now();
   const client = getOpenAIClient();
@@ -135,12 +149,12 @@ async function callOpenAI(
       // Use the correct parameter names based on model
       if (model.startsWith('gpt-5') || model.startsWith('o1') || model.startsWith('o3')) {
         // GPT-5/o1/o3 use max_completion_tokens and don't support custom temperature
-        params.max_completion_tokens = 4000;
+        params.max_completion_tokens = maxTokens; // Use custom limit (GPT-5 supports up to 16384)
         // Temperature defaults to 1 (only supported value for these models)
       } else {
         // Standard models support temperature and use max_tokens
-        params.max_tokens = 4000;
-        params.temperature = 0.7;
+        params.max_tokens = maxTokens;
+        params.temperature = temperature;
       }
       
       const response = await client.chat.completions.create(params);
@@ -166,7 +180,7 @@ async function callOpenAI(
 /**
  * Call Anthropic model with retry logic
  */
-async function callAnthropic(
+export async function callAnthropic(
   model: string,
   prompt: string,
   systemPrompt: string,
@@ -248,10 +262,25 @@ async function callGemini(
 /**
  * Step 1: Playback Understanding
  * LLM reads artefact and explains its understanding
+ * NOW WITH GRANULARITY DETECTION
  */
-export async function playbackUnderstanding(artefact: string): Promise<LLMResult & { inputType?: string }> {
+export async function playbackUnderstanding(artefact: string): Promise<LLMResult & { inputType?: string; granularity?: string }> {
   const inputType = detectInputType(artefact);
-  const prompts = inputType === 'topic' ? RESEARCH_PROMPTS : PROMPTS;
+  
+  // CRITICAL: Detect granularity for intelligent prompting
+  const granularity = detectGranularity(artefact);
+  
+  // Select prompts based on granularity
+  let prompts;
+  if (granularity === 'subject') {
+    prompts = SUBJECT_PROMPTS;
+  } else if (granularity === 'module') {
+    prompts = MODULE_PROMPTS;
+  } else {
+    // Default to topic-level (or use RESEARCH_PROMPTS for backward compatibility)
+    prompts = inputType === 'topic' ? TOPIC_PROMPTS : PROMPTS;
+  }
+  
   const systemPrompt = prompts.understanding.system;
   const userPrompt = prompts.understanding.user
     .replace('{{ARTEFACT}}', artefact)
@@ -267,7 +296,7 @@ export async function playbackUnderstanding(artefact: string): Promise<LLMResult
     result = await callGemini(UNDERSTANDING_MODEL, userPrompt, systemPrompt);
   }
   
-  return { ...result, inputType };
+  return { ...result, inputType, granularity };
 }
 
 /**
@@ -299,14 +328,27 @@ export async function refineUnderstanding(
  * Step 3: Generate with Ensemble
  * Generator A and Generator B create content independently
  * Fact-Checker verifies and selects best elements
+ * NOW WITH GRANULARITY-AWARE PROMPTS
  */
 export async function generateWithEnsemble(
   understanding: string,
   artefact: string,
-  inputType: 'source' | 'topic' = 'source'
+  inputType: 'source' | 'topic' = 'source',
+  granularity?: 'subject' | 'topic' | 'module'
 ): Promise<EnsembleResult> {
   const start = Date.now();
-  const prompts = inputType === 'topic' ? RESEARCH_PROMPTS : PROMPTS;
+  
+  // CRITICAL: Use granularity-aware prompts
+  let prompts;
+  if (granularity === 'subject') {
+    prompts = SUBJECT_PROMPTS;
+  } else if (granularity === 'module') {
+    prompts = MODULE_PROMPTS;
+  } else if (inputType === 'topic') {
+    prompts = TOPIC_PROMPTS;
+  } else {
+    prompts = PROMPTS;
+  }
   
   // Generator A (Claude, GPT, or Gemini - depends on configuration)
   const generatorAPrompt = prompts.generatorA.user
@@ -369,15 +411,175 @@ export async function generateWithEnsemble(
     throw new Error(`Fact-checker returned invalid JSON: ${error.message}`);
   }
   
+  // CRITICAL: Citation validation (100% accuracy required for publication)
+  // This validates every citation in the final content against the source material
+  const citationValidation = await validateCitations(
+    factCheckerData.modules,
+    artefact,
+    factCheckerData.provenance
+  );
+  
   return {
     generatorA,
     generatorB,
     factChecker,
     finalModules: factCheckerData.modules,
     provenance: factCheckerData.provenance,
-    totalCost: generatorA.costUsd + generatorB.costUsd + factChecker.costUsd,
-    totalTokens: generatorA.tokens + generatorB.tokens + factChecker.tokens,
+    citationValidation, // NEW: Include citation validation results
+    totalCost: generatorA.costUsd + generatorB.costUsd + factChecker.costUsd + citationValidation.costUsd,
+    totalTokens: generatorA.tokens + generatorB.tokens + factChecker.tokens + citationValidation.tokens,
     totalTime: Date.now() - start,
+  };
+}
+
+/**
+ * Validate Citations (100% Accuracy Requirement)
+ * 
+ * CRITICAL REQUIREMENT: All citations in published content must be 100% accurate.
+ * This function verifies every citation against the source material and flags any issues.
+ * 
+ * @param modules - Generated learning modules with citations
+ * @param sourceMaterial - Original research material
+ * @param provenance - Claimed provenance from fact-checker
+ * @returns Validation results with accuracy score and flagged issues
+ */
+async function validateCitations(
+  modules: any[],
+  sourceMaterial: string,
+  provenance: any
+): Promise<{
+  accuracy: number;
+  validCitations: number;
+  totalCitations: number;
+  flaggedIssues: Array<{
+    module: string;
+    issue: string;
+    severity: 'error' | 'warning';
+  }>;
+  requiresHumanReview: boolean;
+  costUsd: number;
+  tokens: number;
+}> {
+  const start = Date.now();
+  
+  // Extract all citations from modules
+  const allCitations: Array<{ module: string; citation: string }> = [];
+  for (const module of modules) {
+    if (module.content) {
+      // Simple regex to find citation patterns [1], [2], etc.
+      const citationMatches = module.content.match(/\[\d+\]/g) || [];
+      citationMatches.forEach((citation: string) => {
+        allCitations.push({
+          module: module.title,
+          citation,
+        });
+      });
+    }
+  }
+  
+  if (allCitations.length === 0) {
+    // No citations found - flag as warning
+    return {
+      accuracy: 0,
+      validCitations: 0,
+      totalCitations: 0,
+      flaggedIssues: [{
+        module: 'ALL',
+        issue: 'No citations found in generated content - this may be acceptable for introductory content',
+        severity: 'warning',
+      }],
+      requiresHumanReview: false, // Acceptable for basic content
+      costUsd: 0,
+      tokens: 0,
+    };
+  }
+  
+  // Use reasoning model to validate each citation
+  const validationPrompt = `You are a citation validator. Your job is to verify that every citation in the generated content accurately references the source material.
+
+SOURCE MATERIAL:
+${sourceMaterial}
+
+GENERATED MODULES WITH CITATIONS:
+${JSON.stringify(modules, null, 2)}
+
+PROVENANCE CLAIMS:
+${JSON.stringify(provenance, null, 2)}
+
+TASK: Verify every citation [1], [2], [3], etc. in the generated content:
+1. Check if the citation number matches a specific claim in the content
+2. Verify that claim can be traced back to the source material
+3. Flag any citations that are:
+   - Not found in source material
+   - Misrepresented or taken out of context
+   - Missing required context
+   - Referring to non-existent sources
+
+Return JSON with:
+{
+  "totalCitations": number,
+  "validCitations": number,
+  "accuracy": 0-1 (must be 1.0 for publication),
+  "flaggedIssues": [
+    {
+      "module": "module name",
+      "citation": "[1]",
+      "issue": "detailed description",
+      "severity": "error" | "warning",
+      "recommendation": "how to fix"
+    }
+  ]
+}
+
+CRITICAL: If accuracy < 1.0, content CANNOT be published without human review.`;
+
+  const systemPrompt = `You are a rigorous academic citation validator. Your standard is 100% accuracy - any deviation must be flagged. Be thorough and precise.`;
+  
+  let validationResult;
+  if (CITATION_VALIDATOR.startsWith('gpt-') || CITATION_VALIDATOR.startsWith('o1') || CITATION_VALIDATOR.startsWith('o3')) {
+    validationResult = await callOpenAI(CITATION_VALIDATOR, validationPrompt, systemPrompt);
+  } else if (CITATION_VALIDATOR.startsWith('claude-')) {
+    validationResult = await callAnthropic(CITATION_VALIDATOR, validationPrompt, systemPrompt);
+  } else {
+    validationResult = await callGemini(CITATION_VALIDATOR, validationPrompt, systemPrompt);
+  }
+  
+  // Parse validation results
+  let validationData;
+  try {
+    let cleanContent = validationResult.content.trim();
+    if (cleanContent.startsWith('```json')) {
+      cleanContent = cleanContent.replace(/^```json\s*\n/, '').replace(/\n```\s*$/, '');
+    } else if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```\s*\n/, '').replace(/\n```\s*$/, '');
+    }
+    validationData = JSON.parse(cleanContent);
+  } catch (error: any) {
+    console.error('[CitationValidator] JSON parse error:', error.message);
+    // Fallback: flag for human review
+    return {
+      accuracy: 0,
+      validCitations: 0,
+      totalCitations: allCitations.length,
+      flaggedIssues: [{
+        module: 'ALL',
+        issue: `Citation validation failed: ${error.message}`,
+        severity: 'error',
+      }],
+      requiresHumanReview: true,
+      costUsd: validationResult.costUsd,
+      tokens: validationResult.tokens,
+    };
+  }
+  
+  return {
+    accuracy: validationData.accuracy || 0,
+    validCitations: validationData.validCitations || 0,
+    totalCitations: validationData.totalCitations || allCitations.length,
+    flaggedIssues: validationData.flaggedIssues || [],
+    requiresHumanReview: validationData.accuracy < 1.0, // CRITICAL: < 100% = human review required
+    costUsd: validationResult.costUsd,
+    tokens: validationResult.tokens,
   };
 }
 
@@ -445,6 +647,80 @@ export function detectInputType(input: string): 'source' | 'topic' {
   return (hasTopicRequest || isShort) ? 'topic' : 'source';
 }
 
+/**
+ * Detect granularity level: Subject → Topic → Module
+ * This is THE critical feature - intelligent curriculum design
+ * 
+ * SUBJECT (broad): "Leadership" → Generate 8-12 topics
+ * TOPIC (focused): "Effective Delegation" → Generate 4-6 modules
+ * MODULE (specific): "SMART Goals Framework" → Generate 1 deep module
+ */
+export function detectGranularity(input: string): 'subject' | 'topic' | 'module' {
+  const trimmed = input.trim().toLowerCase();
+  
+  // CRITICAL: Strip filler words before analysis
+  // Users often say "physics please" or "I want biology" or "teach me chemistry"
+  const fillerWords = /\b(please|thanks|thank you|i want|teach me|learn|study|about|the)\b/gi;
+  const cleanedInput = trimmed.replace(fillerWords, '').trim().replace(/\s+/g, ' ');
+  
+  const wordCount = cleanedInput.split(/\s+/).filter(w => w.length > 0).length;
+  
+  // SUBJECT indicators: Very broad, domain-level, usually 1-2 words
+  const subjectPatterns = [
+    // Business domains (single words)
+    /^(leadership|management|communication|finance|marketing|sales|hr|operations|strategy|innovation|entrepreneurship|accounting|economics|negotiation|productivity|teamwork)$/i,
+    // Professional skills (single words)
+    /^(soft skills|hard skills|technical skills|interpersonal skills|analytical skills)$/i,
+    // Industries/fields (1-2 words)
+    /^(financial services|healthcare|technology|education|retail|manufacturing|consulting)$/i,
+    // Academic domains
+    /^(mathematics|maths|science|history|literature|philosophy|psychology|sociology|biology|chemistry|physics)$/i,
+  ];
+  
+  // MODULE indicators: Very specific, includes framework/tool/method keywords
+  const modulePatterns = [
+    // Specific frameworks/models/tools (contains these keywords)
+    /(framework|model|method|technique|tool|principle|rule|law|theory|formula|matrix|system|approach)/i,
+    // Named concepts (proper nouns + concept word)
+    /(smart|swot|pestle|porter|maslow|herzberg|mcgregor|drucker|covey|goleman|kotter|lewin|tuckman|belbin|johari|eisenhower|pareto|5 whys|raci|kanban|scrum|agile)/i,
+  ];
+  
+  // Check for SUBJECT (broad scope)
+  if (wordCount <= 2 && subjectPatterns.some(pattern => pattern.test(cleanedInput))) {
+    return 'subject';
+  }
+  
+  // Check for MODULE (specific tool/framework)
+  if (modulePatterns.some(pattern => pattern.test(cleanedInput))) {
+    return 'module';
+  }
+  
+  // Default to TOPIC (focused skill/concept)
+  // Examples: "effective delegation", "active listening", "conflict resolution"
+  return 'topic';
+}
+
+/**
+ * Get granularity metadata for logging/debugging
+ */
+export function getGranularityMetadata(input: string) {
+  const granularity = detectGranularity(input);
+  const wordCount = input.trim().split(/\s+/).length;
+  
+  return {
+    granularity,
+    wordCount,
+    expectedOutput: 
+      granularity === 'subject' ? '8-12 topics' :
+      granularity === 'topic' ? '4-6 modules' :
+      '1 deep module',
+    reasoning: 
+      granularity === 'subject' ? 'Broad domain-level request' :
+      granularity === 'topic' ? 'Focused skill/concept' :
+      'Specific framework/tool/method',
+  };
+}
+
 // Export for tests
 export const PROMPTS = {
   understanding: {
@@ -505,7 +781,7 @@ Output as JSON: { "modules": [{id: "module-1", title, content, questions: [{id: 
   },
   
   factChecker: {
-    system: 'You are a fact-checker and content judge powered by Gemini 2.5 Pro. Your role is to verify accuracy, remove hallucinations, and select the best elements from both generators. Use your multimodal reasoning to ensure the highest quality content.',
+    system: 'You are a fact-checking validator. Your ONLY task is to verify accuracy and output valid JSON. Return ONLY JSON with no conversational text before or after. Do not explain your reasoning - just return the JSON structure exactly as specified.',
     user: `Generator A (GPT-5) output:
 {{GENERATOR_A_OUTPUT}}
 
@@ -552,22 +828,112 @@ Output JSON:
   }
 };
 
-// Research Mode Prompts - for topic-based content generation
-export const RESEARCH_PROMPTS = {
+// GRANULARITY-AWARE PROMPTS - THE CRITICAL FEATURE
+// Subject → Topics, Topic → Modules, Module → Deep Content
+
+/**
+ * SUBJECT-LEVEL PROMPTS: Generate 8-12 topics from broad domain
+ * Example: "Leadership" → ["Delegation", "Conflict Resolution", "Team Building", ...]
+ */
+export const SUBJECT_PROMPTS = {
   understanding: {
-    system: 'You are an educational content planner analyzing a learning topic request.',
-    user: `The user wants to learn about: "{{TOPIC}}"
+    system: 'You are a concise learning advisor. Summarize the broad domain the user is interested in.',
+    user: `User request: "{{TOPIC}}"
 
-Extract and plan:
-1. **Core Topic**: Identify the main subject
-2. **Domain**: Field of study (Mathematics, Science, History, Business, etc.)
-3. **Key Concepts**: 4-6 fundamental concepts that must be covered
-4. **Learning Objectives**: What should learners be able to do after studying this?
-5. **Prerequisites**: Required prior knowledge (if applicable)
-6. **Difficulty Level**: Beginner, Intermediate, or Advanced
-7. **Ethical Considerations**: Any sensitive topics or constraints to consider
+Provide a brief summary of this BROAD SUBJECT AREA. Focus on what the domain encompasses, not specific topics.
 
-Format as clear, structured explanation.`
+Example responses:
+- "a comprehensive understanding of business management principles, including strategy, operations, and team leadership"
+- "the fundamentals and advanced concepts of computer science, covering programming, algorithms, and system design"
+- "core financial services knowledge, including banking, investments, risk management, and regulatory compliance"
+
+Keep it concise and natural.`
+  },
+  
+  generatorA: {
+    system: 'You are an expert curriculum designer creating a comprehensive topic list for a subject area.',
+    user: `Create a comprehensive curriculum for: {{TOPIC}}
+
+Based on this understanding:
+{{UNDERSTANDING}}
+
+Requirements:
+1. Generate 8-12 distinct, focused TOPICS (not modules)
+2. Each topic should be a self-contained skill/concept
+3. Topics should progress logically (foundational → advanced)
+4. Topics should not overlap significantly
+5. Each topic should be teachable in 4-6 modules
+6. CITE authoritative sources for curriculum structure (e.g., professional certification bodies, academic programs)
+
+Output as JSON:
+{
+  "subjectTitle": "...",
+  "topics": [
+    {
+      "id": "topic-1",
+      "title": "...",
+      "description": "Brief 1-sentence description",
+      "difficulty": "beginner|intermediate|advanced",
+      "estimatedModules": 5
+    }
+  ],
+  "citations": [{"title": "...", "source": "...", "relevance": "..."}]
+}`
+  },
+  
+  generatorB: {
+    system: 'You are an expert learning architect creating practical topic structures for corporate training.',
+    user: `Create a practical training curriculum for: {{TOPIC}}
+
+Based on this understanding:
+{{UNDERSTANDING}}
+
+Requirements:
+1. Generate 8-12 focused TOPICS with practical application emphasis
+2. Topics should align with real-world job responsibilities
+3. Include mix of foundational and advanced topics
+4. Consider learning progression and dependencies
+5. Cite industry standards, professional certifications, or best practices
+
+Output as JSON (same format as Generator A)`
+  },
+  
+  factChecker: {
+    system: 'You are a fact-checking validator. Return ONLY valid JSON with no conversational text. Do not add explanations, comments, or any text outside the JSON structure.',
+    user: `Validate this curriculum structure for: {{TOPIC}}
+
+Generator A: {{GENERATOR_A_OUTPUT}}
+Generator B: {{GENERATOR_B_OUTPUT}}
+
+Tasks:
+1. Verify 8-12 topics are distinct and non-overlapping
+2. Ensure comprehensive coverage of the subject
+3. Validate logical progression
+4. Check citations are credible
+5. Synthesize best topic list from both generators
+6. Flag any missing critical topics
+
+Output final validated topic list with provenance.`
+  }
+};
+
+/**
+ * TOPIC-LEVEL PROMPTS: Generate 4-6 modules from focused skill/concept
+ * Example: "Effective Delegation" → ["What to Delegate", "How to Delegate", ...]
+ */
+export const TOPIC_PROMPTS = {
+  understanding: {
+    system: 'You are a concise learning advisor. Summarize what the user wants to learn in 1-2 clear sentences.',
+    user: `User request: "{{TOPIC}}"
+
+Provide a brief, natural summary of what they want to learn. Focus on the KEY CONCEPTS and SKILLS, not on creating modules or pedagogy.
+
+Example responses:
+- "the key principles of effective leadership, including delegation, communication, and team motivation"
+- "Python programming fundamentals, including variables, loops, functions, and data structures"
+- "financial planning strategies for retirement, covering investment options, risk management, and tax optimization"
+
+Keep it concise, natural, and focused on WHAT they'll learn, not HOW.`
   },
   
   generatorA: {
@@ -578,21 +944,32 @@ Based on this understanding:
 {{UNDERSTANDING}}
 
 Requirements:
-1. Cover all key concepts thoroughly with technical accuracy
-2. Include definitions, explanations, and examples
-3. CITE credible sources for major claims (textbooks, courses, academic papers)
-4. Format citations as [Source: Title, Author/Institution]
-5. Create 3-5 learning modules with clear objectives
-6. Include 2-3 assessment questions per module
+1. Generate 4-6 distinct MODULES (not topics, not single module)
+2. Each module should teach one aspect of the topic
+3. Modules should progress logically (basics → advanced)
+4. Include 2-3 paragraphs of explanation per module (max 300 words)
+5. Include 3-5 assessment questions per module with explanations
+6. CITE credible sources for major claims
+7. Format citations as [Source: Title, Author/Institution]
 
 Output as JSON:
 {
+  "topicTitle": "...",
   "modules": [
     {
       "id": "module-1",
       "title": "...",
-      "content": "... [Source: Stewart Calculus, Chapter 3] ...",
-      "questions": [...]
+      "content": "... [Source: ...] ...",
+      "questions": [
+        {
+          "id": "q1",
+          "text": "...",
+          "options": ["A", "B", "C", "D"],
+          "correctAnswer": "A",
+          "explanation": "..."
+        }
+      ],
+      "examples": ["..."]
     }
   ],
   "citations": [
@@ -609,18 +986,18 @@ Based on this understanding:
 {{UNDERSTANDING}}
 
 Requirements:
-1. Focus on real-world applications and intuitive explanations
-2. Include practical examples and use cases
-3. CITE credible sources (online courses, educational videos, practical guides)
-4. Format citations as [Source: Title, Author/Platform]
-5. Create 3-5 learning modules with hands-on focus
-6. Include scenario-based assessment questions
+1. Generate 4-6 MODULES with hands-on focus
+2. Focus on real-world applications and scenarios
+3. Include practical examples and case studies
+4. Each module: 2-3 paragraphs, 3-5 scenario-based questions
+5. CITE credible sources (courses, videos, guides)
+6. Format citations as [Source: Title, Author/Platform]
 
 Output as JSON (same format as Generator A)`
   },
   
   factChecker: {
-    system: 'You are a fact-checker validating educational content and citations for accuracy.',
+    system: 'You are a fact-checking validator. Return ONLY valid JSON with no conversational text. Do not add explanations, comments, or any text outside the JSON structure.',
     user: `Validate this learning content on: {{TOPIC}}
 
 Generator A (Technical): {{GENERATOR_A_OUTPUT}}
@@ -628,17 +1005,17 @@ Generator B (Practical): {{GENERATOR_B_OUTPUT}}
 
 Tasks:
 1. Verify factual accuracy of all claims
-2. Validate that citations are credible and relevant
-3. Flag any unsupported claims or questionable sources
-4. Check for hallucinated citations (sources that don't exist)
-5. Synthesize the best content from both generators
-6. Ensure comprehensive coverage of the topic
-7. Check for ethical issues or policy violations
+2. Validate 4-6 modules are distinct and progress logically
+3. Ensure each module has 3-5 quality questions
+4. Check citations are credible (no hallucinations)
+5. Synthesize best content from both generators
+6. Flag ethical issues or policy violations
 
 Output validated modules with confidence scores and citation verification.
 
 JSON format:
 {
+  "topicTitle": "...",
   "modules": [...],
   "provenance": [...],
   "citationValidation": [
@@ -648,4 +1025,124 @@ JSON format:
 }`
   }
 };
+
+/**
+ * MODULE-LEVEL PROMPTS: Generate 1 deep module for specific framework/tool
+ * Example: "SMART Goals Framework" → 1 comprehensive module
+ */
+export const MODULE_PROMPTS = {
+  understanding: {
+    system: 'You are a concise learning advisor. Summarize the specific skill, framework, or tool the user wants to learn.',
+    user: `User request: "{{TOPIC}}"
+
+Provide a brief summary of this SPECIFIC SKILL/FRAMEWORK/TOOL. Focus on what it is and what they'll be able to do.
+
+Example responses:
+- "the SMART Goals framework for setting clear, achievable objectives in business and personal contexts"
+- "active listening techniques for effective communication, including paraphrasing, reflection, and empathetic responses"
+- "Python's pandas library for data analysis, covering dataframes, data manipulation, and visualization"
+
+Keep it concise, practical, and focused on the SKILL or TOOL itself.`
+  },
+  
+  generatorA: {
+    system: 'You are an expert creating comprehensive, in-depth content on specific frameworks and methods.',
+    user: `Create comprehensive training content on: {{TOPIC}}
+
+Based on this understanding:
+{{UNDERSTANDING}}
+
+Requirements:
+1. Generate 1 COMPREHENSIVE MODULE (not multiple modules)
+2. Content should be 500-800 words (detailed explanation)
+3. Include:
+   - Definition and purpose
+   - Step-by-step guide to using the framework
+   - Visual description (for diagram/illustration)
+   - Real-world example with full walkthrough
+   - Common mistakes and how to avoid them
+4. Include 5-8 assessment questions (comprehensive coverage)
+5. CITE authoritative sources (original creator, academic papers, textbooks)
+
+Output as JSON:
+{
+  "moduleTitle": "...",
+  "content": "...",
+  "stepByStepGuide": ["Step 1: ...", "Step 2: ..."],
+  "visualDescription": "Describe how to illustrate this (for designer)",
+  "examples": [
+    {
+      "scenario": "...",
+      "application": "Step-by-step walkthrough..."
+    }
+  ],
+  "commonMistakes": ["Mistake 1: ...", "How to avoid: ..."],
+  "questions": [
+    {
+      "id": "q1",
+      "text": "...",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": "A",
+      "explanation": "..."
+    }
+  ],
+  "citations": [...]
+}`
+  },
+  
+  generatorB: {
+    system: 'You are an expert creating practical, applied content on specific frameworks and tools.',
+    user: `Create practical training content on: {{TOPIC}}
+
+Based on this understanding:
+{{UNDERSTANDING}}
+
+Requirements:
+1. Generate 1 PRACTICAL MODULE focused on application
+2. Content should be 500-800 words with hands-on emphasis
+3. Include multiple real-world scenarios
+4. Include 5-8 scenario-based assessment questions
+5. Focus on how practitioners actually use this in the field
+6. CITE practical guides, case studies, practitioner resources
+
+Output as JSON (same format as Generator A)`
+  },
+  
+  factChecker: {
+    system: 'You are a fact-checking validator. Return ONLY valid JSON with no conversational text. Do not add explanations, comments, or any text outside the JSON structure.',
+    user: `Validate this training content on: {{TOPIC}}
+
+Generator A (Comprehensive): {{GENERATOR_A_OUTPUT}}
+Generator B (Practical): {{GENERATOR_B_OUTPUT}}
+
+Tasks:
+1. Verify factual accuracy of framework description
+2. Validate step-by-step guide is complete and correct
+3. Ensure 5-8 high-quality questions test deep understanding
+4. Check examples are realistic and helpful
+5. Verify citations are authoritative
+6. Synthesize best content from both generators
+
+Output single validated module with deep content.
+
+JSON format:
+{
+  "moduleTitle": "...",
+  "content": "...",
+  "stepByStepGuide": [...],
+  "visualDescription": "...",
+  "examples": [...],
+  "commonMistakes": [...],
+  "questions": [...],
+  "citations": [...],
+  "provenance": [...],
+  "citationValidation": [...],
+  "ethicalFlags": []
+}`
+  }
+};
+
+// Keep legacy RESEARCH_PROMPTS for backward compatibility
+// (alias to TOPIC_PROMPTS)
+export const RESEARCH_PROMPTS = TOPIC_PROMPTS;
 

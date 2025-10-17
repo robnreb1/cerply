@@ -155,6 +155,21 @@ export async function createApp() {
   // Content Generation routes (Epic 6: Ensemble Content Generation)
   await safeRegister('./routes/content', ['registerContentRoutes']);
 
+  // Batch Content Generation routes (Epic 6.6: Content Library Seeding)
+  await safeRegister('./routes/batch-content', ['registerBatchContentRoutes']);
+
+  // PhD-Level Content Generation routes (Pilot: Python, Enterprise Arch, Tech Startups UK)
+  await safeRegister('./routes/phd-content', ['default']);
+
+  // Conversation routes (Epic 6: Natural conversational UI)
+  await safeRegister('./routes/conversation', ['registerConversationRoutes']);
+
+  // Workflow routes (Welcome Workflow: Learner entry point & intelligent routing)
+  await safeRegister('./routes/workflow', ['registerWorkflowRoutes']);
+
+  // Agent Orchestrator routes (Epic 13: AI Agent Architecture)
+  await safeRegister('./routes/agent', ['registerAgentRoutes']);
+
   // Gamification routes (Epic 7: Gamification & Certification System)
   await safeRegister('./routes/gamification', ['registerGamificationRoutes']);
 

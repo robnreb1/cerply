@@ -262,7 +262,7 @@ describe('Prompt Quality', () => {
   });
 
   it('should emphasize fact-checking in fact-checker prompt', () => {
-    expect(PROMPTS.factChecker.system).toContain('fact-checker');
+    expect(PROMPTS.factChecker.system).toContain('fact-checking');
     expect(PROMPTS.factChecker.system).toContain('verify');
     expect(PROMPTS.factChecker.user).toContain('hallucinations');
   });

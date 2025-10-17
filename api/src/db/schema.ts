@@ -223,6 +223,7 @@ export const contentGenerations = pgTable('content_generations', {
   status: text('status').notNull().default('pending'),
   contentType: text('content_type'), // 'generic' | 'proprietary' | 'mixed'
   inputType: text('input_type').default('source'), // 'source' | 'topic'
+  granularity: text('granularity'), // 'subject' | 'topic' | 'module' - THE KILLER FEATURE
   generatorAOutput: jsonb('generator_a_output'),
   generatorBOutput: jsonb('generator_b_output'),
   factCheckerOutput: jsonb('fact_checker_output'),
@@ -529,16 +530,8 @@ export const topicAssignments = pgTable('topic_assignments', {
   completedAt: timestamp('completed_at', { withTimezone: true }),
 });
 
-// Topic citations: Sources for research-based content (Epic 6.5)
-export const topicCitations = pgTable('topic_citations', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
-  citationText: text('citation_text').notNull(),
-  sourceUrl: text('source_url'),
-  sourceType: text('source_type'), // 'textbook' | 'paper' | 'course' | 'documentation' | 'website'
-  credibilityScore: numeric('credibility_score', { precision: 3, scale: 2 }),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+// Topic citations: REMOVED - see comprehensive version below in PHD-LEVEL CONTENT GENERATION section
+// This table is now defined with full academic citation details (line ~683)
 
 // Topic secondary sources: Company-specific context (Epic 6.8)
 export const topicSecondarySources = pgTable('topic_secondary_sources', {
@@ -561,6 +554,192 @@ export const topicCommunications = pgTable('topic_communications', {
   finalMessage: text('final_message'),
   deliveryChannels: text('delivery_channels').array().notNull().default(sql`ARRAY[]::TEXT[]`),
   sentAt: timestamp('sent_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// WELCOME WORKFLOW: Learner Entry Point & Intelligent Routing
+// ============================================================================
+// Migration: 019_welcome_workflow.sql
+// Manages conversation state and decision tracking for learner onboarding
+
+// User conversations: Full conversation history (30-day retention)
+export const userConversations = pgTable('user_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  conversationId: uuid('conversation_id').notNull().unique().defaultRandom(),
+  messages: jsonb('messages').notNull().$type<Array<{ role: string; content: string; timestamp: string }>>(),
+  workflowId: text('workflow_id').notNull(), // 'learner_welcome', 'module', 'build', etc.
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  lastActive: timestamp('last_active', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// User workflow decisions: Decision points after pruning (permanent)
+export const userWorkflowDecisions = pgTable('user_workflow_decisions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workflowId: text('workflow_id').notNull(),
+  decisionPoint: text('decision_point').notNull(), // e.g., 'confirmed_topic', 'selected_subject'
+  data: jsonb('data').notNull(), // Structured decision data
+  timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// BATCH GENERATION: Epic 6.6 - Content Library Seeding
+// ============================================================================
+// Migration: 022_batch_generation.sql
+// Manages batch content generation for scale (400 topics with budget controls)
+
+// Batch jobs: Track generation batches (UAT pilot + production scale)
+export const batchJobs = pgTable('batch_jobs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  batchId: text('batch_id').notNull().unique(),
+  phase: text('phase').notNull(), // 'uat' | 'production'
+  totalTopics: integer('total_topics').notNull(),
+  completedTopics: integer('completed_topics').default(0),
+  failedTopics: integer('failed_topics').default(0),
+  totalCost: numeric('total_cost', { precision: 10, scale: 2 }).default(sql`0.00`),
+  avgQuality: numeric('avg_quality', { precision: 3, scale: 2 }),
+  avgCitationAccuracy: numeric('avg_citation_accuracy', { precision: 3, scale: 2 }),
+  status: text('status').notNull(), // 'queued' | 'processing' | 'paused' | 'completed' | 'failed'
+  approvedBy: text('approved_by').references(() => users.id),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Batch topics: Individual topics within a batch queue
+export const batchTopics = pgTable('batch_topics', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  batchId: uuid('batch_id').notNull().references(() => batchJobs.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  category: text('category').notNull(),
+  difficulty: text('difficulty'), // 'beginner' | 'intermediate' | 'advanced'
+  status: text('status').notNull(), // 'queued' | 'generating' | 'completed' | 'failed'
+  topicId: text('topic_id'), // References topics table once generated
+  cost: numeric('cost', { precision: 10, scale: 2 }),
+  qualityScore: numeric('quality_score', { precision: 3, scale: 2 }),
+  citationAccuracy: numeric('citation_accuracy', { precision: 3, scale: 2 }),
+  errorMessage: text('error_message'),
+  retryCount: integer('retry_count').default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+});
+
+// Epic 13: Agent Conversations
+// Stores conversation history for agent orchestrator (30-day retention)
+export const agentConversations = pgTable('agent_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  conversationId: uuid('conversation_id').defaultRandom().notNull(),
+  role: text('role').notNull(), // 'user' | 'assistant' | 'system' | 'tool'
+  content: text('content').notNull(),
+  toolCalls: jsonb('tool_calls'), // Array of tool calls made (if any)
+  toolCallId: text('tool_call_id'), // Tool call ID for role='tool' messages
+  timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Epic 13: Agent Tool Calls
+// Audit trail for tool execution (performance monitoring and debugging)
+export const agentToolCalls = pgTable('agent_tool_calls', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  toolName: text('tool_name').notNull(),
+  parameters: jsonb('parameters').notNull(),
+  result: jsonb('result'),
+  executionTimeMs: integer('execution_time_ms'),
+  error: text('error'),
+  timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// ============================================================================
+// PHD-LEVEL CONTENT GENERATION (Migration 023)
+// ============================================================================
+// Rich content corpus for comprehensive, research-grade content
+
+export const contentCorpus = pgTable('content_corpus', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  sectionType: text('section_type').notNull(), // 'historical', 'theoretical', 'technical', 'practical', 'future'
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  orderIndex: integer('order_index').notNull(),
+  codeExamples: jsonb('code_examples'),
+  diagrams: jsonb('diagrams'),
+  formulas: jsonb('formulas'),
+  wordCount: integer('word_count'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const topicCitations = pgTable('topic_citations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  citationNumber: integer('citation_number').notNull(),
+  type: text('type').notNull(),
+  title: text('title').notNull(),
+  authors: jsonb('authors'),
+  year: integer('year'),
+  publisher: text('publisher'),
+  doi: text('doi'),
+  url: text('url'),
+  isbn: text('isbn'),
+  isPeerReviewed: boolean('is_peer_reviewed').default(false),
+  isPrimarySource: boolean('is_primary_source').default(false),
+  credibilityScore: numeric('credibility_score', { precision: 3, scale: 2 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const suggestedModules = pgTable('suggested_modules', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  orderIndex: integer('order_index').notNull(),
+  learningObjectives: jsonb('learning_objectives').notNull(),
+  keyConcepts: jsonb('key_concepts').notNull(),
+  estimatedHours: numeric('estimated_hours', { precision: 4, scale: 1 }),
+  prerequisites: jsonb('prerequisites'),
+  assessmentType: text('assessment_type'),
+  assessmentDescription: text('assessment_description'),
+  corpusSectionIds: jsonb('corpus_section_ids'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const phdEnsembleProvenance = pgTable('phd_ensemble_provenance', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  leadModel: text('lead_model').notNull(),
+  critiqueModel: text('critique_model').notNull(),
+  verifyModel: text('verify_model').notNull(),
+  leadOutputLength: integer('lead_output_length'),
+  critiqueScore: numeric('critique_score', { precision: 3, scale: 2 }),
+  verificationAccuracy: numeric('verification_accuracy', { precision: 3, scale: 2 }),
+  flaggedClaims: integer('flagged_claims').default(0),
+  totalCitations: integer('total_citations').default(0),
+  verifiedCitations: integer('verified_citations').default(0),
+  leadCostUsd: numeric('lead_cost_usd', { precision: 10, scale: 4 }),
+  critiqueCostUsd: numeric('critique_cost_usd', { precision: 10, scale: 4 }),
+  verifyCostUsd: numeric('verify_cost_usd', { precision: 10, scale: 4 }),
+  totalCostUsd: numeric('total_cost_usd', { precision: 10, scale: 4 }),
+  leadTimeMs: integer('lead_time_ms'),
+  critiqueTimeMs: integer('critique_time_ms'),
+  verifyTimeMs: integer('verify_time_ms'),
+  totalTimeMs: integer('total_time_ms'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const verificationFlags = pgTable('verification_flags', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').notNull().references(() => topics.id, { onDelete: 'cascade' }),
+  corpusSectionId: uuid('corpus_section_id').references(() => contentCorpus.id, { onDelete: 'cascade' }),
+  claimText: text('claim_text').notNull(),
+  issueType: text('issue_type').notNull(),
+  severity: text('severity').notNull(),
+  recommendation: text('recommendation'),
+  resolved: boolean('resolved').default(false),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedBy: uuid('resolved_by').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 

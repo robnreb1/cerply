@@ -76,9 +76,10 @@ export async function registerContentRoutes(app: FastifyInstance) {
       }
 
       try {
-        // Call LLM for understanding
+        // Call LLM for understanding WITH GRANULARITY DETECTION
         const result = await playbackUnderstanding(artefact);
         const inputType = result.inputType || 'source';
+        const granularity = result.granularity || 'topic'; // THE KILLER FEATURE
 
         // Create generation record
         const [generation] = await db
@@ -89,6 +90,7 @@ export async function registerContentRoutes(app: FastifyInstance) {
             artefactText: artefact,
             understanding: result.content,
             inputType: inputType,
+            granularity: granularity, // Store detected granularity
             status: 'understanding',
             totalCostUsd: result.costUsd.toString(),
             totalTokens: result.tokens,
@@ -101,6 +103,15 @@ export async function registerContentRoutes(app: FastifyInstance) {
           generationId: generation.id,
           understanding: result.content,
           inputType: inputType,
+          granularity: granularity, // Return detected granularity
+          granularityMetadata: {
+            expected: granularity === 'subject' ? '8-12 topics' :
+                     granularity === 'module' ? '1 deep module' :
+                     '4-6 modules',
+            reasoning: granularity === 'subject' ? 'Broad domain-level request' :
+                      granularity === 'module' ? 'Specific framework/tool/method' :
+                      'Focused skill/concept'
+          },
           status: 'understanding',
           cost: result.costUsd,
           tokens: result.tokens
@@ -286,9 +297,10 @@ export async function registerContentRoutes(app: FastifyInstance) {
         .set({ status: 'generating', contentType, updatedAt: new Date() })
         .where(eq(contentGenerations.id, generationId));
 
-      // Start async generation (in background)
+      // Start async generation (in background) WITH GRANULARITY
       const inputType = (generation.inputType || 'source') as 'source' | 'topic';
-      generateEnsembleAsync(generationId, generation.understanding, generation.artefactText, inputType);
+      const granularity = generation.granularity as 'subject' | 'topic' | 'module' | undefined;
+      generateEnsembleAsync(generationId, generation.understanding, generation.artefactText, inputType, granularity);
 
       return reply.status(202).send({
         generationId,
@@ -497,10 +509,11 @@ async function generateEnsembleAsync(
   generationId: string,
   understanding: string,
   artefact: string,
-  inputType: 'source' | 'topic' = 'source'
+  inputType: 'source' | 'topic' = 'source',
+  granularity?: 'subject' | 'topic' | 'module'
 ) {
   try {
-    const result = await generateWithEnsemble(understanding, artefact, inputType);
+    const result = await generateWithEnsemble(understanding, artefact, inputType, granularity);
 
     // Store results
     await db
