@@ -3,15 +3,15 @@
 # Usage: Edit this file to add your OPENAI_API_KEY, then run: bash start-local.sh
 
 # IMPORTANT: Replace YOUR_KEY_HERE with your actual API keys
-export OPENAI_API_KEY=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
+export OPENAI_API_KEY="YOUR_OPENAI_KEY_HERE"
 
 # REQUIRED FOR EPIC 6.6: Anthropic (Claude) API key
 # Get one at: https://console.anthropic.com/settings/keys
-export ANTHROPIC_API_KEY=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
+export ANTHROPIC_API_KEY="YOUR_ANTHROPIC_KEY_HERE"
 
 # REQUIRED FOR GEMINI: Google API key
 # Get one at: https://ai.google.dev/
-export GOOGLE_API_KEY=AIzaSyCqoiSxceQieH5ZgJirNi2dUkteLdlkJVk
+export GOOGLE_API_KEY="YOUR_GOOGLE_KEY_HERE"
 
 # Feature Flags
 export FF_ENSEMBLE_GENERATION_V1=true
