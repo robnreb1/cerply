@@ -149,6 +149,9 @@ export async function createApp() {
   // Manager Analytics routes (Epic 4: Manager Dashboard & Analytics)
   await safeRegister('./routes/managerAnalytics', ['registerManagerAnalyticsRoutes']);
 
+  // Manager Module Workflows routes (Epic 14: Module Creation, Assignment, Tracking)
+  await safeRegister('./routes/manager-modules', ['registerManagerModuleRoutes']);
+
   // Delivery routes (Epic 5: Slack Channel Integration)
   await safeRegister('./routes/delivery', ['registerDeliveryRoutes']);
 
