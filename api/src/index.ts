@@ -18,12 +18,26 @@ export async function createApp() {
     }
   };
   
-  // CORS — allow credentials for local development, wildcard for production/test
+  // CORS — allow credentials for local development and staging, wildcard for production/test
   const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
   const isTest = process.env.NODE_ENV === 'test';
+  const isStaging = process.env.RENDER_SERVICE_NAME?.includes('staging');
+  
+  // Allow credentials for dev and staging
+  const allowCredentials = isDev || isStaging;
+  
+  // Define allowed origins
+  const allowedOrigins = isTest 
+    ? '*' 
+    : isDev 
+      ? ['http://localhost:3000', 'http://127.0.0.1:3000']
+      : isStaging
+        ? ['https://cerply-staging.vercel.app', 'http://localhost:3000', 'http://127.0.0.1:3000']
+        : '*';
+  
   await app.register(cors, { 
-    origin: isTest ? '*' : (isDev ? ['http://localhost:3000', 'http://127.0.0.1:3000'] : '*'),
-    credentials: isDev ? true : false,
+    origin: allowedOrigins,
+    credentials: allowCredentials,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['content-type', 'authorization', 'x-admin-token', 'x-org-id', 'x-idempotency-key']
   });
