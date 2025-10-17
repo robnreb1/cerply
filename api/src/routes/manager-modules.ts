@@ -54,7 +54,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const body = req.body as CreateModuleRequest;
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id'; // Fallback for dev/test
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     
     const { topicId, title, description, isMandatory, targetRoles, estimatedMinutes } = body;
     
@@ -116,7 +116,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     if (!requireManager(req, reply)) return;
     
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     const query_params = req.query as any;
     const status = query_params.status;
     const teamId = query_params.teamId;
@@ -161,7 +161,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id } = (req as any).params as { id: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     
     // Get module
     const module = await single<any>(
@@ -227,7 +227,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id } = (req as any).params as { id: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     const body = req.body as Partial<CreateModuleRequest> & { status?: string };
     
     // Verify ownership
@@ -297,7 +297,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id } = (req as any).params as { id: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     
     // Verify ownership
     const existing = await single<any>(
@@ -336,7 +336,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id } = (req as any).params as { id: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     const body = req.body as UpdateContentRequest;
     
     // Verify ownership
@@ -462,7 +462,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id } = (req as any).params as { id: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     const body = req.body as ProprietaryContentRequest;
     
     const { contentType, title, content, sourceUrl } = body;
@@ -512,7 +512,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id, contentId } = (req as any).params as { id: string; contentId: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     
     // Verify ownership
     const module = await single<any>(
@@ -551,7 +551,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id } = (req as any).params as { id: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     const body = req.body as AssignModuleRequest;
     
     const { userIds, teamIds, roleFilters, isMandatory, dueDate } = body;
@@ -653,7 +653,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id, assignmentId } = (req as any).params as { id: string; assignmentId: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     
     // Verify ownership
     const module = await single<any>(
@@ -692,7 +692,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id } = (req as any).params as { id: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     
     // Verify ownership
     const module = await single<any>(
@@ -716,7 +716,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
         u.id as user_id,
         u.email as user_email
       FROM module_assignments ma
-      INNER JOIN users u ON ma.user_id = u.id::text
+      INNER JOIN users u ON ma.user_id = u.id
       WHERE ma.module_id = $1
       ORDER BY ma.assigned_at DESC`,
       [id]
@@ -769,7 +769,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
     
     const { id } = (req as any).params as { id: string };
     const session = getSession(req);
-    const userId = session?.userId || 'dev-user-id';
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     
     // Verify ownership
     const module = await single<any>(
@@ -805,7 +805,7 @@ export function registerManagerModuleRoutes(app: FastifyInstance) {
         ma.*,
         u.email as user_email
        FROM module_assignments ma
-       INNER JOIN users u ON ma.user_id = u.id::text
+       INNER JOIN users u ON ma.user_id = u.id
        WHERE ma.module_id = $1 
          AND (
            (ma.mastery_score IS NOT NULL AND ma.mastery_score < 0.60) 
