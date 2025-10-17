@@ -29,7 +29,7 @@ describe('Certified PLAN route with openai-v0 adapter (offline)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 

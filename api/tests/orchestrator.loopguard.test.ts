@@ -7,7 +7,7 @@ describe('Orchestrator loop guard', () => {
     vi.stubEnv('ORCH_ENABLED', 'true');
     app = await createApp();
   });
-  afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
+  afterAll(async () => { if (app) await app.close(); vi.unstubAllEnvs(); });
 
   it('fails when maxSteps exceeded', async () => {
     const payload = { goal: 'demo', steps: new Array(10).fill(0).map((_,i) => ({ type: 'dev.log', payload: { i } })), limits: { maxSteps: 2, maxWallMs: 2000 } };

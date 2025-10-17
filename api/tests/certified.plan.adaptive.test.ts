@@ -13,7 +13,7 @@ describe('Certified PLAN with adaptive engine (preview, gated)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 

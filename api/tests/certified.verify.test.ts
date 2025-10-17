@@ -9,7 +9,7 @@ describe('Certified Verify API', () => {
     vi.stubEnv('CERTIFIED_MODE', 'plan');
     app = await createApp();
   });
-  afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
+  afterAll(async () => { if (app) await app.close(); vi.unstubAllEnvs(); });
 
   it('OPTIONS preflight returns 204 and ACAO:*', async () => {
     const r = await app.inject({ method: 'OPTIONS', url: '/api/certified/verify', headers: { origin: 'https://app.cerply.com', 'access-control-request-method': 'POST' } });

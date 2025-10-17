@@ -11,7 +11,7 @@ describe('legacy ingest wrappers', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
   });
 
   it('ingest/preview happy path', async () => {

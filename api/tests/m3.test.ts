@@ -9,7 +9,7 @@ describe('M3 API Surface (preview, generate, score, daily/next, ops/usage)', () 
   });
 
   afterAll(async () => {
-    if (app) await app.close();
+    if (app) if (app) await app.close();
   });
 
   describe('POST /api/preview', () => {

@@ -92,7 +92,7 @@ describe.skipIf(skipInCI)('Epic 3: Team Management API', () => {
     await db.delete(userRoles).where(eq(userRoles.organizationId, testOrgId));
     await db.delete(users).where(eq(users.organizationId, testOrgId));
     await db.delete(organizations).where(eq(organizations.id, testOrgId));
-    await app.close();
+    if (app) await app.close();
   });
 
   describe('POST /api/teams - Create Team', () => {

@@ -7,7 +7,7 @@ describe('Certified audit preview route', () => {
     vi.stubEnv('FF_CERTIFIED_AUDIT_PREVIEW', 'true');
     app = await createApp();
   });
-  afterAll(async () => { await app.close(); vi.unstubAllEnvs(); });
+  afterAll(async () => { if (app) await app.close(); vi.unstubAllEnvs(); });
 
   it('returns 200 with lines array', async () => {
     const r = await app.inject({ method: 'GET', url: '/api/certified/_audit_preview?limit=5' });

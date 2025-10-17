@@ -11,7 +11,7 @@ describe('Certified Retention v0 (preview)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 

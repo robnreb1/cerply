@@ -11,7 +11,7 @@ describe('Analytics Preview Routes', () => {
   });
 
   afterAll(async () => {
-    if (app) await app.close();
+    if (app) if (app) await app.close();
     vi.unstubAllEnvs();
   });
 

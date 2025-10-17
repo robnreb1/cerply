@@ -12,7 +12,7 @@ describe('Admin Certified (preview) API', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) await app.close();
     vi.unstubAllEnvs();
   });
 
