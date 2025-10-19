@@ -947,11 +947,34 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
       [id]
     );
     
+    // Get question-level performance stats
+    const questionStats = await query<any>(
+      `SELECT 
+        question_id,
+        attempts_count,
+        correct_count,
+        incorrect_count,
+        CASE 
+          WHEN attempts_count > 0 THEN ROUND((correct_count::NUMERIC / attempts_count::NUMERIC), 2)
+          ELSE 0
+        END as success_rate,
+        avg_time_seconds,
+        perceived_difficulty,
+        skip_count,
+        hint_requests_count,
+        last_attempted_at
+       FROM question_performance_stats
+       WHERE module_id = $1
+       ORDER BY attempts_count DESC, success_rate ASC`,
+      [id]
+    );
+    
     return reply.send({
       module,
       progressOverTime: progressOverTime.rows,
       strugglingLearners: strugglingLearners.rows,
       editMetrics: editMetrics.rows,
+      questionStats: questionStats.rows,
     });
   });
 }
