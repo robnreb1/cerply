@@ -30,18 +30,22 @@ async function proxyToBackend(req: NextRequest) {
     const url = new URL(req.url);
     const apiUrl = `${apiBase}${url.pathname}${url.search}`;
     
-    // Forward headers including cookies
-    const headers = new Headers();
-    req.headers.forEach((value, key) => {
-      if (key.toLowerCase() !== 'host') {
-        headers.set(key, value);
-      }
+    // Forward important headers including cookies
+    const headers = new Headers({
+      'content-type': req.headers.get('content-type') || 'application/json',
+      'accept': req.headers.get('accept') || 'application/json',
     });
     
+    // Forward cookie header
+    const cookie = req.headers.get('cookie');
+    if (cookie) {
+      headers.set('cookie', cookie);
+    }
+    
     // Get request body if present
-    let body: BodyInit | null = null;
+    let body: string | null = null;
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      body = await req.arrayBuffer();
+      body = await req.text();
     }
 
     const response = await fetch(apiUrl, {
@@ -50,16 +54,15 @@ async function proxyToBackend(req: NextRequest) {
       body,
     });
 
-    // Forward response with proper headers
-    const responseBody = await response.arrayBuffer();
-    const responseHeaders = new Headers();
-    response.headers.forEach((value, key) => {
-      responseHeaders.set(key, value);
-    });
+    // Get response as text and parse
+    const responseText = await response.text();
     
-    return new NextResponse(responseBody, {
+    return new NextResponse(responseText, {
       status: response.status,
-      headers: responseHeaders,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+      },
     });
   } catch (error: any) {
     console.error('[Curator Modules Proxy] Error:', error);
