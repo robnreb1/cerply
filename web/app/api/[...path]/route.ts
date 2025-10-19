@@ -66,6 +66,25 @@ async function proxy(req: NextRequest, { params }: { params: { path?: string[] }
   headers.set('x-proxied-by', 'next-app-route');
   headers.set('x-proxy-target', target); // Add target URL to response headers for debugging
 
+  // Special handling for dev login endpoints: ensure session cookies work cross-domain
+  // by rewriting Set-Cookie headers to remove Domain attribute
+  if (path.includes('dev/login-as-')) {
+    const setCookieHeaders = upstream.headers.getSetCookie?.() || [];
+    if (setCookieHeaders.length > 0) {
+      // Clear any existing set-cookie headers
+      headers.delete('set-cookie');
+      
+      // Re-add each cookie without Domain attribute so browser sets it for current domain
+      setCookieHeaders.forEach(cookie => {
+        const rewritten = cookie
+          .split(';')
+          .filter(part => !part.trim().toLowerCase().startsWith('domain='))
+          .join(';');
+        headers.append('set-cookie', rewritten);
+      });
+    }
+  }
+
   return new Response(upstream.body, { status: upstream.status, headers });
 }
 
