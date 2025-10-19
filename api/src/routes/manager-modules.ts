@@ -16,6 +16,7 @@ interface CreateModuleRequest {
   isMandatory?: boolean;
   targetRoles?: string[];
   estimatedMinutes?: number;
+  difficultyLevel?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
 }
 
 interface AssignModuleRequest {
@@ -56,13 +57,23 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
     const session = getSession(req);
     const userId = session?.userId || '00000000-0000-0000-0000-000000000001'; // Test user UUID for dev/test
     
-    const { topicId, title, description, isMandatory, targetRoles, estimatedMinutes } = body;
+    const { topicId, title, description, isMandatory, targetRoles, estimatedMinutes, difficultyLevel } = body;
     
     if (!topicId || !title) {
       return reply.status(400).send({
         error: {
           code: 'VALIDATION_ERROR',
           message: 'topicId and title are required',
+        },
+      });
+    }
+    
+    // Validate difficulty level if provided
+    if (difficultyLevel && !['beginner', 'intermediate', 'advanced', 'expert'].includes(difficultyLevel)) {
+      return reply.status(400).send({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'difficultyLevel must be one of: beginner, intermediate, advanced, expert',
         },
       });
     }
@@ -85,8 +96,8 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
     // Create module
     const module = await single<any>(
       `INSERT INTO manager_modules (
-        topic_id, created_by, title, description, status, is_mandatory, target_roles, estimated_minutes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        topic_id, created_by, title, description, status, is_mandatory, target_roles, estimated_minutes, difficulty_level
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *`,
       [
         topicId,
@@ -97,6 +108,7 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
         isMandatory || false,
         JSON.stringify(targetRoles || []),
         estimatedMinutes || null,
+        difficultyLevel || null,
       ]
     );
     
@@ -274,6 +286,19 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
       updates.push(`estimated_minutes = $${paramIndex++}`);
       params.push(body.estimatedMinutes);
     }
+    if (body.difficultyLevel !== undefined) {
+      // Validate difficulty level
+      if (body.difficultyLevel && !['beginner', 'intermediate', 'advanced', 'expert'].includes(body.difficultyLevel)) {
+        return reply.status(400).send({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'difficultyLevel must be one of: beginner, intermediate, advanced, expert',
+          },
+        });
+      }
+      updates.push(`difficulty_level = $${paramIndex++}`);
+      params.push(body.difficultyLevel);
+    }
     
     if (updates.length === 0) {
       return reply.send({ success: true, message: 'No changes to apply' });
@@ -286,6 +311,102 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
     const updated = await single<any>(sql, params);
     
     return reply.send({ success: true, module: updated });
+  });
+  
+  /**
+   * POST /api/curator/modules/:id/pause
+   * Pause a module (prevents new assignments/starts)
+   */
+  app.post('/api/curator/modules/:id/pause', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!requireManager(req, reply)) return;
+    
+    const { id } = (req as any).params as { id: string };
+    const session = getSession(req);
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001';
+    
+    // Verify ownership
+    const existing = await single<any>(
+      'SELECT id, title, paused_at FROM manager_modules WHERE id = $1 AND created_by = $2',
+      [id, userId]
+    );
+    
+    if (!existing) {
+      return reply.status(404).send({
+        error: {
+          code: 'MODULE_NOT_FOUND',
+          message: 'Module not found or access denied',
+        },
+      });
+    }
+    
+    if (existing.paused_at) {
+      return reply.status(400).send({
+        error: {
+          code: 'ALREADY_PAUSED',
+          message: 'Module is already paused',
+        },
+      });
+    }
+    
+    // Pause the module
+    const updated = await single<any>(
+      'UPDATE manager_modules SET paused_at = NOW(), updated_at = NOW() WHERE id = $1 RETURNING *',
+      [id]
+    );
+    
+    return reply.send({ 
+      success: true, 
+      message: `Module "${existing.title}" has been paused`,
+      module: updated 
+    });
+  });
+  
+  /**
+   * POST /api/curator/modules/:id/unpause
+   * Unpause a module (resume normal operation)
+   */
+  app.post('/api/curator/modules/:id/unpause', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!requireManager(req, reply)) return;
+    
+    const { id } = (req as any).params as { id: string };
+    const session = getSession(req);
+    const userId = session?.userId || '00000000-0000-0000-0000-000000000001';
+    
+    // Verify ownership
+    const existing = await single<any>(
+      'SELECT id, title, paused_at FROM manager_modules WHERE id = $1 AND created_by = $2',
+      [id, userId]
+    );
+    
+    if (!existing) {
+      return reply.status(404).send({
+        error: {
+          code: 'MODULE_NOT_FOUND',
+          message: 'Module not found or access denied',
+        },
+      });
+    }
+    
+    if (!existing.paused_at) {
+      return reply.status(400).send({
+        error: {
+          code: 'NOT_PAUSED',
+          message: 'Module is not currently paused',
+        },
+      });
+    }
+    
+    // Unpause the module
+    const updated = await single<any>(
+      'UPDATE manager_modules SET paused_at = NULL, updated_at = NOW() WHERE id = $1 RETURNING *',
+      [id]
+    );
+    
+    return reply.send({ 
+      success: true, 
+      message: `Module "${existing.title}" has been unpaused`,
+      module: updated 
+    });
   });
   
   /**
@@ -826,11 +947,34 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
       [id]
     );
     
+    // Get question-level performance stats
+    const questionStats = await query<any>(
+      `SELECT 
+        question_id,
+        attempts_count,
+        correct_count,
+        incorrect_count,
+        CASE 
+          WHEN attempts_count > 0 THEN ROUND((correct_count::NUMERIC / attempts_count::NUMERIC), 2)
+          ELSE 0
+        END as success_rate,
+        avg_time_seconds,
+        perceived_difficulty,
+        skip_count,
+        hint_requests_count,
+        last_attempted_at
+       FROM question_performance_stats
+       WHERE module_id = $1
+       ORDER BY attempts_count DESC, success_rate ASC`,
+      [id]
+    );
+    
     return reply.send({
       module,
       progressOverTime: progressOverTime.rows,
       strugglingLearners: strugglingLearners.rows,
       editMetrics: editMetrics.rows,
+      questionStats: questionStats.rows,
     });
   });
 }

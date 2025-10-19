@@ -743,3 +743,82 @@ export const verificationFlags = pgTable('verification_flags', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+
+// ============================================================================
+// Epic 14: Manager Module Workflows
+// ============================================================================
+
+// Manager Modules: Training modules created by managers
+export const managerModules = pgTable('manager_modules', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  topicId: uuid('topic_id').references(() => topics.id, { onDelete: 'cascade' }),
+  createdBy: uuid('created_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  description: text('description'),
+  status: text('status').notNull().default('draft'), // 'draft' | 'active' | 'archived'
+  isMandatory: boolean('is_mandatory').default(false),
+  targetRoles: jsonb('target_roles'),
+  prerequisites: jsonb('prerequisites'),
+  estimatedMinutes: integer('estimated_minutes'),
+  difficultyLevel: text('difficulty_level'), // 'beginner' | 'intermediate' | 'advanced' | 'expert'
+  pausedAt: timestamp('paused_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Module Assignments: Tracks which users are assigned which modules
+export const moduleAssignments = pgTable('module_assignments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  moduleId: uuid('module_id').notNull().references(() => managerModules.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  assignedBy: uuid('assigned_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  assignedAt: timestamp('assigned_at', { withTimezone: true }).defaultNow().notNull(),
+  dueDate: timestamp('due_date', { withTimezone: true }),
+  status: text('status').notNull().default('assigned'), // 'assigned' | 'in_progress' | 'completed'
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  masteryScore: numeric('mastery_score', { precision: 3, scale: 2 }),
+  timeSpentSeconds: integer('time_spent_seconds').default(0),
+});
+
+// Module Proprietary Content: Manager-uploaded company-specific content
+export const moduleProprietaryContent = pgTable('module_proprietary_content', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  moduleId: uuid('module_id').notNull().references(() => managerModules.id, { onDelete: 'cascade' }),
+  contentType: text('content_type').notNull(), // 'document' | 'case_study' | 'policy' | 'video'
+  title: text('title').notNull(),
+  content: text('content'),
+  sourceUrl: text('source_url'),
+  uploadedBy: uuid('uploaded_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Module Content Edits: Audit trail for manager refinements
+export const moduleContentEdits = pgTable('module_content_edits', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  moduleId: uuid('module_id').notNull().references(() => managerModules.id, { onDelete: 'cascade' }),
+  editedBy: uuid('edited_by').notNull().references(() => users.id),
+  editType: text('edit_type').notNull(), // 'section_edit' | 'question_add' | 'question_edit' | 'guidance_edit'
+  sectionId: uuid('section_id'),
+  beforeContent: jsonb('before_content'),
+  afterContent: jsonb('after_content'),
+  editReason: text('edit_reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// Question Performance Stats: Track question-level performance for manager analytics
+export const questionPerformanceStats = pgTable('question_performance_stats', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  questionId: uuid('question_id').notNull(),
+  moduleId: uuid('module_id').notNull().references(() => managerModules.id, { onDelete: 'cascade' }),
+  attemptsCount: integer('attempts_count').default(0),
+  correctCount: integer('correct_count').default(0),
+  incorrectCount: integer('incorrect_count').default(0),
+  avgTimeSeconds: numeric('avg_time_seconds', { precision: 8, scale: 2 }).default('0'),
+  perceivedDifficulty: text('perceived_difficulty'), // 'too_easy' | 'appropriate' | 'too_hard'
+  skipCount: integer('skip_count').default(0),
+  hintRequestsCount: integer('hint_requests_count').default(0),
+  firstAttemptedAt: timestamp('first_attempted_at', { withTimezone: true }),
+  lastAttemptedAt: timestamp('last_attempted_at', { withTimezone: true }),
+  lastUpdated: timestamp('last_updated', { withTimezone: true }).defaultNow(),
+});
