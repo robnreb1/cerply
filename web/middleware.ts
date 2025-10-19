@@ -7,7 +7,7 @@ const MARKETING_BASE_URL = process.env.MARKETING_BASE_URL || 'https://www.cerply
 // Default includes login, unauthorized, and health endpoints
 // For local dev UAT: also allow manager and admin dashboards
 const ALLOWLIST_ROUTES_RAW =
-  process.env.APP_ALLOWLIST_ROUTES || '/login,/unauthorized,/api/health,/api/auth,/debug/env,/manager,/admin';
+  process.env.APP_ALLOWLIST_ROUTES || '/login,/unauthorized,/api/health,/api/auth,/api/dev,/debug/env,/manager,/admin';
 const ALLOWLIST_ROUTES = ALLOWLIST_ROUTES_RAW.split(',')
   .map((r) => r.trim())
   .filter(Boolean);
