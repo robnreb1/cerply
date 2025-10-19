@@ -30,9 +30,13 @@ async function proxyToBackend(req: NextRequest) {
     const url = new URL(req.url);
     const apiUrl = `${apiBase}${url.pathname}${url.search}`;
     
-    // Forward all headers except host
-    const headers = new Headers(req.headers);
-    headers.delete('host');
+    // Forward headers including cookies
+    const headers = new Headers();
+    req.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== 'host') {
+        headers.set(key, value);
+      }
+    });
     
     // Get request body if present
     let body: BodyInit | null = null;
@@ -44,16 +48,21 @@ async function proxyToBackend(req: NextRequest) {
       method: req.method,
       headers,
       body,
-      credentials: 'include',
     });
 
-    // Forward response
+    // Forward response with proper headers
     const responseBody = await response.arrayBuffer();
+    const responseHeaders = new Headers();
+    response.headers.forEach((value, key) => {
+      responseHeaders.set(key, value);
+    });
+    
     return new NextResponse(responseBody, {
       status: response.status,
-      headers: response.headers,
+      headers: responseHeaders,
     });
   } catch (error: any) {
+    console.error('[Curator Modules Proxy] Error:', error);
     return NextResponse.json(
       { error: { code: 'PROXY_ERROR', message: error.message } },
       { status: 502 }
