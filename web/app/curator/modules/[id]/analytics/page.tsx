@@ -221,7 +221,7 @@ export default function ModuleAnalyticsPage() {
               {assignments.filter(a => a.risk_status === 'at_risk').length}
             </p>
             <p className="text-xs text-brand-subtle mt-2">
-              <7 days to deadline
+              &lt;7 days to deadline
             </p>
           </div>
           
