@@ -269,7 +269,13 @@ export async function updateAllProficiencies(): Promise<{
         
         if (update && update.shouldNotify) {
           // Queue notification
-          await queueNotification(assignment.id, update.newStatus);
+          // Map risk status to notification type
+          let notificationType: 'at_risk' | 'overdue' | 'achieved' | 'deadline_reminder' = 'at_risk';
+          if (update.newStatus === 'overdue') notificationType = 'overdue';
+          else if (update.newStatus === 'achieved') notificationType = 'achieved';
+          else if (update.newStatus === 'at_risk') notificationType = 'at_risk';
+          
+          await queueNotification(assignment.id, notificationType);
           notifications++;
         }
       } catch (error: any) {
