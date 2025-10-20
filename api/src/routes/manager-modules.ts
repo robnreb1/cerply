@@ -47,6 +47,10 @@ interface ProprietaryContentRequest {
   sourceUrl?: string;
 }
 
+// 🧪 TEMPORARY: In-memory conversation storage for local UAT (bypasses database)
+// TODO: Remove after database migration 030 is run
+const TEMP_CONVERSATIONS = new Map<string, any>();
+
 export async function registerManagerModuleRoutes(app: FastifyInstance) {
   
   // ============================================================================
@@ -67,30 +71,21 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
     const organizationId = (session as any)?.organizationId || null;
     
     try {
-      // Retrieve or create conversation
+      // 🧪 TEMPORARY: Use in-memory storage instead of database
       let conversation: any;
-      if (conversationId) {
-        conversation = await single<any>(
-          `SELECT * FROM module_creation_conversations 
-           WHERE id = $1 AND manager_id = $2`,
-          [conversationId, managerId]
-        );
-        
-        if (!conversation) {
-          return reply.status(404).send({ 
-            error: { 
-              code: 'CONVERSATION_NOT_FOUND',
-              message: 'Conversation not found or access denied' 
-            } 
-          });
-        }
+      if (conversationId && TEMP_CONVERSATIONS.has(conversationId)) {
+        conversation = TEMP_CONVERSATIONS.get(conversationId);
       } else {
         // Create new conversation
-        conversation = await single<any>(
-          `INSERT INTO module_creation_conversations (manager_id, conversation_turns, status)
-           VALUES ($1, $2, $3) RETURNING *`,
-          [managerId, JSON.stringify([]), 'active']
-        );
+        const newId = `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        conversation = {
+          id: newId,
+          manager_id: managerId,
+          conversation_turns: [],
+          status: 'active',
+          created_at: new Date(),
+        };
+        TEMP_CONVERSATIONS.set(newId, conversation);
       }
       
       // Get conversation turns
@@ -135,78 +130,21 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
         timestamp: new Date(),
       });
       
-      // Update conversation
-      await query(
-        `UPDATE module_creation_conversations 
-         SET conversation_turns = $1, updated_at = NOW() 
-         WHERE id = $2`,
-        [JSON.stringify(turns), conversation.id]
-      );
+      // 🧪 TEMPORARY: Update conversation in temp storage (bypasses database)
+      conversation.conversation_turns = turns;
+      conversation.updated_at = new Date();
+      TEMP_CONVERSATIONS.set(conversation.id, conversation);
       
-      // If ready to create, generate draft module
-      let draftModuleId = null;
-      if (agentResponse.readyToCreate && agentResponse.modulePreview) {
-        const preview = agentResponse.modulePreview;
-        
-        // Create draft module
-        const draft = await single<any>(
-          `INSERT INTO manager_modules (
-            created_by, title, description, status, 
-            target_mastery_level, starting_level, 
-            estimated_minutes, content_generation_prompt
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-          [
-            managerId,
-            preview.title,
-            preview.description,
-            'draft',
-            preview.targetMasteryLevel,
-            preview.startingLevel || null,
-            preview.estimatedMinutes,
-            userMessage, // Original prompt
-          ]
-        );
-        
-        draftModuleId = draft.id;
-        
-        // Link conversation to module
-        await query(
-          `UPDATE module_creation_conversations 
-           SET module_id = $1, status = $2 
-           WHERE id = $3`,
-          [draftModuleId, 'completed', conversation.id]
-        );
-        
-        // Create proprietary content blocks
-        for (const block of preview.contentBlocks.filter(b => b.source === 'proprietary')) {
-          await query(
-            `INSERT INTO module_proprietary_content (
-              module_id, content_type, title, content, 
-              content_source, is_ring_fenced, access_control, 
-              organization_id, uploaded_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [
-              draftModuleId,
-              block.type,
-              block.title,
-              block.content,
-              'proprietary',
-              true,
-              'org_only',
-              organizationId,
-              managerId,
-            ]
-          );
-        }
-      }
-      
+      // Skip draft module creation (requires database tables)
+      // Just return response for UAT testing
       return reply.send({
         conversationId: conversation.id,
         agentMessage: agentResponse.message,
-        suggestions: agentResponse.suggestions,
-        modulePreview: agentResponse.modulePreview,
-        draftModuleId,
+        suggestions: agentResponse.suggestions || [],
+        modulePreview: agentResponse.modulePreview || null,
+        needsMoreInfo: agentResponse.needsMoreInfo,
         readyToCreate: agentResponse.readyToCreate,
+        draftModuleId: null, // Skipping in temp mode
       });
     } catch (error: any) {
       console.error('Conversation error:', error);

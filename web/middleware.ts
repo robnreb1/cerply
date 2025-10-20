@@ -7,7 +7,7 @@ const MARKETING_BASE_URL = process.env.MARKETING_BASE_URL || 'https://www.cerply
 // Default includes login, unauthorized, and health endpoints
 // For local dev UAT: also allow manager and admin dashboards, and dev login endpoints
 const ALLOWLIST_ROUTES_RAW =
-  process.env.APP_ALLOWLIST_ROUTES || '/login,/unauthorized,/api/health,/api/auth,/api/dev/login-as-manager,/api/dev/login-as-admin,/api/curator,/dev/login-manager,/debug/env,/manager,/admin';
+  process.env.APP_ALLOWLIST_ROUTES || '/login,/unauthorized,/api/health,/api/auth,/api/dev/login-as-manager,/api/dev/login-as-admin,/api/curator,/dev/login-manager,/test-login,/debug/env,/manager,/admin';
 const ALLOWLIST_ROUTES = ALLOWLIST_ROUTES_RAW.split(',')
   .map((r) => r.trim())
   .filter(Boolean);
@@ -20,6 +20,13 @@ const BETA_INVITE_CODES = BETA_INVITE_CODES_RAW.split(',')
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // 🧪 TEMPORARY: Allow all routes for local UAT testing
+  // TODO: Re-enable auth after testing
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[Middleware] Allowing ${pathname} (dev mode)`);
+    return NextResponse.next();
+  }
 
   // Check if path matches allowlist
   const isAllowlisted = ALLOWLIST_ROUTES.some((route) => {

@@ -36,8 +36,7 @@ export default function ConversationalModuleCreationPage() {
   const [turns, setTurns] = useState<ConversationTurn[]>([
     {
       role: 'agent',
-      content: "Hi! I'm here to help you create a training module. What would you like to train your team on?\n\nFor example:\n• Sales negotiation techniques\n• Advanced TypeScript patterns\n• Fire safety procedures\n• Leadership for new managers",
-      suggestions: ['Sales skills', 'Technical training', 'Compliance/Safety', 'Leadership development'],
+      content: "Hello! I'm here to help you create a training module for your team.\n\nWhat would you like to teach them? It could be anything - from sales techniques to software skills, safety procedures to leadership principles.\n\nJust tell me what's on your mind, and we'll build it together.",
       timestamp: new Date(),
     },
   ]);
@@ -78,8 +77,8 @@ export default function ConversationalModuleCreationPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-admin-token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || 'test-admin-token',
         },
+        credentials: 'include',
         body: JSON.stringify(body),
       });
 
@@ -130,9 +129,9 @@ export default function ConversationalModuleCreationPage() {
       <div className="border-b border-brand-border bg-brand-surface px-6 py-4 shadow-sm">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-brand-ink">Create New Module</h1>
+            <h1 className="text-2xl font-semibold text-brand-ink">Cerply</h1>
             <p className="text-sm text-brand-subtle mt-1">
-              Describe what you want to train your team on, and I'll help you build it.
+              Teach anything. Remember everything.
             </p>
           </div>
           <button
@@ -162,22 +161,6 @@ export default function ConversationalModuleCreationPage() {
                 {turn.modulePreview && (
                   <div className="mt-4 border-t pt-4">
                     <ModulePreviewCard preview={turn.modulePreview} />
-                  </div>
-                )}
-
-                {/* Suggestions */}
-                {turn.suggestions && turn.suggestions.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {turn.suggestions.map((suggestion, j) => (
-                      <button
-                        key={j}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="rounded-full border border-brand-border bg-brand-surface2 px-4 py-2 text-sm font-medium text-brand-ink hover:bg-brand-border transition-colors disabled:opacity-50"
-                        disabled={loading}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
                   </div>
                 )}
               </div>

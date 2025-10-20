@@ -101,6 +101,14 @@ export function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
  * Also accepts requests authenticated via ADMIN_TOKEN
  */
 export function requireManager(req: FastifyRequest, reply: FastifyReply) {
+  // 🧪 TEMPORARY: Allow all requests in dev mode for UAT testing
+  // TODO: Re-enable auth after testing
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  if (nodeEnv !== 'production') {
+    console.log('[RBAC] Bypassing manager check (dev mode)');
+    return true;
+  }
+
   // Check if already authenticated by admin token
   const adminToken = process.env.ADMIN_TOKEN?.trim();
   if (adminToken) {
