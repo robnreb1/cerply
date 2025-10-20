@@ -1,0 +1,22 @@
+🧪 Epic 14 v2.0 - Agentic Conversational Module Builder UAT
+==============================================================
+
+📋 Pre-Test Setup
+────────────────────────────────────────────────────────────
+Checking API health...
+[0;32m✅ API is running[0m
+Checking OpenAI configuration...
+[1;33m⚠️  WARN[0m: OpenAI API is not enabled - will test fallback heuristic mode
+[1;33m⚠️  WARN[0m: To test LLM mode, set OPENAI_API_KEY environment variable
+Getting manager session...
+[0;32m✅ Session: 6512c7e926b34e84da17...[0m
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEST UAT-1: Natural Context Inference
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Objective: Verify agent infers context (doesn't ask obvious questions)
+
+Manager says: 'I need to train my sales team on our new product pricing model'
+
+[0;31m❌ FAIL[0m: API returned error: UNAUTHORIZED - Authentication required

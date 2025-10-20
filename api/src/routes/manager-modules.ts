@@ -7,6 +7,13 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { query, single } from '../db';
 import { requireManager } from '../middleware/rbac';
 import { getSession } from '../middleware/rbac';
+import { moduleCreationAgent, type ConversationTurn, type ModulePreview } from '../services/module-creation-agent';
+import { 
+  updateAssignmentProficiency, 
+  getProficiencyTrend, 
+  getAtRiskAssignments 
+} from '../services/proficiency-tracking';
+import { triggerManualUpdate } from '../jobs/proficiency-update-job';
 
 // Types
 interface CreateModuleRequest {
@@ -41,6 +48,206 @@ interface ProprietaryContentRequest {
 }
 
 export async function registerManagerModuleRoutes(app: FastifyInstance) {
+  
+  // ============================================================================
+  // CONVERSATIONAL MODULE CREATION (Epic 14 v2.0)
+  // ============================================================================
+  
+  /**
+   * POST /api/curator/modules/conversation
+   * Start or continue a module creation conversation
+   */
+  app.post('/api/curator/modules/conversation', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!requireManager(req, reply)) return;
+    
+    const body = req.body as any;
+    const { conversationId, userMessage, uploadedFiles } = body;
+    const session = getSession(req);
+    const managerId = session?.userId || '00000000-0000-0000-0000-000000000001';
+    const organizationId = (session as any)?.organizationId || null;
+    
+    try {
+      // Retrieve or create conversation
+      let conversation: any;
+      if (conversationId) {
+        conversation = await single<any>(
+          `SELECT * FROM module_creation_conversations 
+           WHERE id = $1 AND manager_id = $2`,
+          [conversationId, managerId]
+        );
+        
+        if (!conversation) {
+          return reply.status(404).send({ 
+            error: { 
+              code: 'CONVERSATION_NOT_FOUND',
+              message: 'Conversation not found or access denied' 
+            } 
+          });
+        }
+      } else {
+        // Create new conversation
+        conversation = await single<any>(
+          `INSERT INTO module_creation_conversations (manager_id, conversation_turns, status)
+           VALUES ($1, $2, $3) RETURNING *`,
+          [managerId, JSON.stringify([]), 'active']
+        );
+      }
+      
+      // Get conversation turns
+      const turns: ConversationTurn[] = Array.isArray(conversation.conversation_turns) 
+        ? conversation.conversation_turns 
+        : [];
+      
+      // Process uploaded files (if any)
+      let uploadedContent = null;
+      if (uploadedFiles && uploadedFiles.length > 0) {
+        // TODO: Implement file upload processing in Phase 1 Step 4
+        uploadedContent = uploadedFiles.map((f: any) => ({
+          id: f.id || `file-${Date.now()}`,
+          fileName: f.name,
+          fileType: f.type,
+          summary: `Uploaded file: ${f.name}`,
+        }));
+      }
+      
+      // Add user message to conversation
+      turns.push({
+        role: 'manager',
+        content: userMessage,
+        uploadedContent,
+        timestamp: new Date(),
+      });
+      
+      // Call agent to generate response
+      const agentResponse = await moduleCreationAgent({
+        conversationHistory: turns,
+        managerId,
+        organizationId: organizationId || 'default-org',
+        conversationId: conversation.id,
+      });
+      
+      // Add agent response
+      turns.push({
+        role: 'agent',
+        content: agentResponse.message,
+        suggestions: agentResponse.suggestions,
+        modulePreview: agentResponse.modulePreview,
+        timestamp: new Date(),
+      });
+      
+      // Update conversation
+      await query(
+        `UPDATE module_creation_conversations 
+         SET conversation_turns = $1, updated_at = NOW() 
+         WHERE id = $2`,
+        [JSON.stringify(turns), conversation.id]
+      );
+      
+      // If ready to create, generate draft module
+      let draftModuleId = null;
+      if (agentResponse.readyToCreate && agentResponse.modulePreview) {
+        const preview = agentResponse.modulePreview;
+        
+        // Create draft module
+        const draft = await single<any>(
+          `INSERT INTO manager_modules (
+            created_by, title, description, status, 
+            target_mastery_level, starting_level, 
+            estimated_minutes, content_generation_prompt
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+          [
+            managerId,
+            preview.title,
+            preview.description,
+            'draft',
+            preview.targetMasteryLevel,
+            preview.startingLevel || null,
+            preview.estimatedMinutes,
+            userMessage, // Original prompt
+          ]
+        );
+        
+        draftModuleId = draft.id;
+        
+        // Link conversation to module
+        await query(
+          `UPDATE module_creation_conversations 
+           SET module_id = $1, status = $2 
+           WHERE id = $3`,
+          [draftModuleId, 'completed', conversation.id]
+        );
+        
+        // Create proprietary content blocks
+        for (const block of preview.contentBlocks.filter(b => b.source === 'proprietary')) {
+          await query(
+            `INSERT INTO module_proprietary_content (
+              module_id, content_type, title, content, 
+              content_source, is_ring_fenced, access_control, 
+              organization_id, uploaded_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [
+              draftModuleId,
+              block.type,
+              block.title,
+              block.content,
+              'proprietary',
+              true,
+              'org_only',
+              organizationId,
+              managerId,
+            ]
+          );
+        }
+      }
+      
+      return reply.send({
+        conversationId: conversation.id,
+        agentMessage: agentResponse.message,
+        suggestions: agentResponse.suggestions,
+        modulePreview: agentResponse.modulePreview,
+        draftModuleId,
+        readyToCreate: agentResponse.readyToCreate,
+      });
+    } catch (error: any) {
+      console.error('Conversation error:', error);
+      return reply.status(500).send({
+        error: {
+          code: 'CONVERSATION_ERROR',
+          message: 'Failed to process conversation',
+          details: error.message,
+        },
+      });
+    }
+  });
+  
+  /**
+   * GET /api/curator/modules/conversation/:id
+   * Retrieve a conversation history
+   */
+  app.get('/api/curator/modules/conversation/:id', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!requireManager(req, reply)) return;
+    
+    const { id } = (req as any).params as { id: string };
+    const session = getSession(req);
+    const managerId = session?.userId || '00000000-0000-0000-0000-000000000001';
+    
+    const conversation = await single<any>(
+      `SELECT * FROM module_creation_conversations 
+       WHERE id = $1 AND manager_id = $2`,
+      [id, managerId]
+    );
+    
+    if (!conversation) {
+      return reply.status(404).send({
+        error: {
+          code: 'CONVERSATION_NOT_FOUND',
+          message: 'Conversation not found',
+        },
+      });
+    }
+    
+    return reply.send({ conversation });
+  });
   
   // ============================================================================
   // MODULE CRUD OPERATIONS
@@ -976,6 +1183,146 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
       editMetrics: editMetrics.rows,
       questionStats: questionStats.rows,
     });
+  });
+  
+  // ============================================================================
+  // PROFICIENCY TRACKING & RISK MANAGEMENT (Epic 14 v2.0)
+  // ============================================================================
+  
+  /**
+   * POST /api/curator/modules/assignments/:assignmentId/proficiency/update
+   * Manually trigger proficiency update for an assignment
+   */
+  app.post('/api/curator/modules/assignments/:assignmentId/proficiency/update', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!requireManager(req, reply)) return;
+    
+    const { assignmentId } = (req as any).params as { assignmentId: string };
+    const session = getSession(req);
+    const managerId = session?.userId || '00000000-0000-0000-0000-000000000001';
+    
+    try {
+      // Verify manager owns the module this assignment is for
+      const assignment = await single<any>(
+        `SELECT ma.id FROM module_assignments ma
+         INNER JOIN manager_modules mm ON ma.module_id = mm.id
+         WHERE ma.id = $1 AND mm.created_by = $2`,
+        [assignmentId, managerId]
+      );
+      
+      if (!assignment) {
+        return reply.status(404).send({
+          error: {
+            code: 'ASSIGNMENT_NOT_FOUND',
+            message: 'Assignment not found or access denied',
+          },
+        });
+      }
+      
+      const update = await updateAssignmentProficiency(assignmentId);
+      
+      return reply.send({
+        success: true,
+        update,
+      });
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: {
+          code: 'PROFICIENCY_UPDATE_FAILED',
+          message: 'Failed to update proficiency',
+          details: error.message,
+        },
+      });
+    }
+  });
+  
+  /**
+   * GET /api/curator/modules/assignments/:assignmentId/proficiency/trend
+   * Get proficiency trend over time for an assignment
+   */
+  app.get('/api/curator/modules/assignments/:assignmentId/proficiency/trend', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!requireManager(req, reply)) return;
+    
+    const { assignmentId } = (req as any).params as { assignmentId: string };
+    const session = getSession(req);
+    const managerId = session?.userId || '00000000-0000-0000-0000-000000000001';
+    
+    try {
+      // Verify manager owns the module
+      const assignment = await single<any>(
+        `SELECT ma.id FROM module_assignments ma
+         INNER JOIN manager_modules mm ON ma.module_id = mm.id
+         WHERE ma.id = $1 AND mm.created_by = $2`,
+        [assignmentId, managerId]
+      );
+      
+      if (!assignment) {
+        return reply.status(404).send({
+          error: {
+            code: 'ASSIGNMENT_NOT_FOUND',
+            message: 'Assignment not found or access denied',
+          },
+        });
+      }
+      
+      const trend = await getProficiencyTrend(assignmentId);
+      
+      return reply.send({ trend });
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: {
+          code: 'TREND_FETCH_FAILED',
+          message: 'Failed to fetch proficiency trend',
+          details: error.message,
+        },
+      });
+    }
+  });
+  
+  /**
+   * GET /api/curator/modules/at-risk
+   * Get all at-risk assignments for this manager
+   */
+  app.get('/api/curator/modules/at-risk', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!requireManager(req, reply)) return;
+    
+    const session = getSession(req);
+    const managerId = session?.userId || '00000000-0000-0000-0000-000000000001';
+    
+    try {
+      const atRisk = await getAtRiskAssignments(managerId);
+      
+      return reply.send({ atRisk });
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: {
+          code: 'AT_RISK_FETCH_FAILED',
+          message: 'Failed to fetch at-risk assignments',
+          details: error.message,
+        },
+      });
+    }
+  });
+  
+  /**
+   * POST /api/curator/modules/proficiency/update-all
+   * Manually trigger proficiency update for all assignments (admin/dev only)
+   */
+  app.post('/api/curator/modules/proficiency/update-all', async (req: FastifyRequest, reply: FastifyReply) => {
+    if (!requireManager(req, reply)) return;
+    
+    try {
+      const result = await triggerManualUpdate();
+      
+      return reply.send(result);
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: {
+          code: 'BATCH_UPDATE_FAILED',
+          message: 'Failed to trigger batch proficiency update',
+          details: error.message,
+        },
+      });
+    }
   });
 }
 

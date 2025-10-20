@@ -26,10 +26,14 @@ interface Assignment {
   status: string;
   assigned_at: string;
   due_date: string;
+  deadline_at: string; // v2.0 proficiency deadline
   started_at: string;
   completed_at: string;
   mastery_score: number;
   time_spent_seconds: number;
+  current_proficiency_pct: number; // v2.0 proficiency tracking
+  target_proficiency_pct: number; // v2.0 proficiency target
+  risk_status: 'on_track' | 'at_risk' | 'overdue' | 'achieved'; // v2.0 risk status
 }
 
 export default function ModuleAnalyticsPage() {
@@ -122,6 +126,16 @@ export default function ModuleAnalyticsPage() {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+  
+  const getRiskStatusBadge = (riskStatus: string) => {
+    switch (riskStatus) {
+      case 'achieved': return { color: 'bg-green-100 text-green-800', icon: '✓', label: 'Achieved' };
+      case 'on_track': return { color: 'bg-blue-100 text-blue-800', icon: '→', label: 'On Track' };
+      case 'at_risk': return { color: 'bg-orange-100 text-orange-800', icon: '⚠', label: 'At Risk' };
+      case 'overdue': return { color: 'bg-red-100 text-red-800', icon: '!', label: 'Overdue' };
+      default: return { color: 'bg-gray-100 text-gray-800', icon: '•', label: status };
+    }
+  };
 
   const isOverdue = (assignment: Assignment) => {
     if (!assignment.due_date || assignment.status === 'completed') return false;
@@ -180,7 +194,7 @@ export default function ModuleAnalyticsPage() {
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-brand-surface rounded-lg border border-brand-border p-6">
             <p className="text-sm text-brand-subtle mb-2">Total Assigned</p>
             <p className="text-3xl font-bold text-brand-ink">{stats.assigned}</p>
@@ -199,6 +213,16 @@ export default function ModuleAnalyticsPage() {
                 {Math.round((stats.completed / stats.assigned) * 100)}% completion rate
               </p>
             )}
+          </div>
+          
+          <div className="bg-brand-surface rounded-lg border border-brand-border p-6">
+            <p className="text-sm text-brand-subtle mb-2">At Risk</p>
+            <p className="text-3xl font-bold text-orange-600">
+              {assignments.filter(a => a.risk_status === 'at_risk').length}
+            </p>
+            <p className="text-xs text-brand-subtle mt-2">
+              <7 days to deadline
+            </p>
           </div>
           
           <div className="bg-brand-surface rounded-lg border border-brand-border p-6">
@@ -275,72 +299,97 @@ export default function ModuleAnalyticsPage() {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-brand-subtle uppercase tracking-wider">
+                    Risk
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-brand-subtle uppercase tracking-wider">
+                    Proficiency
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-brand-subtle uppercase tracking-wider">
                     Assigned
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-brand-subtle uppercase tracking-wider">
-                    Due Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-brand-subtle uppercase tracking-wider">
-                    Progress
+                    Deadline
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-brand-subtle uppercase tracking-wider">
                     Score
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-brand-subtle uppercase tracking-wider">
-                    Time Spent
+                    Time
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-border">
                 {filteredAssignments.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-brand-subtle">
+                    <td colSpan={8} className="px-6 py-8 text-center text-brand-subtle">
                       No assignments found for this filter
                     </td>
                   </tr>
                 ) : (
-                  filteredAssignments.map(assignment => (
-                    <tr key={assignment.id} className="hover:bg-brand-surface2">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-brand-ink">{assignment.user_email}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusBadgeColor(assignment.status)}`}>
-                          {assignment.status.replace('_', ' ')}
-                        </span>
-                        {isOverdue(assignment) && (
-                          <span className="ml-2 px-2 py-1 text-xs font-medium rounded bg-red-100 text-red-800">
-                            Overdue
+                  filteredAssignments.map(assignment => {
+                    const riskBadge = getRiskStatusBadge(assignment.risk_status || 'on_track');
+                    return (
+                      <tr key={assignment.id} className="hover:bg-brand-surface2">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-brand-ink">{assignment.user_email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${getStatusBadgeColor(assignment.status)}`}>
+                            {assignment.status.replace('_', ' ')}
                           </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-subtle">
-                        {formatDate(assignment.assigned_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-subtle">
-                        {formatDate(assignment.due_date)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {assignment.status === 'completed' ? (
-                          <span className="text-sm text-green-600">✓ Complete</span>
-                        ) : assignment.status === 'in_progress' ? (
-                          <span className="text-sm text-yellow-600">● In Progress</span>
-                        ) : (
-                          <span className="text-sm text-brand-subtle">Not started</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-ink">
-                        {assignment.mastery_score 
-                          ? `${Math.round(assignment.mastery_score * 100)}%`
-                          : '—'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-ink">
-                        {assignment.time_spent_seconds 
-                          ? formatDuration(assignment.time_spent_seconds)
-                          : '—'}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${riskBadge.color}`}>
+                            {riskBadge.icon} {riskBadge.label}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {assignment.current_proficiency_pct !== undefined ? (
+                            <div>
+                              <div className="text-sm font-medium text-brand-ink">
+                                {assignment.current_proficiency_pct}%
+                                {assignment.target_proficiency_pct && (
+                                  <span className="text-xs text-brand-subtle"> / {assignment.target_proficiency_pct}%</span>
+                                )}
+                              </div>
+                              {assignment.target_proficiency_pct && (
+                                <div className="mt-1 w-24 bg-gray-200 rounded-full h-1.5">
+                                  <div 
+                                    className={`h-1.5 rounded-full ${
+                                      assignment.current_proficiency_pct >= assignment.target_proficiency_pct 
+                                        ? 'bg-green-500' 
+                                        : assignment.current_proficiency_pct >= assignment.target_proficiency_pct * 0.7
+                                        ? 'bg-blue-500'
+                                        : 'bg-orange-500'
+                                    }`}
+                                    style={{ width: `${Math.min(100, (assignment.current_proficiency_pct / assignment.target_proficiency_pct) * 100)}%` }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-brand-subtle">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-subtle">
+                          {formatDate(assignment.assigned_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-subtle">
+                          {formatDate(assignment.deadline_at || assignment.due_date)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-ink">
+                          {assignment.mastery_score 
+                            ? `${Math.round(assignment.mastery_score * 100)}%`
+                            : '—'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-ink">
+                          {assignment.time_spent_seconds 
+                            ? formatDuration(assignment.time_spent_seconds)
+                            : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
