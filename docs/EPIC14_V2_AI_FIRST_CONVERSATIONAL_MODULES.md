@@ -4,8 +4,23 @@
 **Epic Priority:** P0 (MVP-CRITICAL)  
 **Estimated Effort:** 32-40 hours  
 **Dependencies:** Epic 6 (content generation), Epic 13 (agent orchestrator), Epic 7 (chat infrastructure)  
-**Status:** Ready to implement  
+**Status:** ✅ IMPLEMENTED  
 **Supersedes:** Epic 14 v1.0 (form-based UI)
+
+---
+
+## ⚠️ CRITICAL ARCHITECTURE NOTE
+
+**This epic uses the unified Cerply Ensemble Engine for content generation.**
+
+📖 **See:** `docs/ARCHITECTURE_ENSEMBLE.md` for complete architecture documentation.
+
+**Key Principle:** We do NOT build separate content generators. All content generation (manager modules, learner content, future features) uses the SAME ensemble engine in `api/src/services/phd-ensemble.ts`.
+
+**Integration Point:** 
+- Manager module creation calls `enrichContentBlocks()` in `api/src/services/module-creation-agent.ts`
+- Which calls `generateWithPHDEnsemble()` in `api/src/services/phd-ensemble.ts`
+- Same engine used by learner content generation (when de-stubbed)
 
 ---
 

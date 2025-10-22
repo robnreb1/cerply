@@ -8,6 +8,7 @@ import { query, single } from '../db';
 import { requireManager } from '../middleware/rbac';
 import { getSession } from '../middleware/rbac';
 import { moduleCreationAgent, type ConversationTurn, type ModulePreview } from '../services/module-creation-agent';
+import { getJobStatus } from '../services/content-enrichment-jobs';
 import { 
   updateAssignmentProficiency, 
   getProficiencyTrend, 
@@ -73,11 +74,17 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
     try {
       // 🧪 TEMPORARY: Use in-memory storage instead of database
       let conversation: any;
+      console.log('[DEBUG] Received conversationId:', conversationId);
+      console.log('[DEBUG] TEMP_CONVERSATIONS size:', TEMP_CONVERSATIONS.size);
+      console.log('[DEBUG] TEMP_CONVERSATIONS keys:', Array.from(TEMP_CONVERSATIONS.keys()));
+      
       if (conversationId && TEMP_CONVERSATIONS.has(conversationId)) {
         conversation = TEMP_CONVERSATIONS.get(conversationId);
+        console.log('[DEBUG] Found existing conversation with', conversation.conversation_turns.length, 'turns');
       } else {
         // Create new conversation
         const newId = `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        console.log('[DEBUG] Creating new conversation with ID:', newId);
         conversation = {
           id: newId,
           manager_id: managerId,
@@ -114,12 +121,14 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
       });
       
       // Call agent to generate response
+      console.log('[DEBUG] Calling moduleCreationAgent with', turns.length, 'turns');
       const agentResponse = await moduleCreationAgent({
         conversationHistory: turns,
         managerId,
         organizationId: organizationId || 'default-org',
         conversationId: conversation.id,
       });
+      console.log('[DEBUG] Agent response:', JSON.stringify(agentResponse, null, 2));
       
       // Add agent response
       turns.push({
@@ -142,16 +151,63 @@ export async function registerManagerModuleRoutes(app: FastifyInstance) {
         agentMessage: agentResponse.message,
         suggestions: agentResponse.suggestions || [],
         modulePreview: agentResponse.modulePreview || null,
+        enrichmentJobId: agentResponse.enrichmentJobId || null, // NEW: Job ID for progress polling
         needsMoreInfo: agentResponse.needsMoreInfo,
         readyToCreate: agentResponse.readyToCreate,
         draftModuleId: null, // Skipping in temp mode
       });
     } catch (error: any) {
-      console.error('Conversation error:', error);
+      console.error('[Conversation] FULL ERROR:', error);
+      console.error('[Conversation] ERROR STACK:', error.stack);
       return reply.status(500).send({
         error: {
           code: 'CONVERSATION_ERROR',
           message: 'Failed to process conversation',
+          details: error.message,
+        },
+      });
+    }
+  });
+  
+  /**
+   * GET /api/curator/modules/enrichment/:jobId
+   * Check status of background content enrichment job
+   */
+  app.get('/api/curator/modules/enrichment/:jobId', async (req: FastifyRequest, reply: FastifyReply) => {
+    const { jobId } = (req as any).params as { jobId: string };
+    
+    console.log('[Enrichment Status] Checking job:', jobId);
+    
+    try {
+      const job = getJobStatus(jobId);
+      
+      console.log('[Enrichment Status] Job result:', job ? `found (status: ${job.status})` : 'not found');
+      
+      if (!job) {
+        return reply.status(404).send({
+          error: {
+            code: 'JOB_NOT_FOUND',
+            message: `Enrichment job ${jobId} not found`,
+          },
+        });
+      }
+      
+      return reply.send({
+        jobId: job.jobId,
+        status: job.status,
+        progress: job.progress,
+        startedAt: job.startedAt,
+        completedAt: job.completedAt,
+        error: job.error,
+        // If completed, return the enriched module preview
+        modulePreview: job.status === 'completed' ? job.modulePreview : null,
+      });
+    } catch (error: any) {
+      console.error('[Enrichment Status] Error:', error);
+      return reply.status(500).send({
+        error: {
+          code: 'STATUS_CHECK_ERROR',
+          message: 'Failed to check enrichment status',
           details: error.message,
         },
       });

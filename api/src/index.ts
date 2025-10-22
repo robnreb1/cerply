@@ -1,5 +1,9 @@
 // src/index.ts
-import 'dotenv/config'; // Load .env file
+import { config } from 'dotenv';
+// Load .env.local first (overrides .env), then .env as fallback
+config({ path: '.env.local' });
+config(); // Load .env if .env.local doesn't exist
+
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';

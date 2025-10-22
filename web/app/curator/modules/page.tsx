@@ -32,6 +32,7 @@ export default function ModulesPage() {
     try {
       const statusParam = filter === 'all' ? '' : `?status=${filter}`;
       const res = await fetch(`/api/curator/modules${statusParam}`, {
+        credentials: 'include',
         headers: { 
           'x-admin-token': process.env.NEXT_PUBLIC_ADMIN_TOKEN || 'test-admin-token' 
         },

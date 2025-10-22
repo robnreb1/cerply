@@ -184,25 +184,42 @@ export async function callAnthropic(
   model: string,
   prompt: string,
   systemPrompt: string,
-  retries: number = 3
+  retries: number = 3,
+  maxTokens: number = 8000 // Increased for long-form content like research papers
 ): Promise<LLMResult> {
   const start = Date.now();
   const client = getAnthropicClient();
   
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const response = await client.messages.create({
+      // Use streaming for long-form content to avoid 10-minute timeout
+      const stream = await client.messages.create({
         model,
-        max_tokens: 4000,
+        max_tokens: maxTokens,
         system: systemPrompt,
         messages: [{ role: 'user', content: prompt }],
+        stream: true,
       });
 
-      const tokens = response.usage.input_tokens + response.usage.output_tokens;
+      let fullContent = '';
+      let inputTokens = 0;
+      let outputTokens = 0;
+
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+          fullContent += event.delta.text;
+        } else if (event.type === 'message_start') {
+          inputTokens = event.message.usage.input_tokens;
+        } else if (event.type === 'message_delta') {
+          outputTokens = event.usage.output_tokens;
+        }
+      }
+
+      const tokens = inputTokens + outputTokens;
       const cost = calculateAnthropicCost(model, tokens);
       
       return {
-        content: response.content[0].type === 'text' ? response.content[0].text : '',
+        content: fullContent,
         model,
         tokens,
         costUsd: cost,

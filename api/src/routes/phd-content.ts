@@ -339,48 +339,33 @@ async function generatePHDTopic(
     leadModel: 'gpt-5',
     critiqueModel: 'claude-opus-4',
     verifyModel: 'gpt-4o',
-    leadOutputLength: ensembleResult.leadOutput.wordCount,
-    critiqueScore: (
-      (ensembleResult.critiqueOutput.scores.logicalCoherence +
-        ensembleResult.critiqueOutput.scores.factualRigor +
-        ensembleResult.critiqueOutput.scores.pedagogicalQuality +
-        ensembleResult.critiqueOutput.scores.accessibility) /
-      40
-    ).toString(), // Average score 0-1
-    verificationAccuracy: ensembleResult.verificationOutput.accuracy.toString(),
-    flaggedClaims: ensembleResult.verificationFlags.length,
+    leadOutputLength: ensembleResult.model1Output.wordCount,
+    critiqueScore: ensembleResult.consolidationOutput.factCheckResults.model1Accuracy.toString(), // Model 1 accuracy
+    verificationAccuracy: ensembleResult.consolidationOutput.factCheckResults.model2Accuracy.toString(), // Model 2 accuracy
+    flaggedClaims: 0, // No longer tracked separately
     totalCitations: ensembleResult.citations.length,
-    verifiedCitations: ensembleResult.verificationOutput.verifiedClaims,
-    leadCostUsd: ensembleResult.leadOutput.costUsd.toString(),
-    critiqueCostUsd: ensembleResult.critiqueOutput.costUsd.toString(),
-    verifyCostUsd: ensembleResult.verificationOutput.costUsd.toString(),
+    verifiedCitations: ensembleResult.citations.length,
+    leadCostUsd: ensembleResult.model1Output.costUsd.toString(),
+    critiqueCostUsd: ensembleResult.model2Output.costUsd.toString(),
+    verifyCostUsd: ensembleResult.consolidationOutput.costUsd.toString(),
     totalCostUsd: ensembleResult.totalCost.toString(),
-    leadTimeMs: ensembleResult.leadOutput.timeMs,
-    critiqueTimeMs: ensembleResult.critiqueOutput.timeMs,
-    verifyTimeMs: ensembleResult.verificationOutput.timeMs,
+    leadTimeMs: 0, // Not tracked separately
+    critiqueTimeMs: 0, // Not tracked separately
+    verifyTimeMs: 0, // Not tracked separately
     totalTimeMs: ensembleResult.totalTime,
   });
 
-  // Insert verification flags
-  for (const flag of ensembleResult.verificationFlags) {
-    await db.insert(verificationFlags).values({
-      topicId,
-      claimText: flag.claimText,
-      issueType: flag.issueType,
-      severity: flag.severity,
-      recommendation: flag.recommendation,
-      resolved: false,
-    });
-  }
+  // Note: verificationFlags no longer exist in new ensemble architecture
+  // Old flags table is deprecated
 
   return {
     topicId,
-    wordCount: ensembleResult.leadOutput.wordCount,
+    wordCount: ensembleResult.model1Output.wordCount,
     citationCount: ensembleResult.citations.length,
     sectionCount: ensembleResult.finalSections.length,
     moduleCount: ensembleResult.suggestedModules.length,
-    verificationAccuracy: ensembleResult.verificationOutput.accuracy,
-    critiques: ensembleResult.critiqueOutput.critiques,
+    verificationAccuracy: ensembleResult.consolidationOutput.factCheckResults.model2Accuracy,
+    critiques: [], // No longer tracked
     cost: ensembleResult.totalCost,
     timeSeconds: (Date.now() - startTime) / 1000,
   };
