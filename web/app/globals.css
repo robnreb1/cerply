@@ -33,15 +33,23 @@
 
 /* ---------- Base ---------- */
 @layer base {
-  html, body { @apply h-full; }
+  html, body { @apply h-full overflow-x-hidden; }
   body {
     background: #ffffff; /* requested white background */
     color: var(--brand-ink);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    max-width: 100vw;
+    overflow-x: hidden !important;
   }
   a { @apply underline underline-offset-2; color: var(--domain-rc); }
-  * { @apply border-brand-border; }
+  * { @apply border-brand-border; box-sizing: border-box; }
+  
+  /* Force remove any focus rings that might cause overflow */
+  input:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
 }
 
 /* ---------- Components ---------- */

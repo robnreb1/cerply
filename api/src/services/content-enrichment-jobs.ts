@@ -106,54 +106,71 @@ async function processEnrichmentJob(jobId: string): Promise<void> {
     job.progress = 20;
     
     // Generate content using PhD ensemble
-    console.log('[Enrichment Job] Calling PhD ensemble...');
+    console.log('[Enrichment Job] Calling PhD ensemble for topic:', job.topic);
+    
+    // Build detailed context from module preview
+    const moduleTitle = job.modulePreview.title || job.topic;
+    const moduleDescription = job.modulePreview.description || '';
+    const targetLevel = job.modulePreview.targetMasteryLevel || 'intermediate';
+    
+    // Create a focused prompt that ensures content is about the actual topic
+    const detailedPrompt = `Create comprehensive educational content about: ${moduleTitle}
+
+Context: ${moduleDescription}
+
+Target audience level: ${targetLevel}
+
+Focus EXCLUSIVELY on teaching ${moduleTitle}. Do NOT write about training modules, learning theory, or pedagogy in general. Write substantive content that teaches the actual subject matter.`;
+
     const ensembleResult = await generateWithPHDEnsemble(
-      job.topic,
-      `Create training content on ${job.topic} suitable for workplace learning`,
+      moduleTitle, // Use module title as the topic
+      detailedPrompt,
       'general'
     );
     
     job.progress = 80;
-    console.log('[Enrichment Job] PhD ensemble completed, mapping to blocks...');
+    console.log('[Enrichment Job] PhD ensemble completed with', ensembleResult.finalSections.length, 'sections');
+    console.log('[Enrichment Job] Section titles:', ensembleResult.finalSections.map((s: any) => s.title).join(', '));
+    console.log('[Enrichment Job] Block titles to enrich:', blocksToEnrich.map((b: any) => b.title).join(', '));
     
-    // Map ensemble sections to content blocks
-    const sectionMap = new Map<string, any>();
-    for (const section of ensembleResult.finalSections) {
-      sectionMap.set(section.title.toLowerCase(), {
-        content: section.content,
-        citations: ensembleResult.citations
-      });
-    }
-    
-    // Enrich each block
+    // Enrich each block by matching with ensemble sections
+    let sectionIndex = 0;
     for (const block of blocksToEnrich) {
       const blockTitleLower = block.title.toLowerCase();
-      let enrichedData = null;
+      let matchedSection = null;
       
-      // Try to find matching section
-      for (const [sectionTitle, data] of sectionMap.entries()) {
-        if (blockTitleLower.includes(sectionTitle) || sectionTitle.includes(blockTitleLower)) {
-          enrichedData = data;
+      // First, try exact keyword matching
+      for (const section of ensembleResult.finalSections) {
+        const sectionTitleLower = section.title.toLowerCase();
+        
+        // Extract key words from both titles
+        const blockWords = blockTitleLower.split(/\s+/).filter((w: string) => w.length > 3);
+        const sectionWords = sectionTitleLower.split(/\s+/).filter((w: string) => w.length > 3);
+        
+        // Check for word overlap
+        const overlap = blockWords.filter((w: string) => sectionWords.includes(w));
+        
+        if (overlap.length > 0 || sectionTitleLower.includes(blockTitleLower) || blockTitleLower.includes(sectionTitleLower)) {
+          matchedSection = section;
+          console.log(`[Enrichment Job] Matched "${block.title}" → "${section.title}" (keyword overlap)`);
           break;
         }
       }
       
-      // Fallback to first section
-      if (!enrichedData && ensembleResult.finalSections.length > 0) {
-        const firstSection = ensembleResult.finalSections[0];
-        enrichedData = {
-          content: firstSection.content,
-          citations: ensembleResult.citations
-        };
+      // Fallback: assign sections sequentially (better than always using first)
+      if (!matchedSection && ensembleResult.finalSections.length > 0) {
+        matchedSection = ensembleResult.finalSections[sectionIndex % ensembleResult.finalSections.length];
+        console.log(`[Enrichment Job] Sequential match "${block.title}" → "${matchedSection.title}" (index ${sectionIndex})`);
+        sectionIndex++;
       }
       
-      if (enrichedData) {
-        block.content = enrichedData.content;
-        block.citations = enrichedData.citations;
+      if (matchedSection) {
+        block.content = matchedSection.content;
+        block.citations = ensembleResult.citations;
         
-        // Update source label
-        if (enrichedData.citations.length > 0) {
-          const citation = enrichedData.citations[0];
+        // Update source label with first citation
+        if (ensembleResult.citations.length > 0) {
+          const citation = ensembleResult.citations[0];
           if (citation.type === 'journal' && citation.isPeerReviewed) {
             block.sourceLabel = `${citation.authors[0] || 'Academic'}, ${citation.year || 'Recent'}`;
           } else if (citation.type === 'book') {
@@ -165,7 +182,7 @@ async function processEnrichmentJob(jobId: string): Promise<void> {
           }
         }
         
-        console.log(`[Enrichment Job] Enriched block "${block.title}"`);
+        console.log(`[Enrichment Job] ✓ Enriched block "${block.title}" with ${matchedSection.content.length} chars`);
       }
     }
     

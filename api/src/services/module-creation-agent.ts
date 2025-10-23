@@ -437,9 +437,10 @@ export async function moduleCreationAgent(ctx: ModuleCreationContext): Promise<A
     let enrichmentJobId: string | undefined;
     if (modulePreview && modulePreview.contentBlocks.length > 0) {
       try {
-        const topic = extractTopicFromConversation(ctx.conversationHistory);
+        // Use module preview title as the topic (most accurate)
+        const topic = modulePreview.title || extractTopicFromConversation(ctx.conversationHistory);
         enrichmentJobId = await startEnrichmentJob(modulePreview, topic);
-        console.log('[Module Creation Agent] Started background enrichment job:', enrichmentJobId);
+        console.log('[Module Creation Agent] Started background enrichment job:', enrichmentJobId, 'for topic:', topic);
       } catch (error: any) {
         console.error('[Module Creation Agent] Failed to start enrichment job:', error.message);
         // Continue - not critical, user gets basic content

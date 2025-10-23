@@ -98,6 +98,9 @@ export default function ConversationalModuleCreationPage() {
   const [enrichmentJobId, setEnrichmentJobId] = useState<string | null>(null);
   const [enrichmentProgress, setEnrichmentProgress] = useState(0);
   const [enrichmentStatus, setEnrichmentStatus] = useState<'idle' | 'running' | 'completed' | 'failed'>('idle');
+  
+  // 🔥 NEW: Full content modal
+  const [selectedBlockForModal, setSelectedBlockForModal] = useState<ContentBlock | null>(null);
 
   // 🔥 PERSISTENCE: Load conversation from localStorage on mount
   useEffect(() => {
@@ -296,9 +299,9 @@ export default function ConversationalModuleCreationPage() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-brand-bg">
+    <div className="flex h-screen flex-col bg-brand-bg overflow-hidden max-w-full">
       {/* Header */}
-      <div className="border-b border-brand-border bg-brand-surface px-6 py-4 shadow-sm">
+      <div className="border-b border-brand-border bg-brand-surface px-6 py-4 shadow-sm overflow-hidden">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-brand-ink">Cerply</h1>
@@ -326,7 +329,7 @@ export default function ConversationalModuleCreationPage() {
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 py-6">
         <div className="mx-auto max-w-4xl space-y-6">
           {turns.map((turn, i) => (
             <div key={i} className={`flex ${turn.role === 'manager' ? 'justify-end' : 'justify-start'}`}>
@@ -346,6 +349,7 @@ export default function ConversationalModuleCreationPage() {
                       preview={turn.modulePreview} 
                       enrichmentStatus={enrichmentStatus}
                       enrichmentProgress={enrichmentProgress}
+                      onViewFullContent={setSelectedBlockForModal}
                     />
                   </div>
                 )}
@@ -385,17 +389,17 @@ export default function ConversationalModuleCreationPage() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-brand-border bg-brand-surface px-6 py-4 shadow-lg">
-        <div className="mx-auto max-w-4xl">
+      <div className="border-t border-brand-border bg-brand-surface px-6 py-4 shadow-lg overflow-hidden">
+        <div className="mx-auto max-w-4xl w-full">
           {/* File Upload Preview */}
           {uploadedFiles.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-2">
               {uploadedFiles.map((file, i) => (
                 <div key={i} className="flex items-center gap-2 rounded-lg border border-brand-border bg-brand-surface2 px-3 py-2 text-sm">
-                  <span className="text-brand-ink">📎 {file.name}</span>
+                  <span className="text-brand-ink truncate max-w-xs">📎 {file.name}</span>
                   <button
                     onClick={() => setUploadedFiles(uploadedFiles.filter((_, j) => j !== i))}
-                    className="text-brand-subtle hover:text-brand-ink font-bold"
+                    className="text-brand-subtle hover:text-brand-ink font-bold flex-shrink-0"
                   >
                     ×
                   </button>
@@ -404,9 +408,9 @@ export default function ConversationalModuleCreationPage() {
             </div>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center w-full min-w-0">
             {/* File Upload Button */}
-            <label className="cursor-pointer rounded-lg border border-brand-border bg-brand-surface2 px-4 py-3 hover:bg-brand-border transition-colors flex items-center">
+            <label className="cursor-pointer rounded-lg border border-brand-border bg-brand-surface2 px-4 py-3 hover:bg-brand-border transition-colors flex items-center flex-shrink-0">
               <span className="text-lg">📎</span>
               <input
                 type="file"
@@ -433,8 +437,8 @@ export default function ConversationalModuleCreationPage() {
                   handleSend();
                 }
               }}
-              placeholder="Press Enter to send • Upload company documents for proprietary training content"
-              className="flex-1 rounded-lg border border-brand-border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-coral-500 text-brand-ink placeholder:text-gray-400 placeholder:opacity-60"
+              placeholder="Type your message..."
+              className="flex-1 w-0 max-w-full rounded-lg border border-brand-border px-4 py-3 focus:outline-none focus:border-brand-coral-500 text-brand-ink placeholder:text-gray-400 placeholder:opacity-60 box-border"
               disabled={loading}
             />
 
@@ -442,42 +446,142 @@ export default function ConversationalModuleCreationPage() {
             <button
               onClick={() => handleSend()}
               disabled={loading || (!userInput.trim() && uploadedFiles.length === 0)}
-              className="rounded-lg bg-brand-coral-500 px-8 py-3 font-medium text-white hover:bg-brand-coral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="flex-shrink-0 rounded-lg bg-brand-coral-500 px-8 py-3 font-medium text-white hover:bg-brand-coral-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               Send
             </button>
           </div>
           
           {/* Shortcuts */}
-          <div className="mt-3 flex items-center gap-4 text-xs text-brand-subtle">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-brand-subtle">
             <span className="font-medium">Shortcuts:</span>
             <button 
               onClick={() => setUserInput('Upload documents')}
-              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors"
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors whitespace-nowrap"
             >
               Upload
             </button>
             <button 
               onClick={() => router.push('/curator/modules')}
-              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors"
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors whitespace-nowrap"
             >
               Portfolio
             </button>
             <button 
               onClick={() => setUserInput('Assign to team')}
-              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors"
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors whitespace-nowrap"
             >
               Assign
             </button>
             <button 
               onClick={() => router.push('/')}
-              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors"
+              className="font-semibold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors whitespace-nowrap"
             >
               Learn
             </button>
           </div>
         </div>
       </div>
+      
+      {/* 🔥 NEW: Full Content Modal */}
+      {selectedBlockForModal && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedBlockForModal(null)}
+        >
+          <div 
+            className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-start justify-between p-6 border-b border-gray-200 bg-brand-surface2">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xl">{selectedBlockForModal.type === 'text' ? '📄' : selectedBlockForModal.type === 'video' ? '🎥' : '📝'}</span>
+                  <h2 className="text-xl font-semibold text-brand-ink">{selectedBlockForModal.title}</h2>
+                </div>
+                {selectedBlockForModal.sourceLabel && (
+                  <p className="text-sm text-brand-subtle">Source: {selectedBlockForModal.sourceLabel}</p>
+                )}
+              </div>
+              <button
+                onClick={() => setSelectedBlockForModal(null)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+              <div className="prose prose-sm max-w-none">
+                <div className="text-brand-ink whitespace-pre-wrap leading-relaxed">
+                  {selectedBlockForModal.content}
+                </div>
+              </div>
+              
+              {/* Citations in Modal */}
+              {selectedBlockForModal.citations && selectedBlockForModal.citations.length > 0 && (
+                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm font-semibold text-green-900 uppercase tracking-wide mb-3">
+                    📚 Citations ({selectedBlockForModal.citations.length})
+                  </p>
+                  <div className="space-y-3">
+                    {selectedBlockForModal.citations.map((citation, idx) => (
+                      <div key={idx} className="text-sm text-green-800 pb-3 border-b border-green-200 last:border-0">
+                        <p className="font-medium">
+                          {citation.authors.join(', ')} {citation.year && `(${citation.year})`}
+                        </p>
+                        <p className="italic mt-1">{citation.title}</p>
+                        {citation.publisher && <p className="mt-1">Publisher: {citation.publisher}</p>}
+                        {citation.doi && (
+                          <p className="mt-1">
+                            <span className="text-green-700">DOI:</span>{' '}
+                            <a href={`https://doi.org/${citation.doi}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                              {citation.doi}
+                            </a>
+                          </p>
+                        )}
+                        {citation.url && (
+                          <a href={citation.url} target="_blank" rel="noopener noreferrer" className="inline-block mt-2 text-blue-600 hover:underline">
+                            View source →
+                          </a>
+                        )}
+                        {citation.isPeerReviewed && (
+                          <span className="inline-block mt-2 px-2 py-1 bg-green-200 text-green-900 rounded text-xs font-medium">
+                            ✓ Peer-reviewed
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setSelectedBlockForModal(null)}
+                className="px-6 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors font-medium"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  // TODO: Implement download as PDF
+                  alert('PDF download coming soon!');
+                }}
+                className="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium"
+              >
+                Download as PDF
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -520,11 +624,13 @@ function InfoTooltip({ content }: { content: string }) {
 function ModulePreviewCard({ 
   preview, 
   enrichmentStatus = 'idle', 
-  enrichmentProgress = 0 
+  enrichmentProgress = 0,
+  onViewFullContent
 }: { 
   preview: ModulePreview;
   enrichmentStatus?: 'idle' | 'running' | 'completed' | 'failed';
   enrichmentProgress?: number;
+  onViewFullContent: (block: ContentBlock) => void;
 }) {
   const [expandedBlocks, setExpandedBlocks] = React.useState<Set<number>>(new Set());
   
@@ -689,9 +795,30 @@ function ModulePreviewCard({
                   <div className="space-y-3">
                     <div>
                       <p className="text-xs font-semibold text-brand-subtle uppercase tracking-wide mb-1">
-                        Content
+                        Content Preview
                       </p>
-                      <p className="text-sm text-brand-ink whitespace-pre-wrap">{block.content}</p>
+                      {block.content ? (
+                        <>
+                          <p className="text-sm text-brand-ink whitespace-pre-wrap line-clamp-6">
+                            {block.content}
+                          </p>
+                          {block.content.length > 400 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onViewFullContent(block);
+                              }}
+                              className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium hover:underline"
+                            >
+                              View Full Content →
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-brand-subtle italic">
+                          Content is being generated... Check back in a moment.
+                        </p>
+                      )}
                     </div>
                     
                     {block.citations && block.citations.length > 0 && (
