@@ -284,15 +284,19 @@ CREATE TABLE module_creation_conversations (
 
 ---
 
-## ❓ Open Questions
+## ✅ Resolved Questions (User Answers)
 
-1. **Difficulty nomenclature:** Should we rename `difficulty_level` to `complexity_level` or `mastery_level` to avoid confusion with accessibility?
+1. **Proficiency sample size:** ~~Require minimum 5 attempts~~ → **8 out of 10 at a level cements that status**
+   - Implementation: Require 8 correct answers out of last 10 attempts at target difficulty to achieve proficiency
 
-2. **Proprietary content granularity:** Currently tracked at content block level. Is document-level tagging sufficient, or do we need chunk-level?
+2. **Notification frequency:** ~~Hourly checks~~ → **Once per day**
+   - Implementation: Background job runs hourly but notifications are rate-limited to once per 24 hours per assignment
 
-3. **Proficiency sample size:** Require minimum 5 attempts at target difficulty before calculating proficiency. Is this threshold reasonable?
+3. **Difficulty nomenclature:** ~~complexity_level~~ → **Master-Level**
+   - Implementation: Use `target_mastery_level` with values: `beginner`, `intermediate`, `advanced`, `expert`, `master`
 
-4. **Notification frequency:** Risk status checked hourly. Should at-risk/overdue notifications be rate-limited (e.g., once per day)?
+4. **Proprietary content granularity:** ~~Document vs chunk~~ → **Block level as will retain full context**
+   - Implementation: Track at content block level (current approach is correct)
 
 ---
 

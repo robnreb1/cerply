@@ -308,14 +308,28 @@ interface ModuleConfiguration {
 -- Migration: 030_manager_modules_ai_first.sql
 
 -- Update manager_modules table
+-- Step 1: Add new columns
 ALTER TABLE manager_modules ADD COLUMN target_mastery_level TEXT DEFAULT 'intermediate' 
-  CHECK (target_mastery_level IN ('beginner', 'intermediate', 'advanced', 'expert'));
+  CHECK (target_mastery_level IN ('beginner', 'intermediate', 'advanced', 'expert', 'master'));
 ALTER TABLE manager_modules ADD COLUMN starting_level TEXT 
   CHECK (starting_level IN ('beginner', 'intermediate', 'advanced'));
-ALTER TABLE manager_modules DROP COLUMN difficulty_level; -- Replaced by target_mastery_level
 ALTER TABLE manager_modules ADD COLUMN content_generation_prompt TEXT; -- Original manager prompt
 
-COMMENT ON COLUMN manager_modules.target_mastery_level IS 'Target mastery level learners should achieve (Epic 14 v2.0)';
+-- Step 2: Migrate existing difficulty_level data to target_mastery_level
+UPDATE manager_modules 
+SET target_mastery_level = CASE 
+  WHEN difficulty_level = 'beginner' THEN 'beginner'
+  WHEN difficulty_level = 'intermediate' THEN 'intermediate'
+  WHEN difficulty_level = 'advanced' THEN 'advanced'
+  WHEN difficulty_level = 'expert' THEN 'expert'
+  ELSE 'intermediate' -- fallback for any unexpected values
+END
+WHERE difficulty_level IS NOT NULL;
+
+-- Step 3: Now safe to drop old column
+ALTER TABLE manager_modules DROP COLUMN difficulty_level; -- Replaced by target_mastery_level
+
+COMMENT ON COLUMN manager_modules.target_mastery_level IS 'Target mastery level learners should achieve (Epic 14 v2.0) - includes master level';
 COMMENT ON COLUMN manager_modules.starting_level IS 'Optional starting level (adaptive engine auto-detects if null)';
 COMMENT ON COLUMN manager_modules.content_generation_prompt IS 'Original conversational prompt from manager';
 
@@ -358,6 +372,18 @@ CREATE INDEX idx_module_creation_conversations_module ON module_creation_convers
 CREATE INDEX idx_module_creation_conversations_manager ON module_creation_conversations(manager_id);
 
 COMMENT ON TABLE module_creation_conversations IS 'Conversational history for module creation (Epic 14 v2.0)';
+
+-- New table: Notification log (for rate limiting)
+CREATE TABLE IF NOT EXISTS notification_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  assignment_id UUID NOT NULL REFERENCES module_assignments(id) ON DELETE CASCADE,
+  notification_type TEXT NOT NULL, -- 'at_risk', 'overdue', 'achieved'
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_notification_log_assignment ON notification_log(assignment_id, notification_type, sent_at);
+
+COMMENT ON TABLE notification_log IS 'Rate limiting log for proficiency/deadline notifications (Epic 14 v2.0 - once per day)';
 
 -- Indexes for proficiency tracking
 CREATE INDEX idx_module_assignments_deadline ON module_assignments(deadline_at) WHERE risk_status IN ('on_track', 'at_risk');
@@ -688,23 +714,36 @@ async function updateRiskStatus(assignment: ModuleAssignment) {
   const daysUntilDeadline = Math.floor((assignment.deadlineAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   
   let newStatus: 'on_track' | 'at_risk' | 'overdue' | 'achieved' = 'on_track';
+  const previousStatus = assignment.riskStatus;
   
   // Achieved target
   if (assignment.currentProficiencyPct >= assignment.targetProficiencyPct) {
     newStatus = 'achieved';
-    await notifyManager(assignment.moduleId, assignment.userId, 'PROFICIENCY_ACHIEVED');
-    await notifyLearner(assignment.userId, assignment.moduleId, 'CONGRATULATIONS');
+    // Only notify once when status changes
+    if (previousStatus !== 'achieved' && shouldSendNotification(assignment.id, 'achieved')) {
+      await notifyManager(assignment.moduleId, assignment.userId, 'PROFICIENCY_ACHIEVED');
+      await notifyLearner(assignment.userId, assignment.moduleId, 'CONGRATULATIONS');
+      await recordNotificationSent(assignment.id, 'achieved');
+    }
   }
   // Overdue
   else if (daysUntilDeadline < 0) {
     newStatus = 'overdue';
-    await notifyManager(assignment.moduleId, assignment.userId, 'DEADLINE_MISSED');
-    await notifyLearner(assignment.userId, assignment.moduleId, 'DEADLINE_MISSED');
+    // Only notify once per day (user requirement)
+    if (shouldSendNotification(assignment.id, 'overdue')) {
+      await notifyManager(assignment.moduleId, assignment.userId, 'DEADLINE_MISSED');
+      await notifyLearner(assignment.userId, assignment.moduleId, 'DEADLINE_MISSED');
+      await recordNotificationSent(assignment.id, 'overdue');
+    }
   }
   // At risk (7 days before deadline, < 70% of target proficiency)
   else if (daysUntilDeadline <= 7 && assignment.currentProficiencyPct < assignment.targetProficiencyPct * 0.7) {
     newStatus = 'at_risk';
-    await notifyManager(assignment.moduleId, assignment.userId, 'AT_RISK');
+    // Only notify once per day (user requirement)
+    if (shouldSendNotification(assignment.id, 'at_risk')) {
+      await notifyManager(assignment.moduleId, assignment.userId, 'AT_RISK');
+      await recordNotificationSent(assignment.id, 'at_risk');
+    }
   }
   
   await db.update(moduleAssignments)
@@ -712,14 +751,48 @@ async function updateRiskStatus(assignment: ModuleAssignment) {
     .where(eq(moduleAssignments.id, assignment.id));
 }
 
+// Rate limiting: Once per day per assignment per notification type
+async function shouldSendNotification(assignmentId: string, notificationType: string): Promise<boolean> {
+  const lastSent = await db.select()
+    .from(notificationLog)
+    .where(and(
+      eq(notificationLog.assignmentId, assignmentId),
+      eq(notificationLog.notificationType, notificationType)
+    ))
+    .orderBy(desc(notificationLog.sentAt))
+    .limit(1);
+  
+  if (!lastSent.length) return true; // Never sent before
+  
+  const hoursSinceLastSent = (Date.now() - lastSent[0].sentAt.getTime()) / (1000 * 60 * 60);
+  return hoursSinceLastSent >= 24; // Only send if 24+ hours have passed
+}
+
+async function recordNotificationSent(assignmentId: string, notificationType: string) {
+  await db.insert(notificationLog).values({
+    assignmentId,
+    notificationType,
+    sentAt: new Date(),
+  });
+}
+
 function calculateProficiency(attempts: any[], targetDifficulty: number): number {
-  // Filter attempts at target difficulty level
-  const relevantAttempts = attempts.filter(a => a.perceivedDifficulty === getDifficultyLabel(targetDifficulty));
+  // Filter attempts at target difficulty level (last 10)
+  const relevantAttempts = attempts
+    .filter(a => a.perceivedDifficulty === getDifficultyLabel(targetDifficulty))
+    .slice(-10); // Last 10 attempts
   
-  if (relevantAttempts.length < 5) return 0; // Not enough data
+  if (relevantAttempts.length < 10) return 0; // Not enough data - need 10 attempts
   
-  const successRate = relevantAttempts.filter(a => a.correctCount > a.incorrectCount).length / relevantAttempts.length;
-  return Math.round(successRate * 100);
+  const correctCount = relevantAttempts.filter(a => a.correctCount > a.incorrectCount).length;
+  
+  // User requirement: 8 out of 10 at a level cements that status
+  if (correctCount >= 8) {
+    return 100; // Achieved proficiency
+  }
+  
+  // Return progress towards proficiency (0-100)
+  return Math.round((correctCount / 10) * 100);
 }
 ```
 
