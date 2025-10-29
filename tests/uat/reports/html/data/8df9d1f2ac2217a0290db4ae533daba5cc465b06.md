@@ -17,7 +17,7 @@
         - generic [ref=e14]:
           - heading "Chat" [level=2] [ref=e15]
           - paragraph [ref=e16]: Describe your module to get started
-        - generic [ref=e19]: Create a module about Python basics for beginners
+        - generic [ref=e19]: Show me a module with provenance
         - generic [ref=e27]:
           - textbox "Type your message..." [disabled] [ref=e28]
           - button "Send" [disabled] [ref=e29]

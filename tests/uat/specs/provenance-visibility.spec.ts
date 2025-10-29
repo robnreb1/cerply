@@ -54,7 +54,7 @@ test.describe('Provenance Visibility (FSD §7)', () => {
     await chatInput.fill('Show me a module with provenance');
     await page.getByRole('button', { name: 'Send' }).click();
     
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(1000); // Reduced to avoid timeouts
     
     // Then: Content pane shows provenance indicators
     const contentPane = page.locator('div:has-text("Module Content")').first();
@@ -96,7 +96,7 @@ test.describe('Provenance Enforcement Rules (FSD §1, §7)', () => {
     await chatInput.fill('Create a module with our company proprietary trading process');
     await page.getByRole('button', { name: 'Send' }).click();
     
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(1000);
     
     // Verify chat is working (loading or response appears)
     const chatPane = page.locator('div:has(h2:text("Chat"))').first();

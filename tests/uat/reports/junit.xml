@@ -1,167 +1,499 @@
-<testsuites id="" name="" tests="15" failures="8" skipped="0" errors="0" time="36.75126">
-<testsuite name="build.spec.ts" timestamp="2025-10-29T20:39:26.419Z" hostname="chromium" tests="5" failures="4" skipped="0" time="20.676" errors="0">
-<testcase name="Build - Module Creation (FSD §1) › B01: Create module from prompt with Internal provenance" classname="build.spec.ts" time="0.677">
-<failure message="build.spec.ts:18:7 B01: Create module from prompt with Internal provenance" type="FAILURE">
-<![CDATA[  [chromium] › build.spec.ts:18:7 › Build - Module Creation (FSD §1) › B01: Create module from prompt with Internal provenance 
-
-    Error: expect(locator).toBeVisible() failed
-
-    Locator: locator('.animate-pulse')
-    Expected: visible
-    Error: strict mode violation: locator('.animate-pulse') resolved to 3 elements:
-        1) <div class="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div> aka locator('.w-2').first()
-        2) <div class="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-75"></div> aka locator('.w-2.h-2.bg-gray-500.rounded-full.animate-pulse.delay-75')
-        3) <div class="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-150"></div> aka locator('.w-2.h-2.bg-gray-500.rounded-full.animate-pulse.delay-150')
-
-    Call log:
-      - Expect "toBeVisible" with timeout 2000ms
-      - waiting for locator('.animate-pulse')
-
-
-      26 |     
-      27 |     // Then: Module is created
-    > 28 |     await expect(page.locator('.animate-pulse')).toBeVisible({ timeout: 2000 }); // Loading indicator
-         |                                                  ^
-      29 |     await expect(page.getByText(/Module created/i)).toBeVisible({ timeout: 10000 });
-      30 |     
-      31 |     // And: Module ID is shown in header
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:28:50
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-a66fa-pt-with-Internal-provenance-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-a66fa-pt-with-Internal-provenance-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../../../test-results/build-Build---Module-Creat-a66fa-pt-with-Internal-provenance-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-a66fa-pt-with-Internal-provenance-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-a66fa-pt-with-Internal-provenance-chromium/video.webm]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-a66fa-pt-with-Internal-provenance-chromium/error-context.md]]
-]]>
-</system-out>
+<testsuites id="" name="" tests="15" failures="5" skipped="0" errors="0" time="959.2518170000001">
+<testsuite name="build.spec.ts" timestamp="2025-10-29T20:42:12.529Z" hostname="chromium" tests="5" failures="1" skipped="0" time="6.92" errors="0">
+<testcase name="Build - Module Creation (FSD §1) › B01: Create module from prompt with Internal provenance" classname="build.spec.ts" time="0.683">
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › B02: Merge prompt + upload (placeholder)" classname="build.spec.ts" time="7.591">
-<failure message="build.spec.ts:43:7 B02: Merge prompt + upload (placeholder)" type="FAILURE">
-<![CDATA[  [chromium] › build.spec.ts:43:7 › Build - Module Creation (FSD §1) › B02: Merge prompt + upload (placeholder) 
-
-    Error: expect(locator).toBeVisible() failed
-
-    Locator: locator('text=/Processing|created/i')
-    Expected: visible
-    Timeout: 5000ms
-    Error: element(s) not found
-
-    Call log:
-      - Expect "toBeVisible" with timeout 5000ms
-      - waiting for locator('text=/Processing|created/i')
-
-
-      54 |     // Then: Content is merged
-      55 |     // For now, just verify chat works
-    > 56 |     await expect(page.locator('text=/Processing|created/i')).toBeVisible();
-         |                                                              ^
-      57 |   });
-      58 |
-      59 |   test('B03: Provenance badges visible to manager in Content pane', async ({ page }) => {
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:56:62
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-ed926--prompt-upload-placeholder--chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-ed926--prompt-upload-placeholder--chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../../../test-results/build-Build---Module-Creat-ed926--prompt-upload-placeholder--chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-ed926--prompt-upload-placeholder--chromium/test-failed-1.png]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-ed926--prompt-upload-placeholder--chromium/video.webm]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-ed926--prompt-upload-placeholder--chromium/error-context.md]]
-]]>
-</system-out>
+<testcase name="Build - Module Creation (FSD §1) › B02: Merge prompt + upload (placeholder)" classname="build.spec.ts" time="1.78">
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › B03: Provenance badges visible to manager in Content pane" classname="build.spec.ts" time="3.479">
+<testcase name="Build - Module Creation (FSD §1) › B03: Provenance badges visible to manager in Content pane" classname="build.spec.ts" time="3.537">
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › B04: Lock button visible and functional" classname="build.spec.ts" time="8.596">
-<failure message="build.spec.ts:84:7 B04: Lock button visible and functional" type="FAILURE">
-<![CDATA[  [chromium] › build.spec.ts:84:7 › Build - Module Creation (FSD §1) › B04: Lock button visible and functional 
+<testcase name="Build - Module Creation (FSD §1) › B04: Lock button visible and functional" classname="build.spec.ts" time="0.322">
+</testcase>
+<testcase name="Build - Module Creation (FSD §1) › A11y: Build page has no critical violations" classname="build.spec.ts" time="0.598">
+<failure message="build.spec.ts:91:7 A11y: Build page has no critical violations" type="FAILURE">
+<![CDATA[  [chromium] › build.spec.ts:91:7 › Build - Module Creation (FSD §1) › A11y: Build page has no critical violations 
 
-    Error: expect(locator).toBeVisible() failed
+    Error: expect(received).toEqual(expected) // deep equality
 
-    Locator: getByRole('button', { name: /Lock/i })
-    Expected: visible
-    Timeout: 5000ms
-    Error: element(s) not found
+    - Expected  -   1
+    + Received  + 457
 
-    Call log:
-      - Expect "toBeVisible" with timeout 5000ms
-      - waiting for getByRole('button', { name: /Lock/i })
-
+    - Array []
+    + Array [
+    +   Object {
+    +     "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+    +     "help": "Elements must meet minimum color contrast ratio thresholds",
+    +     "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=playwright",
+    +     "id": "color-contrast",
+    +     "impact": "serious",
+    +     "nodes": Array [
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "bgColor": "#1e1e1e",
+    +               "contrastRatio": 3.44,
+    +               "expectedContrastRatio": "4.5:1",
+    +               "fgColor": "#6b7280",
+    +               "fontSize": "9.0pt (12px)",
+    +               "fontWeight": "normal",
+    +               "messageKey": null,
+    +             },
+    +             "id": "color-contrast",
+    +             "impact": "serious",
+    +             "message": "Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +             "relatedNodes": Array [
+    +               Object {
+    +                 "html": "<div class=\"w-80 border-r border-[#2d2d2d] flex flex-col bg-[#1e1e1e]\">",
+    +                 "target": Array [
+    +                   ".border-r",
+    +                 ],
+    +               },
+    +             ],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +         "html": "<p class=\"text-xs text-gray-500 mt-0.5\">Describe your module to get started</p>",
+    +         "impact": "serious",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".border-r > .h-full.flex-col.flex > .py-3.border-b.flex-shrink-0 > .mt-0\\.5.text-gray-500",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "bgColor": "#1e1e1e",
+    +               "contrastRatio": 3.44,
+    +               "expectedContrastRatio": "4.5:1",
+    +               "fgColor": "#6b7280",
+    +               "fontSize": "10.5pt (14px)",
+    +               "fontWeight": "normal",
+    +               "messageKey": null,
+    +             },
+    +             "id": "color-contrast",
+    +             "impact": "serious",
+    +             "message": "Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +             "relatedNodes": Array [
+    +               Object {
+    +                 "html": "<div class=\"w-80 border-r border-[#2d2d2d] flex flex-col bg-[#1e1e1e]\">",
+    +                 "target": Array [
+    +                   ".border-r",
+    +                 ],
+    +               },
+    +             ],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +         "html": "<p class=\"text-sm text-gray-500\">Start a conversation to build your module</p>",
+    +         "impact": "serious",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".py-8 > .text-gray-500",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "bgColor": "#1e1e1e",
+    +               "contrastRatio": 3.44,
+    +               "expectedContrastRatio": "4.5:1",
+    +               "fgColor": "#6b7280",
+    +               "fontSize": "9.0pt (12px)",
+    +               "fontWeight": "normal",
+    +               "messageKey": null,
+    +             },
+    +             "id": "color-contrast",
+    +             "impact": "serious",
+    +             "message": "Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +             "relatedNodes": Array [
+    +               Object {
+    +                 "html": "<div class=\"flex-1 flex flex-col bg-[#1e1e1e]\">",
+    +                 "target": Array [
+    +                   ".bg-\\[\\#1e1e1e\\].flex-1.flex-col",
+    +                 ],
+    +               },
+    +             ],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +         "html": "<p class=\"text-xs text-gray-500 mt-0.5\">Live preview as you build</p>",
+    +         "impact": "serious",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".justify-between.py-3.border-b > div > .mt-0\\.5.text-gray-500",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "bgColor": "#1e1e1e",
+    +               "contrastRatio": 2.2,
+    +               "expectedContrastRatio": "4.5:1",
+    +               "fgColor": "#4b5563",
+    +               "fontSize": "9.0pt (12px)",
+    +               "fontWeight": "normal",
+    +               "messageKey": null,
+    +             },
+    +             "id": "color-contrast",
+    +             "impact": "serious",
+    +             "message": "Element has insufficient color contrast of 2.2 (foreground color: #4b5563, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +             "relatedNodes": Array [
+    +               Object {
+    +                 "html": "<div class=\"flex-1 flex flex-col bg-[#1e1e1e]\">",
+    +                 "target": Array [
+    +                   ".bg-\\[\\#1e1e1e\\].flex-1.flex-col",
+    +                 ],
+    +               },
+    +             ],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Element has insufficient color contrast of 2.2 (foreground color: #4b5563, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +         "html": "<p class=\"text-xs text-gray-600\">Start a conversation in the chat to create a new module</p>",
+    +         "impact": "serious",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".text-gray-600",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "bgColor": "#1e1e1e",
+    +               "contrastRatio": 3.44,
+    +               "expectedContrastRatio": "4.5:1",
+    +               "fgColor": "#6b7280",
+    +               "fontSize": "9.0pt (12px)",
+    +               "fontWeight": "normal",
+    +               "messageKey": null,
+    +             },
+    +             "id": "color-contrast",
+    +             "impact": "serious",
+    +             "message": "Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +             "relatedNodes": Array [
+    +               Object {
+    +                 "html": "<div class=\"w-80 border-l border-[#2d2d2d] flex flex-col bg-[#1e1e1e]\">",
+    +                 "target": Array [
+    +                   ".border-l",
+    +                 ],
+    +               },
+    +             ],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +         "html": "<p class=\"text-xs text-gray-500 mt-0.5\">Adjust difficulty &amp; preview items</p>",
+    +         "impact": "serious",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".border-l > .h-full.flex-col.flex > .py-3.border-b.flex-shrink-0 > .mt-0\\.5.text-gray-500",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "bgColor": "#1e1e1e",
+    +               "contrastRatio": 3.44,
+    +               "expectedContrastRatio": "4.5:1",
+    +               "fgColor": "#6b7280",
+    +               "fontSize": "9.0pt (12px)",
+    +               "fontWeight": "normal",
+    +               "messageKey": null,
+    +             },
+    +             "id": "color-contrast",
+    +             "impact": "serious",
+    +             "message": "Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +             "relatedNodes": Array [
+    +               Object {
+    +                 "html": "<div class=\"w-80 border-l border-[#2d2d2d] flex flex-col bg-[#1e1e1e]\">",
+    +                 "target": Array [
+    +                   ".border-l",
+    +                 ],
+    +               },
+    +             ],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Element has insufficient color contrast of 3.44 (foreground color: #6b7280, background color: #1e1e1e, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1",
+    +         "html": "<p class=\"text-xs text-gray-500\">Calibration tools will appear when you create a module</p>",
+    +         "impact": "serious",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".max-w-xs > .text-gray-500",
+    +         ],
+    +       },
+    +     ],
+    +     "tags": Array [
+    +       "cat.color",
+    +       "wcag2aa",
+    +       "wcag143",
+    +       "TTv5",
+    +       "TT13.c",
+    +       "EN-301-549",
+    +       "EN-9.1.4.3",
+    +       "ACT",
+    +       "RGAAv4",
+    +       "RGAA-3.2.1",
+    +     ],
+    +   },
+    +   Object {
+    +     "description": "Ensure the document has a main landmark",
+    +     "help": "Document should have one main landmark",
+    +     "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/landmark-one-main?application=playwright",
+    +     "id": "landmark-one-main",
+    +     "impact": "moderate",
+    +     "nodes": Array [
+    +       Object {
+    +         "all": Array [
+    +           Object {
+    +             "data": null,
+    +             "id": "page-has-main",
+    +             "impact": "moderate",
+    +             "message": "Document does not have a main landmark",
+    +             "relatedNodes": Array [],
+    +           },
+    +         ],
+    +         "any": Array [],
+    +         "failureSummary": "Fix all of the following:
+    +   Document does not have a main landmark",
+    +         "html": "<html lang=\"en\">",
+    +         "impact": "moderate",
+    +         "none": Array [],
+    +         "target": Array [
+    +           "html",
+    +         ],
+    +       },
+    +     ],
+    +     "tags": Array [
+    +       "cat.semantics",
+    +       "best-practice",
+    +     ],
+    +   },
+    +   Object {
+    +     "description": "Ensure all page content is contained by landmarks",
+    +     "help": "All page content should be contained by landmarks",
+    +     "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/region?application=playwright",
+    +     "id": "region",
+    +     "impact": "moderate",
+    +     "nodes": Array [
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "isIframe": false,
+    +             },
+    +             "id": "region",
+    +             "impact": "moderate",
+    +             "message": "Some page content is not contained by landmarks",
+    +             "relatedNodes": Array [],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Some page content is not contained by landmarks",
+    +         "html": "<div class=\"flex-shrink-0 px-4 py-3 border-b border-[#2d2d2d]\"><h2 class=\"text-sm font-medium text-gray-300\">Chat</h2><p class=\"text-xs text-gray-500 mt-0.5\">Describe your module to get started</p></div>",
+    +         "impact": "moderate",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".border-r > .h-full.flex-col.flex > .py-3.border-b.flex-shrink-0",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "isIframe": false,
+    +             },
+    +             "id": "region",
+    +             "impact": "moderate",
+    +             "message": "Some page content is not contained by landmarks",
+    +             "relatedNodes": Array [],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Some page content is not contained by landmarks",
+    +         "html": "<p class=\"text-sm text-gray-500\">Start a conversation to build your module</p>",
+    +         "impact": "moderate",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".py-8 > .text-gray-500",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "isIframe": false,
+    +             },
+    +             "id": "region",
+    +             "impact": "moderate",
+    +             "message": "Some page content is not contained by landmarks",
+    +             "relatedNodes": Array [],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Some page content is not contained by landmarks",
+    +         "html": "<input type=\"text\" placeholder=\"Type your message...\" class=\"flex-1 bg-[#2d2d2d] border border-[#3d3d3d] rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed\" value=\"\">",
+    +         "impact": "moderate",
+    +         "none": Array [],
+    +         "target": Array [
+    +           "input",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "isIframe": false,
+    +             },
+    +             "id": "region",
+    +             "impact": "moderate",
+    +             "message": "Some page content is not contained by landmarks",
+    +             "relatedNodes": Array [],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Some page content is not contained by landmarks",
+    +         "html": "<div class=\"flex-shrink-0 px-4 py-3 border-b border-[#2d2d2d] flex items-center justify-between\"><div><h2 class=\"text-sm font-medium text-gray-300\">Module Content</h2><p class=\"text-xs text-gray-500 mt-0.5\">Live preview as you build</p></div></div>",
+    +         "impact": "moderate",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".justify-between.py-3.border-b",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "isIframe": false,
+    +             },
+    +             "id": "region",
+    +             "impact": "moderate",
+    +             "message": "Some page content is not contained by landmarks",
+    +             "relatedNodes": Array [],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Some page content is not contained by landmarks",
+    +         "html": "<p class=\"text-sm text-gray-400 mb-2\">No module loaded</p>",
+    +         "impact": "moderate",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".mb-2",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "isIframe": false,
+    +             },
+    +             "id": "region",
+    +             "impact": "moderate",
+    +             "message": "Some page content is not contained by landmarks",
+    +             "relatedNodes": Array [],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Some page content is not contained by landmarks",
+    +         "html": "<p class=\"text-xs text-gray-600\">Start a conversation in the chat to create a new module</p>",
+    +         "impact": "moderate",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".text-gray-600",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "isIframe": false,
+    +             },
+    +             "id": "region",
+    +             "impact": "moderate",
+    +             "message": "Some page content is not contained by landmarks",
+    +             "relatedNodes": Array [],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Some page content is not contained by landmarks",
+    +         "html": "<div class=\"flex-shrink-0 px-4 py-3 border-b border-[#2d2d2d]\"><h2 class=\"text-sm font-medium text-gray-300\">Calibration</h2><p class=\"text-xs text-gray-500 mt-0.5\">Adjust difficulty &amp; preview items</p></div>",
+    +         "impact": "moderate",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".border-l > .h-full.flex-col.flex > .py-3.border-b.flex-shrink-0",
+    +         ],
+    +       },
+    +       Object {
+    +         "all": Array [],
+    +         "any": Array [
+    +           Object {
+    +             "data": Object {
+    +               "isIframe": false,
+    +             },
+    +             "id": "region",
+    +             "impact": "moderate",
+    +             "message": "Some page content is not contained by landmarks",
+    +             "relatedNodes": Array [],
+    +           },
+    +         ],
+    +         "failureSummary": "Fix any of the following:
+    +   Some page content is not contained by landmarks",
+    +         "html": "<p class=\"text-xs text-gray-500\">Calibration tools will appear when you create a module</p>",
+    +         "impact": "moderate",
+    +         "none": Array [],
+    +         "target": Array [
+    +           ".max-w-xs > .text-gray-500",
+    +         ],
+    +       },
+    +     ],
+    +     "tags": Array [
+    +       "cat.keyboard",
+    +       "best-practice",
+    +       "RGAAv4",
+    +       "RGAA-9.2.1",
+    +     ],
+    +   },
+    + ]
 
       94 |     
-      95 |     // Then: Lock button is visible
-    > 96 |     await expect(lockButton).toBeVisible();
-         |                              ^
-      97 |     
-      98 |     // And: Can be clicked (actual locking tested separately)
-      99 |     await expect(lockButton).toBeEnabled();
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:96:30
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-ad52c-tton-visible-and-functional-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-ad52c-tton-visible-and-functional-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../../../test-results/build-Build---Module-Creat-ad52c-tton-visible-and-functional-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-ad52c-tton-visible-and-functional-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-ad52c-tton-visible-and-functional-chromium/video.webm]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-ad52c-tton-visible-and-functional-chromium/error-context.md]]
-]]>
-</system-out>
-</testcase>
-<testcase name="Build - Module Creation (FSD §1) › A11y: Build page has no critical violations" classname="build.spec.ts" time="0.333">
-<failure message="build.spec.ts:102:7 A11y: Build page has no critical violations" type="FAILURE">
-<![CDATA[  [chromium] › build.spec.ts:102:7 › Build - Module Creation (FSD §1) › A11y: Build page has no critical violations 
-
-    TypeError: (0 , _playwright.injectAxe) is not a function
-
-      102 |   test('A11y: Build page has no critical violations', async ({ page }) => {
-      103 |     // Inject axe for accessibility testing
-    > 104 |     await injectAxe(page);
-          |                    ^
-      105 |     
-      106 |     // Check for accessibility violations
-      107 |     await checkA11y(page, undefined, {
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:104:20
+      95 |     // Expect no violations
+    > 96 |     expect(accessibilityScanResults.violations).toEqual([]);
+         |                                                 ^
+      97 |   });
+      98 | });
+      99 |
+        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:96:49
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     ../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/video-1.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #3: video (video/webm) ──────────────────────────────────────────────────────────────
     ../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -172,6 +504,8 @@
 <![CDATA[
 [[ATTACHMENT|../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/test-failed-1.png]]
 
+[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/video-1.webm]]
+
 [[ATTACHMENT|../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/video.webm]]
 
 [[ATTACHMENT|../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/error-context.md]]
@@ -179,8 +513,8 @@
 </system-out>
 </testcase>
 </testsuite>
-<testsuite name="provenance-visibility.spec.ts" timestamp="2025-10-29T20:39:26.419Z" hostname="chromium" tests="5" failures="1" skipped="0" time="8.761" errors="0">
-<testcase name="Provenance Visibility (FSD §7) › L05: Learner NEVER sees provenance badges anywhere" classname="provenance-visibility.spec.ts" time="0.777">
+<testsuite name="provenance-visibility.spec.ts" timestamp="2025-10-29T20:42:12.529Z" hostname="chromium" tests="5" failures="1" skipped="0" time="946.246" errors="0">
+<testcase name="Provenance Visibility (FSD §7) › L05: Learner NEVER sees provenance badges anywhere" classname="provenance-visibility.spec.ts" time="0.814">
 <system-out>
 <![CDATA[Checking for "Internal": 0 found
 Checking for "Certified Core": 0 found
@@ -190,75 +524,58 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 <system-err>
-<![CDATA[(node:36111) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+<![CDATA[(node:38055) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ]]>
 </system-err>
 </testcase>
-<testcase name="Provenance Visibility (FSD §7) › Manager sees provenance badges in Build Content pane" classname="provenance-visibility.spec.ts" time="3.436">
-<system-out>
-<![CDATA[Badge-like elements found: 0
-]]>
-</system-out>
-</testcase>
-<testcase name="Provenance Visibility (FSD §7) › Provenance in Track dashboard (manager)" classname="provenance-visibility.spec.ts" time="0.762">
-</testcase>
-<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Storage routing: Client content stored in Client Library" classname="provenance-visibility.spec.ts" time="3.486">
-<failure message="provenance-visibility.spec.ts:88:7 Storage routing: Client content stored in Client Library" type="FAILURE">
-<![CDATA[  [chromium] › provenance-visibility.spec.ts:88:7 › Provenance Enforcement Rules (FSD §1, §7) › Storage routing: Client content stored in Client Library 
+<testcase name="Provenance Visibility (FSD §7) › Manager sees provenance badges in Build Content pane" classname="provenance-visibility.spec.ts" time="941.056">
+<failure message="provenance-visibility.spec.ts:48:7 Manager sees provenance badges in Build Content pane" type="FAILURE">
+<![CDATA[  [chromium] › provenance-visibility.spec.ts:48:7 › Provenance Visibility (FSD §7) › Manager sees provenance badges in Build Content pane 
 
-    Error: expect(locator).toBeVisible() failed
+    Test timeout of 60000ms exceeded.
 
-    Locator: locator('text=/Module|created/i')
-    Expected: visible
-    Error: strict mode violation: locator('text=/Module|created/i') resolved to 6 elements:
-        1) <p class="text-xs text-gray-500 mt-0.5">Describe your module to get started</p> aka getByText('Describe your module to get')
-        2) <div class="max-w-[85%] rounded-lg px-3 py-2 text-sm bg-blue-600 text-white">Create a module with our company proprietary trad…</div> aka getByText('Create a module with our')
-        3) <h2 class="text-sm font-medium text-gray-300">Module Content</h2> aka getByRole('heading', { name: 'Module Content' })
-        4) <p class="text-sm text-gray-400 mb-2">No module loaded</p> aka getByText('No module loaded')
-        5) <p class="text-xs text-gray-600">Start a conversation in the chat to create a new …</p> aka getByText('Start a conversation in the')
-        6) <p class="text-xs text-gray-500">Calibration tools will appear when you create a m…</p> aka getByText('Calibration tools will appear')
+    Error: page.waitForTimeout: Test timeout of 60000ms exceeded.
 
-    Call log:
-      - Expect "toBeVisible" with timeout 5000ms
-      - waiting for locator('text=/Module|created/i')
-
-
-      101 |     // Verify module created
-      102 |     // Backend should route this to Client Library (not Certified/Industry)
-    > 103 |     await expect(page.locator('text=/Module|created/i')).toBeVisible();
-          |                                                          ^
-      104 |     
-      105 |     // Note: Actual storage verification requires DB check or API call
-      106 |   });
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/provenance-visibility.spec.ts:103:58
+      55 |     await page.getByRole('button', { name: 'Send' }).click();
+      56 |     
+    > 57 |     await page.waitForTimeout(3000);
+         |                ^
+      58 |     
+      59 |     // Then: Content pane shows provenance indicators
+      60 |     const contentPane = page.locator('div:has-text("Module Content")').first();
+        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/provenance-visibility.spec.ts:57:16
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    ../../../test-results/provenance-visibility-Prov-a1d6b-nt-stored-in-Client-Library-chromium/test-failed-1.png
+    ../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    ../../../test-results/provenance-visibility-Prov-a1d6b-nt-stored-in-Client-Library-chromium/video.webm
+    ../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-    Error Context: ../../../test-results/provenance-visibility-Prov-a1d6b-nt-stored-in-Client-Library-chromium/error-context.md
+    Error Context: ../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/error-context.md
 ]]>
 </failure>
 <system-out>
 <![CDATA[
-[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-a1d6b-nt-stored-in-Client-Library-chromium/test-failed-1.png]]
+[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/test-failed-1.png]]
 
-[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-a1d6b-nt-stored-in-Client-Library-chromium/video.webm]]
+[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/video.webm]]
 
-[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-a1d6b-nt-stored-in-Client-Library-chromium/error-context.md]]
+[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/error-context.md]]
 ]]>
 </system-out>
 </testcase>
-<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Industry sources referenced, not stored" classname="provenance-visibility.spec.ts" time="0.3">
+<testcase name="Provenance Visibility (FSD §7) › Provenance in Track dashboard (manager)" classname="provenance-visibility.spec.ts" time="0.646">
+</testcase>
+<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Storage routing: Client content stored in Client Library" classname="provenance-visibility.spec.ts" time="3.427">
+</testcase>
+<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Industry sources referenced, not stored" classname="provenance-visibility.spec.ts" time="0.303">
 </testcase>
 </testsuite>
-<testsuite name="track-dashboards.spec.ts" timestamp="2025-10-29T20:39:26.419Z" hostname="chromium" tests="5" failures="3" skipped="0" time="3.568" errors="0">
-<testcase name="Track - Analytics Dashboards (FSD §4) › T01: Team dashboard loads with metrics" classname="track-dashboards.spec.ts" time="0.579">
+<testsuite name="track-dashboards.spec.ts" timestamp="2025-10-29T20:42:12.529Z" hostname="chromium" tests="5" failures="3" skipped="0" time="3.513" errors="0">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T01: Team dashboard loads with metrics" classname="track-dashboards.spec.ts" time="0.554">
 <failure message="track-dashboards.spec.ts:23:7 T01: Team dashboard loads with metrics" type="FAILURE">
 <![CDATA[  [chromium] › track-dashboards.spec.ts:23:7 › Track - Analytics Dashboards (FSD §4) › T01: Team dashboard loads with metrics 
 
@@ -297,7 +614,7 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › T02: Person dashboard shows individual metrics" classname="track-dashboards.spec.ts" time="0.638">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T02: Person dashboard shows individual metrics" classname="track-dashboards.spec.ts" time="0.612">
 <failure message="track-dashboards.spec.ts:55:7 T02: Person dashboard shows individual metrics" type="FAILURE">
 <![CDATA[  [chromium] › track-dashboards.spec.ts:55:7 › Track - Analytics Dashboards (FSD §4) › T02: Person dashboard shows individual metrics 
 
@@ -336,7 +653,7 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › T03: Module dashboard shows module-specific metrics" classname="track-dashboards.spec.ts" time="0.605">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T03: Module dashboard shows module-specific metrics" classname="track-dashboards.spec.ts" time="0.627">
 <failure message="track-dashboards.spec.ts:87:7 T03: Module dashboard shows module-specific metrics" type="FAILURE">
 <![CDATA[  [chromium] › track-dashboards.spec.ts:87:7 › Track - Analytics Dashboards (FSD §4) › T03: Module dashboard shows module-specific metrics 
 
@@ -375,20 +692,20 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › T04: Export button is visible (PDF export placeholder)" classname="track-dashboards.spec.ts" time="0.564">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T04: Export button is visible (PDF export placeholder)" classname="track-dashboards.spec.ts" time="0.565">
 <system-out>
 <![CDATA[Export functionality found: false
 ]]>
 </system-out>
 <system-err>
-<![CDATA[(node:36305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+<![CDATA[(node:38447) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ]]>
 </system-err>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › Performance: Dashboard loads in under 2s" classname="track-dashboards.spec.ts" time="1.182">
+<testcase name="Track - Analytics Dashboards (FSD §4) › Performance: Dashboard loads in under 2s" classname="track-dashboards.spec.ts" time="1.155">
 <system-out>
-<![CDATA[Dashboard load time: 788ms
+<![CDATA[Dashboard load time: 771ms
 ]]>
 </system-out>
 </testcase>
