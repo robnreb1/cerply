@@ -47,24 +47,25 @@ async function seed() {
     console.log(`✓ Created ${users.length} demo users`)
 
     // 3. Company Module 1: Compliance Training
-    const complianceModuleId = 'mod_compliance_demo'
-    await db.insert(modules).values({
-      id: complianceModuleId,
+    const [complianceModule] = await db.insert(modules).values({
       organizationId: testOrgId,
       title: 'Compliance Training 2025',
       description: 'Essential compliance knowledge for all staff members',
       status: 'locked',
       createdBy: users[0].id,
       lockedAt: new Date(),
+      goals: ['Understand regulatory requirements', 'Implement best practices'],
+      targetRoles: ['all_staff'],
+      tags: ['compliance', 'mandatory', 'annual'],
       createdAt: new Date(),
       updatedAt: new Date(),
-    })
-    console.log(`✓ Created compliance module`)
+    }).returning()
+    const complianceModuleId = complianceModule.id
+    console.log(`✓ Created compliance module: ${complianceModuleId}`)
 
     // Sections for Compliance Module
-    const complianceSections = [
+    const [section1, section2] = await db.insert(moduleSections).values([
       {
-        id: 'sec_comp_1',
         moduleId: complianceModuleId,
         heading: 'Introduction to Compliance',
         content: 'Understanding the basics of regulatory compliance and why it matters.',
@@ -72,16 +73,14 @@ async function seed() {
         orderIndex: 0,
       },
       {
-        id: 'sec_comp_2',
         moduleId: complianceModuleId,
         heading: 'Data Protection Fundamentals',
         content: 'Key principles of GDPR and data protection regulations.',
         provenance: 'certified_core',
         orderIndex: 1,
       },
-    ]
-    await db.insert(moduleSections).values(complianceSections)
-    console.log(`✓ Created ${complianceSections.length} sections for compliance module`)
+    ]).returning()
+    console.log(`✓ Created ${2} sections for compliance module`)
 
     // Items for Compliance Module
     const complianceItems = [

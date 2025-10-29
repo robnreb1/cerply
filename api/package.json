@@ -16,6 +16,7 @@
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js",
     "seed:demo": "node scripts/seed_demo.js",
+    "seed:v2": "tsx scripts/seed-v2-simple.ts",
     "test": "node scripts/test-runner.mjs",
     "test:adaptive": "vitest run tests/adaptive.test.ts",
     "test:quality-floor": "CANON_ENABLED=true vitest run tests/quality-floor.test.ts",
