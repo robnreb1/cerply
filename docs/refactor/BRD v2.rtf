@@ -1,0 +1,911 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 HelveticaNeue;\f1\fnil\fcharset0 LucidaGrande;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cspthree\c0\c0\c0;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww25600\viewh15980\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf2 Cerply \'97 Business Requirements Document (BRD)\
+\
+Version: 2.0  \
+Date: 29 October 2025  \
+Owner: CEO, Cerply  \
+Author: COO  \
+\
+---\
+# 1) Purpose and vision\
+Cerply helps managers raise their team\'92s capability with short lessons and quick checks delivered where people already work. We start as a service\uc0\u8209 led vendor with a helpful tool. As soon as we can, we flip to a tool\u8209 led product that consultants can scale, and that clients can run on their own. This shift should increase reach and profit.\
+\
+---\
+# 2) Elevator pitch\
+\'93Turn what you know into daily, bite\uc0\u8209 size learning that actually sticks. Build a module by prompt or upload, push it into Slack and Teams, and watch the engine adapt to each person. Managers see who\'92s progressing, what\'92s working, and what needs a refresh. Use our Certified catalogue for trusted content, and we\'92ll keep your modules fresh each month.\'94\
+\
+---\
+# 3) Problem we solve\
+- Managers struggle to spread new ways of working.  \
+- New joiners take too long to get up to speed.  \
+- Training is often dull, slow, and soon forgotten.  \
+- Leaders need proof that skills are improving.\
+\
+We solve this by:\
+- turning any brief, file, or link into ready modules via a guided agent  \
+- pushing practice into the daily flow (Slack, Teams, web)  \
+- adapting to each person over time  \
+- showing clear progress for people and teams\
+\
+---\
+# 4) Target customers and go\uc0\u8209 to\u8209 market steps\
+**Day 0**  \
+- Run zero\uc0\u8209 cost **Proof\u8209 of\u8209 Concepts (PoC)** with friendly contacts in financial services to refine the offer and build trust.  \
+- Sign up the Cerply Certified community of named experts and use them in marketing.  \
+- Start simple events and outreach.\
+\
+**Day 1**  \
+- Land in small pockets inside large financial firms by helping individual managers.\
+\
+**Day 2**  \
+- Offer full company roll\uc0\u8209 outs for small financial firms and start\u8209 ups.\
+\
+**Day 3**  \
+- Serve medium and large financial firms with full company roll\uc0\u8209 outs.\
+\
+**Day 4**  \
+- Extend to other sectors such as health care, engineering, and education.\
+\
+**Day 5**  \
+- Grow through reputation and proof of value.\
+\
+**Day x**  \
+- Consider direct\uc0\u8209 to\u8209 consumer and an extended consulting offer.\
+\
+---\
+# 5) Users and roles\
+- **Manager / Leader (builder and pusher):**  \
+  - Can create **Module core (opus)** from a prompt or from uploads/links.  \
+  - Refines the core by adding, removing, and adjusting.  \
+  - Defines and pushes **lesson streams** generated from the core to teams and tracks progress.  \
+  - Locks the **Module core** as \'91Company Module\'92 in the client\'92s **Content Library (Client Library)**. Only owners and client admins can edit.  \
+  - Cannot edit the **Certified Core**, but can add a clearly labelled local wrap (intro, examples, rules).\
+- **Learner (team member):**  \
+  - Receives short items in Slack, Teams, or web.  \
+  - Interacts in natural language: answer items, ask for help, challenge content, or ask \'93How am I doing?\'94 to get progress.  \
+  - Gets instant feedback and varied practice.  \
+  - Never sees the exact same item twice unless the module is tagged **Compliance Critical**.\
+- **Certifier (named expert):**  \
+  - Reviews and stamps **Module core** for the Certified catalogue.  \
+  - Can start from a prompt or from uploads.  \
+  - Locks content as **Certified Candidate**, which after review becomes **Certified Core** (read\uc0\u8209 only for clients).\
+- **Consultant (Cerply or partner):**  \
+  - Helps set up, drafts **Module core** from prompts or uploads, and saves drafts to the client\'92s **Content Library (Client Library)**.  \
+  - May **propose lock** as Company Module; a **Manager must approve/certify** before it becomes locked; ownership then moves to a client admin; consultant keeps read\uc0\u8209 only history.\
+- **Company owner (client admin):** sets up teams, rights, rules, and data controls.  \
+- **Cerply owner (platform admin):** manages catalogue, pricing, rights, and safety.\
+\
+---\
+# 6) Value promise\
+- Managers ship new knowledge fast.  \
+- Learners get short, fresh, varied practice that meets them at the right level.  \
+- Leaders see clear movement in skills and time\uc0\u8209 to\u8209 productivity.  \
+- Experts gain reach through the Certified catalogue.\
+\
+---\
+# 7) Scope overview (no prioritisation)\
+We deliver four core areas plus a service wrap:\
+1. **Build** \'97 an intelligent workspace to turn prompts and raw material into modules.  \
+2. **Push** \'97 send modules to people in their daily tools; adapt content and difficulty over time.  \
+3. **Track** \'97 clear views of progress for people and teams.  \
+4. **Certified** \'97 a curated catalogue with review and stamp flow.  \
+5. **Service wrap** \'97 we do the first upload and give one free day each month for upkeep.\
+\
+All of the above is in scope for the first release unless stated otherwise.\
+\
+---\
+# 8) End\uc0\u8209 to\u8209 end flows\
+## 8.1 Build flow (manager/leader)\
+1) Open the Build workspace with three panes: **Chat**, **Content**, **Calibration**.  \
+2) In **Chat**, you can start with a plain prompt (for example: \'93Create a week\uc0\u8209 one onboarding module for trade capture analysts. Include two quick checks per lesson.\'94) and/or upload files and links.  \
+3) Agent proposes an outline and a short plan. Accept or edit.  \
+4) Agent drafts the **Module core** (sections, key points, citations) in **Content**, then generates lessons and quizzes from that core.  \
+5) Manager edits in **Content** and presses **Send**; while the agent is writing, **Content** is locked to avoid clashes.  \
+6) **Calibration** shows example lessons and quizzes at varied difficulty with reasons. Tap **Add to chat** to steer tone and level.  \
+7) When ready, **Lock** the Module core by role: Company Module (manager approval required if created by a consultant) or Certified Candidate. Consultants save drafts to the client\'92s **Content Library** and may propose lock.\
+\
+## 8.2 Push flow (to learners)\
+1) Choose a **Module**, then choose or define a **lesson stream** derived from the core, and select the audience (teams, groups, or named people).  \
+2) Choose when to send (now, schedule).  \
+3) Learners receive prompts in Slack, Teams, or on the web.  \
+4) The engine adapts each item based on past answers, speed, signs of doubt, and time since last practice. Content is varied so it is not a repeat (exact repeats are allowed only if the module is tagged **Compliance Critical**).  \
+5) Gentle reminders and light rewards keep the habit.  \
+6) Prompts limited to 1\'962 per day mandatory; learners can choose to continue learning beyond the cap.  \
+7) **Quiet hours default**: 20:00\'9608:00 local time (timezone\uc0\u8209 adaptive). Managers can override.\
+8) Groups and audiences are created and managed in Cerply at first; we can accommodate client directory sync as needed.\
+\
+## 8.3 Learn flow (learner)\
+1) Learner gets a short nudge with a single task.  \
+2) Interact in natural language to answer, ask for help, or challenge content.  \
+3) Ask \'93How am I doing?\'94 to receive a compact progress card with **current level**, **streak**, **next due**, and actions **Continue** / **Review weak area**.  \
+4) Next item adjusts in level and shape (for example, from recall to a short case).  \
+5) A quick recap is available on request.  \
+6) The engine plans the next session time to strengthen memory.\
+\
+## 8.4 Track flow (manager/leader)\
+1) Open a dashboard for a team or a person.  \
+2) See progress against skills, time to first competence, recent activity, and stuck areas.  \
+3) Drill into a module to see which parts work and which are stale.  \
+4) Export a PDF of a complete module for review with watermark and version stamp; no learner exports.\
+\
+## 8.5 Certified flow (expert and admin)\
+1) Submit a module for review with sources and tags.  \
+2) Reviewer checks clarity, accuracy, and sample items.  \
+3) Reviewer stamps it and adds tags, sector, and level.  \
+4) Module goes into the Certified catalogue.  \
+5) Client managers can push **lesson streams generated from Certified Core** and add a local wrap.  \
+6) Client wraps must be **clearly labelled** (e.g., \'93Client Addendum\'94) and must not change the Certified Core goals.  \
+7) Version history tracks who changed what and when.  \
+8) **Example\uc0\u8209 only SLAs:** urgent takedown within 24 hours; standard review within 5 business days.\
+\
+---\
+# 9) Functional requirements\
+## 9.1 Build workspace (three panes)\
+**Chat pane**  \
+- Free\uc0\u8209 text prompts and quick starters (for example, \'93build onboarding from these files\'94).  \
+- File and link upload.  \
+- Show the agent\'92s plan before big changes.  \
+- Full change log with who said what and when.  \
+- **Prompt\uc0\u8209 to\u8209 Module** button that seeds a clean outline from a plain brief.\
+\
+**Content pane**  \
+- Live draft of the **Module core** (sections, key points, source map) **and** generated lessons/checks, goals, and tags.  \
+- Manager edits are applied on **Send**.  \
+- Pane locks while the agent writes.  \
+- Warn on conflicts with newer agent changes.  \
+- Save to the client **Content Library (Client Library)**.  \
+- Submit for stamp to Certified review.  \
+- Certified Core is read\uc0\u8209 only; clients can add a local wrap without changing the core.\
+\
+**Calibration pane**  \
+- Shows example items at several levels of challenge, with reasons.  \
+- One\uc0\u8209 click **Add to chat** to request a change.\
+\
+**Done when**  \
+- A manager can create a ready module from a prompt alone, or a mix of prompt and uploads, in one sitting without help.\
+\
+## 9.2 Content model\
+- A **Module core** has: title, goals, **sections**, **source map/citations**, target roles, tags (including flags like **Compliance Critical**), sector, version, owner, visibility (private / company / Certified).  \
+- **Derived assets:**  \
+  - **Lesson streams** \'97 scheduled sequences of short lessons and quick checks generated from the core for a chosen audience.  \
+  - **Quick checks** \'97 single task items (for example, short question) linked back to core sections and goals.  \
+  - **Guidance notes** \'97 short practical notes or SOPs extracted from the core.  \
+- **Item types:** choice, short text, arrange steps, label parts, short case, or \'93do then reflect\'94.  \
+- **Linkage:** every item links to one or more core sections and goals, and stores the **core version** it was generated from.  \
+- **Versioning:** all parts are versioned; regenerating items from a new core version records lineage.\
+\
+## 9.3 Agent and tools (prompt\uc0\u8209 to\u8209 module and role\u8209 based locking)\
+**Purpose**  \
+Let builders create new content from a plain prompt, not just uploads. Managers, Certifiers, and Consultants can ask the agent to draft, then refine until it is right. When done, they lock it as theirs (with rules by role).\
+\
+**Sources the agent may use (set per client):**  \
+- Cerply Certified catalogue (read\uc0\u8209 only).  \
+- Cerply public library (read/write for patterns and templates).  \
+- Client private library (read/write \'97 client\'92s content and team details).  \
+- The open web (read\uc0\u8209 only; **default ON**, controlled by client content rules and filter lists).\
+\
+**Draft loop:**  \
+1) Agent proposes an outline and a short plan.  \
+2) Builder accepts or edits the outline.  \
+3) Agent drafts the **Module core** (sections, key points, citations) and then generates lessons and quick checks from that core with sources and notes.  \
+4) Builder edits in **Content** or asks for changes in **Chat**.  \
+5) **Calibration** shows examples at varied difficulty; builder can \'93add to chat\'94 to steer tone and level.  \
+6) Agent flags gaps and suggests items to add or remove.\
+\
+**Quality gates before lock:**  \
+- Citations present and check out.  \
+- No obvious errors or made\uc0\u8209 up facts.  \
+- Reading level and length match the target role.  \
+- Duplicates removed; items are varied.  \
+- Basic accessibility checks passed.\
+\
+**Role\uc0\u8209 based ownership and locking**  \
+- **Manager / Leader:** **Lock as Company Module** in the client\'92s **Content Library (Client Library)**. Others can clone; only owners and client admins can edit. Locking creates an immutable version; later edits create a new version.  \
+- **Certifier:** **Lock as Certified Candidate** which enters the review flow. After stamp, it becomes **Certified Core** (read\uc0\u8209 only) that clients can push and wrap.  \
+- **Consultant:** save drafts to the client\'92s **Content Library** and **propose** lock as Company Module; **manager approval/certification is required** for lock. After approval, ownership moves to a client admin; the consultant keeps a read\uc0\u8209 only copy in their work history.\
+\
+**Fork and merge**  \
+- Anyone with access can clone a module; the system keeps lineage to the parent.  \
+- Change requests can be proposed back to the owner for review and merge.\
+\
+**Models and tools policy**  \
+- Default drafting uses a fast, low\uc0\u8209 cost model (for example, Anthropic Haiku or GPT\u8209 5 mini).  \
+- First\uc0\u8209 pass content with citations can call **GPT\u8209 5 Pro**.  \
+- Fact and citation checks can call **Claude Sonnet 4.5**.  \
+- The agent can call: Adaptive Engine (to shape examples), Cerply stores, client store, Certified catalogue, and the open web (if allowed).  \
+- The agent logs all sources and tools used for each draft.\
+\
+**Usage rights**  \
+- Client owns **Company Modules** in their **Content Library (Client Library)**.  \
+- Cerply owns the platform and shared templates.  \
+- **Certified Core** follows the Certified licence; experts are credited; any revenue share rules are recorded.\
+\
+**Done when**  \
+- A builder can create a full module with no prior uploads using only prompts and allowed sources, pass quality gates, and lock it within one hour.\
+\
+## 9.4 Push to channels\
+- Send to Slack, Teams, and the Cerply web app.  \
+- Target by team, group, or named people.  \
+- Send now or schedule.  \
+- Set **mandatory** or **recommended**.  \
+- Set pace rules (for example, \'93proficient within 1 month\'94).  \
+- Nudge rules (for example, gentle reminder after two days idle for mandatory modules).  \
+- **Quiet hours default**: 20:00\'9608:00 local time (timezone\uc0\u8209 adaptive); managers can override.  \
+- Each send creates unique variants **derived from the Module core** so exact repeats are rare (allowed only for **Compliance Critical**).\
+- Learners can mute a module and unmute later (if recommended, not mandatory).  \
+- Groups are managed inside Cerply at first; we can accommodate client directory sync.\
+\
+**Done when**  \
+- A manager can send a module to a team and see delivery stats within minutes.\
+\
+## 9.5 Adaptive Learning Engine\
+- Actively borrows from current research and proven methods.  \
+- Stores every learner action unless the client asks us to remove it; when removals happen, we retain anonymous patterns/aggregates for long\uc0\u8209 term optimisation.  \
+- Adjusts item level based on past correctness, speed, signs of doubt, and time since last practice.  \
+- Mixes item shapes to keep interest.  \
+- Plans the next session time to build long\uc0\u8209 term memory.  \
+- Detects weak areas and brings them back at the right time.  \
+- Flags stale items for the manager to refresh, based on learner feedback, external triggers, or time since last refresh/recert.  \
+- Prioritises recent, weak, or urgent topics over modules in which the learner shows high proficiency.  \
+\
+**Done when**  \
+- Learners show steady gains in target skills; exact repeats occur only in modules tagged **Compliance Critical**.\
+\
+## 9.6 Tracking and dashboards\
+- **Team view:** mastery by skill, time to first competence, active users, at\uc0\u8209 risk users, recent wins, stale modules.  \
+- **Person view:** current level, pace, weak areas, streaks, and last session time.  \
+- **Module view:** **core freshness (stale sections), version age**, reach and answer rates across **derived lesson streams**, time on task, drop\uc0\u8209 offs, items that confuse, items that are too easy.  \
+- Filters by team, role, date, module, and skill.  \
+- **Exports:** Managers/Certifiers/Admin can export **complete modules as PDF** for review **with watermark and version stamp**; no exports for learners.\
+\
+**Done when**  \
+- A leader can open one page and know who needs help and which module needs work.\
+\
+## 9.7 Certified catalogue\
+- Submit for review with sources and tags.  \
+- Reviewer checklist: clarity, accuracy, relevance, sector fit.  \
+- Stamp with expert name and profile.  \
+- Versioning and change log.  \
+- Search and filter by skill, sector, level, role.  \
+- Usage rights: clients can push and wrap; cannot edit core.  \
+- **Client wraps must be clearly labelled** (e.g., \'93Client Addendum\'94) and must not change Certified Core goals.  \
+- Takedown flow for errors or legal issues.  \
+- **Example\uc0\u8209 only SLAs:** urgent takedown within 24 hours; standard review within 5 business days.\
+\
+**Done when**  \
+- Managers can find, trust, and use a stamped module the same day.\
+\
+## 9.8 Admin and governance\
+- Company set\uc0\u8209 up, teams, roles; **invite links at launch** (single sign\u8209 on to follow as client demand requires).  \
+- Rights: who can build, push, track, submit, review, stamp.  \
+- Audit log for important actions.  \
+- Data controls: region choice, export, delete on request.  \
+- Branded theme per client.\
+\
+---\
+- Two main stores: **Cerply public** (catalogue, patterns, logs) and **client private** (their content and learner data). Hard walls between them.  \
+- Track all learner events with time, item, result, speed, hint use, and confidence (if asked).  \
+- Keep raw sources linked to each module and item.  \
+- Keep versions forever with roll\uc0\u8209 back.  \
+- Clients can request deletion of a person\'92s data. When personal data is deleted, Cerply may retain **anonymous patterns/aggregates** for model and product optimisation.  \
+- Clear data map per client.\
+\
+---\
+# 11) Integrations\
+- Slack and Teams for delivery and response.  \
+- Web app for those who prefer a browser.  \
+- File uploads for common formats (Word, PowerPoint, PDF, Excel, text, CSV).  \
+- Link capture for web pages.  \
+- Optional email digests for managers.\
+\
+---\
+# 12) Security, privacy, and safety\
+- Encrypt data in storage and in transit.  \
+- Separate client data by design.  \
+- Log and alert on strange access.  \
+- Fine\uc0\u8209 grained rights so only the right people can see private content.  \
+- Keep to local data rules where the client asks (for example, keep data in region).  \
+- Safe\uc0\u8209 use rules for the agent to avoid unsafe content.  \
+- **Content rules and filter lists** gate open\uc0\u8209 web use per client.  \
+- Clear terms: client owns their content; Cerply owns platform code; Certified content follows its own licence.\
+\
+---\
+# 13) Non\uc0\u8209 functional needs\
+- Fast: normal page actions under one second.  \
+- Reliable: service up at least 99.9% each month.  \
+- Scalable: handle thousands of learners per client.  \
+- Accessible: follows modern web accessibility rules.  \
+- Simple: works on desktop and mobile browsers.\
+\
+---\
+# 14) Service offer and rules\
+- **First upload:** we load the starter content with the client.  \
+- **Monthly help:** one free day per month to add and refresh content (for example, decisions from senior meetings).  \
+- **Support:** chat and email in business hours; clear guides.  \
+- **Scheduling:** refresh days are scheduled directly with the client (outside the app).  \
+- **Enterprise add\uc0\u8209 ons later:** more help days, bespoke builds, private models.\
+\
+---\
+# 15) Day\uc0\u8209 1 demo script\
+1) Open Build. Start with a plain prompt. Show an outline, accept a tweak.  \
+2) Add two files. Show how the draft updates with sources.  \
+3) Use **Calibration** to adjust level.  \
+4) **Lock** to Company Module.  \
+5) Push five quick checks to a test group in Slack and Teams.  \
+6) Answer as a learner. Show how the next item changes.  \
+7) Ask \'93How am I doing?\'94 and show the compact progress card.  \
+8) Open the dashboard: team view, person view, and a module heatmap.  \
+9) Open the Certified catalogue, pick a module, push a weekly drip.  \
+10) Close with the service offer (first upload + monthly refresh day).\
+\
+---\
+# 16) Cost forecast (yearly view)\
+**Option A \'97 Year\uc0\u8209 1 Shoestring (principle):**  \
+- Four leads carry most work with minimal cash cost.  \
+- Paid roles and services added **only when no other credible option exists**.  \
+- Expect slower feature throughput; focus on Build, Push, Track core, and essential Certified.\
+\
+**Option B \'97 Ranged view (excludes management \'a31m):**  \
+- Four engineers: \'a3400,000\'96\'a3520,000  \
+- One product lead: \'a390,000\'96\'a3140,000  \
+- One designer/researcher: \'a370,000\'96\'a3110,000  \
+- One data/learning specialist: \'a390,000\'96\'a3140,000  \
+- One consultant for roll\uc0\u8209 outs: \'a380,000\'96\'a3120,000  \
+- **Subtotal people:** \'a3730,000\'96\'a31,030,000  \
+- Cloud hosting and storage (base): \'a360,000\'96\'a3120,000  \
+- Model usage reserve (base, before scale): \'a360,000\'96\'a3150,000  \
+- Tools, licences, and services: \'a340,000\'96\'a380,000  \
+- Basic marketing and events: \'a360,000\'96\'a3120,000  \
+- Legal, accounting, and insurance: \'a340,000\'96\'a380,000  \
+- **Subtotal other:** \'a3260,000\'96\'a3550,000  \
+- **Total fixed (incl. management):** \'a31,990,000\'96\'a32,580,000 per year  \
+- **Variable per active learner per month:** \'a30.30\'96\'a31.20 (messaging, hosting growth, model calls)\
+\
+Notes: prompt optimisation and caching can halve model costs; heavier content raises storage and delivery costs. These are planning ranges, not a promise.\
+\
+---\
+# 17) Level\uc0\u8209 0 work breakdown (deliverables only)\
+1) **Product foundations** \'97 identity, access, roles, client set\uc0\u8209 up, theming.  \
+2) **Build workspace** \'97 Chat, Content, Calibration; prompt\uc0\u8209 to\u8209 module; versioning; lock.  \
+3) **Agent and tools** \'97 model policy; citations; quality checks; logs.  \
+4) **Adaptive engine** \'97 difficulty, spacing, variation, signals, item shapes.  \
+5) **Push** \'97 Slack, Teams, web; scheduling; nudges; quiet hours.  \
+6) **Track** \'97 team, person, module views; PDF exports; share links (internal).  \
+7) **Certified** \'97 review and stamp; catalogue; search; usage rights; labelled client wraps.  \
+8) **Data and privacy** \'97 stores, regions, deletion, audit; patterns/aggregates.  \
+9) **Service wrap** \'97 first upload flow; monthly refresh flow; support.  \
+10) **Demo pack** \'97 scripted demo, seed content, test tenant.  \
+11) **GTM** \'97 friendlies programme; expert network; events; **PoC stories**.\
+\
+---\
+# 18) RAID and SWOT (urgent items first)\
+**Risks**  \
+- Managers have little time 
+\f1 \uc0\u8594 
+\f0  keep creation short; we do first upload; monthly refresh day included.  \
+- Doubt about accuracy 
+\f1 \uc0\u8594 
+\f0  show sources; run a quality check pass; use named experts for stamps.  \
+- Data concerns 
+\f1 \uc0\u8594 
+\f0  hard walls, region choice, strong rights, clear data map.  \
+- \'93We could build this\'94 
+\f1 \uc0\u8594 
+\f0  highlight agentic build, adaptive engine, Certified catalogue, and upkeep.\
+\
+**Assumptions**  \
+- Slack and Teams access is allowed by clients.  \
+- Experts will join the Certified community in the first month.  \
+- Managers accept prompts as a natural way to build.\
+\
+**Issues (watch\uc0\u8209 list)**  \
+- Vendor approvals at large firms can be slow.  \
+- Some clients may block external model calls; need an option to disable web access.\
+\
+**Dependencies**  \
+- Access to Slack and Teams APIs and client tenants.  \
+- A small pool of seed experts for the first Certified modules.  \
+- Friendly clients for Day\uc0\u8209 0 **PoC**.\
+\
+**SWOT**  \
+- **Strengths:** simple flow, adaptive engine, Certified catalogue, monthly refresh offer.  \
+- **Weaknesses:** young brand, proof still building, reliance on third\uc0\u8209 party channels.  \
+- **Opportunities:** faster onboarding, manager\uc0\u8209 led skill uplift, cross\u8209 sector reuse.  \
+- **Threats:** in\uc0\u8209 house builds, learning vendors adding chat wrappers, changes to Slack/Teams policies.\
+\
+---\
+# 19) Measures of success\
+- Time to first useful module for a manager is under one hour.  \
+- At least 70% of targeted learners complete five items a week.  \
+- New joiners reach first competence in half the previous time.  \
+- At least three stamped modules live in each client within 60 days.  \
+- Renewal rate above 90%.\
+\
+---\
+# 20) Flip to tool\uc0\u8209 led\
+- Keep service steps as optional add\uc0\u8209 ons.  \
+- Ship clear self\uc0\u8209 serve flows: sign\u8209 up, set\u8209 up, build, push, track.  \
+- Keep costs low with a fast default model; call premium models only when needed.  \
+- Build partner tools so consultants can scale without Cerply staff.  \
+- Make the Certified catalogue easy to extend by named experts.\
+\
+---\
+# 21) Open questions for CEO\
+1) What skill scale should dashboards show (simple 0\'96100 or named levels)?  - 0\'9610 with named phases: 0\'963 Beginner, 4\'966 Intermediate, 7\'969 Advanced, 10 Expert  \
+2) Which data regions must we support from day one?  - UK and EU  \
+3) Top five file types for first builds?  - Don\'92t know  \
+4) Can learners skip items, or must they always answer?  - They can hit \'91Not sure\'92 and get some guidance  \
+5) Default quiet hours for nudges, and can managers override them?  - No, but we need to be timezone adaptive  \
+6) Allow company\uc0\u8209 internal stamps that mirror Certified but stay private?  - Yes  \
+7) Start expert revenue\uc0\u8209 share now or later?  - Now but not within the tool  \
+8) Export formats you need first (spreadsheet, PDF, link share)?  - Don\'92t know  \
+9) Do we need single sign\uc0\u8209 on at launch, or are invite links enough?  - Start with invite links, we may need to adapt quickly though  \
+10) Default data retention promise when a client leaves?  - TBC, need to understand the rules we are bound by, as well as the client  \
+11) After financial services, which sector next?  - Don\'92t know  \
+12) Any tones or words you do not want in learner messages? - Similar tone to you; simple language, avoid acronyms, no jargon\
+\
+---\
+- A. Sample module template.  \
+- B. Reviewer checklist.  \
+- C. Data map fields and event list.  \
+- D. Demo pack checklist.  \
+- E. Onboarding week plan for a typical team.\
+\
+# REMOVE DUPLICATE: The document should end here.\
+Cerply \'97 Business Requirements Document (BRD)\
+\
+Version: 2.0  \
+Date: 29 October 2025  \
+Owner: CEO, Cerply  \
+Author: COO  \
+\
+---\
+# 1) Purpose and vision\
+Cerply helps managers raise their team\'92s capability with short lessons and quick checks delivered where people already work. We start as a service\uc0\u8209 led vendor with a helpful tool. As soon as we can, we flip to a tool\u8209 led product that consultants can scale, and that clients can run on their own. This shift should increase reach and profit.\
+\
+---\
+# 2) Elevator pitch\
+\'93Turn what you know into daily, bite\uc0\u8209 size learning that actually sticks. Build a module by prompt or upload, push it into Slack and Teams, and watch the engine adapt to each person. Managers see who\'92s progressing, what\'92s working, and what needs a refresh. Use our Certified catalogue for trusted content, and we\'92ll keep your modules fresh each month.\'94\
+\
+---\
+# 3) Problem we solve\
+- Managers struggle to spread new ways of working.  \
+- New joiners take too long to get up to speed.  \
+- Training is often dull, slow, and soon forgotten.  \
+- Leaders need proof that skills are improving.\
+\
+We solve this by:\
+- turning any brief, file, or link into ready modules via a guided agent  \
+- pushing practice into the daily flow (Slack, Teams, web)  \
+- adapting to each person over time  \
+- showing clear progress for people and teams\
+\
+---\
+# 4) Target customers and go\uc0\u8209 to\u8209 market steps\
+**Day 0**  \
+- Run zero\uc0\u8209 cost **Proof\u8209 of\u8209 Concepts (PoC)** with friendly contacts in financial services to refine the offer and build trust.  \
+- Sign up the Cerply Certified community of named experts and use them in marketing.  \
+- Start simple events and outreach.\
+\
+**Day 1**  \
+- Land in small pockets inside large financial firms by helping individual managers.\
+\
+**Day 2**  \
+- Offer full company roll\uc0\u8209 outs for small financial firms and start\u8209 ups.\
+\
+**Day 3**  \
+- Serve medium and large financial firms with full company roll\uc0\u8209 outs.\
+\
+**Day 4**  \
+- Extend to other sectors such as health care, engineering, and education.\
+\
+**Day 5**  \
+- Grow through reputation and proof of value.\
+\
+**Day x**  \
+- Consider direct\uc0\u8209 to\u8209 consumer and an extended consulting offer.\
+\
+---\
+# 5) Users and roles\
+- **Manager / Leader (builder and pusher):**  \
+  - Can create modules from a prompt or from uploads/links.  \
+  - Refines by adding, removing, and adjusting.  \
+  - Pushes modules to teams and tracks progress.  \
+  - Locks as \'91Company Module\'92 in the client\'92s private library. Only owners and client admins can edit.  \
+  - Cannot edit the **Certified Core**, but can add a local wrap (intro, examples, rules).\
+- **Learner (team member):**  \
+  - Receives short items in Slack, Teams, or web.  \
+  - Interacts in natural language: answer items, ask for help, challenge content, or ask \'93How am I doing?\'94 to get progress.  \
+  - Gets instant feedback and varied practice.  \
+  - Never sees the exact same item twice unless the module is tagged **Compliance Critical**.\
+- **Certifier (named expert):**  \
+  - Reviews and stamps modules for the Certified catalogue.  \
+  - Can start from a prompt or from uploads.  \
+  - Locks content as **Certified Candidate**, which after review becomes **Certified Core** (read\uc0\u8209 only for clients).\
+- **Consultant (Cerply or partner):**  \
+  - Helps set up, drafts from prompts or uploads, and hands over to the client.  \
+  - Can **Lock to Client Library** with attribution; ownership moves to a client admin on hand\uc0\u8209 over.  \
+- **Company owner (client admin):** sets up teams, rights, rules, and data controls.  \
+- **Cerply owner (platform admin):** manages catalogue, pricing, rights, and safety.\
+\
+---\
+# 6) Value promise\
+- Managers ship new knowledge fast.  \
+- Learners get short, fresh, varied practice that meets them at the right level.  \
+- Leaders see clear movement in skills and time\uc0\u8209 to\u8209 productivity.  \
+- Experts gain reach through the Certified catalogue.\
+\
+---\
+# 7) Scope overview (no prioritisation)\
+We deliver four core areas plus a service wrap:\
+1. **Build** \'97 an intelligent workspace to turn prompts and raw material into modules.  \
+2. **Push** \'97 send modules to people in their daily tools; adapt content and difficulty over time.  \
+3. **Track** \'97 clear views of progress for people and teams.  \
+4. **Certified** \'97 a curated catalogue with review and stamp flow.  \
+5. **Service wrap** \'97 we do the first upload and give one free day each month for upkeep.\
+\
+All of the above is in scope for the first release unless stated otherwise.\
+\
+---\
+# 8) End\uc0\u8209 to\u8209 end flows\
+## 8.1 Build flow (manager/leader)\
+1) Open the Build workspace with three panes: **Chat**, **Content**, **Calibration**.  \
+2) In **Chat**, you can start with a plain prompt (for example: \'93Create a week\uc0\u8209 one onboarding module for trade capture analysts. Include two quick checks per lesson.\'94) and/or upload files and links.  \
+3) Agent proposes an outline and a short plan. Accept or edit.  \
+4) Agent drafts content (lessons and quizzes) in **Content** with named sources and citations.  \
+5) Manager edits in **Content** and presses **Send**; while the agent is writing, **Content** is locked to avoid clashes.  \
+6) **Calibration** shows example lessons and quizzes at varied difficulty with reasons. Tap **Add to chat** to steer tone and level.  \
+7) When ready, **Lock** the module by role: Company Module, Certified Candidate, or Client Library via consultant.\
+\
+## 8.2 Push flow (to learners)\
+1) Choose the audience (teams, groups, or named people).  \
+2) Choose when to send (now, schedule).  \
+3) Learners receive prompts in Slack, Teams, or on the web.  \
+4) The engine adapts each item based on past answers, speed, signs of doubt, and time since last practice. Content is varied so it is not a repeat (exact repeats are allowed only if the module is tagged **Compliance Critical**).  \
+5) Gentle reminders and light rewards keep the habit.  \
+6) Prompts limited to 1\'962 per day mandatory; learners can choose to continue learning beyond the cap.  \
+7) **Quiet hours default**: 20:00\'9608:00 local time (timezone\uc0\u8209 adaptive). Managers can override.\
+8) Groups and audiences are created and managed in Cerply at first; we can accommodate client directory sync as needed.\
+\
+## 8.3 Learn flow (learner)\
+1) Learner gets a short nudge with a single task.  \
+2) Interact in natural language to answer, ask for help, or challenge content.  \
+3) Ask \'93How am I doing?\'94 to receive a compact progress card with **current level**, **streak**, **next due**, and actions **Continue** / **Review weak area**.  \
+4) Next item adjusts in level and shape (for example, from recall to a short case).  \
+5) A quick recap is available on request.  \
+6) The engine plans the next session time to strengthen memory.\
+\
+## 8.4 Track flow (manager/leader)\
+1) Open a dashboard for a team or a person.  \
+2) See progress against skills, time to first competence, recent activity, and stuck areas.  \
+3) Drill into a module to see which parts work and which are stale.  \
+4) Export a PDF of a complete module for review with watermark and version stamp; no learner exports.\
+\
+## 8.5 Certified flow (expert and admin)\
+1) Submit a module for review with sources and tags.  \
+2) Reviewer checks clarity, accuracy, and sample items.  \
+3) Reviewer stamps it and adds tags, sector, and level.  \
+4) Module goes into the Certified catalogue.  \
+5) Client managers can push Certified modules as\uc0\u8209 is and add a local wrap.  \
+6) Client wraps must be **clearly labelled** (e.g., \'93Client Addendum\'94) and must not change the Certified Core goals.  \
+7) Version history tracks who changed what and when.  \
+8) **Example\uc0\u8209 only SLAs:** urgent takedown within 24 hours; standard review within 5 business days.\
+\
+---\
+# 9) Functional requirements\
+## 9.1 Build workspace (three panes)\
+**Chat pane**  \
+- Free\uc0\u8209 text prompts and quick starters (for example, \'93build onboarding from these files\'94).  \
+- File and link upload.  \
+- Show the agent\'92s plan before big changes.  \
+- Full change log with who said what and when.  \
+- **Prompt\uc0\u8209 to\u8209 Module** button that seeds a clean outline from a plain brief.\
+\
+**Content pane**  \
+- Live draft of the module: lessons, checks, goals, and tags.  \
+- Manager edits are applied on **Send**.  \
+- Pane locks while the agent writes.  \
+- Warn on conflicts with newer agent changes.  \
+- Save to private library.  \
+- Submit for stamp to Certified review.  \
+- Certified Core is read\uc0\u8209 only; clients can add a local wrap without changing the core.\
+\
+**Calibration pane**  \
+- Shows example items at several levels of challenge, with reasons.  \
+- One\uc0\u8209 click **Add to chat** to request a change.\
+\
+**Done when**  \
+- A manager can create a ready module from a prompt alone, or a mix of prompt and uploads, in one sitting without help.\
+\
+## 9.2 Content model\
+- A **Module** has: title, goals, target roles, tags (including flags like **Compliance Critical**), sector, version, owner, visibility (private / company / Certified).  \
+- A module holds **micro\uc0\u8209 lessons** (short reads or clips), **quick checks** (single task items), and **explanations**.  \
+- Items can be: choice, short text, arrange steps, label parts, short case, or \'93do then reflect\'94.  \
+- Each item has a level of challenge and a link to one or more goals.  \
+- Hints, worked examples, and links to sources are supported.  \
+- All parts are versioned.\
+\
+## 9.3 Agent and tools (prompt\uc0\u8209 to\u8209 module and role\u8209 based locking)\
+**Purpose**  \
+Let builders create new content from a plain prompt, not just uploads. Managers, Certifiers, and Consultants can ask the agent to draft, then refine until it is right. When done, they lock it as theirs (with rules by role).\
+\
+**Sources the agent may use (set per client):**  \
+- Cerply Certified catalogue (read\uc0\u8209 only).  \
+- Cerply public library (read/write for patterns and templates).  \
+- Client private library (read/write \'97 client\'92s content and team details).  \
+- The open web (read\uc0\u8209 only; **default ON**, controlled by client content rules and filter lists).\
+\
+**Draft loop:**  \
+1) Agent proposes an outline and a short plan.  \
+2) Builder accepts or edits the outline.  \
+3) Agent creates lessons and checks with sources and notes.  \
+4) Builder edits in **Content** or asks for changes in **Chat**.  \
+5) **Calibration** shows examples at varied difficulty; builder can \'93add to chat\'94 to steer tone and level.  \
+6) Agent flags gaps and suggests items to add or remove.\
+\
+**Quality gates before lock:**  \
+- Citations present and check out.  \
+- No obvious errors or made\uc0\u8209 up facts.  \
+- Reading level and length match the target role.  \
+- Duplicates removed; items are varied.  \
+- Basic accessibility checks passed.\
+\
+**Role\uc0\u8209 based ownership and locking**  \
+- **Manager / Leader:** **Lock as Company Module** in the client\'92s private library. Others can clone; only owners and client admins can edit. Locking creates an immutable version; later edits create a new version.  \
+- **Certifier:** **Lock as Certified Candidate** which enters the review flow. After stamp, it becomes **Certified Core** (read\uc0\u8209 only) that clients can push and wrap.  \
+- **Consultant:** **Lock to Client Library** with consultant attribution. On hand\uc0\u8209 over, ownership moves to a client admin; the consultant keeps a read\u8209 only copy in their work history.\
+\
+**Fork and merge**  \
+- Anyone with access can clone a module; the system keeps lineage to the parent.  \
+- Change requests can be proposed back to the owner for review and merge.\
+\
+**Models and tools policy**  \
+- Default drafting uses a fast, low\uc0\u8209 cost model (for example, Anthropic Haiku or GPT\u8209 5 mini).  \
+- First\uc0\u8209 pass content with citations can call **GPT\u8209 5 Pro**.  \
+- Fact and citation checks can call **Claude Sonnet 4.5**.  \
+- The agent can call: Adaptive Engine (to shape examples), Cerply stores, client store, Certified catalogue, and the open web (if allowed).  \
+- The agent logs all sources and tools used for each draft.\
+\
+**Usage rights**  \
+- Client owns **Company Modules** in their private library.  \
+- Cerply owns the platform and shared templates.  \
+- **Certified Core** follows the Certified licence; experts are credited; any revenue share rules are recorded.\
+\
+**Done when**  \
+- A builder can create a full module with no prior uploads using only prompts and allowed sources, pass quality gates, and lock it within one hour.\
+\
+## 9.4 Push to channels\
+- Send to Slack, Teams, and the Cerply web app.  \
+- Target by team, group, or named people.  \
+- Send now or schedule.  \
+- Set **mandatory** or **recommended**.  \
+- Set pace rules (for example, \'93proficient within 1 month\'94).  \
+- Nudge rules (for example, gentle reminder after two days idle for mandatory modules).  \
+- **Quiet hours default**: 20:00\'9608:00 local time (timezone\uc0\u8209 adaptive); managers can override.  \
+- Each send creates unique variants so exact repeats are rare (allowed only for **Compliance Critical**).  \
+- Learners can mute a module and unmute later (if recommended, not mandatory).  \
+- Groups are managed inside Cerply at first; we can accommodate client directory sync.\
+\
+**Done when**  \
+- A manager can send a module to a team and see delivery stats within minutes.\
+\
+## 9.5 Adaptive Learning Engine\
+- Actively borrows from current research and proven methods.  \
+- Stores every learner action unless the client asks us to remove it; when removals happen, we retain anonymous patterns/aggregates for long\uc0\u8209 term optimisation.  \
+- Adjusts item level based on past correctness, speed, signs of doubt, and time since last practice.  \
+- Mixes item shapes to keep interest.  \
+- Plans the next session time to build long\uc0\u8209 term memory.  \
+- Detects weak areas and brings them back at the right time.  \
+- Flags stale items for the manager to refresh, based on learner feedback, external triggers, or time since last refresh/recert.  \
+- Prioritises recent, weak, or urgent topics over modules in which the learner shows high proficiency.  \
+\
+**Done when**  \
+- Learners show steady gains in target skills; exact repeats occur only in modules tagged **Compliance Critical**.\
+\
+## 9.6 Tracking and dashboards\
+- **Team view:** mastery by skill, time to first competence, active users, at\uc0\u8209 risk users, recent wins, stale modules.  \
+- **Person view:** current level, pace, weak areas, streaks, and last session time.  \
+- **Module view:** reach, answer rates, time on task, drop\uc0\u8209 offs, items that confuse, items that are too easy.  \
+- Filters by team, role, date, module, and skill.  \
+- **Exports:** Managers/Certifiers/Admin can export **complete modules as PDF** for review **with watermark and version stamp**; no exports for learners.\
+\
+**Done when**  \
+- A leader can open one page and know who needs help and which module needs work.\
+\
+## 9.7 Certified catalogue\
+- Submit for review with sources and tags.  \
+- Reviewer checklist: clarity, accuracy, relevance, sector fit.  \
+- Stamp with expert name and profile.  \
+- Versioning and change log.  \
+- Search and filter by skill, sector, level, role.  \
+- Usage rights: clients can push and wrap; cannot edit core.  \
+- **Client wraps must be clearly labelled** (e.g., \'93Client Addendum\'94) and must not change Certified Core goals.  \
+- Takedown flow for errors or legal issues.  \
+- **Example\uc0\u8209 only SLAs:** urgent takedown within 24 hours; standard review within 5 business days.\
+\
+**Done when**  \
+- Managers can find, trust, and use a stamped module the same day.\
+\
+## 9.8 Admin and governance\
+- Company set\uc0\u8209 up, teams, roles; **invite links at launch** (single sign\u8209 on to follow as client demand requires).  \
+- Rights: who can build, push, track, submit, review, stamp.  \
+- Audit log for important actions.  \
+- Data controls: region choice, export, delete on request.  \
+- Branded theme per client.\
+\
+---\
+# 10) Data requirements\
+- Two main stores: **Cerply public** (catalogue, patterns, logs) and **client private** (their content and learner data). Hard walls between them.  \
+- Track all learner events with time, item, result, speed, hint use, and confidence (if asked).  \
+- Keep raw sources linked to each module and item.  \
+- Keep versions forever with roll\uc0\u8209 back.  \
+- Clients can request deletion of a person\'92s data. When personal data is deleted, Cerply may retain **anonymous patterns/aggregates** for model and product optimisation.  \
+- Clear data map per client.\
+\
+---\
+# 11) Integrations\
+- Slack and Teams for delivery and response.  \
+- Web app for those who prefer a browser.  \
+- File uploads for common formats (Word, PowerPoint, PDF, Excel, text, CSV).  \
+- Link capture for web pages.  \
+- Optional email digests for managers.\
+\
+---\
+# 12) Security, privacy, and safety\
+- Encrypt data in storage and in transit.  \
+- Separate client data by design.  \
+- Log and alert on strange access.  \
+- Fine\uc0\u8209 grained rights so only the right people can see private content.  \
+- Keep to local data rules where the client asks (for example, keep data in region).  \
+- Safe\uc0\u8209 use rules for the agent to avoid unsafe content.  \
+- **Content rules and filter lists** gate open\uc0\u8209 web use per client.  \
+- Clear terms: client owns their content; Cerply owns platform code; Certified content follows its own licence.\
+\
+---\
+# 13) Non\uc0\u8209 functional needs\
+- Fast: normal page actions under one second.  \
+- Reliable: service up at least 99.9% each month.  \
+- Scalable: handle thousands of learners per client.  \
+- Accessible: follows modern web accessibility rules.  \
+- Simple: works on desktop and mobile browsers.\
+\
+---\
+# 14) Service offer and rules\
+- **First upload:** we load the starter content with the client.  \
+- **Monthly help:** one free day per month to add and refresh content (for example, decisions from senior meetings).  \
+- **Support:** chat and email in business hours; clear guides.  \
+- **Scheduling:** refresh days are scheduled directly with the client (outside the app).  \
+- **Enterprise add\uc0\u8209 ons later:** more help days, bespoke builds, private models.\
+\
+---\
+# 15) Day\uc0\u8209 1 demo script\
+1) Open Build. Start with a plain prompt. Show an outline, accept a tweak.  \
+2) Add two files. Show how the draft updates with sources.  \
+3) Use **Calibration** to adjust level.  \
+4) **Lock** to Company Module.  \
+5) Push five quick checks to a test group in Slack and Teams.  \
+6) Answer as a learner. Show how the next item changes.  \
+7) Ask \'93How am I doing?\'94 and show the compact progress card.  \
+8) Open the dashboard: team view, person view, and a module heatmap.  \
+9) Open the Certified catalogue, pick a module, push a weekly drip.  \
+10) Close with the service offer (first upload + monthly refresh day).\
+\
+---\
+# 16) Cost forecast (yearly view)\
+**Option A \'97 Year\uc0\u8209 1 Shoestring (principle):**  \
+- Four leads carry most work with minimal cash cost.  \
+- Paid roles and services added **only when no other credible option exists**.  \
+- Expect slower feature throughput; focus on Build, Push, Track core, and essential Certified.\
+\
+**Option B \'97 Ranged view (excludes management \'a31m):**  \
+- Four engineers: \'a3400,000\'96\'a3520,000  \
+- One product lead: \'a390,000\'96\'a3140,000  \
+- One designer/researcher: \'a370,000\'96\'a3110,000  \
+- One data/learning specialist: \'a390,000\'96\'a3140,000  \
+- One consultant for roll\uc0\u8209 outs: \'a380,000\'96\'a3120,000  \
+- **Subtotal people:** \'a3730,000\'96\'a31,030,000  \
+- Cloud hosting and storage (base): \'a360,000\'96\'a3120,000  \
+- Model usage reserve (base, before scale): \'a360,000\'96\'a3150,000  \
+- Tools, licences, and services: \'a340,000\'96\'a380,000  \
+- Basic marketing and events: \'a360,000\'96\'a3120,000  \
+- Legal, accounting, and insurance: \'a340,000\'96\'a380,000  \
+- **Subtotal other:** \'a3260,000\'96\'a3550,000  \
+- **Total fixed (incl. management):** \'a31,990,000\'96\'a32,580,000 per year  \
+- **Variable per active learner per month:** \'a30.30\'96\'a31.20 (messaging, hosting growth, model calls)\
+\
+Notes: prompt optimisation and caching can halve model costs; heavier content raises storage and delivery costs. These are planning ranges, not a promise.\
+\
+---\
+# 17) Level\uc0\u8209 0 work breakdown (deliverables only)\
+1) **Product foundations** \'97 identity, access, roles, client set\uc0\u8209 up, theming.  \
+2) **Build workspace** \'97 Chat, Content, Calibration; prompt\uc0\u8209 to\u8209 module; versioning; lock.  \
+3) **Agent and tools** \'97 model policy; citations; quality checks; logs.  \
+4) **Adaptive engine** \'97 difficulty, spacing, variation, signals, item shapes.  \
+5) **Push** \'97 Slack, Teams, web; scheduling; nudges; quiet hours.  \
+6) **Track** \'97 team, person, module views; PDF exports; share links (internal).  \
+7) **Certified** \'97 review and stamp; catalogue; search; usage rights; labelled client wraps.  \
+8) **Data and privacy** \'97 stores, regions, deletion, audit; patterns/aggregates.  \
+9) **Service wrap** \'97 first upload flow; monthly refresh flow; support.  \
+10) **Demo pack** \'97 scripted demo, seed content, test tenant.  \
+11) **GTM** \'97 friendlies programme; expert network; events; **PoC stories**.\
+\
+---\
+# 18) RAID and SWOT (urgent items first)\
+**Risks**  \
+- Managers have little time 
+\f1 \uc0\u8594 
+\f0  keep creation short; we do first upload; monthly refresh day included.  \
+- Doubt about accuracy 
+\f1 \uc0\u8594 
+\f0  show sources; run a quality check pass; use named experts for stamps.  \
+- Data concerns 
+\f1 \uc0\u8594 
+\f0  hard walls, region choice, strong rights, clear data map.  \
+- \'93We could build this\'94 
+\f1 \uc0\u8594 
+\f0  highlight agentic build, adaptive engine, Certified catalogue, and upkeep.\
+\
+**Assumptions**  \
+- Slack and Teams access is allowed by clients.  \
+- Experts will join the Certified community in the first month.  \
+- Managers accept prompts as a natural way to build.\
+\
+**Issues (watch\uc0\u8209 list)**  \
+- Vendor approvals at large firms can be slow.  \
+- Some clients may block external model calls; need an option to disable web access.\
+\
+**Dependencies**  \
+- Access to Slack and Teams APIs and client tenants.  \
+- A small pool of seed experts for the first Certified modules.  \
+- Friendly clients for Day\uc0\u8209 0 **PoC**.\
+\
+**SWOT**  \
+- **Strengths:** simple flow, adaptive engine, Certified catalogue, monthly refresh offer.  \
+- **Weaknesses:** young brand, proof still building, reliance on third\uc0\u8209 party channels.  \
+- **Opportunities:** faster onboarding, manager\uc0\u8209 led skill uplift, cross\u8209 sector reuse.  \
+- **Threats:** in\uc0\u8209 house builds, learning vendors adding chat wrappers, changes to Slack/Teams policies.\
+\
+---\
+# 19) Measures of success\
+- Time to first useful module for a manager is under one hour.  \
+- At least 70% of targeted learners complete five items a week.  \
+- New joiners reach first competence in half the previous time.  \
+- At least three stamped modules live in each client within 60 days.  \
+- Renewal rate above 90%.\
+\
+---\
+# 20) Flip to tool\uc0\u8209 led\
+- Keep service steps as optional add\uc0\u8209 ons.  \
+- Ship clear self\uc0\u8209 serve flows: sign\u8209 up, set\u8209 up, build, push, track.  \
+- Keep costs low with a fast default model; call premium models only when needed.  \
+- Build partner tools so consultants can scale without Cerply staff.  \
+- Make the Certified catalogue easy to extend by named experts.\
+\
+---\
+# 21) Open questions for CEO\
+1) What skill scale should dashboards show (simple 0\'96100 or named levels)?  - 0\'9610 with named phases: 0\'963 Beginner, 4\'966 Intermediate, 7\'969 Advanced, 10 Expert  \
+2) Which data regions must we support from day one?  - UK and EU  \
+3) Top five file types for first builds?  - Don\'92t know  \
+4) Can learners skip items, or must they always answer?  - They can hit \'91Not sure\'92 and get some guidance  \
+5) Default quiet hours for nudges, and can managers override them?  - No, but we need to be timezone adaptive  \
+6) Allow company\uc0\u8209 internal stamps that mirror Certified but stay private?  - Yes  \
+7) Start expert revenue\uc0\u8209 share now or later?  - Now but not within the tool  \
+8) Export formats you need first (spreadsheet, PDF, link share)?  - Don\'92t know  \
+9) Do we need single sign\uc0\u8209 on at launch, or are invite links enough?  - Start with invite links, we may need to adapt quickly though  \
+10) Default data retention promise when a client leaves?  - TBC, need to understand the rules we are bound by, as well as the client  \
+11) After financial services, which sector next?  - Don\'92t know  \
+12) Any tones or words you do not want in learner messages? - Similar tone to you; simple language, avoid acronyms, no jargon\
+\
+---\
+# 22) Appendices\
+- A. Sample module template.  \
+- B. Reviewer checklist.  \
+- C. Data map fields and event list.  \
+- D. Demo pack checklist.  \
+- E. Onboarding week plan for a typical team.}

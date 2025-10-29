@@ -438,7 +438,8 @@ export default function ConversationalModuleCreationPage() {
                 }
               }}
               placeholder="Type your message..."
-              className="flex-1 w-0 max-w-full rounded-lg border border-brand-border px-4 py-3 focus:outline-none focus:border-brand-coral-500 text-brand-ink placeholder:text-gray-400 placeholder:opacity-60 box-border"
+              style={{ maxWidth: 'calc(100% - 180px)' }}
+              className="flex-1 w-0 rounded-lg border border-brand-border px-3 py-2.5 focus:outline-none focus:border-brand-coral-500 text-brand-ink placeholder:text-gray-400 placeholder:opacity-60 box-border"
               disabled={loading}
             />
 

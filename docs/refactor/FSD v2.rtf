@@ -1,0 +1,424 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 .SFNS-Regular;\f2\fnil\fcharset0 HelveticaNeue-Bold;
+}
+{\colortbl;\red255\green255\blue255;\red14\green14\blue14;}
+{\*\expandedcolortbl;;\cssrgb\c6700\c6700\c6700;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww25300\viewh16480\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\sl340\pardirnatural\partightenfactor0
+
+\f0\fs28 \cf0 Cerply \'97 Functional Specification Document (FSD)\
+\
+Version: 2.0\
+Date: 29 October 2025\
+Owner: CEO, Cerply\
+Author: COO\
+\
+Purpose\
+This FSD translates the agreed BRD into clear behaviour, screens, rules, and acceptance tests. It describes what the product must do, not how to build it.\
+\
+Scope\
+This FSD covers: Build, Push, Learn, Track, Certified, Admin & Governance, Data & Privacy, Integrations, and Non\uc0\u8209 functional needs. The service offer (first upload + monthly refresh day) is delivered outside the app and is not part of this FSD.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl340\pardirnatural\partightenfactor0
+\cf2 Key terms (plain meaning)\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Module (Topic Module / Opus) \'96 A deep, comprehensive body of content on one topic. It is the source of truth.\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\li260\sl340\pardirnatural\partightenfactor0
+\cf2 Includes: sections, key points, goals, tags, source map/citations, owner, and version.\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Module core \'96 The content inside the Module (sections, key points, sources). Generated items are produced from this.\
+	\'95	Module assignment (manager-facing) \'96 Assigning a Module to a specific audience with rules (mandatory/recommended, start date, quiet hours, daily cap). This creates the running drip learners receive. Learners never see this term.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl340\pardirnatural\partightenfactor0
+\cf2 Delivery items learners receive\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Micro-lesson \'96 A short teaching snippet (about 60\'96120 seconds) generated from the Module core.\
+	\'95	Quick check \'96 A single task with instant feedback (e.g., single/multi-choice, short text, order steps, label parts, short case, \'93do then reflect\'94). Used for adaptation.\
+	\'95	Quiz \'96 A small bundle of quick checks sent together.\
+	\'95	Guidance note \'96 A short practical note or procedure extracted from the Module core; can be surfaced when someone struggles or on manager request.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl340\pardirnatural\partightenfactor0
+\cf2 Build workspace\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Chat pane \'96 Where the user prompts and uploads; the agent replies.\
+	\'95	Content pane \'96 Live view of the Module core and generated items; editable when unlocked; shows provenance badges (manager-only).\
+	\'95	Calibration pane \'96 Preview of example micro-lessons and quick checks at different difficulty levels; not editable; you can \'93add to chat\'94 to steer tone/level.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl340\pardirnatural\partightenfactor0
+\cf2 Engine & provenance\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Adaptive Learning Engine \'96 Generates, varies, and schedules items based on performance signals (correctness, speed, hint use, confusion, spaced recall). Allows exact repeats only when Compliance Critical.\
+\pard\tqr\tx100\tx260\li260\fi-260\partightenfactor0
+\cf2 	\'95	Provenance badges (manager-facing only) \'96 Labels that show where a section/item came from: Internal (client), Certified Core, Industry source, Cerply templates. Shown in Build/Track and manager exports; never shown to learners.\
+	\'95	Model orchestrator \'96 Picks the right model for each job and keeps a clear log. No pretend intelligence; we use real models.\
+	\'95	Model defaults \'96 Chat and small edits use a small fast model (e.g., GPT-5-mini or Anthropic Haiku). Core drafting uses a top model (e.g., GPT-5 Pro). Quality check uses a second top model (e.g., Claude Sonnet 4.5) to check facts and citations. These are defaults but can change later.\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl340\pardirnatural\partightenfactor0
+\cf2 Libraries & stamps\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Company Module \'96 Content created exclusively for one client; stored in that client\'92s Content Library.\
+	\'95	Content Library (Client Library) \'96 The client\'92s private repository for Company Modules and derived assets; access-controlled; not the Certified catalogue nor Cerply Building Blocks.\
+	\'95	Certified Core \'96 Expert-stamped Module core in the Cerply catalogue (read-only). Clients can create Module assignments from it and add a clearly labelled wrap.\
+	\'95	Cerply Building Blocks \'96 Structure-only templates and patterns (no domain facts) the agent uses to draft shapes, cadences, hints, and feedback.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl340\pardirnatural\partightenfactor0
+\cf2 Labels & rules\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Wrap \'96 A clearly labelled local addition (e.g., intro, examples, house rules) that sits around Certified Core without changing its goals.\
+	\'95	Compliance Critical \'96 Flag that allows exact repeats for regulatory/mandatory content.\
+	\'95	Mandatory vs Recommended \'96 Assignment type; mandatory counts toward daily cap and repeat rules; recommended is optional.\
+	\'95	Quiet hours \'96 Times when items are not sent (e.g., 20:00\'9608:00).\
+	\'95	Daily cap \'96 Maximum items per learner per day.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl340\pardirnatural\partightenfactor0
+\cf2 Governance & state\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Lock \'96 Freezes a Module core as an immutable version; later edits create a new version. Generated items keep a link to the core version.\
+	\'95	Source map \'96 The list of origins (with links) used in a Module; used for citations and provenance.\
+	\'95	Version \'96 A numbered snapshot of the Module core; lineage is tracked.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl340\pardirnatural\partightenfactor0
+\cf2 Roles\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Manager/Leader \'96 Builds/edits Company Modules; approves consultant-created modules before lock; creates Module assignments; tracks; exports; may add labelled wraps to Certified Core.\
+	\'95	Certifier \'96 Reviews and stamps Module core for the Certified catalogue.\
+	\'95	Consultant \'96 Drafts Module core for clients; saves drafts to the client Content Library; may propose lock; manager approval required to lock; ownership handed to client admin; consultant keeps read-only history.\
+	\'95	Company Admin \'96 Sets allowed industry sources and filter lists; manages roles and rules.\
+	\'95	Cerply Admin \'96 System administration.\
+	\'95	Learner \'96 Receives items via Slack, Teams, or the web; can answer, ask for help, challenge an item, and request their progress.\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\sl340\pardirnatural\partightenfactor0
+\cf2 Channels & sources\
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Channels \'96 Slack, Teams, and the Cerply web app.\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\sl340\pardirnatural\partightenfactor0
+\cf0 	- What goes through those channels: **Module assignments** from Company Modules and **Certified Core** (with labelled wraps). Certified Core is a catalogue, not a channel.\cf2 \
+\pard\tqr\tx100\tx260\li260\fi-260\sl340\partightenfactor0
+\cf2 	\'95	Industry source \'96 External sources permitted by the client\'92s rules.\
+	\'95	Internal (client) \'96 Proprietary client content the agent stores only in the client\'92s Content Library.\
+	\'95	Cerply templates \'96 Non-factual structural patterns used by the agent.\cf0  \
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\sl340\pardirnatural\partightenfactor0
+\cf0 \
+Other\
+- Prompt cap: 1\'962 mandatory prompts per day; learners may continue by choice beyond the cap.\
+- Industry\uc0\u8209 source reading: ON by default, controlled by client content rules and filter lists.\
+- Groups: managed in Cerply at first; directory sync \'93can be accommodated\'94 later.\
+- Mastery scale for dashboards and progress cards: 0\'9610 with phases (0\'963 Beginner, 4\'966 Intermediate, 7\'969 Advanced, 10 Expert).\
+\
+------------------------------------\
+1) Build \'97 screens and behaviour\
+------------------------------------\
+\
+1.1 Build workspace layout\
+The Build workspace has three panes on one screen, look and feel like Cursor agent dashboard:\
+- Chat pane (left): prompt box, file/link upload, history of messages and plans.\
+- Content pane (centre): live Module core (sections, key points, source map) and generated lessons/checks (read while agent writes; editable when unlocked). **Each section and item shows provenance badges** (Internal, Certified Core, Industry source, Cerply templates).\
+- Calibration pane (right): example items at different difficulty with reasons shown.\
+User can reconfigure position and sizes of panes.\
+\
+1.2 Start a module\
+- From Chat, a user can:\
+  a) Type a content\uc0\u8209 first prompt, for example:\
+     "Create a **Module core** called 'Trade Capture Fundamentals'.\
+     **Audience:** new trade capture analysts in a global investment bank (basic Excel skills, no prior banking roles).\
+     **Scope (in):** front\uc0\u8209 to\u8209 back trade flow for vanilla rates and FX; booking controls; key data fields; common breaks; UK/EU regulatory touchpoints (MiFID reporting high level).\
+     **Scope (out):** exotic products; non\uc0\u8209 UK/EU rules; audit deep dives.\
+     **Outcomes:** explain lifecycle; book a vanilla trade correctly; identify/escalate common breaks; interpret key booking fields.\
+     **Sources:** attached onboarding deck; SOP_TradeBooking_v3.pdf; wiki links A/B. Web allowed for generic definitions only (Investopedia, BIS).\
+     **Definitions:** include glossary (UTI, LEI, MTM).\
+     **Edge cases:** partial fills; late trades; cancel/replace.\
+     **Tone:** plain English; short sentences; include worked examples.\
+     **Deliver:** core sections with key points and citations; one worked example per section; a short glossary; guidance notes where helpful. Generate **sample lessons/checks for Calibration only** \'97 the final Module assignment will be set later in Push."\
+  b) Upload files or paste links.\
+- \'93Prompt\uc0\u8209 to\u8209 Module\'94 creates a Module outline (title, goals, sections) and a short plan.\
+- The agent proposes: Module title, goals, section outline, and initial **sample lessons/checks for Calibration**. **Delivery (channel, cadence, number of items) is defined later when creating a Module assignment in Push.** The user accepts or edits.\
+\
+1.3 Draft loop\
+- After the outline is accepted, the agent drafts the Module core (sections, key points, citations) and then generates lessons and quick checks from that core into the Content pane.\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+\cf0 - The agent **merges inputs** from prompts, uploads, Certified Core, and allowed industry sources into one coherent Module core.\
+- **Duplicates are removed** and **conflicts are flagged** with side\uc0\u8209 by\u8209 side source excerpts so the user can resolve them.\
+\pard\tqr\tx100\tx260\li260\fi-260\partightenfactor0
+\cf2 	-	The agent uses the model orchestrator:\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\li260\pardirnatural\partightenfactor0
+\cf2 \'95 Outline and Module core drafting run on a top model and include citations.\
+\'95 A second top model runs a quality check for facts and citations (hallucination protection).\
+\'95 Chat and small edits run on a small fast model for speed.\
+\pard\tqr\tx100\tx260\li260\fi-260\partightenfactor0
+\cf2 	-	If the quality check fails, the draft is flagged. The system will not lock the Module until the flags are fixed.\cf0 \
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\sl340\pardirnatural\partightenfactor0
+\cf0 - New content derived from client uploads/prompts is marked **Internal** and saved to the client\'92s **Content Library**; external facts remain as citations (no bulk copying beyond fair\uc0\u8209 use extracts).\
+- The Content pane shows a lock state while the agent writes. A banner reads \'93Agent is writing. You can read but not edit.\'94\
+- When unlocked, the user edits and presses Send to apply edits. Conflicts show a warning with the option to merge or retry.\
+- Calibration shows example Micro-Lessons and Quick Checks, generated from the module content, at different difficulty levels. A user can select an example and click \'93Add to chat\'94 to steer tone, length, or level. Items refresh each time the Content pane is refreshed.\
+\
+- The agent may read: Certified Core (read\uc0\u8209 only), **Cerply Building Blocks** (structure\u8209 only templates and patterns; no domain facts), client private library, and **allowed industry sources** (if permitted by client rules and filters).\
+- When both a prompt and uploads are provided, the agent must **seamlessly merge** them into a single Module core while keeping **provenance badges** intact.\
+- Before a module can be locked, the following checks must pass:\
+  1) Citations present for non\uc0\u8209 original facts in the Module core and generated items; links resolve; **provenance badges** applied (Internal / Certified Core / Industry source / Cerply templates).\
+  2) No made\uc0\u8209 up facts.\
+  3) Reading level and length match target roles.\
+  4) Duplicate or near\uc0\u8209 duplicate items removed; varied item shapes are present.\
+  5) Basic accessibility checks pass (clear language, alt text for images, keyboard friendly order).\
+  6) **Storage routing:** Internal content is stored only in the client\'92s Content Library; Certified Core and Industry source material are referenced (not duplicated) unless copying is explicitly allowed.\
+  7) **Sign\uc0\u8209 posting:** The Content pane and source map clearly show which sections/items are Internal vs external (Certified Core / Industry source / Cerply templates).\
+\
+- Manager/Leader can Lock as Company Module (client private library). Only owners and client admins can edit. Others in the company can clone.\
+- Certifier can Lock as Certified Candidate (enters review). When stamped, it becomes Certified Core (clients cannot edit the core; wraps allowed and must be labelled).\
+- Consultant saves drafts to the client's Content Library and may **propose lock as a Company Module**.\
+- A Manager must **approve/certify** the consultant's module before it becomes a locked Company Module. After approval, ownership moves to a client admin; the consultant keeps read\uc0\u8209 only history.\
+- All locks create an immutable version. New edits create a new version.\
+Locks apply to the Module core; generated items can be refreshed or re\uc0\u8209 generated from the locked core and will carry a link to the core version.\
+\
+1.6 Clone (fork) and merge\
+- Any user with view rights can clone a module. The system records the parent/child link.\
+- Owners may accept merge requests from child modules back into the parent.\
+\
+Acceptance tests (Build)\
+- A user can create a Module (core) from prompt only, generate draft lessons, pass quality gates, and lock the core within one hour.\
+- While the agent writes, Content is read\uc0\u8209 only, then becomes editable.\
+- Certified Core cannot be edited by clients; wraps are allowed and labelled.\
+- Lock creates an immutable version; later edits create a new version number.\
+- A consultant\uc0\u8209 created module cannot be locked as a Company Module without an explicit manager approval/certification step.\
+- When a Module is built from **both** prompt and uploads, the resulting Module core shows merged content with correct **provenance badges**, and Internal content is stored in the client\'92s Content Library.\
+- 
+\f1 \cf2 Core drafting uses a top model and passes a separate quality check by a second top model before lock; failed checks block lock and show flags to the user.
+\f0 \cf0 \
+\
+------------------------------------\
+2) Push \'97 delivery rules and nudges\
+------------------------------------\
+\
+2.1 Targeting\
+- Manager selects audience: teams, groups, or named people. Groups are created and managed in Cerply.\
+\
+2.1a Selection: Manager chooses a Module, selects the audience (teams, groups, or people), and sets **mandatory or recommended**, **start date**, **quiet hours**, and **daily cap** \'97 this creates a **Module assignment**.\
+\
+2.2 Scheduling and cadence\
+- Send now or schedule one\uc0\u8209 off or a drip (for example, \'93two items per weekday\'94).\
+- Prompt cap: at most 1\'962 mandatory prompts per day. Learners can choose to continue after mandatory items are done.\
+- Quiet hours default: 20:00\'9608:00 local. Manager can override per module or audience.\
+\
+2.3 Variations and repeats\
+- Each send creates varied items derived from the Module core. Learners should not see the same item wording twice.\
+- Exact repeats are allowed only when the module has the tag Compliance Critical.\
+\
+2.4 Learner controls\
+- Learners may mute recommended modules and unmute later. Mandatory modules cannot be muted.\
+\
+Acceptance tests (Push)\
+- Manager can send to a group and see a delivery status within minutes.\
+- Mandatory cap is enforced; learners can opt to continue.\
+- Quiet hours suppress nudges during the default window unless overridden.\
+- Compliance Critical modules may deliver exact repeats; other modules do not.\
+\
+------------------------------------\
+3) Learn \'97 natural language interactions\
+------------------------------------\
+\
+3.1 Message types a learner can send\
+- Answer: a response to a quick check.\
+- Help: \'93Help\'94, \'93Explain\'94, or similar \'97 returns a short hint or recap.\
+- Challenge: \'93This is wrong\'94, \'93Out of date\'94, \'93Does not match policy\'94 \'97 flags the item for manager review and allows the learner to continue.\
+- Progress: \'93How am I doing?\'94 \'97 returns a compact card.\
+\
+3.2 Progress card (Slack/Teams/web)\
+- Shows: Current level (0\'9610 and phase), Streak (days), Next due (date/time), Actions: Continue, Review weak area.\
+- When \'93Continue\'94 is pressed, the next item is sent at the right difficulty.\
+- When \'93Review weak area\'94 is pressed, the next items focus on the weakest skills first.\
+\
+3.3 Feedback\
+- Each answer returns the correct answer, a short reason, and a link to a lesson or source if needed.\
+\
+3.4 Spacing and difficulty\
+- The engine adjusts difficulty from recent performance (correctness, speed, signs of doubt) and time since last practice.\
+- The engine plans the next session time to strengthen memory.\
+\
+Acceptance tests (Learn)\
+- A learner can complete a daily mandatory set, then choose to do more.\
+- \'93How am I doing?\'94 returns the progress card with the right fields.\
+- \'93Challenge\'94 flags the item and notifies the module owner for review.\
+- Compliance Critical allows exact repeats; others deliver varied wording.\
+\
+------------------------------------\
+4) Track \'97 dashboards and export\
+------------------------------------\
+\
+4.1 Views\
+- Team view: mastery by skill, time to first competence, active users, at\uc0\u8209 risk users, recent wins, stale modules.\
+- Person view: current level, pace, weak areas, streaks, last session time.\
+- Module view: core freshness (stale sections), version age, reach, answer rates in **Module assignments**, time on task, drop\uc0\u8209 offs, confusing items, too\u8209 easy items.\
+\
+4.2 Filters\
+- Filter by team, role, date range, module, skill, tag (including Compliance Critical).\
+\
+4.3 Exports\
+- Managers, Certifiers, and Admins can export a complete Module as a PDF. The PDF includes a watermark and version stamp and contains the Module core outline plus selected generated items (sample lessons/checks) **with provenance badges**. Learners cannot export anything.\
+\
+Acceptance tests (Track)\
+- Each view loads under two seconds with realistic data volumes.\
+- PDF export shows correct version lineage.\
+- Deleting a learner removes personal data while leaving anonymous aggregates.\
+\
+------------------------------------\
+5) Certified \'97 review and catalogue\
+------------------------------------\
+\
+5.1 Submission\
+- Any owner may submit a module as a Certified Candidate with sources and tags.\
+\
+5.2 Review\
+- Reviewer checks: clarity, accuracy, relevance, sector fit, and sample items.\
+- Example\uc0\u8209 only time goals: urgent takedown within 24 hours; standard review within five business days.\
+\
+5.3 Stamp and publish\
+- On approval, the Module core becomes Certified Core and enters the catalogue with tags, sector, and level.\
+- Clients can create **Module assignments** based on Certified Core and add a labelled wrap (for example, \'93Client Addendum\'94). Wraps must not change the Certified goals.\
+\
+5.4 Find and use\
+- Search and filter by skill, sector, level, role, tag. Results show stamp details and version.\
+\
+Acceptance tests (Certified)\
+- A Certified Candidate can be approved and becomes Certified Core with a visible stamp and version.\
+- Client wraps are clearly labelled and cannot change Certified Core.\
+\
+------------------------------------\
+6) Admin & Governance \'97 roles, rights, and rules\
+------------------------------------\
+\
+- Learner: receive items; natural language interactions; no exports; no edits to content.\
+- Manager/Leader: build by prompt/upload; edit Company Modules; **approve/certify consultant\uc0\u8209 created modules**; create Module assignments; track; export PDF; submit for Certified; wrap Certified Core (labelled).\
+- Certifier: build; review; stamp; manage Certified Core and versions; no client data export beyond PDFs of modules.\
+- Consultant: build; save drafts to the client's Content Library; **propose** lock as Company Module; cannot lock without manager approval; hand over ownership after approval; no access after handover except read\uc0\u8209 only history.\
+- Company Admin: manage users, teams, groups, roles, defaults, quiet hours, content rules and filters, data regions.\
+- Cerply Admin: 
+\f1 \cf2 manage global catalogue, safety policies, platform settings, 
+\f2\b model defaults and failover
+\f1\b0 , and cost caps.
+\f0 \cf0 \
+\
+6.2 Organisation set\uc0\u8209 up\
+- Invite links at launch. Single sign\uc0\u8209 on can be added later based on client demand.\
+- Teams and groups created in Cerply. Directory sync can be added later; marketing may state we can accommodate.\
+- Company Admin can set: **allowed industry sources and domains**, blocked terms, and filter lists for the agent.\
+- Record who did what and when for: **approvals**, locks, pushes, wraps, stamps, exports, takedowns, and setting changes.\
+\
+Acceptance tests (Admin)\
+- Rights are enforced per role across Build, Push, Learn, Track, and Certified.\
+- Audit log entries are created for all key actions named above.\
+\
+------------------------------------\
+7) Data, events, and privacy\
+------------------------------------\
+\
+- **Cerply Building Blocks store:** structure templates, patterns, and logs (non\uc0\u8209 personal; no domain facts).\
+- Client private store: client content and learner data. Hard wall between clients.\
+- **Storage routing:** content from client uploads/prompts is stored in the client private store; Certified Core and Industry source content are referenced with citations; Cerply templates are meta\uc0\u8209 instructions only.\
+- Item id, module id, skill tags, result (correct/incorrect/partial), answer time, hint use, time of day, confidence (if asked), channel (Slack/Teams/Web), **provenance of the item (origin badge)**.\
+- 
+\f1 \cf2 Each item keeps links to its sources, citations, agent tools used in drafting, 
+\f2\b model labels used
+\f1\b0  (for generation and quality check), 
+\f2\b provenance classification
+\f1\b0  (Internal / Certified Core / Industry source / Cerply templates), and a reference to storage location (client/private vs reference). \
+- 
+\f2\b Model logs:
+\f1\b0  model label, time, tokens, and estimated cost per generation and per quality check (no personal data).
+\f0 \cf0 \
+\
+7.4 Retention\
+- Keep versions forever with roll back. If asked to delete a person\'92s data, we delete personal data and keep anonymous patterns/aggregates for long\uc0\u8209 term optimisation.\
+\
+7.5 Regions\
+- Data region by client (for example, UK or EU) as set by Company Admin at set\uc0\u8209 up.\
+\
+Acceptance tests (Data)\
+- Exported PDF shows correct version lineage.\
+- Deleting a learner removes personal data while leaving anonymous aggregates.\
+\
+------------------------------------\
+8) Integrations\
+------------------------------------\
+- Slack and Teams message delivery and replies.\
+- Web app for browsers.\
+- File uploads for Word, PowerPoint, PDF, Excel, text, CSV.\
+- Email digests for managers (optional).\
+\
+Acceptance tests (Integrations)\
+- A pushed item can be answered in Slack and Teams with the same behaviour as in web.\
+\
+------------------------------------\
+9) Non\uc0\u8209 functional needs (from BRD)\
+------------------------------------\
+- Fast: normal page actions under one second.\
+- Reliable: service up at least 99.9% each month.\
+- Scalable: handle thousands of learners per client.\
+- Accessible: modern web accessibility rules.\
+- Simple: works on desktop and mobile browsers.\
+- Intelligent: Interactions should never feel templated or deterministic.\
+\
+------------------------------------\
+10) Error states and empty states\
+------------------------------------\
+- Build: if the agent cannot reach a source, show a clear message and continue with available sources; provide \'93retry\'94 and \'93remove source\'94.\
+- Push: if an audience has no active users, warn before sending.\
+- Learn: if a learner is at the daily cap, say \'93You\'92ve done today\'92s set. Continue?\'94 with a Continue button.\
+- Certified: if a stamp is rejected, show reasons and suggested fixes.\
+\
+------------------------------------\
+11) Copy and tone (examples)\
+------------------------------------\
+- Nudge: \'932\uc0\u8209 minute check\u8209 in ready. Fancy a quick win?\'94\
+- Help reply: \'93Here\'92s a short hint. Want a recap instead?\'94\
+- Progress card: \'93Level 5 (Intermediate) \'95 Streak 3 \'95 Next due Thu 09:00 \'97 Continue | Review weak area\'94\
+- Challenge receipt: \'93Thanks \'97 we\'92ve flagged this for review. You can carry on.\'94\
+\
+------------------------------------\
+12) Out of scope (for now)\
+------------------------------------\
+- Native mobile apps.\
+- Deep links into other company systems beyond Slack and Teams.\
+- Long video hosting (link out is fine).\
+- Full classroom features.\
+\
+------------------------------------\
+13) Release notes anchors (for planning)\
+------------------------------------\
+- R1: Build (prompt\uc0\u8209 to\u8209 module, locks, versions), Push (cap, quiet hours), Learn (progress card), Track (dashboards), Certified (review/stamp), Admin (roles), PDF export.\
+- R2: Directory sync, single sign\uc0\u8209 on, more item shapes, stronger accessibility tools.\
+\
+------------------------------------\
+14) Models & orchestration\
+------------------------------------\
+\
+What we use and why\
+- We use real models for the agent. No pretend intelligence.\
+- We route work to the right model: small and fast for chat and control; top model for drafting; second top model for a quality check.\
+\
+Routing rules\
+- Build (outline, core drafting) \uc0\u8594  top model with citations.\
+- Quality check (facts, citations) \uc0\u8594  different top model; flags block lock until fixed.\
+- Chat and small edits \uc0\u8594  small fast model.\
+- Push and Learn runtime decisions \uc0\u8594  small fast model with back-off if load is high.\
+\
+Safety and guard rails\
+- Respect content rules: only allowed industry sources; blocked terms are enforced.\
+- No exact repeats unless the Module is tagged Compliance Critical.\
+- Personal data kept private; only anonymous patterns are used for long-term optimisation.\
+\
+Cost and speed\
+- Default model choices aim for good speed and low cost in year one.\
+- Cerply Admin can set caps, swap defaults, or fail over if a model is slow or down.\
+\
+Observability\
+- We log model label, time, tokens, and estimated cost per job (no personal data).\
+- Dashboards show latency and error rates so we can tune routing.\
+\
+Acceptance tests (Models)\
+- Drafting runs on a top model and a second top model runs the quality check; failed checks block lock.\
+- A Push and Learn message can still send when a top model is down (fallback to small fast model for routing decisions).\
+- Model logs record label, time, tokens, and estimated cost for each job.\
+\
+End of FSD.\
+}
