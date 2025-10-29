@@ -17,7 +17,7 @@ test.describe('Build - Module Creation (FSD §1)', () => {
 
   test('B01: Create module from prompt with Internal provenance', async ({ page }) => {
     // Given: Manager is on Build page
-    await expect(page.getByText('Chat')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Chat' })).toBeVisible();
     
     // When: Manager enters a prompt
     const chatInput = page.locator('input[placeholder*="message"]');
