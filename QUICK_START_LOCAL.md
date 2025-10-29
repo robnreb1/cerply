@@ -39,33 +39,24 @@ docker exec cerply-pg psql -U cerply -d cerply -c "\dt" | grep module
 
 ---
 
-### 3. Seed Demo Data
+### 3. ⚠️ **IMPORTANT: V2 Backend Integration Status**
 
-```bash
-cd api
+The V2 routes are registered but will encounter runtime errors due to:
+- Missing TypeScript imports (db, services resolve at runtime)
+- Auth middleware needs integration
+- Service dependencies need wiring
 
-# Install dependencies if needed
-npm install
+**Current Status**: 
+- ✅ Database schema ready
+- ✅ Routes registered  
+- ✅ UI components complete
+- ⏳ Backend service integration (Epic G - in progress)
 
-# Run seed script
-DATABASE_URL=postgresql://cerply:cerply@localhost:5432/cerply npm run seed:v2
-```
-
-**Expected output**:
-```
-✅ Demo seed data created successfully!
-📊 Summary:
-  - 1 test organization
-  - 3 test users (1 manager, 2 learners)
-  - 2 company modules (1 locked, 1 draft)
-  - 1 certified module (with stamp)
-  - 1 module assignment
-  - Progress and response data
-```
+**For UAT Testing**: Use the UI components with mock data or wait for full backend integration.
 
 ---
 
-### 4. Start API Server
+### 4. Start API Server (Optional - will have errors)
 
 ```bash
 cd api
@@ -75,13 +66,13 @@ export DATABASE_URL=postgresql://cerply:cerply@localhost:5432/cerply
 export OPENAI_API_KEY=your-key-here  # If you want AI features
 export V2_DEV_MODE=true              # Enables mock auth for testing
 
-# Start server
+# Start server (will log V2 route errors - expected)
 npm run dev
 ```
 
-**Expected output**: `API listening on port 8080`
+**Expected**: Server starts but V2 routes will error on use. This is normal - full integration coming in next phase.
 
-**Test health**: Open http://localhost:8080/api/health
+**Test health**: Open http://localhost:8080/api/health (V1 routes work fine)
 
 ---
 
@@ -105,9 +96,11 @@ npm run dev
 
 ---
 
-### 6. Access V2
+### 6. Access V2 UI
 
 Open your browser to: **http://localhost:3000/v2**
+
+**Note**: The UI will load, but API calls will fail until backend integration is complete. UI components are fully functional for visual review.
 
 ---
 
