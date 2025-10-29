@@ -236,6 +236,10 @@ export async function createApp() {
   // V2.0 Routes - Module-centric AI-first architecture
   app.log.info('[V2] Registering V2 routes...');
   await app.register(async (v2App) => {
+    // Apply V2 auth middleware to all V2 routes
+    const { loadUserContext } = await import('./middleware/auth-v2');
+    v2App.addHook('onRequest', loadUserContext);
+    
     const buildModule = await import('./routes/v2/build');
     const modulesModule = await import('./routes/v2/modules');
     const pushModule = await import('./routes/v2/push');

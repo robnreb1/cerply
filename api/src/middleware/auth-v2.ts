@@ -4,13 +4,9 @@
  */
 
 import { FastifyRequest, FastifyReply } from 'fastify'
-import { getSession, readCookie } from '../session'
-import { db } from '../db'
-import { users } from '../db/schema'
-import { eq } from 'drizzle-orm'
 
 /**
- * Middleware to load user context from session
+ * Middleware to load user context
  * Attaches user object to request.user
  */
 export async function loadUserContext(
@@ -18,64 +14,32 @@ export async function loadUserContext(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    // Try session cookie first (web app)
-    const sessionId = readCookie(request, 'session_id')
-    
-    if (sessionId) {
-      const session = await getSession(sessionId)
-      if (session) {
-        // Load user from session (session would need to store userId)
-        // For now, use a fallback mechanism
-        const userId = (session as any).userId
-        if (userId) {
-          const userRecord = await db
-            .select()
-            .from(users)
-            .where(eq(users.id, userId))
-            .limit(1)
-          
-          if (userRecord.length > 0) {
-            const user = userRecord[0]
-            request.user = {
-              id: user.id,
-              email: user.email,
-              organizationId: user.organizationId,
-              role: (user as any).role || 'learner',
-              name: user.displayName || undefined,
-            }
-            return
-          }
-        }
-      }
-    }
-
     // Try Bearer token (API calls, mobile)
     const authHeader = request.headers.authorization
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
-      // TODO: Implement JWT validation here
-      // For now, mock a user for development
-      if (process.env.NODE_ENV === 'development' && token === 'dev-token') {
+      
+      // For development, accept 'dev-token'
+      if (token === 'dev-token') {
         request.user = {
           id: 'dev-user-123',
           email: 'dev@cerply.com',
           organizationId: 'dev-org-123',
           role: 'admin',
-          name: 'Dev User',
         }
         return
       }
+      
+      // TODO: Implement JWT validation here for production
     }
 
-    // No valid auth found
-    // For V2 development, allow through with a mock user if in dev mode
+    // Development mode: allow through with mock user
     if (process.env.NODE_ENV === 'development' || process.env.V2_DEV_MODE === 'true') {
       request.user = {
         id: 'dev-user-123',
         email: 'dev@cerply.com',
         organizationId: 'dev-org-123',
         role: 'admin',
-        name: 'Dev User',
       }
       return
     }
@@ -122,4 +86,5 @@ export function requireRole(...allowedRoles: string[]) {
     }
   }
 }
+
 
