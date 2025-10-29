@@ -10,8 +10,8 @@
  * - Industry sources (if allowed by org rules - open web)
  */
 
-import { db } from '../db'
-import { contentLibrary, modules, moduleSections } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { contentLibrary, modules, moduleSections } from '../../../drizzle/schema_v2'
 import { eq, and } from 'drizzle-orm'
 
 export enum SourceType {

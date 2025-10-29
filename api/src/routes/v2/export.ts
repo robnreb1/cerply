@@ -18,7 +18,7 @@ import {
   exportPersonDashboardToPDF,
   exportModuleDashboardToPDF,
   type ExportRequest,
-} from '../services/v2/export-service'
+} from '../../services/v2/export-service'
 
 export default async function exportRoutes(fastify: FastifyInstance) {
   /**

@@ -11,8 +11,8 @@
  * - Manage reviewer checklist
  */
 
-import { db } from '../db'
-import { modules, certifiedSubmissions, auditEvents, contentLibrary } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { modules, certifiedSubmissions, auditEvents, contentLibrary } from '../../../drizzle/schema_v2'
 import { eq, and, sql } from 'drizzle-orm'
 
 export interface SubmitForCertificationRequest {

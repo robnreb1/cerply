@@ -11,8 +11,8 @@
  * - Schedule delivery (now or drip)
  */
 
-import { db } from '../db'
-import { moduleAssignments, modules, auditEvents } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { moduleAssignments, modules, auditEvents } from '../../../drizzle/schema_v2'
 import { eq } from 'drizzle-orm'
 
 export interface CreateAssignmentRequest {

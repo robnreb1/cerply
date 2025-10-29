@@ -11,10 +11,10 @@
  */
 
 import { FastifyInstance } from 'fastify'
-import { startBuildSession, draftModuleCore, generateCalibrationItems, detectConflicts } from '../services/v2/build-agent'
-import { runQualityGates } from '../services/v2/quality-gate'
-import { db } from '../db'
-import { modules, contentLibrary, auditEvents, buildSessions } from '../../drizzle/schema_v2'
+import { startBuildSession, draftModuleCore, generateCalibrationItems, detectConflicts } from '../../services/v2/build-agent'
+import { runQualityGates } from '../../services/v2/quality-gate'
+import { db } from '../../db'
+import { modules, contentLibrary, auditEvents, buildSessions } from '../../../drizzle/schema_v2'
 import { eq, and } from 'drizzle-orm'
 
 export default async function buildRoutes(fastify: FastifyInstance) {

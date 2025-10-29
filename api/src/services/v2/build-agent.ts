@@ -22,8 +22,8 @@ import {
   SourceType,
 } from './source-manager'
 import { validateCitations, extractCitations } from './citation-validator'
-import { db } from '../db'
-import { modules, moduleSections, moduleItems, buildSessions } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { modules, moduleSections, moduleItems, buildSessions } from '../../../drizzle/schema_v2'
 import { eq } from 'drizzle-orm'
 
 export interface BuildRequest {

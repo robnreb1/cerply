@@ -14,7 +14,7 @@ import {
   getTeamDashboardData,
   getPersonDashboardData,
   getModuleDashboardData,
-} from '../services/v2/analytics-v2'
+} from '../../services/v2/analytics-v2'
 
 export default async function trackRoutes(fastify: FastifyInstance) {
   /**

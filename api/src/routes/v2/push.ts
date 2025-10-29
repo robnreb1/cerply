@@ -17,10 +17,10 @@ import {
   updateModuleAssignment,
   getModuleAssignments,
   type CreateAssignmentRequest,
-} from '../services/v2/push-service'
-import { sendNudgeToLearner } from '../services/v2/delivery-engine'
-import { db } from '../db'
-import { moduleAssignments, auditEvents } from '../../drizzle/schema_v2'
+} from '../../services/v2/push-service'
+import { sendNudgeToLearner } from '../../services/v2/delivery-engine'
+import { db } from '../../db'
+import { moduleAssignments, auditEvents } from '../../../drizzle/schema_v2'
 import { eq, and } from 'drizzle-orm'
 
 export default async function pushRoutes(fastify: FastifyInstance) {

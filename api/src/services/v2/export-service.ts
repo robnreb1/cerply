@@ -10,8 +10,8 @@
  * - Export dashboards and reports
  */
 
-import { db } from '../db'
-import { modules, moduleSections, moduleItems, contentLibrary } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { modules, moduleSections, moduleItems, contentLibrary } from '../../../drizzle/schema_v2'
 import { eq } from 'drizzle-orm'
 import { getTeamDashboardData, getPersonDashboardData, getModuleDashboardData } from './analytics-v2'
 

@@ -12,8 +12,8 @@
  * - Prioritize recent, weak, or urgent topics
  */
 
-import { db } from '../db'
-import { learnerProgress, learnerResponses, moduleItems, moduleAssignments } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { learnerProgress, learnerResponses, moduleItems, moduleAssignments } from '../../../drizzle/schema_v2'
 import { eq, and, gte, sql } from 'drizzle-orm'
 
 export interface LearnerState {

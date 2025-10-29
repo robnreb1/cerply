@@ -11,12 +11,12 @@
  * - Generate progress cards and nudges
  */
 
-import { db } from '../db'
-import { moduleAssignments, moduleItems, learnerProgress, learnerResponses, auditEvents } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { moduleAssignments, moduleItems, learnerProgress, learnerResponses, auditEvents } from '../../../drizzle/schema_v2'
 import { eq, and, sql, gte } from 'drizzle-orm'
 import { callModel, ModelJobType } from './model-orchestrator'
-import { sendSlackMessage } from '../integrations/slack'
-import { sendTeamsMessage } from '../integrations/teams'
+import { sendSlackMessage } from '../../adapters/slack'
+import { sendTeamsMessage } from '../../adapters/teams'
 
 export interface DeliveryRequest {
   assignmentId: string

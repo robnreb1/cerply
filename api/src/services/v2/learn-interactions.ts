@@ -12,8 +12,8 @@
  * - Detect follow-up questions
  */
 
-import { db } from '../db'
-import { learnerResponses, moduleItems, learnerProgress, auditEvents } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { learnerResponses, moduleItems, learnerProgress, auditEvents } from '../../../drizzle/schema_v2'
 import { eq, and, sql } from 'drizzle-orm'
 import { callModel, ModelJobType } from './model-orchestrator'
 import { adjustDifficulty, planNextSession } from './adaptive-engine-v2'

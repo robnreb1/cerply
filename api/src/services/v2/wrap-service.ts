@@ -10,8 +10,8 @@
  * - Track wrap usage and changes
  */
 
-import { db } from '../db'
-import { modules, moduleSections, contentLibrary, auditEvents } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { modules, moduleSections, contentLibrary, auditEvents } from '../../../drizzle/schema_v2'
 import { eq, and, sql } from 'drizzle-orm'
 
 export interface CreateWrapRequest {

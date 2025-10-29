@@ -13,18 +13,19 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
-import { db } from '../db'
-import { modelLogs } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { modelLogs } from '../../../drizzle/schema_v2'
 import {
-  ModelJobType,
+  modelConfig,
   getModelForJob,
   FAILOVER_CONFIG,
   COST_CONFIG,
   type ModelConfig,
-} from '../config/models'
+  type ModelJobType,
+} from '../../config/models'
 
 // Re-export ModelJobType for other services
-export { ModelJobType } from '../config/models'
+export type { ModelJobType } from '../../config/models'
 
 // Initialize clients
 const openai = new OpenAI({

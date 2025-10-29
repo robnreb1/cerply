@@ -9,7 +9,7 @@
  * - Module view: core freshness, version age, reach, answer rates, time on task, drop-offs, confusing/easy items
  */
 
-import { db } from '../db'
+import { db } from '../../db'
 import {
   learnerProgress,
   learnerResponses,
@@ -19,7 +19,7 @@ import {
   moduleSections,
   users,
   auditEvents,
-} from '../../drizzle/schema_v2'
+} from '../../../drizzle/schema_v2'
 import { eq, and, sql, gte, desc } from 'drizzle-orm'
 
 // ============================================================================

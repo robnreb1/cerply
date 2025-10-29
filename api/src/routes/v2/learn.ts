@@ -21,9 +21,9 @@ import {
   type AnswerSubmission,
   type HelpRequest,
   type ChallengeRequest,
-} from '../services/v2/learn-interactions'
-import { planNextSession } from '../services/v2/adaptive-engine-v2'
-import { getProgressCard } from '../services/v2/delivery-engine'
+} from '../../services/v2/learn-interactions'
+import { planNextSession } from '../../services/v2/adaptive-engine-v2'
+import { getProgressCard } from '../../services/v2/delivery-engine'
 
 export default async function learnRoutes(fastify: FastifyInstance) {
   /**

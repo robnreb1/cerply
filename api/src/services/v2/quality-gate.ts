@@ -13,8 +13,8 @@
  * 7. Sign-posting: clear provenance badges
  */
 
-import { db } from '../db'
-import { modules, moduleSections, moduleItems } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { modules, moduleSections, moduleItems } from '../../../drizzle/schema_v2'
 import { eq } from 'drizzle-orm'
 import { validateCitations, extractCitations, validateCitationSufficiency } from './citation-validator'
 import { callModel, ModelJobType } from './model-orchestrator'

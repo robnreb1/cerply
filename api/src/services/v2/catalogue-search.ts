@@ -10,8 +10,8 @@
  * - Track usage statistics
  */
 
-import { db } from '../db'
-import { modules, moduleSections, moduleAssignments, contentLibrary } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { modules, moduleSections, moduleAssignments, contentLibrary } from '../../../drizzle/schema_v2'
 import { eq, and, sql, like, or, desc } from 'drizzle-orm'
 
 export interface CatalogueSearchRequest {

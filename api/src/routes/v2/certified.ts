@@ -27,18 +27,18 @@ import {
   getReviewChecklist,
   getAllCertificationSubmissions,
   getCertificationSubmission,
-} from '../services/v2/certified-service'
+} from '../../services/v2/certified-service'
 import {
   searchCertifiedCatalogue,
   getCertifiedModuleById,
   getFeaturedCertifiedModules,
-} from '../services/v2/catalogue-search'
+} from '../../services/v2/catalogue-search'
 import {
   createModuleWrap,
   updateModuleWrap,
   removeModuleWrap,
   getWrapInfo,
-} from '../services/v2/wrap-service'
+} from '../../services/v2/wrap-service'
 
 export default async function certifiedRoutes(fastify: FastifyInstance) {
   /**

@@ -10,9 +10,9 @@
  */
 
 import { FastifyInstance } from 'fastify'
-import { deliverItemToLearner, type DeliveryRequest } from '../services/v2/delivery-engine'
-import { db } from '../db'
-import { auditEvents } from '../../drizzle/schema_v2'
+import { deliverItemToLearner, type DeliveryRequest } from '../../services/v2/delivery-engine'
+import { db } from '../../db'
+import { auditEvents } from '../../../drizzle/schema_v2'
 import { eq, and, sql } from 'drizzle-orm'
 
 export default async function deliveryRoutes(fastify: FastifyInstance) {

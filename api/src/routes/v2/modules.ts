@@ -12,8 +12,8 @@
  */
 
 import { FastifyInstance } from 'fastify'
-import { db } from '../db'
-import { modules, moduleSections, moduleItems, contentLibrary, auditEvents } from '../../drizzle/schema_v2'
+import { db } from '../../db'
+import { modules, moduleSections, moduleItems, contentLibrary, auditEvents } from '../../../drizzle/schema_v2'
 import { eq, and } from 'drizzle-orm'
 
 export default async function modulesRoutes(fastify: FastifyInstance) {
