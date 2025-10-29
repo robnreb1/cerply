@@ -15,7 +15,56 @@ Keyboard shortcuts:
 
 Persistence: localStorage key `cert:plan:{hash(topic,level,goals)}`
 
-# Cerply v4.1 — Curator + Adaptive + Trust Labels + Analytics
+# Cerply V2.0 — Module-Centric AI-First Learning Platform
+
+[![MVP Traceability](https://img.shields.io/badge/MVP_Traceability-View-blue)](docs/status/traceability-dashboard.md)
+[![V2.0 Status](https://img.shields.io/badge/V2.0-Ready_for_UAT-green)](docs/UAT_GUIDE.md)
+
+## 🚀 V2.0 Quick Start
+
+Cerply V2.0 is a complete rebuild focusing on AI-first module creation, adaptive learning, and comprehensive analytics.
+
+### Core Features
+- **Build**: Create learning modules via conversational AI (3-pane Cursor-inspired workspace)
+- **Push**: Assign modules with smart targeting and scheduling
+- **Learn**: Adaptive learning with Help/Challenge actions
+- **Track**: Team, person, and module-level analytics
+- **Certified**: Expert-stamped module catalogue
+
+### Quick Start (Local Development)
+
+```bash
+# 1. Setup database
+docker compose up -d db
+cd api && npm run migrate  # Runs V2 migration (031_v2_pivot_schema.sql)
+
+# 2. Seed demo data
+npm run seed:v2  # Creates test org, 3 users, 2 modules, progress data
+
+# 3. Start services
+cd .. && docker compose up -d --build api web
+
+# 4. Access V2
+open http://localhost:3000/v2
+```
+
+### Demo Credentials
+- **Manager**: `manager@demo.cerply.com` / `demo2025`
+- **Learner 1**: `learner1@demo.cerply.com` / `demo2025`
+- **Learner 2**: `learner2@demo.cerply.com` / `demo2025`
+
+### V2 Documentation
+- 📘 [UAT Guide](docs/UAT_GUIDE.md) - Comprehensive testing scenarios
+- 🔌 [API Reference](docs/API_REFERENCE.md) - All V2 endpoints
+- 🚀 [Deployment Guide](docs/DEPLOYMENT.md) - Staging & production setup
+- 📝 [FSD v2](docs/refactor/FSD v2.rtf) - Functional specification
+- 📊 [BRD v2](docs/refactor/BRD v2.rtf) - Business requirements
+
+---
+
+# Legacy v4.1 — Curator + Adaptive + Trust Labels + Analytics
+
+> **Note**: V4.1 features are still accessible but V2.0 is the recommended path forward.
 
 [![MVP Traceability](https://img.shields.io/badge/MVP_Traceability-View-blue)](docs/status/traceability-dashboard.md)
 
