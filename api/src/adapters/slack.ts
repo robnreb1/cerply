@@ -10,19 +10,25 @@ import crypto from 'crypto';
 const SLACK_API_BASE = 'https://slack.com/api';
 
 /**
- * Send a lesson question to Slack DM
+ * Send a learning item to Slack DM (V2.0)
  * @param slackUserId - Slack user ID (e.g., "U123456")
  * @param botToken - Slack bot token (from channels.config)
- * @param question - Question object { text, options, questionId }
+ * @param item - Learning item { question, options, itemId, itemType, explanation }
  * @returns { messageId, deliveredAt }
  */
 export async function sendSlackMessage(
   slackUserId: string,
   botToken: string,
-  question: { text: string; options: string[]; questionId: string; explanation?: string }
+  item: {
+    question: string
+    options?: string[]
+    itemId: string
+    itemType: 'multiple_choice' | 'free_text' | 'true_false'
+    explanation?: string
+  }
 ): Promise<{ messageId: string; deliveredAt: Date }> {
-  // Format question as Block Kit
-  const blocks = formatQuestionAsBlockKit(question.text, question.options, question.questionId);
+  // Format item as Block Kit
+  const blocks = formatItemAsBlockKit(item)
 
   // Send to Slack
   const response = await fetch(`${SLACK_API_BASE}/chat.postMessage`, {
@@ -34,7 +40,7 @@ export async function sendSlackMessage(
     body: JSON.stringify({
       channel: slackUserId, // DM to user
       blocks,
-      text: question.text, // Fallback for notifications
+      text: item.question, // Fallback for notifications
     }),
   });
 
@@ -51,39 +57,142 @@ export async function sendSlackMessage(
 }
 
 /**
- * Format question as Slack Block Kit JSON
- * @param question - Question text
- * @param options - Array of answer options (e.g., ["A. Raise alarm", "B. Ignore"])
- * @param questionId - Question ID for tracking
+ * Format learning item as Slack Block Kit JSON (V2.0)
+ * @param item - Learning item with question, options, itemId, itemType
  * @returns Block Kit JSON array
  */
-export function formatQuestionAsBlockKit(
-  question: string,
-  options: string[],
-  questionId: string
-): any[] {
-  return [
+export function formatItemAsBlockKit(item: {
+  question: string
+  options?: string[]
+  itemId: string
+  itemType: 'multiple_choice' | 'free_text' | 'true_false'
+}): any[] {
+  const blocks: any[] = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: '📚 Learning Question',
+        emoji: true,
+      },
+    },
     {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*Question:*\n${question}`,
+        text: item.question,
       },
     },
-    {
-      type: 'actions',
-      block_id: questionId,
-      elements: options.map((option, idx) => ({
+  ]
+
+  // Add answer buttons based on item type
+  const answerElements: any[] = []
+
+  if (item.itemType === 'multiple_choice' && item.options) {
+    answerElements.push(
+      ...item.options.map((option, idx) => ({
         type: 'button',
         text: {
           type: 'plain_text',
           text: option.substring(0, 75), // Slack limit: 75 chars
         },
-        action_id: `answer_${idx}`, // Unique action ID per button
-        value: `option_${String.fromCharCode(97 + idx)}`, // option_a, option_b, etc.
-      })),
-    },
-  ];
+        action_id: `answer_${idx}`,
+        value: `${item.itemId}:${String.fromCharCode(97 + idx)}`, // itemId:a, itemId:b, etc.
+        style: 'primary',
+      }))
+    )
+  } else if (item.itemType === 'true_false') {
+    answerElements.push(
+      {
+        type: 'button',
+        text: {
+          type: 'plain_text',
+          text: '✓ True',
+        },
+        action_id: 'answer_true',
+        value: `${item.itemId}:true`,
+        style: 'primary',
+      },
+      {
+        type: 'button',
+        text: {
+          type: 'plain_text',
+          text: '✗ False',
+        },
+        action_id: 'answer_false',
+        value: `${item.itemId}:false`,
+        style: 'danger',
+      }
+    )
+  } else if (item.itemType === 'free_text') {
+    // For free text, add input block
+    blocks.push({
+      type: 'input',
+      block_id: `input_${item.itemId}`,
+      element: {
+        type: 'plain_text_input',
+        action_id: 'free_text_answer',
+        multiline: true,
+        placeholder: {
+          type: 'plain_text',
+          text: 'Type your answer here...',
+        },
+      },
+      label: {
+        type: 'plain_text',
+        text: 'Your Answer',
+      },
+    })
+    answerElements.push({
+      type: 'button',
+      text: {
+        type: 'plain_text',
+        text: 'Submit Answer',
+      },
+      action_id: 'submit_free_text',
+      value: item.itemId,
+      style: 'primary',
+    })
+  }
+
+  // Add answer buttons block
+  if (answerElements.length > 0) {
+    blocks.push({
+      type: 'actions',
+      block_id: `answers_${item.itemId}`,
+      elements: answerElements,
+    })
+  }
+
+  // Add Help and Challenge buttons
+  blocks.push({
+    type: 'actions',
+    block_id: `actions_${item.itemId}`,
+    elements: [
+      {
+        type: 'button',
+        text: {
+          type: 'plain_text',
+          text: '💡 Help',
+          emoji: true,
+        },
+        action_id: 'help',
+        value: item.itemId,
+      },
+      {
+        type: 'button',
+        text: {
+          type: 'plain_text',
+          text: '🔥 Challenge Me',
+          emoji: true,
+        },
+        action_id: 'challenge',
+        value: item.itemId,
+      },
+    ],
+  })
+
+  return blocks
 }
 
 /**
@@ -163,8 +272,71 @@ export async function sendSlackFeedback(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      text: `${emoji} ${prefix} ${explanation}`,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*${emoji} ${prefix}*\n${explanation}`,
+          },
+        },
+      ],
       replace_original: false, // Don't replace question, append feedback
+    }),
+  });
+}
+
+/**
+ * Send nudge/reminder to Slack
+ * @param slackUserId - Slack user ID
+ * @param botToken - Slack bot token
+ * @param message - Nudge message
+ */
+export async function sendSlackNudge(
+  slackUserId: string,
+  botToken: string,
+  message: string
+): Promise<void> {
+  await fetch(`${SLACK_API_BASE}/chat.postMessage`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${botToken}`,
+    },
+    body: JSON.stringify({
+      channel: slackUserId,
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: '🔔 Reminder',
+            emoji: true,
+          },
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: message,
+          },
+        },
+        {
+          type: 'actions',
+          elements: [
+            {
+              type: 'button',
+              text: {
+                type: 'plain_text',
+                text: 'Continue Learning',
+              },
+              url: process.env.WEB_URL || 'https://app.cerply.com',
+              action_id: 'continue_learning',
+            },
+          ],
+        },
+      ],
+      text: message, // Fallback
     }),
   });
 }
