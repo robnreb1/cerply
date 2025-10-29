@@ -5,7 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Functional acceptance tests based on BRD v2 + FSD v2
  */
 export default defineConfig({
-  testDir: './tests/uat/specs',
+  testDir: './specs',  // Relative to config file location (tests/uat/)
   fullyParallel: false, // Run sequentially to avoid DB conflicts
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
