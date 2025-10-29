@@ -19,11 +19,21 @@
     "smoke:prod": "bash scripts/smoke-prod.sh",
     "traceability:check": "tsx scripts/traceability_check.ts",
     "traceability:report": "tsx scripts/traceability_check.ts --report docs/status/traceability-dashboard.md",
-    "lint:conversational-copy": "tsx scripts/lint-conversational-copy.ts"
+    "lint:conversational-copy": "tsx scripts/lint-conversational-copy.ts",
+    "uat": "playwright test -c tests/uat/playwright.config.ts",
+    "uat:headed": "playwright test -c tests/uat/playwright.config.ts --headed",
+    "uat:debug": "playwright test -c tests/uat/playwright.config.ts --debug",
+    "uat:report": "tsx tests/uat/generate-summary.ts",
+    "uat:stubs": "concurrently -k \"tsx tests/uat/stubs/slack.ts\" \"tsx tests/uat/stubs/teams.ts\"",
+    "uat:seed": "tsx tests/uat/fixtures/seed.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@playwright/test": "^1.56.1",
     "@types/node": "^20.19.19",
     "concurrently": "^8.2.2",
+    "dayjs": "^1.11.18",
+    "pdf-parse": "^2.4.5",
     "ts-node": "^10.9.2",
     "tsx": "^4.7.0",
     "typescript": "^5.9.3"
