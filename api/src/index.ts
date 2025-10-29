@@ -233,6 +233,29 @@ export async function createApp() {
   // M3 API Surface routes (preview, generate, score, daily, schedule, progress)
   await safeRegister('./routes/m3', ['registerM3Routes']);
 
+  // V2.0 Routes - Module-centric AI-first architecture
+  app.log.info('[V2] Registering V2 routes...');
+  await app.register(async (v2App) => {
+    const buildModule = await import('./routes/v2/build');
+    const modulesModule = await import('./routes/v2/modules');
+    const pushModule = await import('./routes/v2/push');
+    const learnModule = await import('./routes/v2/learn');
+    const deliveryModule = await import('./routes/v2/delivery');
+    const trackModule = await import('./routes/v2/track');
+    const exportModule = await import('./routes/v2/export');
+    const certifiedModule = await import('./routes/v2/certified');
+
+    if (buildModule.default) await v2App.register(buildModule.default);
+    if (modulesModule.default) await v2App.register(modulesModule.default);
+    if (pushModule.default) await v2App.register(pushModule.default);
+    if (learnModule.default) await v2App.register(learnModule.default);
+    if (deliveryModule.default) await v2App.register(deliveryModule.default);
+    if (trackModule.default) await v2App.register(trackModule.default);
+    if (exportModule.default) await v2App.register(exportModule.default);
+    if (certifiedModule.default) await v2App.register(certifiedModule.default);
+  }, { prefix: '/api/v2' });
+  app.log.info('[V2] V2 routes registration complete');
+
   // TEMP: expose route tree + commit for staging debug
   app.get('/__debug/routes', { config: { public: true } }, async (_req, reply) => {
     const commit = process.env.RENDER_GIT_COMMIT || process.env.VERCEL_GIT_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
