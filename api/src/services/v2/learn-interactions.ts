@@ -368,7 +368,7 @@ Return a brief, encouraging ${request.helpType} that guides the learner toward t
     if (nextSession.items.length > 0) {
       return {
         itemId: nextSession.items[0].id,
-        rationale: 'Here's a good challenge for you!',
+        rationale: 'Here is a good challenge for you!',
       }
     }
 
