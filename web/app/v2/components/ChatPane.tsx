@@ -1,11 +1,4 @@
-'use client'
-
-/**
- * Chat Pane - Left panel for Build workspace
- * Handles prompt input and chat interactions
- */
-
-import { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 
 interface ChatPaneProps {
   moduleId: string | null
@@ -13,178 +6,125 @@ interface ChatPaneProps {
   isLocked: boolean
 }
 
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: Date
-}
-
 export function ChatPane({ moduleId, onModuleCreated, isLocked }: ChatPaneProps) {
-  const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<Message[]>([])
+  const [message, setMessage] = useState('')
+  const [chatHistory, setChatHistory] = useState<{ sender: string; text: string }[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  const handleSendMessage = async () => {
+    if (!message.trim() || isLocked) return
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return
-
-    const userMessage: Message = {
-      role: 'user',
-      content: input,
-      timestamp: new Date(),
-    }
-    setMessages((prev) => [...prev, userMessage])
-    setInput('')
+    const userMessage = message
+    setMessage('')
+    setChatHistory((prev) => [...prev, { sender: 'user', text: userMessage }])
     setIsLoading(true)
 
     try {
-      if (!moduleId) {
-        // Start new module
-        const response = await fetch('/api/v2/build/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: input }),
-        })
+      // Call backend API
+      const response = await fetch('/api/v2/build/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          moduleId,
+          message: userMessage,
+          action: moduleId ? 'refine' : 'create',
+        }),
+      })
 
-        if (response.ok) {
-          const data = await response.json()
+      const data = await response.json()
+
+      if (response.ok) {
+        setChatHistory((prev) => [...prev, { sender: 'ai', text: data.reply }])
+        if (data.moduleId && !moduleId) {
           onModuleCreated(data.moduleId)
-
-          const assistantMessage: Message = {
-            role: 'assistant',
-            content: data.message || 'Module created! Let me generate the content...',
-            timestamp: new Date(),
-          }
-          setMessages((prev) => [...prev, assistantMessage])
         }
       } else {
-        // Continue chat
-        const response = await fetch('/api/v2/build/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ moduleId, message: input }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          const assistantMessage: Message = {
-            role: 'assistant',
-            content: data.response || 'Updated!',
-            timestamp: new Date(),
-          }
-          setMessages((prev) => [...prev, assistantMessage])
-        }
+        setChatHistory((prev) => [
+          ...prev,
+          { sender: 'ai', text: `Error: ${data.error || 'Failed to process request'}` },
+        ])
       }
     } catch (error) {
-      console.error('Failed to send message:', error)
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: 'Sorry, something went wrong. Please try again.',
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errorMessage])
+      console.error('Chat error:', error)
+      setChatHistory((prev) => [
+        ...prev,
+        { sender: 'ai', text: 'Error: Unable to connect to backend. Please ensure the API is running.' },
+      ])
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <>
-      {/* Chat Header */}
-      <div className="p-4 border-b border-gray-200">
-        <h2 className="text-sm font-semibold text-gray-900">Chat with Cerply AI</h2>
-        <p className="text-xs text-gray-500 mt-1">
-          {moduleId ? 'Refine your module' : 'Describe what you want to build'}
-        </p>
+    <div className="flex h-full flex-col">
+      {/* Chat header */}
+      <div className="flex-shrink-0 px-4 py-3 border-b border-[#2d2d2d]">
+        <h2 className="text-sm font-medium text-gray-300">Chat</h2>
+        <p className="text-xs text-gray-500 mt-0.5">Describe your module to get started</p>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
+      {/* Chat messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        {chatHistory.length === 0 ? (
           <div className="text-center py-8">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
-              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            </div>
-            <p className="text-sm text-gray-600 font-medium">Ready to build</p>
-            <p className="text-xs text-gray-400 mt-1 px-4">
-              Start by describing your learning goal or tell me what you want to teach
-            </p>
+            <svg className="w-12 h-12 mx-auto text-gray-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            <p className="text-sm text-gray-500">Start a conversation to build your module</p>
           </div>
+        ) : (
+          chatHistory.map((msg, index) => (
+            <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
+                  msg.sender === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#2d2d2d] text-gray-200 border border-[#3d3d3d]'
+                }`}
+              >
+                {msg.text}
+              </div>
+            </div>
+          ))
         )}
-
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${
-                msg.role === 'user'
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-900'
-              }`}
-            >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
-              <p className={`text-xs mt-1 ${msg.role === 'user' ? 'text-gray-400' : 'text-gray-500'}`}>
-                {msg.timestamp.toLocaleTimeString()}
-              </p>
-            </div>
-          </div>
-        ))}
-
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-lg px-4 py-3">
+            <div className="bg-[#2d2d2d] border border-[#3d3d3d] rounded-lg px-3 py-2">
               <div className="flex items-center gap-2">
-                <div className="animate-bounce">●</div>
-                <div className="animate-bounce" style={{ animationDelay: '0.2s' }}>●</div>
-                <div className="animate-bounce" style={{ animationDelay: '0.4s' }}>●</div>
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div>
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-75"></div>
+                <div className="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-150"></div>
               </div>
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="p-4 border-t border-gray-200">
-        {isLocked ? (
-          <div className="text-center py-4 text-sm text-gray-500">
-            Module is locked. Unlock to make changes.
-          </div>
-        ) : (
-          <div className="flex gap-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSend()
-                }
-              }}
-              placeholder={moduleId ? 'Type your refinement...' : 'Describe what you want to build...'}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none text-sm"
-              rows={3}
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSend}
-              disabled={!input.trim() || isLoading}
-              className="px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-300 transition-colors text-sm font-medium"
-            >
-              {isLoading ? '...' : 'Send'}
-            </button>
-          </div>
-        )}
+      {/* Chat input */}
+      <div className="flex-shrink-0 p-3 border-t border-[#2d2d2d]">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder={isLocked ? 'Module is locked' : 'Type your message...'}
+            className="flex-1 bg-[#2d2d2d] border border-[#3d3d3d] rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && !isLocked && !isLoading) {
+                handleSendMessage()
+              }
+            }}
+            disabled={isLocked || isLoading}
+          />
+          <button
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+            onClick={handleSendMessage}
+            disabled={isLocked || isLoading || !message.trim()}
+          >
+            Send
+          </button>
+        </div>
       </div>
-    </>
+    </div>
   )
 }
