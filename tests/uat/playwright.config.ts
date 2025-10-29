@@ -40,7 +40,8 @@ export default defineConfig({
 
   // Start dev server if not already running
   webServer: process.env.SKIP_WEBSERVER ? undefined : {
-    command: 'cd web && npm run dev',
+    command: 'npm -w web run dev',
+    cwd: '../../', // Run from project root
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
