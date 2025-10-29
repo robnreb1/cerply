@@ -1,30 +1,31 @@
-<testsuites id="" name="" tests="15" failures="11" skipped="0" errors="0" time="401.306885">
-<testsuite name="build.spec.ts" timestamp="2025-10-29T20:16:15.103Z" hostname="chromium" tests="5" failures="5" skipped="0" time="25.011" errors="0">
-<testcase name="Build - Module Creation (FSD §1) › B01: Create module from prompt with Internal provenance" classname="build.spec.ts" time="1.049">
+<testsuites id="" name="" tests="15" failures="8" skipped="0" errors="0" time="36.75126">
+<testsuite name="build.spec.ts" timestamp="2025-10-29T20:39:26.419Z" hostname="chromium" tests="5" failures="4" skipped="0" time="20.676" errors="0">
+<testcase name="Build - Module Creation (FSD §1) › B01: Create module from prompt with Internal provenance" classname="build.spec.ts" time="0.677">
 <failure message="build.spec.ts:18:7 B01: Create module from prompt with Internal provenance" type="FAILURE">
 <![CDATA[  [chromium] › build.spec.ts:18:7 › Build - Module Creation (FSD §1) › B01: Create module from prompt with Internal provenance 
 
     Error: expect(locator).toBeVisible() failed
 
-    Locator: getByText('Chat')
+    Locator: locator('.animate-pulse')
     Expected: visible
-    Error: strict mode violation: getByText('Chat') resolved to 2 elements:
-        1) <h2 class="text-sm font-medium text-gray-300">Chat</h2> aka getByRole('heading', { name: 'Chat' })
-        2) <p class="text-xs text-gray-600">Start a conversation in the chat to create a new …</p> aka getByText('Start a conversation in the')
+    Error: strict mode violation: locator('.animate-pulse') resolved to 3 elements:
+        1) <div class="w-2 h-2 bg-gray-500 rounded-full animate-pulse"></div> aka locator('.w-2').first()
+        2) <div class="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-75"></div> aka locator('.w-2.h-2.bg-gray-500.rounded-full.animate-pulse.delay-75')
+        3) <div class="w-2 h-2 bg-gray-500 rounded-full animate-pulse delay-150"></div> aka locator('.w-2.h-2.bg-gray-500.rounded-full.animate-pulse.delay-150')
 
     Call log:
-      - Expect "toBeVisible" with timeout 5000ms
-      - waiting for getByText('Chat')
+      - Expect "toBeVisible" with timeout 2000ms
+      - waiting for locator('.animate-pulse')
 
 
-      18 |   test('B01: Create module from prompt with Internal provenance', async ({ page }) => {
-      19 |     // Given: Manager is on Build page
-    > 20 |     await expect(page.getByText('Chat')).toBeVisible();
-         |                                          ^
-      21 |     
-      22 |     // When: Manager enters a prompt
-      23 |     const chatInput = page.locator('input[placeholder*="message"]');
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:20:42
+      26 |     
+      27 |     // Then: Module is created
+    > 28 |     await expect(page.locator('.animate-pulse')).toBeVisible({ timeout: 2000 }); // Loading indicator
+         |                                                  ^
+      29 |     await expect(page.getByText(/Module created/i)).toBeVisible({ timeout: 10000 });
+      30 |     
+      31 |     // And: Module ID is shown in header
+        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:28:50
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     ../../../test-results/build-Build---Module-Creat-a66fa-pt-with-Internal-provenance-chromium/test-failed-1.png
@@ -47,7 +48,7 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › B02: Merge prompt + upload (placeholder)" classname="build.spec.ts" time="7.604">
+<testcase name="Build - Module Creation (FSD §1) › B02: Merge prompt + upload (placeholder)" classname="build.spec.ts" time="7.591">
 <failure message="build.spec.ts:43:7 B02: Merge prompt + upload (placeholder)" type="FAILURE">
 <![CDATA[  [chromium] › build.spec.ts:43:7 › Build - Module Creation (FSD §1) › B02: Merge prompt + upload (placeholder) 
 
@@ -93,74 +94,32 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › B03: Provenance badges visible to manager in Content pane" classname="build.spec.ts" time="5.454">
-<failure message="build.spec.ts:59:7 B03: Provenance badges visible to manager in Content pane" type="FAILURE">
-<![CDATA[  [chromium] › build.spec.ts:59:7 › Build - Module Creation (FSD §1) › B03: Provenance badges visible to manager in Content pane 
-
-    Error: expect(page).toHaveURL(expected) failed
-
-    Expected pattern: /\/v2\/build/
-    Received string:  "http://localhost:3000/v2"
-    Timeout: 5000ms
-
-    Call log:
-      - Expect "toHaveURL" with timeout 5000ms
-        9 × unexpected value "http://localhost:3000/v2"
-
-
-      13 |     
-      14 |     // Should redirect to /v2/build
-    > 15 |     await expect(page).toHaveURL(/\/v2\/build/);
-         |                        ^
-      16 |   });
-      17 |
-      18 |   test('B01: Create module from prompt with Internal provenance', async ({ page }) => {
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:15:24
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-a3bae--to-manager-in-Content-pane-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-a3bae--to-manager-in-Content-pane-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../../../test-results/build-Build---Module-Creat-a3bae--to-manager-in-Content-pane-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-a3bae--to-manager-in-Content-pane-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-a3bae--to-manager-in-Content-pane-chromium/video.webm]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-a3bae--to-manager-in-Content-pane-chromium/error-context.md]]
-]]>
-</system-out>
+<testcase name="Build - Module Creation (FSD §1) › B03: Provenance badges visible to manager in Content pane" classname="build.spec.ts" time="3.479">
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › B04: Lock button visible and functional" classname="build.spec.ts" time="5.452">
+<testcase name="Build - Module Creation (FSD §1) › B04: Lock button visible and functional" classname="build.spec.ts" time="8.596">
 <failure message="build.spec.ts:84:7 B04: Lock button visible and functional" type="FAILURE">
 <![CDATA[  [chromium] › build.spec.ts:84:7 › Build - Module Creation (FSD §1) › B04: Lock button visible and functional 
 
-    Error: expect(page).toHaveURL(expected) failed
+    Error: expect(locator).toBeVisible() failed
 
-    Expected pattern: /\/v2\/build/
-    Received string:  "http://localhost:3000/v2"
+    Locator: getByRole('button', { name: /Lock/i })
+    Expected: visible
     Timeout: 5000ms
+    Error: element(s) not found
 
     Call log:
-      - Expect "toHaveURL" with timeout 5000ms
-        9 × unexpected value "http://localhost:3000/v2"
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByRole('button', { name: /Lock/i })
 
 
-      13 |     
-      14 |     // Should redirect to /v2/build
-    > 15 |     await expect(page).toHaveURL(/\/v2\/build/);
-         |                        ^
-      16 |   });
-      17 |
-      18 |   test('B01: Create module from prompt with Internal provenance', async ({ page }) => {
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:15:24
+      94 |     
+      95 |     // Then: Lock button is visible
+    > 96 |     await expect(lockButton).toBeVisible();
+         |                              ^
+      97 |     
+      98 |     // And: Can be clicked (actual locking tested separately)
+      99 |     await expect(lockButton).toBeEnabled();
+        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:96:30
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     ../../../test-results/build-Build---Module-Creat-ad52c-tton-visible-and-functional-chromium/test-failed-1.png
@@ -183,29 +142,20 @@
 ]]>
 </system-out>
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › A11y: Build page has no critical violations" classname="build.spec.ts" time="5.452">
+<testcase name="Build - Module Creation (FSD §1) › A11y: Build page has no critical violations" classname="build.spec.ts" time="0.333">
 <failure message="build.spec.ts:102:7 A11y: Build page has no critical violations" type="FAILURE">
 <![CDATA[  [chromium] › build.spec.ts:102:7 › Build - Module Creation (FSD §1) › A11y: Build page has no critical violations 
 
-    Error: expect(page).toHaveURL(expected) failed
+    TypeError: (0 , _playwright.injectAxe) is not a function
 
-    Expected pattern: /\/v2\/build/
-    Received string:  "http://localhost:3000/v2"
-    Timeout: 5000ms
-
-    Call log:
-      - Expect "toHaveURL" with timeout 5000ms
-        9 × unexpected value "http://localhost:3000/v2"
-
-
-      13 |     
-      14 |     // Should redirect to /v2/build
-    > 15 |     await expect(page).toHaveURL(/\/v2\/build/);
-         |                        ^
-      16 |   });
-      17 |
-      18 |   test('B01: Create module from prompt with Internal provenance', async ({ page }) => {
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:15:24
+      102 |   test('A11y: Build page has no critical violations', async ({ page }) => {
+      103 |     // Inject axe for accessibility testing
+    > 104 |     await injectAxe(page);
+          |                    ^
+      105 |     
+      106 |     // Check for accessibility violations
+      107 |     await checkA11y(page, undefined, {
+        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:104:20
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     ../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/test-failed-1.png
@@ -229,8 +179,8 @@
 </system-out>
 </testcase>
 </testsuite>
-<testsuite name="provenance-visibility.spec.ts" timestamp="2025-10-29T20:16:15.103Z" hostname="chromium" tests="5" failures="3" skipped="0" time="184.546" errors="0">
-<testcase name="Provenance Visibility (FSD §7) › L05: Learner NEVER sees provenance badges anywhere" classname="provenance-visibility.spec.ts" time="0.865">
+<testsuite name="provenance-visibility.spec.ts" timestamp="2025-10-29T20:39:26.419Z" hostname="chromium" tests="5" failures="1" skipped="0" time="8.761" errors="0">
+<testcase name="Provenance Visibility (FSD §7) › L05: Learner NEVER sees provenance badges anywhere" classname="provenance-visibility.spec.ts" time="0.777">
 <system-out>
 <![CDATA[Checking for "Internal": 0 found
 Checking for "Certified Core": 0 found
@@ -239,108 +189,49 @@ Checking for "Cerply templates": 0 found
 Checking for "provenance:": 0 found
 ]]>
 </system-out>
-</testcase>
-<testcase name="Provenance Visibility (FSD §7) › Manager sees provenance badges in Build Content pane" classname="provenance-visibility.spec.ts" time="61.114">
-<failure message="provenance-visibility.spec.ts:48:7 Manager sees provenance badges in Build Content pane" type="FAILURE">
-<![CDATA[  [chromium] › provenance-visibility.spec.ts:48:7 › Provenance Visibility (FSD §7) › Manager sees provenance badges in Build Content pane 
-
-    Test timeout of 60000ms exceeded.
-
-    Error: locator.fill: Test timeout of 60000ms exceeded.
-    Call log:
-      - waiting for locator('input[placeholder*="message"]')
-
-
-      52 |     // When: Module content is loaded (create or load existing)
-      53 |     const chatInput = page.locator('input[placeholder*="message"]');
-    > 54 |     await chatInput.fill('Show me a module with provenance');
-         |                     ^
-      55 |     await page.getByRole('button', { name: 'Send' }).click();
-      56 |     
-      57 |     await page.waitForTimeout(3000);
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/provenance-visibility.spec.ts:54:21
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    ../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    ../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/error-context.md
+<system-err>
+<![CDATA[(node:36111) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
 ]]>
-</failure>
+</system-err>
+</testcase>
+<testcase name="Provenance Visibility (FSD §7) › Manager sees provenance badges in Build Content pane" classname="provenance-visibility.spec.ts" time="3.436">
 <system-out>
-<![CDATA[
-[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/video.webm]]
-
-[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-82691-adges-in-Build-Content-pane-chromium/error-context.md]]
+<![CDATA[Badge-like elements found: 0
 ]]>
 </system-out>
 </testcase>
-<testcase name="Provenance Visibility (FSD §7) › Provenance in Track dashboard (manager)" classname="provenance-visibility.spec.ts" time="61.113">
-<failure message="provenance-visibility.spec.ts:73:7 Provenance in Track dashboard (manager)" type="FAILURE">
-<![CDATA[  [chromium] › provenance-visibility.spec.ts:73:7 › Provenance Visibility (FSD §7) › Provenance in Track dashboard (manager) 
-
-    Test timeout of 60000ms exceeded.
-
-    Error: locator.click: Test timeout of 60000ms exceeded.
-    Call log:
-      - waiting for getByRole('link', { name: 'Track' })
-
-
-      74 |     // Given: Manager navigates to Track
-      75 |     await page.goto('/v2');
-    > 76 |     await page.getByRole('link', { name: 'Track' }).click();
-         |                                                     ^
-      77 |     
-      78 |     // When: Dashboard loads
-      79 |     await expect(page).toHaveURL(/\/track/);
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/provenance-visibility.spec.ts:76:53
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    ../../../test-results/provenance-visibility-Prov-f5e08-in-Track-dashboard-manager--chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    ../../../test-results/provenance-visibility-Prov-f5e08-in-Track-dashboard-manager--chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../../../test-results/provenance-visibility-Prov-f5e08-in-Track-dashboard-manager--chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-f5e08-in-Track-dashboard-manager--chromium/test-failed-1.png]]
-
-[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-f5e08-in-Track-dashboard-manager--chromium/video.webm]]
-
-[[ATTACHMENT|../../../test-results/provenance-visibility-Prov-f5e08-in-Track-dashboard-manager--chromium/error-context.md]]
-]]>
-</system-out>
+<testcase name="Provenance Visibility (FSD §7) › Provenance in Track dashboard (manager)" classname="provenance-visibility.spec.ts" time="0.762">
 </testcase>
-<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Storage routing: Client content stored in Client Library" classname="provenance-visibility.spec.ts" time="61.109">
+<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Storage routing: Client content stored in Client Library" classname="provenance-visibility.spec.ts" time="3.486">
 <failure message="provenance-visibility.spec.ts:88:7 Storage routing: Client content stored in Client Library" type="FAILURE">
 <![CDATA[  [chromium] › provenance-visibility.spec.ts:88:7 › Provenance Enforcement Rules (FSD §1, §7) › Storage routing: Client content stored in Client Library 
 
-    Test timeout of 60000ms exceeded.
+    Error: expect(locator).toBeVisible() failed
 
-    Error: locator.fill: Test timeout of 60000ms exceeded.
+    Locator: locator('text=/Module|created/i')
+    Expected: visible
+    Error: strict mode violation: locator('text=/Module|created/i') resolved to 6 elements:
+        1) <p class="text-xs text-gray-500 mt-0.5">Describe your module to get started</p> aka getByText('Describe your module to get')
+        2) <div class="max-w-[85%] rounded-lg px-3 py-2 text-sm bg-blue-600 text-white">Create a module with our company proprietary trad…</div> aka getByText('Create a module with our')
+        3) <h2 class="text-sm font-medium text-gray-300">Module Content</h2> aka getByRole('heading', { name: 'Module Content' })
+        4) <p class="text-sm text-gray-400 mb-2">No module loaded</p> aka getByText('No module loaded')
+        5) <p class="text-xs text-gray-600">Start a conversation in the chat to create a new …</p> aka getByText('Start a conversation in the')
+        6) <p class="text-xs text-gray-500">Calibration tools will appear when you create a m…</p> aka getByText('Calibration tools will appear')
+
     Call log:
-      - waiting for locator('input[placeholder*="message"]')
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('text=/Module|created/i')
 
 
-      94 |     // Create module with client content
-      95 |     const chatInput = page.locator('input[placeholder*="message"]');
-    > 96 |     await chatInput.fill('Create a module with our company proprietary trading process');
-         |                     ^
-      97 |     await page.getByRole('button', { name: 'Send' }).click();
-      98 |     
-      99 |     await page.waitForTimeout(3000);
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/provenance-visibility.spec.ts:96:21
+      101 |     // Verify module created
+      102 |     // Backend should route this to Client Library (not Certified/Industry)
+    > 103 |     await expect(page.locator('text=/Module|created/i')).toBeVisible();
+          |                                                          ^
+      104 |     
+      105 |     // Note: Actual storage verification requires DB check or API call
+      106 |   });
+        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/provenance-visibility.spec.ts:103:58
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     ../../../test-results/provenance-visibility-Prov-a1d6b-nt-stored-in-Client-Library-chromium/test-failed-1.png
@@ -363,26 +254,27 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Industry sources referenced, not stored" classname="provenance-visibility.spec.ts" time="0.345">
+<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Industry sources referenced, not stored" classname="provenance-visibility.spec.ts" time="0.3">
 </testcase>
 </testsuite>
-<testsuite name="track-dashboards.spec.ts" timestamp="2025-10-29T20:16:15.103Z" hostname="chromium" tests="5" failures="3" skipped="0" time="184.65" errors="0">
-<testcase name="Track - Analytics Dashboards (FSD §4) › T01: Team dashboard loads with metrics" classname="track-dashboards.spec.ts" time="61.016">
+<testsuite name="track-dashboards.spec.ts" timestamp="2025-10-29T20:39:26.419Z" hostname="chromium" tests="5" failures="3" skipped="0" time="3.568" errors="0">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T01: Team dashboard loads with metrics" classname="track-dashboards.spec.ts" time="0.579">
 <failure message="track-dashboards.spec.ts:23:7 T01: Team dashboard loads with metrics" type="FAILURE">
 <![CDATA[  [chromium] › track-dashboards.spec.ts:23:7 › Track - Analytics Dashboards (FSD §4) › T01: Team dashboard loads with metrics 
 
-    Test timeout of 60000ms exceeded.
+    Error: expect(received).toBeGreaterThan(expected)
 
-    Error: expect.toBeVisible: Target page, context or browser has been closed
+    Expected: > 0
+    Received:   0
 
-      29 |     
-      30 |     // Then: Dashboard shows aggregate metrics
-    > 31 |     await expect(page.getByText(/Team/i)).toBeVisible();
-         |                                           ^
-      32 |     
-      33 |     // Look for key metrics (FSD §4.1):
-      34 |     // - Mastery by skill area
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/track-dashboards.spec.ts:31:43
+      50 |     }
+      51 |     
+    > 52 |     expect(visibleMetrics).toBeGreaterThan(0);
+         |                            ^
+      53 |   });
+      54 |
+      55 |   test('T02: Person dashboard shows individual metrics', async ({ page }) => {
+        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/track-dashboards.spec.ts:52:28
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     ../../../test-results/track-dashboards-Track---A-381b2-ashboard-loads-with-metrics-chromium/test-failed-1.png
@@ -405,22 +297,23 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › T02: Person dashboard shows individual metrics" classname="track-dashboards.spec.ts" time="61.017">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T02: Person dashboard shows individual metrics" classname="track-dashboards.spec.ts" time="0.638">
 <failure message="track-dashboards.spec.ts:55:7 T02: Person dashboard shows individual metrics" type="FAILURE">
 <![CDATA[  [chromium] › track-dashboards.spec.ts:55:7 › Track - Analytics Dashboards (FSD §4) › T02: Person dashboard shows individual metrics 
 
-    Test timeout of 60000ms exceeded.
+    Error: expect(received).toBeGreaterThan(expected)
 
-    Error: expect.toBeVisible: Target page, context or browser has been closed
+    Expected: > 0
+    Received:   0
 
-      61 |     
-      62 |     // Then: Individual learner metrics are shown
-    > 63 |     await expect(page.getByText(/Person|Learner|Profile/i)).toBeVisible();
-         |                                                             ^
-      64 |     
-      65 |     // Look for person-specific metrics (FSD §4.2):
-      66 |     // - Current level
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/track-dashboards.spec.ts:63:61
+      82 |     }
+      83 |     
+    > 84 |     expect(visibleMetrics).toBeGreaterThan(0);
+         |                            ^
+      85 |   });
+      86 |
+      87 |   test('T03: Module dashboard shows module-specific metrics', async ({ page }) => {
+        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/track-dashboards.spec.ts:84:28
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     ../../../test-results/track-dashboards-Track---A-0f04f-rd-shows-individual-metrics-chromium/test-failed-1.png
@@ -443,22 +336,23 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › T03: Module dashboard shows module-specific metrics" classname="track-dashboards.spec.ts" time="61.013">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T03: Module dashboard shows module-specific metrics" classname="track-dashboards.spec.ts" time="0.605">
 <failure message="track-dashboards.spec.ts:87:7 T03: Module dashboard shows module-specific metrics" type="FAILURE">
 <![CDATA[  [chromium] › track-dashboards.spec.ts:87:7 › Track - Analytics Dashboards (FSD §4) › T03: Module dashboard shows module-specific metrics 
 
-    Test timeout of 60000ms exceeded.
+    Error: expect(received).toBeGreaterThan(expected)
 
-    Error: expect.toBeVisible: Target page, context or browser has been closed
+    Expected: > 0
+    Received:   0
 
-      93 |     
-      94 |     // Then: Module metrics are shown
-    > 95 |     await expect(page.getByText(/Module/i)).toBeVisible();
-         |                                             ^
-      96 |     
-      97 |     // Look for module-specific metrics (FSD §4.3):
-      98 |     // - Core freshness
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/track-dashboards.spec.ts:95:45
+      114 |     }
+      115 |     
+    > 116 |     expect(visibleMetrics).toBeGreaterThan(0);
+          |                            ^
+      117 |   });
+      118 |
+      119 |   test('T04: Export button is visible (PDF export placeholder)', async ({ page }) => {
+        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/track-dashboards.spec.ts:116:28
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
     ../../../test-results/track-dashboards-Track---A-8c590-ows-module-specific-metrics-chromium/test-failed-1.png
@@ -481,15 +375,20 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › T04: Export button is visible (PDF export placeholder)" classname="track-dashboards.spec.ts" time="0.559">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T04: Export button is visible (PDF export placeholder)" classname="track-dashboards.spec.ts" time="0.564">
 <system-out>
 <![CDATA[Export functionality found: false
 ]]>
 </system-out>
+<system-err>
+<![CDATA[(node:36305) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+]]>
+</system-err>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › Performance: Dashboard loads in under 2s" classname="track-dashboards.spec.ts" time="1.045">
+<testcase name="Track - Analytics Dashboards (FSD §4) › Performance: Dashboard loads in under 2s" classname="track-dashboards.spec.ts" time="1.182">
 <system-out>
-<![CDATA[Dashboard load time: 617ms
+<![CDATA[Dashboard load time: 788ms
 ]]>
 </system-out>
 </testcase>
