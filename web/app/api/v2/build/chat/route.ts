@@ -12,8 +12,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { moduleId, message, action } = body
 
-    // Determine endpoint based on action
+    // Determine endpoint based on whether moduleId exists
     const endpoint = !moduleId ? 'start' : 'chat'
+    
+    // Build request body
+    const requestBody: any = {
+      userId: 'dev-user-123', // From auth middleware
+      organizationId: 'dev-org-123', // From auth middleware
+    }
+
+    if (endpoint === 'start') {
+      requestBody.prompt = message
+    } else {
+      requestBody.moduleId = moduleId
+      requestBody.message = message
+    }
 
     const response = await fetch(`${API_BASE}/api/v2/build/${endpoint}`, {
       method: 'POST',
@@ -21,13 +34,7 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         Authorization: request.headers.get('Authorization') || 'Bearer dev-token',
       },
-      body: JSON.stringify({
-        userId: 'dev-user-id',
-        organizationId: 'dev-org-id',
-        prompt: message,
-        moduleId,
-        action,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
@@ -40,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json()
     return NextResponse.json({
-      reply: data.reply || 'Module created successfully',
+      reply: data.reply || 'Module updated successfully',
       moduleId: data.moduleId || moduleId,
       module: data.module,
     })
