@@ -25,9 +25,9 @@ import { sql } from "drizzle-orm"
 export const modules = pgTable("modules", {
   id: uuid().defaultRandom().primaryKey().notNull(),
   title: text().notNull(),
-  goals: jsonb().notNull(), // Array of learning goals/outcomes
-  targetRoles: jsonb("target_roles").notNull(), // Array of target roles (e.g., ["new-analyst", "manager"])
-  tags: jsonb().notNull(), // Array of tags (skill, sector, etc.)
+  goals: jsonb().notNull().default('[]'), // Array of learning goals/outcomes
+  targetRoles: jsonb("target_roles").notNull().default('[]'), // Array of target roles (e.g., ["new-analyst", "manager"])
+  tags: jsonb().notNull().default('[]'), // Array of tags (skill, sector, etc.)
   sector: text(), // e.g., "financial-services", "healthcare"
   version: integer().default(1).notNull(),
   ownerId: uuid("owner_id").notNull(), // User who owns this module
@@ -64,6 +64,37 @@ export const moduleSections = pgTable("module_sections", {
     foreignColumns: [modules.id],
     name: "module_sections_module_id_fkey"
   }).onDelete("cascade"),
+])
+
+/**
+ * content_versions - Track changes to module sections for Cursor-style diff UI
+ * Stores previous versions when content is updated
+ */
+export const contentVersions = pgTable("content_versions", {
+  id: uuid().defaultRandom().primaryKey().notNull(),
+  sectionId: uuid("section_id").notNull(),
+  moduleId: uuid("module_id").notNull(),
+  versionNumber: integer("version_number").notNull(), // Incremental version
+  title: text().notNull(), // Title at this version
+  content: text().notNull(), // Content at this version
+  changeType: text("change_type").notNull(), // "create", "update", "refine"
+  changePrompt: text("change_prompt"), // User's request that triggered the change
+  createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  createdByUserId: uuid("created_by_user_id").notNull(),
+}, (table) => [
+  index("idx_content_versions_section").using("btree", table.sectionId.asc().nullsLast()),
+  index("idx_content_versions_module").using("btree", table.moduleId.asc().nullsLast()),
+  foreignKey({
+    columns: [table.sectionId],
+    foreignColumns: [moduleSections.id],
+    name: "content_versions_section_id_fkey"
+  }).onDelete("cascade"),
+  foreignKey({
+    columns: [table.moduleId],
+    foreignColumns: [modules.id],
+    name: "content_versions_module_id_fkey"
+  }).onDelete("cascade"),
+  check("content_versions_change_type_check", sql`change_type IN ('create', 'update', 'refine')`),
 ])
 
 /**
@@ -219,6 +250,29 @@ export const buildSessions = pgTable("build_sessions", {
 // ============================================================================
 // LEARNER PROGRESS & RESPONSES
 // ============================================================================
+
+/**
+ * calibration_items - Stores generated micro-lessons and assessments for modules
+ * Used by the calibration pane to display learning content before deployment
+ */
+export const calibrationItems = pgTable("calibration_items", {
+  id: uuid().defaultRandom().primaryKey().notNull(),
+  moduleId: uuid("module_id").notNull(),
+  itemType: text("item_type").notNull(), // "lesson" or "quiz"
+  difficulty: integer().default(5).notNull(), // 1-10 scale
+  itemData: jsonb("item_data").notNull(), // Flexible JSON structure for lesson/quiz content
+  order: integer().notNull(), // Display order
+  createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+  index("idx_calibration_items_module").using("btree", table.moduleId.asc().nullsLast()),
+  foreignKey({
+    columns: [table.moduleId],
+    foreignColumns: [modules.id],
+    name: "calibration_items_module_id_fkey"
+  }).onDelete("cascade"),
+  check("calibration_items_type_check", sql`item_type IN ('lesson', 'quiz')`),
+  check("calibration_items_difficulty_check", sql`difficulty >= 1 AND difficulty <= 10`),
+])
 
 /**
  * learner_progress - Tracks each learner's progress through Module assignments

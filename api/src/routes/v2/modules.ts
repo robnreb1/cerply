@@ -14,7 +14,7 @@
 import { FastifyInstance } from 'fastify'
 import { db } from '../../db'
 import { modules, moduleSections, moduleItems, contentLibrary, auditEvents } from '../../../drizzle/schema_v2'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 
 export default async function modulesRoutes(fastify: FastifyInstance) {
   /**
@@ -41,7 +41,7 @@ export default async function modulesRoutes(fastify: FastifyInstance) {
         query = query.where(and(eq(modules.organizationId, organizationId), eq(modules.visibility, visibility)))
       }
 
-      const modulesList = await query.orderBy(modules.updatedAt)
+      const modulesList = await query.orderBy(desc(modules.updatedAt))
 
       return reply.code(200).send({ modules: modulesList })
     } catch (error: any) {

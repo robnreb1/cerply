@@ -268,7 +268,8 @@ Generate 4-6 sections covering the core concepts needed to achieve the learning 
 export async function generateCalibrationItems(
   moduleId: string,
   userId: string,
-  organizationId: string
+  organizationId: string,
+  difficulty: number = 5
 ): Promise<CalibrationItem[]> {
   // Get module and sections
   const [module] = await db.select().from(modules).where(eq(modules.id, moduleId))
@@ -283,27 +284,69 @@ export async function generateCalibrationItems(
     throw new Error('No sections found - draft Module core first')
   }
 
-  // Build prompt for calibration generation
-  const calibrationPrompt = `Generate 6 example items from this Module core:
+  // Map difficulty slider (0-10) to descriptive levels
+  const difficultyLabel = difficulty <= 3 ? 'Beginner' : difficulty <= 7 ? 'Intermediate' : 'Advanced'
+  
+  // Build comprehensive prompt for calibration generation
+  const calibrationPrompt = `Generate 4 assessment items at DIFFICULTY LEVEL ${difficulty}/10 (${difficultyLabel}) from this learning module:
 
-Title: ${module.title}
-Sections: ${sections.map((s) => s.title).join(', ')}
+**Module Title:** ${module.title}
 
-Generate:
-- 3 micro-lessons at difficulty levels 2, 5, 8 (Beginner, Intermediate, Advanced)
-- 3 quick-checks at difficulty levels 3, 6, 9
+**Module Sections:**
+${sections.map((s, i) => `${i + 1}. ${s.title}\n   ${s.content.substring(0, 300)}...`).join('\n\n')}
 
-For each item:
-1. Show the full content
-2. Explain the difficulty level and why
-3. Note which goal it addresses
+**DIFFICULTY LEVEL: ${difficulty}/10 (${difficultyLabel})**
 
-Format as JSON array with: type, content, difficultyLevel, rationale`
+${difficulty <= 3 ? `
+BEGINNER LEVEL REQUIREMENTS:
+- Test basic recall and fundamental understanding
+- Simple, straightforward questions
+- Clear, unambiguous correct answers
+- Focus on key definitions and core concepts
+- No complex multi-step reasoning required
+` : ''}
+
+${difficulty >= 4 && difficulty <= 7 ? `
+INTERMEDIATE LEVEL REQUIREMENTS:
+- Test application of concepts to practical scenarios
+- Require understanding of relationships between concepts
+- Include some calculation or analysis
+- Test ability to distinguish between similar options
+- May require 2-3 step reasoning
+` : ''}
+
+${difficulty >= 8 ? `
+ADVANCED LEVEL REQUIREMENTS:
+- Test deep understanding and expert judgment
+- Complex scenarios with multiple variables
+- Require synthesis of multiple concepts
+- Edge cases and nuanced situations
+- Critical thinking and advanced problem-solving
+- May involve trade-off analysis or strategic decisions
+` : ''}
+
+Generate exactly 4 items with this mix:
+- 2 Multiple Choice Questions (with 4 options each)
+- 1 Scenario-based Question (describe situation, ask for best approach)
+- 1 True/False with Explanation (statement + why it's true/false)
+
+For each item, provide:
+{
+  "type": "multiple_choice" | "scenario" | "true_false",
+  "question": "The question text",
+  "options": ["A", "B", "C", "D"], // for multiple choice only
+  "answer": "Correct answer or explanation",
+  "difficulty": ${difficulty},
+  "rationale": "Why this tests ${difficultyLabel} level understanding"
+}
+
+Return ONLY a valid JSON array of 4 items. No markdown, no code blocks, just the JSON array.`
 
   const response = await callModel({
-    jobType: ModelJobType.GENERATE_CALIBRATION,
+    jobType: 'quality', // Use Claude Sonnet for quality question generation
     prompt: calibrationPrompt,
-    systemPrompt: 'You are a learning design expert. Generate varied, high-quality educational items.',
+    systemPrompt: 'You are an expert assessment designer. Create fair, accurate, and appropriately challenging questions that genuinely test understanding at the specified difficulty level. Return ONLY valid JSON.',
+    maxTokens: 4000,
     metadata: {
       user_id: userId,
       organization_id: organizationId,
@@ -312,7 +355,7 @@ Format as JSON array with: type, content, difficultyLevel, rationale`
   })
 
   // Parse calibration items
-  const items = parseCalibrationResponse(response.content)
+  const items = parseCalibrationResponse(response.content, difficulty)
 
   return items
 }
@@ -479,20 +522,34 @@ function parseSectionsResponse(response: string): ModuleSection[] {
   return sections
 }
 
-function parseCalibrationResponse(response: string): CalibrationItem[] {
-  // Try to extract JSON array
-  const jsonMatch = response.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/) || response.match(/(\[[\s\S]*\])/)
-
-  if (jsonMatch) {
-    try {
-      return JSON.parse(jsonMatch[1])
-    } catch (error) {
-      console.error('Failed to parse calibration JSON:', error)
-    }
+function parseCalibrationResponse(response: string, difficulty: number = 5): CalibrationItem[] {
+  // Try to extract JSON array - remove markdown code blocks if present
+  let jsonText = response.trim()
+  
+  // Remove markdown code blocks
+  const markdownMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
+  if (markdownMatch) {
+    jsonText = markdownMatch[1].trim()
+  }
+  
+  // Try to find JSON array
+  const arrayMatch = jsonText.match(/(\[[\s\S]*\])/)
+  if (arrayMatch) {
+    jsonText = arrayMatch[1]
   }
 
-  // Return empty array if parsing fails
-  return []
+  try {
+    const parsed = JSON.parse(jsonText)
+    // Ensure each item has the difficulty level
+    return parsed.map((item: any) => ({
+      ...item,
+      difficulty: item.difficulty || difficulty,
+    }))
+  } catch (error) {
+    console.error('Failed to parse calibration JSON:', error)
+    console.error('Response was:', response.substring(0, 500))
+    return []
+  }
 }
 
 function calculateSimilarity(text1: string, text2: string): number {

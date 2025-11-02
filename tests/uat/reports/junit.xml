@@ -1,289 +1,18 @@
-<testsuites id="" name="" tests="15" failures="4" skipped="0" errors="0" time="14.659283000000002">
-<testsuite name="build.spec.ts" timestamp="2025-10-29T21:00:21.455Z" hostname="chromium" tests="5" failures="1" skipped="0" time="4.367" errors="0">
-<testcase name="Build - Module Creation (FSD §1) › B01: Create module from prompt with Internal provenance" classname="build.spec.ts" time="0.638">
+<testsuites id="" name="" tests="15" failures="3" skipped="0" errors="0" time="15.073849999999998">
+<testsuite name="build.spec.ts" timestamp="2025-10-29T21:10:44.998Z" hostname="chromium" tests="5" failures="0" skipped="0" time="4.905" errors="0">
+<testcase name="Build - Module Creation (FSD §1) › B01: Create module from prompt with Internal provenance" classname="build.spec.ts" time="0.909">
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › B02: Merge prompt + upload (placeholder)" classname="build.spec.ts" time="1.394">
+<testcase name="Build - Module Creation (FSD §1) › B02: Merge prompt + upload (placeholder)" classname="build.spec.ts" time="1.504">
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › B03: Provenance badges visible to manager in Content pane" classname="build.spec.ts" time="1.434">
+<testcase name="Build - Module Creation (FSD §1) › B03: Provenance badges visible to manager in Content pane" classname="build.spec.ts" time="1.457">
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › B04: Lock button visible and functional" classname="build.spec.ts" time="0.346">
+<testcase name="Build - Module Creation (FSD §1) › B04: Lock button visible and functional" classname="build.spec.ts" time="0.515">
 </testcase>
-<testcase name="Build - Module Creation (FSD §1) › A11y: Build page has no critical violations" classname="build.spec.ts" time="0.555">
-<failure message="build.spec.ts:91:7 A11y: Build page has no critical violations" type="FAILURE">
-<![CDATA[  [chromium] › build.spec.ts:91:7 › Build - Module Creation (FSD §1) › A11y: Build page has no critical violations 
-
-    Error: expect(received).toEqual(expected) // deep equality
-
-    - Expected  -   1
-    + Received  + 226
-
-    - Array []
-    + Array [
-    +   Object {
-    +     "description": "Ensure the document has a main landmark",
-    +     "help": "Document should have one main landmark",
-    +     "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/landmark-one-main?application=playwright",
-    +     "id": "landmark-one-main",
-    +     "impact": "moderate",
-    +     "nodes": Array [
-    +       Object {
-    +         "all": Array [
-    +           Object {
-    +             "data": null,
-    +             "id": "page-has-main",
-    +             "impact": "moderate",
-    +             "message": "Document does not have a main landmark",
-    +             "relatedNodes": Array [],
-    +           },
-    +         ],
-    +         "any": Array [],
-    +         "failureSummary": "Fix all of the following:
-    +   Document does not have a main landmark",
-    +         "html": "<html lang=\"en\">",
-    +         "impact": "moderate",
-    +         "none": Array [],
-    +         "target": Array [
-    +           "html",
-    +         ],
-    +       },
-    +     ],
-    +     "tags": Array [
-    +       "cat.semantics",
-    +       "best-practice",
-    +     ],
-    +   },
-    +   Object {
-    +     "description": "Ensure all page content is contained by landmarks",
-    +     "help": "All page content should be contained by landmarks",
-    +     "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/region?application=playwright",
-    +     "id": "region",
-    +     "impact": "moderate",
-    +     "nodes": Array [
-    +       Object {
-    +         "all": Array [],
-    +         "any": Array [
-    +           Object {
-    +             "data": Object {
-    +               "isIframe": false,
-    +             },
-    +             "id": "region",
-    +             "impact": "moderate",
-    +             "message": "Some page content is not contained by landmarks",
-    +             "relatedNodes": Array [],
-    +           },
-    +         ],
-    +         "failureSummary": "Fix any of the following:
-    +   Some page content is not contained by landmarks",
-    +         "html": "<div class=\"flex-shrink-0 px-4 py-3 border-b border-[#2d2d2d]\"><h2 class=\"text-sm font-medium text-gray-300\">Chat</h2><p class=\"text-xs text-gray-500 mt-0.5\">Describe your module to get started</p></div>",
-    +         "impact": "moderate",
-    +         "none": Array [],
-    +         "target": Array [
-    +           ".border-r > .h-full.flex-col.flex > .py-3.border-b.flex-shrink-0",
-    +         ],
-    +       },
-    +       Object {
-    +         "all": Array [],
-    +         "any": Array [
-    +           Object {
-    +             "data": Object {
-    +               "isIframe": false,
-    +             },
-    +             "id": "region",
-    +             "impact": "moderate",
-    +             "message": "Some page content is not contained by landmarks",
-    +             "relatedNodes": Array [],
-    +           },
-    +         ],
-    +         "failureSummary": "Fix any of the following:
-    +   Some page content is not contained by landmarks",
-    +         "html": "<p class=\"text-sm text-gray-500\">Start a conversation to build your module</p>",
-    +         "impact": "moderate",
-    +         "none": Array [],
-    +         "target": Array [
-    +           ".py-8 > .text-gray-500",
-    +         ],
-    +       },
-    +       Object {
-    +         "all": Array [],
-    +         "any": Array [
-    +           Object {
-    +             "data": Object {
-    +               "isIframe": false,
-    +             },
-    +             "id": "region",
-    +             "impact": "moderate",
-    +             "message": "Some page content is not contained by landmarks",
-    +             "relatedNodes": Array [],
-    +           },
-    +         ],
-    +         "failureSummary": "Fix any of the following:
-    +   Some page content is not contained by landmarks",
-    +         "html": "<input type=\"text\" placeholder=\"Type your message...\" class=\"flex-1 bg-[#2d2d2d] border border-[#3d3d3d] rounded px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed\" value=\"\">",
-    +         "impact": "moderate",
-    +         "none": Array [],
-    +         "target": Array [
-    +           "input",
-    +         ],
-    +       },
-    +       Object {
-    +         "all": Array [],
-    +         "any": Array [
-    +           Object {
-    +             "data": Object {
-    +               "isIframe": false,
-    +             },
-    +             "id": "region",
-    +             "impact": "moderate",
-    +             "message": "Some page content is not contained by landmarks",
-    +             "relatedNodes": Array [],
-    +           },
-    +         ],
-    +         "failureSummary": "Fix any of the following:
-    +   Some page content is not contained by landmarks",
-    +         "html": "<div class=\"flex-shrink-0 px-4 py-3 border-b border-[#2d2d2d] flex items-center justify-between\"><div><h2 class=\"text-sm font-medium text-gray-300\">Module Content</h2><p class=\"text-xs text-gray-500 mt-0.5\">Live preview as you build</p></div></div>",
-    +         "impact": "moderate",
-    +         "none": Array [],
-    +         "target": Array [
-    +           ".justify-between.py-3.border-b",
-    +         ],
-    +       },
-    +       Object {
-    +         "all": Array [],
-    +         "any": Array [
-    +           Object {
-    +             "data": Object {
-    +               "isIframe": false,
-    +             },
-    +             "id": "region",
-    +             "impact": "moderate",
-    +             "message": "Some page content is not contained by landmarks",
-    +             "relatedNodes": Array [],
-    +           },
-    +         ],
-    +         "failureSummary": "Fix any of the following:
-    +   Some page content is not contained by landmarks",
-    +         "html": "<p class=\"text-sm text-gray-400 mb-2\">No module loaded</p>",
-    +         "impact": "moderate",
-    +         "none": Array [],
-    +         "target": Array [
-    +           ".mb-2",
-    +         ],
-    +       },
-    +       Object {
-    +         "all": Array [],
-    +         "any": Array [
-    +           Object {
-    +             "data": Object {
-    +               "isIframe": false,
-    +             },
-    +             "id": "region",
-    +             "impact": "moderate",
-    +             "message": "Some page content is not contained by landmarks",
-    +             "relatedNodes": Array [],
-    +           },
-    +         ],
-    +         "failureSummary": "Fix any of the following:
-    +   Some page content is not contained by landmarks",
-    +         "html": "<p class=\"text-xs text-gray-600\">Start a conversation in the chat to create a new module</p>",
-    +         "impact": "moderate",
-    +         "none": Array [],
-    +         "target": Array [
-    +           ".text-gray-600",
-    +         ],
-    +       },
-    +       Object {
-    +         "all": Array [],
-    +         "any": Array [
-    +           Object {
-    +             "data": Object {
-    +               "isIframe": false,
-    +             },
-    +             "id": "region",
-    +             "impact": "moderate",
-    +             "message": "Some page content is not contained by landmarks",
-    +             "relatedNodes": Array [],
-    +           },
-    +         ],
-    +         "failureSummary": "Fix any of the following:
-    +   Some page content is not contained by landmarks",
-    +         "html": "<div class=\"flex-shrink-0 px-4 py-3 border-b border-[#2d2d2d]\"><h2 class=\"text-sm font-medium text-gray-300\">Calibration</h2><p class=\"text-xs text-gray-500 mt-0.5\">Adjust difficulty &amp; preview items</p></div>",
-    +         "impact": "moderate",
-    +         "none": Array [],
-    +         "target": Array [
-    +           ".border-l > .h-full.flex-col.flex > .py-3.border-b.flex-shrink-0",
-    +         ],
-    +       },
-    +       Object {
-    +         "all": Array [],
-    +         "any": Array [
-    +           Object {
-    +             "data": Object {
-    +               "isIframe": false,
-    +             },
-    +             "id": "region",
-    +             "impact": "moderate",
-    +             "message": "Some page content is not contained by landmarks",
-    +             "relatedNodes": Array [],
-    +           },
-    +         ],
-    +         "failureSummary": "Fix any of the following:
-    +   Some page content is not contained by landmarks",
-    +         "html": "<p class=\"text-xs text-gray-500\">Calibration tools will appear when you create a module</p>",
-    +         "impact": "moderate",
-    +         "none": Array [],
-    +         "target": Array [
-    +           ".max-w-xs > .text-gray-500",
-    +         ],
-    +       },
-    +     ],
-    +     "tags": Array [
-    +       "cat.keyboard",
-    +       "best-practice",
-    +       "RGAAv4",
-    +       "RGAA-9.2.1",
-    +     ],
-    +   },
-    + ]
-
-       96 |     
-       97 |     // Expect no serious violations (excluding color-contrast)
-    >  98 |     expect(accessibilityScanResults.violations).toEqual([]);
-          |                                                 ^
-       99 |   });
-      100 | });
-      101 |
-        at /Users/robertford/Desktop/cerply-cursor-starter-v2-refresh/tests/uat/specs/build.spec.ts:98:49
-
-    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/test-failed-1.png
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/video-1.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    attachment #3: video (video/webm) ──────────────────────────────────────────────────────────────
-    ../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/video.webm
-    ────────────────────────────────────────────────────────────────────────────────────────────────
-
-    Error Context: ../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/error-context.md
-]]>
-</failure>
-<system-out>
-<![CDATA[
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/test-failed-1.png]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/video-1.webm]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/video.webm]]
-
-[[ATTACHMENT|../../../test-results/build-Build---Module-Creat-2a0c0--has-no-critical-violations-chromium/error-context.md]]
-]]>
-</system-out>
+<testcase name="Build - Module Creation (FSD §1) › A11y: Build page has no critical violations" classname="build.spec.ts" time="0.52">
 </testcase>
 </testsuite>
-<testsuite name="provenance-visibility.spec.ts" timestamp="2025-10-29T21:00:21.455Z" hostname="chromium" tests="5" failures="0" skipped="0" time="4.589" errors="0">
-<testcase name="Provenance Visibility (FSD §7) › L05: Learner NEVER sees provenance badges anywhere" classname="provenance-visibility.spec.ts" time="0.813">
+<testsuite name="provenance-visibility.spec.ts" timestamp="2025-10-29T21:10:44.998Z" hostname="chromium" tests="5" failures="0" skipped="0" time="4.618" errors="0">
+<testcase name="Provenance Visibility (FSD §7) › L05: Learner NEVER sees provenance badges anywhere" classname="provenance-visibility.spec.ts" time="0.754">
 <system-out>
 <![CDATA[Checking for "Internal": 0 found
 Checking for "Certified Core": 0 found
@@ -293,26 +22,26 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 <system-err>
-<![CDATA[(node:40076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+<![CDATA[(node:47791) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ]]>
 </system-err>
 </testcase>
-<testcase name="Provenance Visibility (FSD §7) › Manager sees provenance badges in Build Content pane" classname="provenance-visibility.spec.ts" time="1.437">
+<testcase name="Provenance Visibility (FSD §7) › Manager sees provenance badges in Build Content pane" classname="provenance-visibility.spec.ts" time="1.414">
 <system-out>
 <![CDATA[Badge-like elements found: 0
 ]]>
 </system-out>
 </testcase>
-<testcase name="Provenance Visibility (FSD §7) › Provenance in Track dashboard (manager)" classname="provenance-visibility.spec.ts" time="0.606">
+<testcase name="Provenance Visibility (FSD §7) › Provenance in Track dashboard (manager)" classname="provenance-visibility.spec.ts" time="0.67">
 </testcase>
-<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Storage routing: Client content stored in Client Library" classname="provenance-visibility.spec.ts" time="1.402">
+<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Storage routing: Client content stored in Client Library" classname="provenance-visibility.spec.ts" time="1.462">
 </testcase>
-<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Industry sources referenced, not stored" classname="provenance-visibility.spec.ts" time="0.331">
+<testcase name="Provenance Enforcement Rules (FSD §1, §7) › Industry sources referenced, not stored" classname="provenance-visibility.spec.ts" time="0.318">
 </testcase>
 </testsuite>
-<testsuite name="track-dashboards.spec.ts" timestamp="2025-10-29T21:00:21.455Z" hostname="chromium" tests="5" failures="3" skipped="0" time="3.589" errors="0">
-<testcase name="Track - Analytics Dashboards (FSD §4) › T01: Team dashboard loads with metrics" classname="track-dashboards.spec.ts" time="0.578">
+<testsuite name="track-dashboards.spec.ts" timestamp="2025-10-29T21:10:44.998Z" hostname="chromium" tests="5" failures="3" skipped="0" time="3.667" errors="0">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T01: Team dashboard loads with metrics" classname="track-dashboards.spec.ts" time="0.58">
 <failure message="track-dashboards.spec.ts:23:7 T01: Team dashboard loads with metrics" type="FAILURE">
 <![CDATA[  [chromium] › track-dashboards.spec.ts:23:7 › Track - Analytics Dashboards (FSD §4) › T01: Team dashboard loads with metrics 
 
@@ -351,7 +80,7 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › T02: Person dashboard shows individual metrics" classname="track-dashboards.spec.ts" time="0.614">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T02: Person dashboard shows individual metrics" classname="track-dashboards.spec.ts" time="0.713">
 <failure message="track-dashboards.spec.ts:55:7 T02: Person dashboard shows individual metrics" type="FAILURE">
 <![CDATA[  [chromium] › track-dashboards.spec.ts:55:7 › Track - Analytics Dashboards (FSD §4) › T02: Person dashboard shows individual metrics 
 
@@ -390,7 +119,7 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › T03: Module dashboard shows module-specific metrics" classname="track-dashboards.spec.ts" time="0.621">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T03: Module dashboard shows module-specific metrics" classname="track-dashboards.spec.ts" time="0.596">
 <failure message="track-dashboards.spec.ts:87:7 T03: Module dashboard shows module-specific metrics" type="FAILURE">
 <![CDATA[  [chromium] › track-dashboards.spec.ts:87:7 › Track - Analytics Dashboards (FSD §4) › T03: Module dashboard shows module-specific metrics 
 
@@ -429,20 +158,20 @@ Checking for "provenance:": 0 found
 ]]>
 </system-out>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › T04: Export button is visible (PDF export placeholder)" classname="track-dashboards.spec.ts" time="0.587">
+<testcase name="Track - Analytics Dashboards (FSD §4) › T04: Export button is visible (PDF export placeholder)" classname="track-dashboards.spec.ts" time="0.577">
 <system-out>
 <![CDATA[Export functionality found: false
 ]]>
 </system-out>
 <system-err>
-<![CDATA[(node:40196) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+<![CDATA[(node:47998) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ]]>
 </system-err>
 </testcase>
-<testcase name="Track - Analytics Dashboards (FSD §4) › Performance: Dashboard loads in under 2s" classname="track-dashboards.spec.ts" time="1.189">
+<testcase name="Track - Analytics Dashboards (FSD §4) › Performance: Dashboard loads in under 2s" classname="track-dashboards.spec.ts" time="1.201">
 <system-out>
-<![CDATA[Dashboard load time: 781ms
+<![CDATA[Dashboard load time: 784ms
 ]]>
 </system-out>
 </testcase>

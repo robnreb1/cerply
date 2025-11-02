@@ -241,6 +241,7 @@ export async function createApp() {
     v2App.addHook('onRequest', loadUserContext);
     
     const buildModule = await import('./routes/v2/build');
+    const buildSSEModule = await import('./routes/v2/build-sse');
     const modulesModule = await import('./routes/v2/modules');
     const pushModule = await import('./routes/v2/push');
     const learnModule = await import('./routes/v2/learn');
@@ -250,6 +251,7 @@ export async function createApp() {
     const certifiedModule = await import('./routes/v2/certified');
 
     if (buildModule.default) await v2App.register(buildModule.default);
+    if (buildSSEModule.default) await v2App.register(buildSSEModule.default);
     if (modulesModule.default) await v2App.register(modulesModule.default);
     if (pushModule.default) await v2App.register(pushModule.default);
     if (learnModule.default) await v2App.register(learnModule.default);

@@ -50,6 +50,9 @@ export async function POST(request: NextRequest) {
       reply: data.reply || 'Module updated successfully',
       moduleId: data.moduleId || moduleId,
       module: data.module,
+      content: data.content, // Pass through generated content
+      sections: data.sections, // Pass through sections
+      aiGenerated: data.aiGenerated, // Pass through flag
     })
   } catch (error) {
     console.error('Build chat API error:', error)

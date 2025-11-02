@@ -1,10 +1,15 @@
+import './env-init'; // Load env vars FIRST
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 
 const rawUrl = process.env.DATABASE_URL || '';
+console.log('[DB] Raw DATABASE_URL:', rawUrl.substring(0, 50) + (rawUrl.length > 50 ? '...' : ''));
+
 // Normalize scheme for node-postgres and enable SSL for Render external DBs
 const connectionString = rawUrl.replace(/^postgresql:\/\//i, 'postgres://');
 const isExternalRender = /render\.com/i.test(connectionString);
+console.log('[DB] Is Render:', isExternalRender, 'SSL:', isExternalRender);
+
 const poolOpts: any = { connectionString };
 if (isExternalRender) {
   poolOpts.ssl = { rejectUnauthorized: false };

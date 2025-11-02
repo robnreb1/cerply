@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const difficulty = searchParams.get('difficulty') || '5'
 
     const response = await fetch(
-      `${API_BASE}/api/v2/build/calibration?moduleId=${moduleId}&difficulty=${difficulty}`,
+      `${API_BASE}/api/v2/build/calibration?moduleId=${moduleId}&difficulty=${difficulty}&userId=dev-user-123&organizationId=dev-org-123`,
       {
         headers: {
           Authorization: request.headers.get('Authorization') || 'Bearer dev-token',

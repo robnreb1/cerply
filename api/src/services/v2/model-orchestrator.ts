@@ -30,10 +30,14 @@ export type { ModelJobType } from '../../config/models'
 // Initialize clients
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  timeout: 120000, // 120 second timeout for long requests
+  maxRetries: 2,
 })
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  timeout: 180000, // 3 minutes for long content generation
+  maxRetries: 3,
 })
 
 export interface ModelRequest {
@@ -42,6 +46,8 @@ export interface ModelRequest {
   systemPrompt?: string
   maxTokens?: number
   temperature?: number
+  tools?: any[] // OpenAI tool definitions
+  tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } }
   metadata?: Record<string, any> // e.g., { module_id, user_id }
 }
 
@@ -51,6 +57,7 @@ export interface ModelResponse {
   tokens: number
   costCents: number
   durationMs: number
+  tool_calls?: any[] // OpenAI tool calls if present
 }
 
 /**
@@ -74,14 +81,19 @@ export async function callModel(request: ModelRequest): Promise<ModelResponse> {
     response.durationMs = Date.now() - startTime
 
     // Log to database
-    await logModelUsage({
-      jobType: request.jobType,
-      modelLabel: response.modelLabel,
-      tokens: response.tokens,
-      costCents: response.costCents,
-      durationMs: response.durationMs,
-      metadata: request.metadata || {},
-    })
+    try {
+      await logModelUsage({
+        jobType: request.jobType,
+        modelLabel: response.modelLabel,
+        tokens: response.tokens,
+        costCents: response.costCents,
+        durationMs: response.durationMs,
+        metadata: request.metadata || {},
+      })
+    } catch (logError) {
+      // Don't fail the request if logging fails
+      console.error('Model logging error (non-fatal):', logError)
+    }
 
     return response
   } catch (error) {
@@ -98,88 +110,183 @@ export async function callModel(request: ModelRequest): Promise<ModelResponse> {
 }
 
 /**
- * Call OpenAI models (GPT-4o, GPT-4o-mini, etc.)
+ * Call OpenAI models (GPT-4o, GPT-5, etc.)
  */
 async function callOpenAI(model: ModelConfig, request: ModelRequest): Promise<ModelResponse> {
-  const completion = await openai.chat.completions.create({
+  console.log('🟢 Calling OpenAI model:', model.model)
+  console.log('  Job type:', request.jobType)
+  
+  // o1 series models have special requirements
+  const isO1 = model.model.startsWith('o1')
+  const isGPT5 = model.model.startsWith('gpt-5')
+  
+  const maxTokensParam = (isGPT5 || isO1) ? 'max_completion_tokens' : 'max_tokens'
+  console.log('  Max tokens param:', maxTokensParam)
+  console.log('  Max tokens value:', request.maxTokens || 4096)
+  console.log('  Prompt length:', request.prompt?.length || 0)
+  console.log('  System prompt length:', request.systemPrompt?.length || 0)
+  
+  const params: any = {
     model: model.model,
-    messages: [
-      ...(request.systemPrompt ? [{ role: 'system' as const, content: request.systemPrompt }] : []),
-      { role: 'user' as const, content: request.prompt },
-    ],
-    max_tokens: request.maxTokens || model.maxTokens,
-    temperature: request.temperature ?? model.temperature,
-  })
+    messages: [],
+    [maxTokensParam]: request.maxTokens || 4096,
+  }
+  
+  // o1 models don't support system prompts - merge into user message
+  if (isO1) {
+    const combinedPrompt = request.systemPrompt 
+      ? `${request.systemPrompt}\n\n---\n\n${request.prompt}`
+      : request.prompt
+    params.messages.push({ role: 'user' as const, content: combinedPrompt })
+  } else {
+    // Regular models support system prompts
+    if (request.systemPrompt) {
+      params.messages.push({ role: 'system' as const, content: request.systemPrompt })
+    }
+    params.messages.push({ role: 'user' as const, content: request.prompt })
+  }
+  
+  // o1 and GPT-5 don't support temperature parameter
+  if (!isO1 && !isGPT5) {
+    params.temperature = request.temperature ?? 0.7
+  }
+  
+  // o1 models don't support tools
+  if (!isO1 && request.tools && request.tools.length > 0) {
+    params.tools = request.tools
+    if (request.tool_choice) {
+      params.tool_choice = request.tool_choice
+    }
+  }
+  
+  console.log('📞 Making OpenAI API call...')
+  const completion = await openai.chat.completions.create(params)
+  console.log('✅ OpenAI response received')
+  console.log('  Choices:', completion.choices?.length || 0)
+  console.log('  Content length:', completion.choices[0]?.message?.content?.length || 0)
+  console.log('  Finish reason:', completion.choices[0]?.finish_reason)
+  console.log('  Refusal:', completion.choices[0]?.message?.refusal || 'none')
 
   const content = completion.choices[0]?.message?.content || ''
+  const tool_calls = completion.choices[0]?.message?.tool_calls
   const tokens = completion.usage?.total_tokens || 0
-  const costCents = estimateCost(tokens, model.costPerMToken || 0)
+  const costCents = Math.round((tokens / 1000) * model.costPer1kTokens)
+  
+  console.log('📊 Usage:', { tokens, costCents })
 
   return {
     content,
-    modelLabel: model.label,
+    modelLabel: model.model,
     tokens,
     costCents,
     durationMs: 0, // Set by caller
+    tool_calls,
   }
 }
 
 /**
- * Call Anthropic models (Claude Sonnet, etc.)
+ * Call Anthropic models (Claude Sonnet, Haiku, etc.)
  */
 async function callAnthropic(model: ModelConfig, request: ModelRequest): Promise<ModelResponse> {
-  const message = await anthropic.messages.create({
+  console.log('🔵 Calling Anthropic model:', model.model)
+  console.log('  Max tokens:', request.maxTokens || 4096)
+  console.log('  Temperature:', request.temperature ?? 0.7)
+  console.log('  Tools:', request.tools?.length || 0)
+  
+  const params: any = {
     model: model.model,
-    max_tokens: request.maxTokens || model.maxTokens || 4096,
-    temperature: request.temperature ?? model.temperature,
+    max_tokens: request.maxTokens || 4096,
+    temperature: request.temperature ?? 0.7,
     system: request.systemPrompt,
     messages: [
       { role: 'user', content: request.prompt },
     ],
-  })
+  }
+  
+  // Add tools if provided (Anthropic format is different from OpenAI)
+  if (request.tools && request.tools.length > 0) {
+    console.log('🔧 Converting OpenAI tools to Anthropic format')
+    // Convert OpenAI tool format to Anthropic format
+    params.tools = request.tools.map((tool: any) => ({
+      name: tool.function.name,
+      description: tool.function.description,
+      input_schema: tool.function.parameters,
+    }))
+    console.log('  Converted tools:', params.tools.map((t: any) => t.name).join(', '))
+  }
+  
+  const message = await anthropic.messages.create(params)
+  
+  console.log('✅ Anthropic response received')
+  console.log('  Stop reason:', message.stop_reason)
+  console.log('  Content blocks:', message.content.length)
 
+  // Extract text content
   const content = message.content
     .filter((block) => block.type === 'text')
     .map((block) => (block as any).text)
     .join('\n')
 
+  // Extract tool calls if present
+  const tool_calls = message.content
+    .filter((block) => block.type === 'tool_use')
+    .map((block: any) => ({
+      id: block.id,
+      type: 'function',
+      function: {
+        name: block.name,
+        arguments: JSON.stringify(block.input),
+      },
+    }))
+    
+  if (tool_calls.length > 0) {
+    console.log('🔧 Tool calls extracted:', tool_calls.map((tc: any) => tc.function.name).join(', '))
+  }
+
   const tokens = message.usage.input_tokens + message.usage.output_tokens
-  const costCents = estimateCost(tokens, model.costPerMToken || 0)
+  const costCents = Math.round((tokens / 1000) * model.costPer1kTokens)
+  
+  console.log('📊 Usage:', { tokens, costCents })
 
   return {
     content,
-    modelLabel: model.label,
+    modelLabel: model.model,
     tokens,
     costCents,
     durationMs: 0, // Set by caller
+    tool_calls: tool_calls.length > 0 ? tool_calls : undefined,
   }
 }
 
 /**
- * Fallback to fast model if top model fails
+ * Fallback to GPT-5-mini if primary model fails
  */
 async function callModelWithFallback(request: ModelRequest): Promise<ModelResponse> {
-  const fastModel = getModelForJob(ModelJobType.CHAT) // Use fast model
   const startTime = Date.now()
-
-  let response: ModelResponse
-
-  if (fastModel.provider === 'openai') {
-    response = await callOpenAI(fastModel, request)
-  } else {
-    response = await callAnthropic(fastModel, request)
+  
+  // Use GPT-5-mini as fallback
+  const fallbackModel: ModelConfig = {
+    provider: 'openai',
+    model: 'gpt-5-mini-2025-08-07',
+    costPer1kTokens: 0.5, // Estimated
   }
 
+  let response: ModelResponse
+  response = await callOpenAI(fallbackModel, request)
   response.durationMs = Date.now() - startTime
 
-  await logModelUsage({
-    jobType: request.jobType,
-    modelLabel: `${response.modelLabel}-fallback`,
-    tokens: response.tokens,
-    costCents: response.costCents,
-    durationMs: response.durationMs,
-    metadata: { ...request.metadata, fallback: true },
-  })
+  try {
+    await logModelUsage({
+      jobType: request.jobType,
+      modelLabel: `${response.modelLabel}-fallback`,
+      tokens: response.tokens,
+      costCents: response.costCents,
+      durationMs: response.durationMs,
+      metadata: { ...request.metadata, fallback: true },
+    })
+  } catch (logError) {
+    console.error('Fallback model logging error (non-fatal):', logError)
+  }
 
   return response
 }
@@ -218,7 +325,7 @@ async function logModelUsage(data: {
 }
 
 /**
- * Check if an error is retryable
+ * Check if an error is retryable/fallback-worthy
  */
 function shouldRetry(error: any): boolean {
   // Retry on rate limits and temporary failures
@@ -226,6 +333,11 @@ function shouldRetry(error: any): boolean {
   if (error?.status === 503) return true // Service unavailable
   if (error?.status === 504) return true // Gateway timeout
   if (error?.code === 'ECONNRESET') return true // Connection reset
+  
+  // Fallback on Anthropic credit/billing errors
+  if (error?.status === 400 && error?.message?.includes('credit balance')) return true
+  if (error?.error?.type === 'invalid_request_error' && error?.error?.message?.includes('credit')) return true
+  
   return false
 }
 
